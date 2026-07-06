@@ -10,6 +10,7 @@
 - [2026-07-06][global] 使用者背景第一版只憑單一 repo 的文件推斷，寫得過窄（把 side project 當工作重心）→ 背景事實用 `gh` CLI 等來源現查，文件裡的列舉標明「不要依賴，現查為準」→ 已套用到：00-environment.md
 - [2026-07-06][global] 每份 rules 檔頭都放查證日期，重複且像 changelog 浪費 context → 查證日全系統只記在 00-environment.md 一處，其他檔用指向 → 已套用到：00-environment.md、10-dispatch.md
 - [2026-07-06][global] 開場看 `.remember/` 只有 logs 就判定 remember plugin 沒在運作，實際上記憶檔是 session 進行中才寫入、其他專案都有完整檔組 → 判定「某機制壞了/沒在用」前，多看幾個專案與時間點，單一時點快照會騙人 → 已套用到：00-environment.md §記憶機制
+- [2026-07-06][macroeconomics-report] 文件重組 sed 批次改連結、把「早已因改標題而死掉」的 anchor 原樣搬過去、verifier 抓到 3 條死鏈 → 改 markdown 標題（不只搬檔）也會斷下游 anchor、改完要 rg "檔名#" 全 repo 驗存活；手算 GitHub anchor 易錯、歷史文件用檔案層連結+章節名文字更穩 → 已套用到：尚未（再踩就提案入 40-maintenance §6）
 
 ## 交接欄
 
