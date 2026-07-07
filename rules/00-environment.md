@@ -38,9 +38,10 @@
 
 ## 記憶機制（三層，各有分工）
 
-- **remember plugin＝自動事件史**：hooks 自動把每個 session 做了什麼壓成時間軸，寫進各專案根目錄 `.remember/`：`now.md`（當前 buffer）→ `today-*.md`（當日）→ `recent.md`（近 7 天）→ `archive.md`（更舊），另有 `core-memories.md`（關鍵時刻）。不用維護、自動累積。**用途：續接工作時查「上次做到哪」——開工前看 `recent.md`＋`now.md` 最快**；session 收尾可用 `/remember` skill 做交接。注意檔案是 session 進行中才逐步寫入，別因開場看不到就判定它沒運作。
-- **內建持久記憶＝精選事實**：`~/.claude/projects/<專案slug>/memory/`。放使用者偏好、被糾正的教訓、進行中工作的狀態。**不會自動寫**——2026-07-06 盤點時全空即為證據——每 session 結束前依 `40-maintenance.md` §4 自查。與上層的分工：remember 記「發生過什麼」，這裡記「該記住什麼」。
-- **repo 文件＝制度層**：跨裝置、可 review，git 是同步機制（本系統即是）。`.remember/` 目前被 gitignore，前兩層都只在本機。本系統 repo（agents-guideline）即為此設計。
+- **自動事件史**：Claude 端由 remember plugin 寫進各專案根目錄 `.remember/`（`now.md`／`recent.md`／`archive.md` 等），用途是續接工作時快速查「上次做到哪」。Codex 端尚未安裝等價自動時間軸；若需要，第二階段用 Codex hooks 在 `Stop`／`PreCompact` 事件產生摘要。
+- **精選持久記憶**：Claude 端是 `~/.claude/projects/<專案slug>/memory/`；Codex 端是 `~/.codex/memories/`（`~/.codex/config.toml` 的 `[features] memories = true`）。放使用者偏好、被糾正的教訓、進行中工作的穩定狀態。不要把必守規則只放記憶；規則要進 `AGENTS.md`／`CLAUDE.md` 或 repo 文件。
+- **顯式交接檔**：Codex 收尾用 `session-handoff` skill，預設寫專案 `.codex/HANDOFF.md`。用途是讓下個 session 不靠自動記憶也能接上；若需要 Claude/remember 相容，使用者明說時再同步 `.remember/now.md`。
+- **repo 文件＝制度層**：跨裝置、可 review，git 是同步機制（本系統即是）。自動事件史與精選記憶多半只在本機；長期制度、判準與可審查流程寫進本 repo。
 
 ## 好用的 skill／plugin（實戰驗證的優先選項）
 
@@ -50,6 +51,7 @@
 - **查網頁／爬資料**：firecrawl 系列（search／scrape／crawl）——在 subagent 內用，只把結論帶回主對話。
 - **產出文件**：docx／pptx／xlsx／pdf 等 anthropic-skills。
 - **外部第二意見／整包委派**：codex plugin（用法見 `10-dispatch.md`）。
+- **Codex 收尾交接**：`session-handoff` skill——使用者說「收尾」「記一下」「下次續接」「handoff」時，整理目標／已完成／驗證／下一步到 `.codex/HANDOFF.md`。
 - **找新工具**：遇到「感覺應該有現成工具」的問題，先搜 mcp-registry 的 connector 清單或問使用者，找不到再自己寫。
 
 ## 查證過的事實（2026-07-06；版本更新後重新核對）

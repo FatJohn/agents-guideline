@@ -18,10 +18,10 @@
 - macOS 26.5.2、zsh、brew ✓
 - 工具：node ✓、python3 ✓、flutter ✓、dotnet ✓、gh ✓、rg ✓、jq ✓；fd ✗（找檔用 `rg --files` 或裝 fd）
 - 專案位置：`~/Projects/`（公司與個人混放）、個人專案集中在 `~/Projects/FatJohn/`
-- 本系統 repo：`~/Projects/FatJohn/agents-guideline`，symlink 裝進 `~/.claude/`
+- 本系統 repo：`~/Projects/FatJohn/agents-guideline`，Claude Code symlink 裝進 `~/.claude/`，Codex symlink 裝進 `~/.codex/`
 - 驗證能力：Flutter／.NET／Node 皆可本地跑；個人專案部署走 Zeabur
 
 ## Windows 桌機（尚未建檔）
 
 > 第一次在那台機器用 Claude Code 跑多步驟任務時，照探測清單補上這段。
-> 已知：存在一台 Windows 桌機（使用者口述，2026-07-06）；C#/.NET/WPF/UWP 開發推測在此進行。注意 Windows 上 `~/.claude/` 的 symlink 安裝方式可能不同（mklink 或改用 cp），建檔時一併驗證並記錄。
+> 已知：存在一台 Windows 桌機（使用者口述，2026-07-06）；C#/.NET/WPF/UWP 開發推測在此進行。注意 Windows 上 `~/.claude/`／`~/.codex/` 的 symlink 安裝方式可能不同（mklink 或改用 cp），建檔時一併驗證並記錄。
