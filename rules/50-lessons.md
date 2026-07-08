@@ -13,6 +13,7 @@
 - [2026-07-06][macroeconomics-report] 文件重組 sed 批次改連結、把「早已因改標題而死掉」的 anchor 原樣搬過去、verifier 抓到 3 條死鏈 → 改 markdown 標題（不只搬檔）也會斷下游 anchor、改完要 rg "檔名#" 全 repo 驗存活；手算 GitHub anchor 易錯、歷史文件用檔案層連結+章節名文字更穩 → 已套用到：尚未（再踩就提案入 40-maintenance §6）
 - [2026-07-07][agents-guideline] 派 subagent 做分析，subagent 繼承全域 CLAUDE.md 後把「指揮官不下場」套在自己身上、再往下轉包，形成 5 層以上遞迴鏈，每層 ~55k tokens 空燒且回報「已派工」即結束（假完成的新型態）→ 派工 prompt 開頭明寫「你是被派來的執行者，親自完成，禁止呼叫 Agent 工具」；收到「我已再派背景工作」的回報一律視為未完成，立即糾正 → 已套用到：30-delegation-templates.md 通用規則
 - [2026-07-07][macroeconomics-report] 背景 subagent（Agent tool、run_in_background）在筆電休眠時被中斷（Connection closed mid-response、status failed），最後訊息停在「Both clean post-commit. Now write report」→ 教訓：background agent 遇機器休眠會死，但**若已 commit，work 原子性保留在 git**；agent 死掉的 partial 自我回報不可信，controller 一律用 `git log`/`git show`/獨立跑測試核實際落地，從最後 commit 續接而非重跑（本例 Task 5 已 commit、獨立驗證全綠後照常進 review→PR）→ 已套用到：尚未（可考慮：長任務優先前景跑，或 dispatch 後在 ledger 記「commit 才算數、agent 回報僅參考」）
+- [2026-07-08][macroeconomics-report] 逐源獨立 PR、第二刀 stacked 在第一刀 branch 上（共用檔避 merge 衝突）；merge 第一刀 PR 時用 `gh pr merge --delete-branch` 刪掉 base branch → GitHub 自動**關閉**（非 retarget）stacked 在其上的第二刀 PR、且 closed PR 無法 reopen/改 base → 教訓：merge「有其他 PR stack 在其上」的 branch 時**勿用 --delete-branch**；正解＝先 `gh pr edit <stacked#> --base main` retarget 再 merge base PR，或 merge 時不刪 branch。救援：stacked branch 本身未受影響（commits 完整）、直接用它開新 PR 到 main 即可（本例 #130 被誤關→開 #131 救回、兩刀順利進 main）→ 已套用到：尚未（再踩就提案入 20-judgment 或 dispatch 檔）
 
 ## 交接欄
 
