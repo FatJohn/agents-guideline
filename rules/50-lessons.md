@@ -14,7 +14,9 @@
 - [2026-07-07][agents-guideline] 派 subagent 做分析，subagent 繼承全域 CLAUDE.md 後把「指揮官不下場」套在自己身上、再往下轉包，形成 5 層以上遞迴鏈，每層 ~55k tokens 空燒且回報「已派工」即結束（假完成的新型態）→ 派工 prompt 開頭明寫「你是被派來的執行者，親自完成，禁止呼叫 Agent 工具」；收到「我已再派背景工作」的回報一律視為未完成，立即糾正 → 已套用到：30-delegation-templates.md 通用規則
 - [2026-07-07][macroeconomics-report] 背景 subagent（Agent tool、run_in_background）在筆電休眠時被中斷（Connection closed mid-response、status failed），最後訊息停在「Both clean post-commit. Now write report」→ 教訓：background agent 遇機器休眠會死，但**若已 commit，work 原子性保留在 git**；agent 死掉的 partial 自我回報不可信，controller 一律用 `git log`/`git show`/獨立跑測試核實際落地，從最後 commit 續接而非重跑（本例 Task 5 已 commit、獨立驗證全綠後照常進 review→PR）→ 已套用到：尚未（可考慮：長任務優先前景跑，或 dispatch 後在 ledger 記「commit 才算數、agent 回報僅參考」）
 - [2026-07-08][macroeconomics-report] 逐源獨立 PR、第二刀 stacked 在第一刀 branch 上（共用檔避 merge 衝突）；merge 第一刀 PR 時用 `gh pr merge --delete-branch` 刪掉 base branch → GitHub 自動**關閉**（非 retarget）stacked 在其上的第二刀 PR、且 closed PR 無法 reopen/改 base → 教訓：merge「有其他 PR stack 在其上」的 branch 時**勿用 --delete-branch**；正解＝先 `gh pr edit <stacked#> --base main` retarget 再 merge base PR，或 merge 時不刪 branch。救援：stacked branch 本身未受影響（commits 完整）、直接用它開新 PR 到 main 即可（本例 #130 被誤關→開 #131 救回、兩刀順利進 main）→ 已套用到：尚未（再踩就提案入 20-judgment 或 dispatch 檔）
-
+- [2026-07-08][global] figma plugin 已啟用但 session 內搜不到 `figma-dev-mode-mcp-server` 工具（MCP 未在 session 啟動時註冊）→ Figma 桌面 App 的 Dev Mode MCP server 若在 127.0.0.1:3845 有跑，可用 curl 手動走 JSON-RPC（initialize→tools/call get_design_context/get_screenshot/get_metadata）直接取設計稿，不必重開 session → 已套用到：尚未
+- [2026-07-08][web-pulse-workspace] 背景 Explore agent 無聲消失（TaskList 查無、無完成通知）→ 需要結果才能往下走的掃描任務改 run_in_background:false 同步等 → 已套用到：尚未
+- [2026-07-08][web-pulse-workspace] spawn_task 背景 session 與主 session 在**同一個 git 工作目錄**動工（非隔離 worktree）：背景任務把主 session 未提交的變更 stash 走、換了分支，主 session 的 `git add -A` 把對方做到一半的檔案 commit＋push 上去 → 同 repo 有其他 session 在跑時，commit 前先 `git status`＋`git stash list` 核對內容物是不是自己的；要並行就自己開 `git worktree`，誤推立即 `push --delete` 撤下 → 已套用到：尚未
 ## 交接欄
 
 > 只放「因 session 中斷而未完成的任務」；教訓寫上面，不要兩邊重複。
