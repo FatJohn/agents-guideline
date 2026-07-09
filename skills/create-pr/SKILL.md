@@ -6,7 +6,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Bash(mktemp), Bash(cat), Bash(rm:*), Rea
 
 # Create PR
 
-分析 branch 變更、生成描述、建立 Pull Request。適用任何 repo；先偵測該 repo 的慣例（base branch、PR template、title 風格、語言）再生成，不假設特定 stack。
+分析 branch 變更、生成描述、建立 Pull Request。適用任何 repo；先偵測該 repo 的 base branch 與 PR template 再生成，不假設特定 stack。**PR 標題與描述預設一律使用繁體中文台灣用語（技術名詞與程式碼識別字保留原文）；標題採一句摘要主題，不用 Conventional Commits 或任何 prefix。**
 
 ## 1. 核心原則
 
@@ -53,7 +53,7 @@ Good -- 同一概念的變更聚合描述：
 
 ### 2.2 偵測 repo 慣例
 
-生成任何內容前，先偵測三件事：
+生成任何內容前，先偵測兩件事：
 
 ```bash
 # (a) base branch：預設取 origin 的 HEAD；使用者指定則優先。
@@ -65,13 +65,12 @@ BASE="$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^
 ls .github/pull_request_template.md .github/PULL_REQUEST_TEMPLATE.md \
    docs/pull_request_template.md PULL_REQUEST_TEMPLATE.md 2>/dev/null
 ls .github/PULL_REQUEST_TEMPLATE/ 2>/dev/null   # 多 template 目錄，有的話問使用者選哪個
-
-# (c) title 慣例與語言：從近期 PR 學
-gh pr list --state merged --limit 10 --json title -q '.[].title'
 ```
 
-- **title 慣例**：近期 PR 若一致使用 Conventional Commits（`feat(scope): ...`）或 ticket prefix（`[ABC-123] ...`），跟隨之；風格混雜或無歷史時，預設「一句簡潔摘要、不加 prefix」。
-- **語言**：跟隨 PR template 或近期 PR 的主要語言；都沒有可參考時，跟隨使用者當下使用的語言。
+title 風格與語言不必偵測、不跟隨 repo 近期慣例，一律照下列固定規則：
+
+- **title 風格（固定）**：一句簡潔摘要主題，直接描述這個 PR 做了什麼，**不用 Conventional Commits（`feat:`／`fix(scope):` 等）、也不加 ticket 或任何 prefix**。
+- **語言（固定）**：PR 標題與描述一律使用**繁體中文台灣用語**，技術名詞與程式碼識別字（class／method／API 名等）保留原文。唯一例外：使用者當下明確要求改用其他語言時才跟隨。
 
 使用者指定 base branch 時，改設 `BASE="<使用者指定的名稱>"`，並先驗證名稱合法（白名單字元＋確認為實際存在的 ref），避免 shell injection：
 
@@ -103,7 +102,7 @@ git diff --name-only "origin/$BASE"...HEAD
 ### 2.5 生成 Summary 與 Title
 
 - **Summary**：2-3 句概述。有 PR 目的時以目的為主軸；重要功能移除必須在 Summary 說明。
-- **Title**：按 2.2 偵測到的慣例生成一句摘要，語言跟隨 repo 慣例。
+- **Title**：一句簡潔摘要主題，直接描述這個 PR 做了什麼，不用 Conventional Commits（`feat:`／`fix:` 等）或 ticket prefix；語言用繁體中文台灣用語，技術名詞保留原文。
 
 ### 2.6 組裝 PR Body
 
