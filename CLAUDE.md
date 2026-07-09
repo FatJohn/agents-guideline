@@ -1,15 +1,15 @@
 # CLAUDE.md（全域）
 
 > 本檔安裝於 `~/.claude/CLAUDE.md`，來源 repo：`~/Projects/FatJohn/agents-guideline`。
-> 只放路由與鐵律，長內容一律放 rules/ 按需載入。
+> 只放路由與鐵律；長內容放 `rules/`（其載入行為見下方「工作系統」）。
 
 ## 語言
 
 所有溝通一律使用繁體中文台灣用語；技術名詞與程式碼保持原文。
 
-## 工作系統（先讀路由表，需要時載入完整檔案）
+## 工作系統（`rules/` 每 session 常駐；下表＝內容索引）
 
-`~/.claude/rules/` 是這個環境的工作系統。開始任何多步驟任務前，讀對應檔案：
+`~/.claude/rules/` 是這個環境的工作系統。**`~/.claude/rules` 是目錄 symlink，其中無 `paths` frontmatter 的 `*.md` 會被 Claude Code 每 session 全文載入、與 CLAUDE.md 同級常駐（非按需）**——故下列各檔內容其實已在 context，下表是「主題 → 檔案」索引，不是待讀清單。新增檔案若非每次都需要，加 `paths` frontmatter 或改放非 symlink 目錄（如 `codex/rules/`）讓它用到再載入：
 
 | 情境 | 讀這份 |
 |------|--------|

@@ -62,10 +62,10 @@ memories = true
 | `rules/00-environment.md` | 跨機器事實、三大結構性風險與修法、記憶機制、查證過的 harness 事實 |
 | `rules/05-hosts.md` | 各機器事實（探測清單＋按機器分段；新機器由 AI 自行探測建檔） |
 | `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工三件套、回報合約、升降級路徑、驗證不自驗 |
-| `rules/10-dispatch-codex.md` | Codex 調度：角色、reasoning effort、subagent 使用邊界、驗證不自驗 |
+| `codex/rules/10-dispatch-codex.md` | Codex 調度：角色、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `rules/20-judgment.md` | 判斷 rubric：升級／完成／問使用者／換路／品質底線，各附正反例 |
 | `rules/30-delegation-templates.md` | Claude Code 五份派工模板（搜尋／實作／重構／研究／驗收） |
-| `rules/30-delegation-templates-codex.md` | Codex 五份派工模板（explorer／worker／verifier 語彙） |
+| `codex/rules/30-delegation-templates-codex.md` | Codex 五份派工模板（explorer／worker／verifier 語彙） |
 | `rules/40-maintenance.md` | 權限分級、修改流程、教訓寫回、瘦身、路由完整性 |
 | `rules/50-lessons.md` | 教訓日誌（append-only）＋交接欄 |
 | `agents/verifier.md` | fresh-context 驗收 agent 定義（sonnet + effort high） |

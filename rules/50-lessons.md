@@ -17,6 +17,7 @@
 - [2026-07-08][global] figma plugin 已啟用但 session 內搜不到 `figma-dev-mode-mcp-server` 工具（MCP 未在 session 啟動時註冊）→ Figma 桌面 App 的 Dev Mode MCP server 若在 127.0.0.1:3845 有跑，可用 curl 手動走 JSON-RPC（initialize→tools/call get_design_context/get_screenshot/get_metadata）直接取設計稿，不必重開 session → 已套用到：尚未
 - [2026-07-08][web-pulse-workspace] 背景 Explore agent 無聲消失（TaskList 查無、無完成通知）→ 需要結果才能往下走的掃描任務改 run_in_background:false 同步等 → 已套用到：尚未
 - [2026-07-08][web-pulse-workspace] spawn_task 背景 session 與主 session 在**同一個 git 工作目錄**動工（非隔離 worktree）：背景任務把主 session 未提交的變更 stash 走、換了分支，主 session 的 `git add -A` 把對方做到一半的檔案 commit＋push 上去 → 同 repo 有其他 session 在跑時，commit 前先 `git status`＋`git stash list` 核對內容物是不是自己的；要並行就自己開 `git worktree`，誤推立即 `push --delete` 撤下 → 已套用到：尚未
+- [2026-07-09][global] /doctor 查出 `~/.claude/rules` 是**目錄 symlink → agents-guideline/rules**，Claude Code 會把整個資料夾**每 session 無條件全文載入**（官方 memory 功能：無 `paths` frontmatter 的 rule＝launch 時載入，與 CLAUDE.md 同級）；router 寫的「rules/ 按需載入」對 Claude 其實無效、9 檔約 ~10.3k tokens 常駐。純 Codex 檔（`10/30-*-codex.md`）先試加 `paths` frontmatter（可行，但依賴未確認的 user 層級 paths 支援），最後改**結構性分離**：`git mv` 到 `agents-guideline/codex/rules/`（Claude 的 symlink 看不到→保證不載入；Codex 靠 AGENTS.md 絕對路徑按需讀、不受影響），引用同步改 `AGENTS.md`／`README.md` → 教訓：要讓某檔在 Claude 不自動載入，**把它移出被 symlink 的 `rules/` 目錄**比加 frontmatter 穩；日後 Codex-only 或非 Claude 的守則一律放 `codex/rules/`、不放 `rules/`。router「按需載入」措辭對 rules 檔其實不成立，是否修正留給使用者 → 已套用到：AGENTS.md、README.md、檔案位置 codex/rules/
 ## 交接欄
 
 > 只放「因 session 中斷而未完成的任務」；教訓寫上面，不要兩邊重複。
