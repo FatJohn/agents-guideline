@@ -11,12 +11,14 @@
 4. 這台機器能做哪些驗證：能不能跑 Flutter build？.NET build？（決定 `20-judgment.md` §2 在這台機器怎麼落地）
 5. 記憶注意：內建持久記憶與 `.remember/` 都是本機的——機器綁定的事實要註明是哪台機器的
 
-## xushengzhedeMacBook-Pro（macOS，主力開發機）
+## 主力 Mac（目前 hostname：`Mac`，arm64）
 
-> 探測日：2026-07-06
+> 探測日：2026-07-13
 
-- macOS 26.5.2、zsh、brew ✓
-- 工具：node ✓、python3 ✓、flutter ✓、dotnet ✓、gh ✓、rg ✓、jq ✓；fd ✗（找檔用 `rg --files` 或裝 fd）
+- macOS 26.5.2（Build 25F84）、zsh（`/bin/zsh`）、Homebrew ✓（`/opt/homebrew/bin/brew`）
+- Claude Code 2.1.207；Codex 0.144.1
+- 工具：git ✓、gh ✓、node ✓、python3 ✓、flutter ✓、dotnet ✓、rg ✓、jq ✓；fd ✗（找檔用 `rg --files` 或安裝 fd）
+- hostname 只作當場參考，不作跨重開機或改名後的唯一識別。
 - 專案位置：`~/Projects/`（公司與個人混放）、個人專案集中在 `~/Projects/FatJohn/`
 - 本系統 repo：`~/Projects/FatJohn/agents-guideline`，Claude Code symlink 裝進 `~/.claude/`，Codex symlink 裝進 `~/.codex/`
 - 驗證能力：Flutter／.NET／Node 皆可本地跑；個人專案部署走 Zeabur

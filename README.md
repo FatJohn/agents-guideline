@@ -30,8 +30,13 @@ cp -r ~/.codex ~/.codex.backup-$(date +%F) 2>/dev/null
 
 REPO=~/Projects/FatJohn/agents-guideline
 mkdir -p ~/.codex/agents
-for pair in "AGENTS.md:$HOME/.codex/AGENTS.md" "codex/agents/verifier.toml:$HOME/.codex/agents/verifier.toml"; do
+for pair in "AGENTS.md:$HOME/.codex/AGENTS.md"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
+  [ -e "$dst" ] && echo "略過（已存在，需手動處理）：$dst" || ln -s "$src" "$dst"
+done
+
+for agent in scanner explorer verifier; do
+  src="$REPO/codex/agents/$agent.toml"; dst="$HOME/.codex/agents/$agent.toml"
   [ -e "$dst" ] && echo "略過（已存在，需手動處理）：$dst" || ln -s "$src" "$dst"
 done
 
@@ -43,6 +48,16 @@ done
 ```
 
 不要把本 repo 的 `rules/*.md` symlink 到 `~/.codex/rules/`。Codex 的 `~/.codex/rules/*.rules` 是命令權限規則（Starlark），不是 Markdown 工作守則；Codex 入口 `AGENTS.md` 會直接指向本 repo 的 `rules/` 文件。
+
+請將下列設定合併進 `~/.codex/config.toml`。若檔案已有 `[agents]`，只更新其中的 `max_threads` 與 `max_depth`，不可新增第二個 `[agents]` table；只有原本沒有 `[agents]` 時才新增整段。
+
+Codex subagent 並行與遞迴上限建議固定：
+
+    [agents]
+    max_threads = 4
+    max_depth = 1
+
+`max_depth = 1` 禁止 subagent 再往下遞迴派工；調高前需重新評估 token、延遲與 working-tree 風險。
 
 Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用：
 
@@ -65,17 +80,19 @@ memories = true
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `rules/20-judgment.md` | 判斷 rubric：升級／完成／問使用者／換路／品質底線，各附正反例 |
 | `rules/30-delegation-templates.md` | Claude Code 五份派工模板（搜尋／實作／重構／研究／驗收） |
-| `codex/rules/30-delegation-templates-codex.md` | Codex 五份派工模板（explorer／worker／verifier 語彙） |
+| `codex/rules/30-delegation-templates-codex.md` | Codex A–F 六份派工模板（scanner 掃描；explorer repo 探索與外部研究；worker 實作與重構；verifier 驗收） |
 | `rules/40-maintenance.md` | 權限分級、修改流程、教訓寫回、瘦身、路由完整性 |
 | `rules/50-lessons.md` | 教訓日誌（append-only）＋交接欄 |
 | `agents/verifier.md` | fresh-context 驗收 agent 定義（sonnet + effort high） |
-| `codex/agents/verifier.toml` | Codex fresh-context 驗收 custom agent 定義（high reasoning effort） |
+| `codex/agents/scanner.toml` | Codex Luna/medium/read-only 精確掃描 agent |
+| `codex/agents/explorer.toml` | Codex Terra/medium/read-only 探索 agent |
+| `codex/agents/verifier.toml` | Codex Sol/high/read-only fresh-context 驗收 agent |
 | `codex/skills/session-handoff/SKILL.md` | Codex 收尾／交接 skill，產生專案 `.codex/HANDOFF.md` |
 
 ## 三條鐵律
 
 1. **無證據不得宣稱完成**——回報分級：已驗證（附測試輸出／CI 連結）／待 CI／未驗證
-2. **對外動作需本 session 明確授權**——訊息、郵件、merge PR、push 共享分支
+2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。
 3. **驗證不自驗**——驗收派 fresh-context 的 verifier，不用繼承脈絡的 agent
 
 ## 已知退化模式與預防（維護者必讀）

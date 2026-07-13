@@ -9,7 +9,7 @@
 |------|------|-------------|
 | `00-environment.md` | 跨機器事實與風險 | ✅ 更新過時事實（附當場驗證與查證日期）；「三大結構性風險」框架不可移除 |
 | `05-hosts.md` | 各機器事實 | ✅ 新機器段落可自行加；過時事實可更新（附探測日） |
-| `10-dispatch.md`／`10-dispatch-codex.md`／`20-judgment.md`／`30-delegation-templates.md`／`30-delegation-templates-codex.md` | 系統核心 | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |
+| `rules/10-dispatch.md`／`codex/rules/10-dispatch-codex.md`／`rules/20-judgment.md`／`rules/30-delegation-templates.md`／`codex/rules/30-delegation-templates-codex.md` | 系統核心 | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |
 | `40-maintenance.md`（本檔） | 憲法 | ❌ 動之前先問使用者 |
 | `50-lessons.md` | 教訓日誌 | ✅ 隨時可加（append-only） |
 | `agents/*.md`／`codex/agents/*.toml` | agent 定義 | ✅ 新角色可加；改既有角色的職責先問 |
@@ -25,6 +25,13 @@
 2. 修改（優先「新增段落」而非動既有文字）。
 3. 驗證：派 `verifier` read-back，驗收條件至少包含「與其他 rules 檔無矛盾」「引用的路徑/指令實際存在」。
 4. 提醒使用者 repo 有未 commit 的變更（不要自行 commit）。
+
+### 並行與本機設定安全
+
+- 同一 working tree 同時只能有一個寫入者；需要平行寫入時，必須使用彼此獨立的 worktree。
+- 即使工作切成不重疊檔案，只要共用同一 working tree，寫入仍必須序列執行。
+- 修改 `~/.codex/config.toml` 前先備份，修改後驗證不存在重複的 TOML table。
+- commit 前 read-back：`git status --short`、`git diff --cached`、`git stash list`；確認 staged scope 與 stash 狀態後才進行下一步。仍須遵守本節第 4 步：不要自行 commit。
 
 ## 3. 教訓寫回（每次踩坑後）
 
