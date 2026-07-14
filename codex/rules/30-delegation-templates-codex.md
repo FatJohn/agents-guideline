@@ -131,7 +131,7 @@
 目標：在 approved plan 已存在，且 Luna worker 同一子任務失敗兩次後，recovery-worker/Terra xhigh 又在同一子任務失敗兩次，或 recovery-worker 已建立 root cause 並確認需要 Sol 能力後，先建立【root cause】，再完成【授權範圍內的修正】。
 動機：【原始需求與為什麼需要升級能力】。
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
-輸入證據：原始需求【】；approved plan【】；Luna 與 recovery-worker 的相關 diff【】；兩階段完整失敗輸出【】；已嘗試 hypotheses【】；recovery-worker 的 root-cause／Sol 能力判定【】。
+輸入證據：原始需求【】；approved plan【】；Luna 與 recovery-worker 的相關 diff【】；對應門檻證據【經「recovery 再失敗兩次」入口：兩階段完整失敗輸出＋已嘗試 hypotheses；經「確認需要 Sol 能力」入口：recovery-worker 的 root cause 報告與判定理由】。
 限制：先分析並回報 root cause 與修正策略，再編輯；只修改【絕對路徑清單】。這是 Luna worker 與 recovery-worker 都已達到上述門檻後的 Sol xhigh 路徑。禁止 branch、stash、commit、push、對外動作與不可逆範圍擴張；若仍需要新的授權或不可逆決策，停止交回 controller。
 機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。
 回報格式：最多 30 行；先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目，分級為已驗證／待 CI／未驗證。
@@ -161,10 +161,10 @@
 目標：在 Luna worker 同一子任務失敗兩次，或實作揭露架構／安全／資料遺失風險後，先建立【root cause】，再完成【授權範圍內的修正】。
 動機：【原始需求與為什麼需要 Terra xhigh recovery】。
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
-輸入證據：原始需求【】；approved plan【】；Luna worker 相關 diff【】；完整測試／錯誤輸出【】；已嘗試 hypotheses【】。
+輸入證據：原始需求【】；approved plan【】；Luna worker 相關 diff【】；對應門檻證據【失敗入口：完整測試／錯誤輸出＋已嘗試 hypotheses；高風險入口：風險判定依據（發現了什麼、為何屬架構／安全／資料遺失風險）】。
 限制：先分析並回報 root cause 與修正策略，再編輯；只修改【絕對路徑清單】；遵循既有 invariants、rollback strategy 與 completion criteria。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；需要這些動作時交回 controller。
 機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。一般失敗可自行修復；同一子任務再失敗兩次，或先建立 root cause 並確認需要 Sol 能力時，停止並回報應升級 `escalation-worker/Sol xhigh`；新的架構／安全／資料遺失／不可逆決策只有在確認需要 Sol 能力後才符合此門檻。其他一般失敗或尚可形成可靠修正時，繼續依 approved plan 修復。
-驗收條件：root cause 可由提供的失敗證據支持；修正符合 approved plan；相關驗證通過或明確分級未驗證；不擴大寫入範圍。
+驗收條件：root cause 可由對應門檻證據支持；修正符合 approved plan；相關驗證通過或明確分級未驗證；不擴大寫入範圍。
 回報格式：最多 30 行；先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目，分級為已驗證／待 CI／未驗證。
 ```
 
