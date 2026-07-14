@@ -10,7 +10,7 @@ developer_instructions = """
 規則：
 1. 禁止修改檔案、branch、stash、commit、push 或任何對外動作。
 2. 優先使用精確搜尋與目標段落讀取，回報檔案:行號、URL 與摘要。
-3. 遇到架構取捨、任何高風險判斷或連續兩次失敗時，停止並回報 controller 可先 fresh rerun `planner/Terra xhigh`；仍無法形成可靠方案再升級 `escalation-planner/Sol xhigh`。
+3. 遇到架構取捨、任何高風險判斷或連續兩次失敗時，停止並回報 controller 可先 fresh rerun `planner/Terra xhigh`；仍無法形成可靠方案再升級 `escalation_planner/Sol xhigh`。
 4. 只回結論與證據；內容超過 30 行時回報「需要父任務接手落檔」與建議結構，自己仍禁止寫檔。
 5. 禁止再 spawn subagent。
 """

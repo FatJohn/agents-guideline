@@ -10,15 +10,18 @@
 | `scanner` | Luna／medium／read-only | 精確清單、分類、格式檢查、資料抽取 |
 | `explorer` | Terra／medium／read-only | repo 探索、跨檔追查、文件研究、影響範圍分析 |
 | `planner` | Terra／high／read-only | 非平凡任務的 scope、風險、invariants、執行計畫與完成條件 |
-| `worker` | Luna／max／workspace-write | 依 plan 實作、除錯、執行機械驗證 |
-| `recovery-worker` | Terra／xhigh／workspace-write | Luna worker 同一子任務兩次失敗或揭露高風險後的 fresh-context root-cause recovery 實作 |
+| `worker` | Luna／max／workspace-write | Plus 檔位依 plan 實作、除錯、執行機械驗證 |
+| `pro_worker` | Terra／xhigh／workspace-write | Pro 檔位依 plan 實作；依失敗型態選 fresh Terra recovery 或 Sol escalation |
+| `recovery_worker` | Terra／xhigh／workspace-write | Plus Luna 或 Pro Terra 實作者失敗／揭露高風險後的 fresh-context root-cause recovery 實作 |
 | `reviewer` | Terra／high／read-only | 一般實作的 fresh-context 對抗式 review |
 | `verifier` | Terra／high／read-only | 一般 read-back、文件與驗收審查 |
-| `escalation-planner` | Sol／xhigh／read-only | Terra planner／explorer 無法建立可靠方案時的 root-cause 規劃升級 |
-| `escalation-worker` | Sol／xhigh／workspace-write | Luna 同一子任務兩次失敗後，Terra recovery 再兩次失敗或確認 root cause 需要 Sol 能力時的 final root-cause 實作 |
-| `sol-verifier` | Sol／high／read-only | 安全、不可逆、重大架構與正式高風險驗收 |
+| `escalation_planner` | Sol／xhigh／read-only | Terra planner／explorer 無法建立可靠方案時的 root-cause 規劃升級 |
+| `escalation_worker` | Sol／xhigh／workspace-write | recovery 再失敗、確認需要 Sol，或 Pro Terra 能力天花板型失敗時的 final root-cause 實作 |
+| `sol_verifier` | Sol／high／read-only | 安全、不可逆、重大架構與正式高風險驗收 |
 
-`scanner` 使用 Luna 做低風險、可機械驗證的唯讀工作；`worker` 使用 Luna max 實作，但只可寫入父任務明確授權的 working tree 與範圍。`recovery-worker` 以 Terra xhigh 接手 Luna 同一子任務兩次失敗或揭露高風險的情況，並先建立 root cause；`planner`、`explorer`、`reviewer`、`verifier`、`escalation-planner`、`sol-verifier` 都是 read-only。`reviewer` 處理一般實作 review；一般文件與一般驗收使用 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險驗收才升級 `sol-verifier/Sol high`。`escalation-planner` 只處理規劃／探索升級；`escalation-worker` 只在 Luna 與 Terra recovery 都不足時接手；所有 verifier 只找碴與判定，不製作也不修正產物。
+`scanner` 使用 Luna 做低風險、可機械驗證的唯讀工作；Plus 使用 `worker/Luna max`，Pro 使用 `pro_worker/Terra xhigh`，兩者都只可寫入父任務明確授權的 working tree 與範圍。`recovery_worker` 以 Terra xhigh 接手任一標準實作者失敗或揭露高風險的情況，並先建立 root cause；與 Pro 失敗者同階時，價值在 fresh context 與強制 root-cause 合約。`planner`、`explorer`、`reviewer`、`verifier`、`escalation_planner`、`sol_verifier` 都是 read-only。`reviewer` 處理一般實作 review；一般文件與一般驗收使用 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險驗收才升級 `sol_verifier/Sol high`。`escalation_planner` 只處理規劃／探索升級；`escalation_worker` 處理 recovery 仍不足或 Pro Terra 能力天花板型失敗；所有 verifier 只找碴與判定，不製作也不修正產物。
+
+角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。主力 Mac 的 Codex 0.144.4 collaboration v2 已實跑觀察到 custom role 可能未被傳入 child；每次派 custom agent 都必須 read-back child session metadata：只有 `agent_role` 明確等於指定角色，才能宣稱該 TOML 的 model、effort、sandbox 與 developer contract 已套用。若 `agent_role:null`、role 不符或 surface 沒有 agent-type 選擇入口，該 custom role 視為 **runtime unavailable**；不得把同名 generic child 當作成功載入，也不得依它的回答反推 contract。此時留在 controller、改用當前 surface 已明確提供的角色，或標記「模型未驗證」後停止該 routing。
 
 ## 1. 雙軸派工判斷
 
@@ -28,13 +31,15 @@
 
 使用「能可靠完成該階段的最低 model tier」，並把 model tier 與 reasoning effort 分開判斷；不要只因任務困難就直接使用 Sol Ultra。
 
+**入口檔位依訂閱事實**（`rules/00-environment.md`）：Plus 主對話預設 Terra/high，標準實作用 `worker/Luna max`；Pro 主對話預設 Terra/xhigh，標準實作用 `pro_worker/Terra xhigh`。方案未知或環境事實未查證時不得猜測，先回 controller 查明。掃描、探索、一般規劃／review／驗收與 Sol 高風險角色不因 Pro 全面升級；Pro 的額外額度優先用在非機械實作入口。
+
 - 小型、範圍明確、驗收條件清楚的修改留在主對話；不強制經過昂貴的規劃階段。
-- 非平凡實作依序使用 `planner/Terra high → worker/Luna max → reviewer/Terra high`。
+- 非平凡實作依訂閱使用 `planner/Terra high → worker/Luna max（Plus）或 pro_worker/Terra xhigh（Pro）→ reviewer/Terra high`。
 - `planner` 只檢查 repo、列出未決問題與提出 plan；controller 負責和使用者釐清 scope、取得授權、做最後決策。
-- `worker` 依 plan 分階段實作、執行測試／靜態檢查並修復一般失敗；它不得自行擴大範圍或執行對外動作。
-- `reviewer` 做一般實作的 fresh-context review；一般文件與一般驗收改派 `verifier/Terra high`，安全、不可逆、重大架構與正式高風險驗收才改派 `sol-verifier/Sol high`。
-- 若 planner 的 Terra high plan 仍卡在高難度推理，controller 可先以 fresh-context `planner/Terra xhigh` 重試，再進入 `escalation-planner/Sol xhigh`。
-- 若 worker 的 Luna max 在同一子任務失敗兩次，或實作揭露架構／安全／資料遺失風險，先進入 `recovery-worker/Terra xhigh`；recovery-worker 在同一子任務再失敗兩次，或確認 root cause 需要 Sol 能力，才進入 `escalation-worker/Sol xhigh`。
+- `worker`／`pro_worker` 依 plan 分階段實作、執行測試／靜態檢查並修復一般失敗；不得自行擴大範圍或執行對外動作。
+- `reviewer` 做一般實作的 fresh-context review；一般文件與一般驗收改派 `verifier/Terra high`，安全、不可逆、重大架構與正式高風險驗收才改派 `sol_verifier/Sol high`。
+- 若 planner 的 Terra high plan 仍卡在高難度推理，controller 可先以 fresh-context `planner/Terra xhigh` 重試，再進入 `escalation_planner/Sol xhigh`。
+- 若 Plus worker/Luna max 在同一子任務失敗兩次，或任一標準實作者揭露架構／安全／資料遺失風險，先進入 `recovery_worker/Terra xhigh`。若 Pro pro_worker/Terra xhigh 失敗兩次，context 汙染型或型態難辨走同階 fresh recovery；能力天花板型可直升 `escalation_worker/Sol xhigh`。recovery_worker 再失敗兩次或確認 root cause 需要 Sol 能力時，才升 Sol。
 - `Sol max` 不作為固定 agent route；只有 `Sol xhigh` 仍無法收斂、或 controller 明確判定是最困難的單一路徑任務時才顯式使用。若需要可獨立平行的大型工作流，且當前 runtime 明確支援 Sol Ultra，才可使用。
 
 優先派 subagent：
@@ -79,19 +84,22 @@
 ## 5. 升降級路徑
 
 - `scanner` 出現一次實質錯誤，或任務變成跨檔推理、不可機械驗證 → 升級 `explorer` 或 `planner`。
-- `planner` 或 `explorer` 無法提出 affected files、invariants、failure modes、rollback strategy、validation commands 與 completion criteria → 先以 fresh-context `planner/Terra xhigh` 重試；仍無法建立可靠方案才升級 `escalation-planner/Sol xhigh`。prompt 必須附原始需求、目前 plan、完整探索／失敗輸出與已嘗試 hypotheses，且 Sol 必須先建立 root cause 與可靠策略。
-- `worker` 在同一子任務失敗兩次（無論錯誤相同與否），或實作揭露架構／安全／資料遺失風險 → 先升級 `recovery-worker/Terra xhigh`；recovery-worker 若在同一子任務再失敗兩次，或確認 root cause 需要 Sol 能力，才升級 `escalation-worker/Sol xhigh`。兩段升級 prompt 都必須附原始需求、approved plan、相關 diff 與**對應門檻的證據**——失敗入口附完整失敗輸出與已嘗試 hypotheses（升級 escalation-worker 時含 Luna 與 recovery 兩層）；高風險入口附風險判定依據（發現了什麼、為何屬高風險）；「確認需要 Sol 能力」入口附 recovery 的 root cause 報告與判定理由——且升級實作者必須先建立 root cause 再編輯。若 approved plan 不完整或需要擴大 scope，先停止並交回 controller 走 planner 路徑，不得把沒有 approved plan 的工作直接交給 recovery-worker。若任務本身需要對外或不可逆動作，worker／recovery-worker／escalation-worker 直接停止並交回 controller，由 controller 決定授權與後續路徑；任何 subagent 都不得代替 controller 執行外部或不可逆動作。
-- `reviewer` 發現一般文件或一般驗收缺口 → 改派 `verifier/Terra high`；發現安全、不可逆、重大架構問題或正式高風險驗收需求 → 改派 `sol-verifier/Sol high`，不讓 reviewer 自行修正。
+- `planner` 或 `explorer` 無法提出 affected files、invariants、failure modes、rollback strategy、validation commands 與 completion criteria → 先以 fresh-context `planner/Terra xhigh` 重試；仍無法建立可靠方案才升級 `escalation_planner/Sol xhigh`。prompt 必須附原始需求、目前 plan、完整探索／失敗輸出與已嘗試 hypotheses，且 Sol 必須先建立 root cause 與可靠策略。
+- Plus `worker/Luna max` 在同一子任務失敗兩次（無論錯誤相同與否）→ 升級 `recovery_worker/Terra xhigh`（跳階＋fresh）。
+- Pro `pro_worker/Terra xhigh` 在同一子任務失敗兩次 → context 汙染型（錯誤仍在演變、越修越糟、開始疊 workaround）改派同階 fresh `recovery_worker/Terra xhigh`；能力天花板型（反覆撞同一面牆、理解正確但解不動）可直升 `escalation_worker/Sol xhigh`；型態難辨時先走 fresh Terra recovery。
+- 任一標準實作者揭露架構／安全／資料遺失風險 → 先升級 `recovery_worker/Terra xhigh` 建立 root cause；不得只因風險標籤直接跳 Sol。recovery_worker 若在同一子任務再失敗兩次，或確認 root cause 需要 Sol 能力，才升級 `escalation_worker/Sol xhigh`。
+- 所有升級 prompt 都必須附訂閱入口、原始需求、approved plan、相關 diff 與**對應門檻的證據**：失敗入口附完整失敗輸出與已嘗試 hypotheses；高風險入口附風險判定依據；「確認需要 Sol 能力」入口附 recovery 的 root cause 報告與判定理由；「Pro Terra 能力天花板直升」入口附 pro_worker 的兩次失敗軌跡與能力天花板判定理由。升級實作者必須先建立 root cause 再編輯。若 approved plan 不完整或需要擴大 scope，先停止並交回 controller 走 planner 路徑，不得把沒有 approved plan 的工作直接交給 recovery_worker。若任務本身需要對外或不可逆動作，worker／pro_worker／recovery_worker／escalation_worker 直接停止並交回 controller，由 controller 決定授權與後續路徑；任何 subagent 都不得代替 controller 執行外部或不可逆動作。
+- `reviewer` 發現一般文件或一般驗收缺口 → 改派 `verifier/Terra high`；發現安全、不可逆、重大架構問題或正式高風險驗收需求 → 改派 `sol_verifier/Sol high`，不讓 reviewer 自行修正。
 - 任一指定 model 回報 unsupported 或 unavailable → 停止宣稱該 model mapping 已驗證，改用已核准的 fallback 並標記「模型未驗證」；不得靜默繼承另一個 model。
-- 升級角色（`recovery-worker`、`escalation-planner`、`escalation-worker`、`verifier`、`sol-verifier`）只處理能力需求，不取代使用者授權；對外或不可逆動作未在本 session 明確授權時，停止並交回 controller。
+- 升級角色（`recovery_worker`、`escalation_planner`、`escalation_worker`、`verifier`、`sol_verifier`）只處理能力需求，不取代使用者授權；對外或不可逆動作未在本 session 明確授權時，停止並交回 controller。
 - `Sol xhigh` 卡住 → 先換 fresh-context Sol、取得獨立第二意見或重定義問題與驗收條件；只有仍需最終能力時，controller 才可顯式使用 `Sol max`。`Sol Ultra` 僅限可獨立平行的大型工作流。
 - 高能力角色解出可重複且可機械驗證的 pattern 後，可把 pattern 寫入 prompt，降級交給較輕角色套用。
 - 同一件事最多重試兩輪；兩輪仍失敗就換方法或依 `20-judgment.md` 向使用者取得方向。
 
 ## 6. 驗證語意（鐵律三）
 
-- 主觀判斷、一般文件與一般驗收不得由製作者自我背書；交給 fresh-context `verifier/Terra high` read-back，逐條判 PASS/FAIL。安全、不可逆、重大架構與正式高風險產出改用 fresh-context `sol-verifier/Sol high`。
-- 一般程式碼 review 可由 fresh-context `reviewer` 執行；它發現一般文件問題升級 `verifier`，發現高風險或正式驗收問題升級 `sol-verifier`。
+- 主觀判斷、一般文件與一般驗收不得由製作者自我背書；交給 fresh-context `verifier/Terra high` read-back，逐條判 PASS/FAIL。安全、不可逆、重大架構與正式高風險產出改用 fresh-context `sol_verifier/Sol high`。
+- 一般程式碼 review 可由 fresh-context `reviewer` 執行；它發現一般文件問題升級 `verifier`，發現高風險或正式驗收問題升級 `sol_verifier`。
 - 測試、build、lint、實跑與 schema 驗證可由製作者執行，但回報必須附指令與輸出證據。
-- 高風險程式碼除機械驗證外，再做一次 fresh-context `reviewer` 與 `sol-verifier` review。
-- `verifier` 與 `sol-verifier` 的任務是假設產物有問題並找碴；只驗收與指出缺口，不修正產物。
+- 高風險程式碼除機械驗證外，再做一次 fresh-context `reviewer` 與 `sol_verifier` review。
+- `verifier` 與 `sol_verifier` 的任務是假設產物有問題並找碴；只驗收與指出缺口，不修正產物。

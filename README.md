@@ -52,7 +52,7 @@ for pair in "AGENTS.md:$HOME/.codex/AGENTS.md"; do
   fi
 done
 
-for agent in scanner explorer planner worker recovery-worker reviewer escalation-planner escalation-worker verifier sol-verifier; do
+for agent in scanner explorer planner worker pro_worker recovery_worker reviewer escalation_planner escalation_worker verifier sol_verifier; do
   src="$REPO/codex/agents/$agent.toml"; dst="$HOME/.codex/agents/$agent.toml"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -76,7 +76,19 @@ done
 
 不要把本 repo 的 `rules/*.md` symlink 到 `~/.codex/rules/`。Codex 的 `~/.codex/rules/*.rules` 是命令權限規則（Starlark），不是 Markdown 工作守則；Codex 入口 `AGENTS.md` 會直接指向本 repo 的 `rules/` 文件。
 
-請將下列設定合併進 `~/.codex/config.toml`。若檔案已有 `[agents]`，只更新其中的 `max_threads` 與 `max_depth`，不可新增第二個 `[agents]` table；只有原本沒有 `[agents]` 時才新增整段。
+請將下列設定合併進 `~/.codex/config.toml`。主對話 default 依 `rules/00-environment.md` 的已查證訂閱事實選一組，不要同時保留兩組：
+
+```toml
+# Plus
+model = "gpt-5.6-terra"
+model_reasoning_effort = "high"
+
+# Pro（升級方案後用這組取代上面兩行）
+# model = "gpt-5.6-terra"
+# model_reasoning_effort = "xhigh"
+```
+
+若檔案已有 `[agents]`，只更新其中的 `max_threads` 與 `max_depth`，不可新增第二個 `[agents]` table；只有原本沒有 `[agents]` 時才新增整段。
 
 Codex subagent 並行與遞迴上限建議固定：
 
@@ -107,7 +119,7 @@ memories = true
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `rules/20-judgment.md` | 判斷 rubric：升級／完成／問使用者／換路／品質底線，各附正反例 |
 | `rules/30-delegation-templates.md` | Claude Code 五份派工模板（搜尋／實作／重構／研究／驗收） |
-| `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份派工模板（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery-worker Terra recovery；escalation-planner 規劃升級；escalation-worker 升級實作；verifier 一般驗收；sol-verifier 高風險驗收） |
+| `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份派工模板（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
 | `rules/40-maintenance.md` | 權限分級、修改流程、教訓寫回、瘦身、路由完整性 |
 | `rules/50-lessons.md` | 教訓日誌（append-only）＋交接欄 |
 | `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high） |
@@ -118,23 +130,26 @@ memories = true
 | `codex/agents/scanner.toml` | Codex Luna/medium/read-only 精確掃描 agent |
 | `codex/agents/explorer.toml` | Codex Terra/medium/read-only 探索 agent |
 | `codex/agents/planner.toml` | Codex Terra/high/read-only 非平凡任務規劃 agent |
-| `codex/agents/worker.toml` | Codex Luna/max/workspace-write 實作 agent |
-| `codex/agents/recovery-worker.toml` | Codex Terra/xhigh/workspace-write Luna 同一子任務兩次失敗或揭露高風險後的 recovery 實作 agent |
+| `codex/agents/worker.toml` | Codex Plus 檔位 Luna/max/workspace-write 實作 agent |
+| `codex/agents/pro_worker.toml` | Codex Pro 檔位 Terra/xhigh/workspace-write 實作 agent；依失敗型態選 fresh Terra recovery 或 Sol escalation |
+| `codex/agents/recovery_worker.toml` | Codex Terra/xhigh/workspace-write 標準實作者失敗或揭露高風險後的 recovery 實作 agent |
 | `codex/agents/reviewer.toml` | Codex Terra/high/read-only 一般實作 review agent |
-| `codex/agents/escalation-planner.toml` | Codex Sol/xhigh/read-only root-cause 規劃升級 agent |
-| `codex/agents/escalation-worker.toml` | Codex Sol/xhigh/workspace-write Luna 兩次失敗且 Terra recovery 再兩次失敗或確認 root cause 需要 Sol 能力後的 root-cause 升級實作 agent |
+| `codex/agents/escalation_planner.toml` | Codex Sol/xhigh/read-only root-cause 規劃升級 agent |
+| `codex/agents/escalation_worker.toml` | Codex Sol/xhigh/workspace-write recovery 仍失敗、確認需要 Sol，或 Pro Terra 能力天花板型失敗後的 root-cause 升級實作 agent |
 | `codex/agents/verifier.toml` | Codex Terra/high/read-only 一般 fresh-context 驗收 agent |
-| `codex/agents/sol-verifier.toml` | Codex Sol/high/read-only 高風險 fresh-context 驗收 agent |
+| `codex/agents/sol_verifier.toml` | Codex Sol/high/read-only 高風險 fresh-context 驗收 agent |
 | `codex/skills/session-handoff/SKILL.md` | Codex 收尾／交接 skill，產生專案 `.codex/HANDOFF.md` |
 | `skills/create-pr/SKILL.md` | Codex／Claude 共用的 Pull Request 建立 skill |
 
-Codex 的一般升級路徑是 `Luna max → Terra xhigh → Sol xhigh`；`Sol max` 僅保留給 controller 在 `Sol xhigh` 仍無法收斂或明確遇到最困難單一路徑時使用，`Sol Ultra` 僅用於可獨立平行的大型工作流。
+Codex Plus 的一般升級路徑是 `worker/Luna max → recovery_worker/Terra xhigh → escalation_worker/Sol xhigh`。Codex Pro 由 `pro_worker/Terra xhigh` 進場：context 汙染型或型態難辨走同階 fresh `recovery_worker/Terra xhigh`，能力天花板型可直升 `escalation_worker/Sol xhigh`。`Sol max` 僅保留給 controller 在 `Sol xhigh` 仍無法收斂或明確遇到最困難單一路徑時使用，`Sol Ultra` 僅用於可獨立平行的大型工作流。
+
+Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工後必須 read-back child metadata，只有 `agent_role` 明確等於指定角色才能宣稱其固定 model／effort／contract 生效；`agent_role:null` 時必須視為 generic child，停止該 custom routing 並標記模型未驗證。主力 Mac 的 Codex 0.144.4 collaboration v2 目前已實跑觀察到此限制，詳見 `rules/00-environment.md`。
 
 ## 三條鐵律
 
 1. **無證據不得宣稱完成**——回報分級：已驗證（附測試輸出／CI 連結）／待 CI／未驗證
 2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。
-3. **驗證不自驗**——一般文件與驗收派 fresh-context 的 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險產出派 `sol-verifier/Sol high`，不用繼承脈絡的 agent
+3. **驗證不自驗**——一般文件與驗收派 fresh-context 的 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險產出派 `sol_verifier/Sol high`，不用繼承脈絡的 agent
 
 ## 已知退化模式與預防（維護者必讀）
 

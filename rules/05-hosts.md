@@ -13,10 +13,10 @@
 
 ## 主力 Mac（目前 hostname：`Mac`，arm64）
 
-> 探測日：2026-07-13
+> 探測日：2026-07-14
 
 - macOS 26.5.2（Build 25F84）、zsh（`/bin/zsh`）、Homebrew ✓（`/opt/homebrew/bin/brew`）
-- Claude Code 2.1.207；Codex 0.144.1
+- Claude Code 2.1.207；Codex 0.144.4
 - 工具：git ✓、gh ✓、node ✓、python3 ✓、flutter ✓、dotnet ✓、rg ✓、jq ✓；fd ✗（找檔用 `rg --files` 或安裝 fd）
 - hostname 只作當場參考，不作跨重開機或改名後的唯一識別。
 - 專案位置：`~/Projects/`（公司與個人混放）、個人專案集中在 `~/Projects/FatJohn/`
