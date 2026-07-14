@@ -1,6 +1,10 @@
 # Codex 分級 Subagent 調度與全域規則校正 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Status: Superseded. This is a historical implementation record, not an active execution plan.
+>
+> 歷史計畫：目前 routing 已由 2026-07-14 的 model-routing-policy 取代。下方 RED/GREEN 指令只記錄當時的建立流程；不要直接重跑整份計畫，尤其要沿用目前 canonical model IDs（`gpt-5.6-sol`、`gpt-5.6-terra`、`gpt-5.6-luna`）與現行 agent 清單。
+
+> Archived execution record: the historical steps below retain their original checkbox and skill references for traceability; do not use them as current execution instructions.
 
 **Goal:** 建立以角色為穩定介面、由 Luna／Terra／Sol 提供分級能力的 Codex subagent 系統，並同步修正 Claude/Codex 共用規則、並行寫入與驗證邊界。
 
@@ -100,7 +104,7 @@ Run:
 ```bash
 test ! -e codex/agents/scanner.toml
 test ! -e codex/agents/explorer.toml
-! rg -q '^model = "gpt-5.6"$' codex/agents/verifier.toml
+! rg -q '^model = "gpt-5.6-sol"$' codex/agents/verifier.toml
 rg -q 'max.*不能進 frontmatter' rules/00-environment.md
 rg -q '見 `10-dispatch.md` §4' rules/20-judgment.md
 ```
@@ -154,7 +158,7 @@ developer_instructions = """
 規則：
 1. 禁止修改檔案、branch、stash、commit、push 或任何對外動作。
 2. 優先使用精確搜尋與目標段落讀取，回報檔案:行號、URL 與摘要。
-3. 遇到架構取捨、安全高風險或連續兩次失敗時，停止並回報應升級 Sol。
+3. 遇到架構取捨、安全高風險或連續兩次失敗時，停止並回報應升級 escalation-planner/Sol max。
 4. 只回結論與證據；內容超過 30 行時回報「需要父任務接手落檔」與建議結構，自己仍禁止寫檔。
 5. 禁止再 spawn subagent。
 """
@@ -165,7 +169,7 @@ developer_instructions = """
 Insert after `description` in `codex/agents/verifier.toml`:
 
 ```toml
-model = "gpt-5.6"
+model = "gpt-5.6-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 ```
@@ -194,7 +198,7 @@ for f in codex/agents/scanner.toml codex/agents/explorer.toml codex/agents/verif
 done
 rg -q '^model = "gpt-5.6-luna"$' codex/agents/scanner.toml
 rg -q '^model = "gpt-5.6-terra"$' codex/agents/explorer.toml
-rg -q '^model = "gpt-5.6"$' codex/agents/verifier.toml
+rg -q '^model = "gpt-5.6-sol"$' codex/agents/verifier.toml
 rg -q '禁止修改任何檔案、branch、stash、commit、push' codex/agents/verifier.toml
 rg -q 'verifier 角色使用錯誤' codex/agents/verifier.toml
 ```
@@ -296,7 +300,7 @@ Add these complete read-only templates before the writing template:
 你是被派來的執行者，親自完成本任務；禁止再 spawn subagent。
 目標：【要追蹤的執行路徑、跨檔關係、文件問題或影響範圍】。
 範圍：【絕對路徑、URL 與排除範圍】。
-限制：禁止寫檔、branch、stash、commit、push 與對外動作。涉及高風險判斷或同一子任務失敗兩次時，停止並回報應升級 Sol。
+限制：禁止寫檔、branch、stash、commit、push 與對外動作。涉及高風險判斷或同一子任務失敗兩次時，停止並回報應升級 escalation-planner/Sol max。
 驗收條件：每個結論附檔案:行號或 URL；查不到標示未查證並列出查過的位置。
 回報格式：結論先行，不超過 30 行；內容更長時回報「需要父任務接手落檔」與建議結構。
 ```

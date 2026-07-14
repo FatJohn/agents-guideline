@@ -12,9 +12,13 @@ cp -r ~/.claude ~/.claude.backup-$(date +%F) 2>/dev/null
 
 REPO=~/Projects/FatJohn/agents-guideline
 mkdir -p ~/.claude/agents
-for pair in "CLAUDE.md:$HOME/.claude/CLAUDE.md" "rules:$HOME/.claude/rules" "agents/verifier.md:$HOME/.claude/agents/verifier.md"; do
+for pair in "CLAUDE.md:$HOME/.claude/CLAUDE.md" "rules:$HOME/.claude/rules" "agents/verifier.md:$HOME/.claude/agents/verifier.md" "agents/fable-verifier.md:$HOME/.claude/agents/fable-verifier.md"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
-  [ -e "$dst" ] && echo "略過（已存在，需手動處理）：$dst" || ln -s "$src" "$dst"
+  if [ -e "$dst" ] || [ -L "$dst" ]; then
+    echo "略過（已存在，需手動處理）：$dst"
+  else
+    ln -s "$src" "$dst"
+  fi
 done
 ```
 
@@ -32,18 +36,30 @@ REPO=~/Projects/FatJohn/agents-guideline
 mkdir -p ~/.codex/agents
 for pair in "AGENTS.md:$HOME/.codex/AGENTS.md"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
-  [ -e "$dst" ] && echo "略過（已存在，需手動處理）：$dst" || ln -s "$src" "$dst"
+  if [ -e "$dst" ] || [ -L "$dst" ]; then
+    echo "略過（已存在，需手動處理）：$dst"
+  else
+    ln -s "$src" "$dst"
+  fi
 done
 
-for agent in scanner explorer verifier; do
+for agent in scanner explorer planner worker reviewer escalation-planner escalation-worker verifier; do
   src="$REPO/codex/agents/$agent.toml"; dst="$HOME/.codex/agents/$agent.toml"
-  [ -e "$dst" ] && echo "略過（已存在，需手動處理）：$dst" || ln -s "$src" "$dst"
+  if [ -e "$dst" ] || [ -L "$dst" ]; then
+    echo "略過（已存在，需手動處理）：$dst"
+  else
+    ln -s "$src" "$dst"
+  fi
 done
 
 mkdir -p ~/.agents/skills
 for skill in session-handoff; do
   src="$REPO/codex/skills/$skill"; dst="$HOME/.agents/skills/$skill"
-  [ -e "$dst" ] && echo "略過（已存在，需手動處理）：$dst" || ln -s "$src" "$dst"
+  if [ -e "$dst" ] || [ -L "$dst" ]; then
+    echo "略過（已存在，需手動處理）：$dst"
+  else
+    ln -s "$src" "$dst"
+  fi
 done
 ```
 
@@ -80,12 +96,18 @@ memories = true
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `rules/20-judgment.md` | 判斷 rubric：升級／完成／問使用者／換路／品質底線，各附正反例 |
 | `rules/30-delegation-templates.md` | Claude Code 五份派工模板（搜尋／實作／重構／研究／驗收） |
-| `codex/rules/30-delegation-templates-codex.md` | Codex A–F 六份派工模板（scanner 掃描；explorer repo 探索與外部研究；worker 實作與重構；verifier 驗收） |
+| `codex/rules/30-delegation-templates-codex.md` | Codex A–J 十份派工模板（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；escalation-planner 規劃升級；escalation-worker 升級實作；verifier 驗收） |
 | `rules/40-maintenance.md` | 權限分級、修改流程、教訓寫回、瘦身、路由完整性 |
 | `rules/50-lessons.md` | 教訓日誌（append-only）＋交接欄 |
 | `agents/verifier.md` | fresh-context 驗收 agent 定義（sonnet + effort high） |
+| `agents/fable-verifier.md` | Claude Fable/high-risk fresh-context 驗收 agent（read-only） |
 | `codex/agents/scanner.toml` | Codex Luna/medium/read-only 精確掃描 agent |
 | `codex/agents/explorer.toml` | Codex Terra/medium/read-only 探索 agent |
+| `codex/agents/planner.toml` | Codex Terra/high/read-only 非平凡任務規劃 agent |
+| `codex/agents/worker.toml` | Codex Luna/max/workspace-write 實作 agent |
+| `codex/agents/reviewer.toml` | Codex Terra/high/read-only 一般實作 review agent |
+| `codex/agents/escalation-planner.toml` | Codex Sol/max/read-only root-cause 規劃升級 agent |
+| `codex/agents/escalation-worker.toml` | Codex Sol/max/workspace-write root-cause 升級實作 agent |
 | `codex/agents/verifier.toml` | Codex Sol/high/read-only fresh-context 驗收 agent |
 | `codex/skills/session-handoff/SKILL.md` | Codex 收尾／交接 skill，產生專案 `.codex/HANDOFF.md` |
 
