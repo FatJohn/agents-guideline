@@ -69,3 +69,18 @@
 
 需要更廣的對抗審查（不只驗收清單，而是「找出所有規則衝突、誤讀風險」）時，仍用 verifier，
 把驗收條件寫成審查面向即可。
+
+## F. 升級接手（subagent_type: recovery-worker／escalation-worker／escalation-planner）
+
+> 三個升級角色的行為合約（先建 root cause、唯讀或授權範圍、再失敗的停損）已內建在 agent 定義；
+> prompt 的重點是把**對應門檻的證據**帶齊——缺對應證據的升級派工，agent 會直接回報「升級素材不足」。
+
+```
+目標：接手【子任務描述】；進場門檻是【失敗 N 次／實作揭露高風險／recovery 確認需要 Fable 能力／Plan 無法形成可靠方案】。
+動機：【原始需求一句話】。
+門檻證據：【對應入口——失敗入口：每次嘗試各一段（改了什麼／跑了什麼指令／輸出關鍵行／為什麼判定失敗），經 recovery 升 escalation 為兩層、opus 進場直升為兩次失敗＋能力天花板判定理由；高風險入口：發現了什麼、為何屬高風險；確認需要 Fable 入口：recovery 的 root cause 報告與判定理由】。
+現況：相關檔案【絕對路徑】；目前 plan 或做法【摘要】；working tree 狀態【git status/diff 摘要】。
+授權範圍：只准動【範圍】（escalation-planner 為唯讀，此欄改寫「不得改任何檔」）。
+驗收條件：【沿用原派工的可機械驗證條件；規劃升級則為：plan 含 affected files、invariants、failure modes、rollback、validation commands、completion criteria】。
+回報格式：root cause 先行，然後照 agent 定義的 30 行合約。
+```

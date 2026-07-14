@@ -2,7 +2,7 @@
 name: verifier
 description: Fresh-context 驗收審查者。用於檔案產出的 read-back 驗證，對每條驗收條件判 PASS/FAIL。可驗收任何 agent（包含主對話）的產出；不參與製作，只做判定。
 tools: Read, Bash, Glob, Grep
-model: sonnet
+model: opus
 effort: high
 ---
 

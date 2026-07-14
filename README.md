@@ -12,8 +12,17 @@ cp -r ~/.claude ~/.claude.backup-$(date +%F) 2>/dev/null
 
 REPO=~/Projects/FatJohn/agents-guideline
 mkdir -p ~/.claude/agents
-for pair in "CLAUDE.md:$HOME/.claude/CLAUDE.md" "rules:$HOME/.claude/rules" "agents/verifier.md:$HOME/.claude/agents/verifier.md" "agents/fable-verifier.md:$HOME/.claude/agents/fable-verifier.md"; do
+for pair in "CLAUDE.md:$HOME/.claude/CLAUDE.md" "rules:$HOME/.claude/rules"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
+  if [ -e "$dst" ] || [ -L "$dst" ]; then
+    echo "略過（已存在，需手動處理）：$dst"
+  else
+    ln -s "$src" "$dst"
+  fi
+done
+
+for agent in verifier fable-verifier recovery-worker escalation-planner escalation-worker; do
+  src="$REPO/agents/$agent.md"; dst="$HOME/.claude/agents/$agent.md"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
   else
@@ -101,8 +110,11 @@ memories = true
 | `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份派工模板（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery-worker Terra recovery；escalation-planner 規劃升級；escalation-worker 升級實作；verifier 一般驗收；sol-verifier 高風險驗收） |
 | `rules/40-maintenance.md` | 權限分級、修改流程、教訓寫回、瘦身、路由完整性 |
 | `rules/50-lessons.md` | 教訓日誌（append-only）＋交接欄 |
-| `agents/verifier.md` | fresh-context 驗收 agent 定義（sonnet + effort high） |
+| `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high） |
 | `agents/fable-verifier.md` | Claude Fable/high-risk fresh-context 驗收 agent（read-only） |
+| `agents/recovery-worker.md` | Claude Opus/xhigh recovery 實作 agent（標準層實作者同一子任務兩次失敗或揭露高風險後接手，先建 root cause；同階時價值在 fresh context） |
+| `agents/escalation-planner.md` | Claude Fable/xhigh/read-only 規劃升級 agent（Plan 或探索路徑/opus 無法建立可靠方案時） |
+| `agents/escalation-worker.md` | Claude Fable/xhigh 最終升級實作 agent（recovery-worker 再兩次失敗或確認需要 Fable 能力後接手；opus 進場的能力天花板型失敗可直升） |
 | `codex/agents/scanner.toml` | Codex Luna/medium/read-only 精確掃描 agent |
 | `codex/agents/explorer.toml` | Codex Terra/medium/read-only 探索 agent |
 | `codex/agents/planner.toml` | Codex Terra/high/read-only 非平凡任務規劃 agent |
