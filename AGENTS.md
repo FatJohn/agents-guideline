@@ -17,7 +17,7 @@
 | 了解環境的結構性風險、記憶機制、好用的 skill/plugin 清單 | `/Users/fatjohn/Projects/FatJohn/agents-guideline/rules/00-environment.md` |
 | Codex 派 subagent、選 model/reasoning effort、驗收產出 | `/Users/fatjohn/Projects/FatJohn/agents-guideline/codex/rules/10-dispatch-codex.md` |
 | 判斷題：該不該升級／算不算完成／要不要問使用者／該不該換路 | `/Users/fatjohn/Projects/FatJohn/agents-guideline/rules/20-judgment.md` |
-| 撰寫 Codex subagent prompt | `/Users/fatjohn/Projects/FatJohn/agents-guideline/codex/rules/30-delegation-templates-codex.md`（驗收用 `verifier` custom agent） |
+| 撰寫 Codex subagent prompt | `/Users/fatjohn/Projects/FatJohn/agents-guideline/codex/rules/30-delegation-templates-codex.md`（一般驗收用 `verifier`；高風險驗收用 `sol-verifier`） |
 | 收尾、交接、記錄目前進度、下次續接 | 使用 `session-handoff` skill，預設寫到專案 `.codex/HANDOFF.md` |
 | 修改 rules 檔、`AGENTS.md`、`CLAUDE.md` 或 agent 定義 | `/Users/fatjohn/Projects/FatJohn/agents-guideline/rules/40-maintenance.md`（先讀，內有權限分級） |
 | 踩坑之後 | 在 `/Users/fatjohn/Projects/FatJohn/agents-guideline/rules/50-lessons.md` 加一行 |
@@ -26,7 +26,7 @@
 
 1. **無證據不得宣稱完成**：所有回報分級為已驗證（附指令輸出／CI 連結／read-back 結果）／待 CI／未驗證。
 2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。
-3. **驗證不自驗**：文件與高風險產出用 fresh-context 的 `verifier` custom agent；程式碼以實際測試／實跑輸出為證。
+3. **驗證不自驗**：一般文件與驗收用 fresh-context 的 `verifier` custom agent；安全、不可逆、重大架構與正式高風險產出用 `sol-verifier`；程式碼以實際測試／實跑輸出為證。
 
 ## Codex 專用注意
 

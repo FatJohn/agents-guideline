@@ -1,7 +1,7 @@
 # Codex 分級 Subagent 調度與全域規則校正設計
 
 日期：2026-07-12
-狀態：方案 B 已經使用者 review 核准，進入實作規劃
+狀態：方案 B 已經使用者 review 核准並完成首版實作；2026-07-14 model tier revision 已核准，將一般驗證與高風險驗證分層。
 
 ## 目標
 
@@ -9,9 +9,9 @@
 
 成功條件：
 
-1. Agent 的公開介面仍以 `scanner`、`explorer`、`worker`、`verifier` 等職責命名，不讓工作流程綁死在特定世代模型名稱。
+1. Agent 的公開介面仍以 `scanner`、`explorer`、`planner`、`worker`、`recovery-worker`、`reviewer`、`verifier`、`sol-verifier` 等職責命名，不讓工作流程綁死在特定世代模型名稱。
 2. 每個角色有清楚的模型、reasoning effort、權限與升級條件。
-3. Luna 不負責高風險判斷、寫入、對外動作或最終驗收。
+3. Luna 不負責高風險判斷、對外動作或最終驗收；一般 approved-plan 實作可由 `worker` 在明確授權的 workspace-write 範圍內完成。
 4. Claude 與 Codex 共用規則使用平台中立語彙；平台特定模型映射留在各自的 dispatch 文件。
 5. 同一 working tree 不允許多個 agent 同時寫入；平行寫入必須使用獨立 worktree，不重疊範圍只能序列寫入。
 6. 所有完成宣稱都有可重現的指令輸出或 fresh-context read-back 證據。
@@ -34,10 +34,16 @@
 |---|---|---|---|---|
 | `scanner` | Luna | medium | read-only | 精確清單、分類、格式檢查、結構化抽取 |
 | `explorer` | Terra | medium | read-only | repo 探索、跨檔追蹤、文件研究、影響範圍分析 |
-| `worker` | 繼承主 session，預期為 Sol | medium 或 high | 依父 session | 實作、除錯、執行驗證 |
-| `verifier` | Sol | high | read-only | 文件 read-back、高風險判斷與最終驗收 |
+| `planner` | Terra | high | read-only | 非平凡任務規劃、invariants、failure modes 與驗收條件 |
+| `worker` | Luna | max | workspace-write | 依 approved plan 實作、除錯與機械驗證 |
+| `recovery-worker` | Terra | xhigh | workspace-write | Luna worker 同一子任務兩次失敗或揭露高風險後的 root-cause recovery 實作 |
+| `reviewer` | Terra | high | read-only | 一般實作 fresh-context review |
+| `verifier` | Terra | high | read-only | 一般文件、read-back 與驗收 |
+| `escalation-planner` | Sol | xhigh | read-only | Terra planner／explorer 無法建立可靠方案時的規劃升級 |
+| `escalation-worker` | Sol | xhigh | workspace-write | Luna 兩次失敗後，Terra recovery 再兩次失敗或確認 root cause 需要 Sol 能力時的 final root-cause 實作 |
+| `sol-verifier` | Sol | high | read-only | 安全、不可逆、重大架構與正式高風險驗收 |
 
-`scanner` 與 `explorer` 使用新的 custom agent TOML。`worker` 保留內建角色與父 session 選模彈性，避免把一般實作永久綁死在某一個 model ID。既有 `verifier` 明確固定 Sol/high/read-only，避免父 session 降級時連驗收品質一起下降。
+以上 active role 都使用明確的 custom agent TOML。一般升級路徑為 `Luna max → Terra xhigh → Sol xhigh`；`Sol max` 不作為固定 agent，只能由 controller 在 `Sol xhigh` 仍無法收斂或明確遇到最困難單一路徑時顯式使用；`Sol Ultra` 僅限可獨立平行的大型工作流。一般文件與一般驗收使用 `verifier/Terra high`，安全、不可逆、重大架構與正式高風險驗收使用 `sol-verifier/Sol high`。
 
 `read-only` 同時是角色行為合約與 custom agent 的 sandbox 偏好；父 session 的 live runtime permission override 可能優先於 agent TOML，因此不能只靠 sandbox。Agent instructions 必須拒絕寫入，controller 也必須用 git 狀態 read-back 驗證沒有變更。
 
@@ -61,10 +67,12 @@
 
 ### 升級路徑
 
-1. Luna 出現一次實質錯誤、需要跨檔推理，或結果無法機械驗證時，升 Terra。
-2. Terra 在同一子任務失敗兩次，或任務涉及架構、安全、資料遺失、不可逆／對外動作時，升 Sol。
-3. Sol 仍卡住時，換 fresh-context Sol、加入獨立第二意見或重新定義問題，不只提高 effort 重試。
-4. 高能力模型確認可重複 pattern 後，可降回 Terra 或 Luna 批次套用；輸出仍需機械驗證。
+1. 非平凡任務先用 `planner/Terra high → worker/Luna max → reviewer/Terra high`；小型、範圍清楚的修改留在主對話。
+2. planner 或 explorer 若 high／medium 路徑仍無法形成可靠 plan，先 fresh rerun `planner/Terra xhigh`，再升 `escalation-planner/Sol xhigh`。
+3. worker 同一子任務失敗兩次先升 `recovery-worker/Terra xhigh`；recovery 在同一子任務再失敗兩次，或 recovery 已確認 root cause 需要 Sol 能力時，再升 `escalation-worker/Sol xhigh`。
+4. 一般文件／一般驗收用 `verifier/Terra high`；安全、不可逆、重大架構或正式高風險驗收用 `sol-verifier/Sol high`。
+5. Sol xhigh 仍卡住時，換 fresh-context Sol、加入獨立第二意見或重新定義問題；只有 controller 顯式判定仍需最終能力時才使用 Sol max。
+6. 高能力模型確認可重複 pattern 後，可降回 Terra 或 Luna 批次套用；輸出仍需機械驗證。
 
 ## 並行與工作目錄安全
 
@@ -94,10 +102,10 @@ max_depth = 1
 
 「驗證不自驗」改成下列精確語意：
 
-- 主觀判斷、文件品質與高風險產出不得由製作者自己背書，必須由 fresh-context verifier 或獨立第二意見驗收。
+- 主觀判斷、一般文件與一般驗收不得由製作者自己背書，必須由 fresh-context `verifier/Terra high` 驗收；安全、不可逆、重大架構與正式高風險產出改由 `sol-verifier/Sol high` 或獨立第二意見驗收。
 - 測試、build、lint、實跑、schema 驗證等可重現的機械驗證可以由製作者執行，但必須回報指令與結果。
 - 高風險程式碼除機械驗證外，再加 fresh-context review。
-- verifier 僅 read-only，不參與製作，也不直接修正發現的問題。
+- `verifier` 與 `sol-verifier` 僅 read-only，不參與製作，也不直接修正發現的問題。
 
 ## 共用規則校正
 
@@ -137,7 +145,32 @@ Chronicle 僅記錄為可選的螢幕脈絡來源：不取代 Memories、handoff
 
 `rules/05-hosts.md` 的主力機段落增加目前可驗證的穩定特徵：macOS 26.5.2、arm64、repo 路徑與工具狀態；hostname `Mac` 只作參考，不作唯一識別。
 
-## 預計檔案變更
+## 2026-07-14 model tier revision 實際變更範圍
+
+本次 revision 實際調整以下既有檔案：
+
+- `AGENTS.md`
+- `README.md`
+- `rules/10-dispatch.md`
+- `codex/agents/escalation-planner.toml`
+- `codex/agents/escalation-worker.toml`
+- `codex/agents/explorer.toml`
+- `codex/agents/planner.toml`
+- `codex/agents/reviewer.toml`
+- `codex/agents/verifier.toml`
+- `codex/agents/worker.toml`
+- `codex/rules/10-dispatch-codex.md`
+- `codex/rules/30-delegation-templates-codex.md`
+- `docs/superpowers/specs/2026-07-12-codex-tiered-subagent-routing-design.md`
+
+本次新增以下 agent 定義：
+
+- `codex/agents/recovery-worker.toml`
+- `codex/agents/sol-verifier.toml`
+
+## 首版方案的預計檔案變更（歷史對照）
+
+> 以下清單保留 2026-07-12 初始方案的預計範圍，不代表本次 2026-07-14 revision 的完整變更清單。
 
 新增：
 
@@ -170,13 +203,14 @@ Chronicle 僅記錄為可選的螢幕脈絡來源：不取代 Memories、handoff
 1. `git diff --check`：確認格式與空白錯誤。
 2. 檢查所有 Markdown 引用路徑與安裝 symlink 實際存在。
 3. 驗證 custom agent TOML 必填欄位、model、effort 與 sandbox 設定。
-4. 在新 Codex session 實際 spawn `scanner`、`explorer`、`verifier`，從 subagent activity 或執行資訊確認載入的角色與模型符合定義。
-5. 對 `scanner`、`explorer`、`verifier` 各執行一次受控寫入要求；預期角色自行拒絕或 read-only sandbox 拒絕，且 repo 內容與 git 狀態不變。若父 session runtime override 使 sandbox 未強制 read-only，必須明確記錄，不能宣稱 sandbox 已驗證。
-6. 確認 `~/.codex/config.toml` 合併後沒有重複 `[agents]` table，且原設定未遺失。
-7. 使用 Claude fresh-context verifier 驗收共用與 Claude 規則。
-8. 使用 Codex fresh-context verifier 驗收共用與 Codex 規則。
-9. 逐條比對三鐵律、授權清單、升級路徑、角色映射與 README，確認沒有跨檔矛盾。
-10. 最後確認 `git status --short` 只包含本次核准範圍內的變更。
+4. 在新 Codex session 實際 spawn 全部 active custom agents，從 subagent activity 或執行資訊確認載入的角色與模型符合定義。
+5. 對 `scanner`、`explorer`、`planner`、`reviewer`、`escalation-planner`、`verifier`、`sol-verifier` 執行受控寫入要求；預期角色自行拒絕或 read-only sandbox 拒絕，且 repo 內容與 git 狀態不變。若父 session runtime override 使 sandbox 未強制 read-only，必須明確記錄，不能宣稱 sandbox 已驗證。
+6. 對 `worker`、`recovery-worker`、`escalation-worker` 驗證只能寫入父 prompt 明確授權的 workspace 與範圍，且禁止 branch、stash、commit、push 與對外／不可逆動作。
+7. 確認 `~/.codex/config.toml` 合併後沒有重複 `[agents]` table，且原設定未遺失。
+8. 使用 Claude fresh-context verifier 驗收共用與 Claude 規則。
+9. 使用 Codex fresh-context `verifier/Terra high` 驗收一般共用與 Codex 規則；高風險範圍使用 `sol-verifier/Sol high`。
+10. 逐條比對三鐵律、授權清單、升級路徑、角色映射與 README，確認沒有跨檔矛盾。
+11. 最後確認 `git status --short` 只包含本次核准範圍內的變更。
 
 ## 失敗處理
 

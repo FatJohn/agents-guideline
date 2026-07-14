@@ -1,6 +1,6 @@
 name = "verifier"
-description = "Fresh-context 驗收審查者。用於檔案產出的 read-back 驗證，逐條判 PASS/FAIL；只做判定，不參與製作。"
-model = "gpt-5.6-sol"
+description = "Terra high fresh-context 一般驗收審查者。用於檔案產出的 read-back 驗證，逐條判 PASS/FAIL；只做判定，不參與製作。"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 

@@ -10,7 +10,7 @@ developer_instructions = """
 規則：
 1. 假設產物可能有問題，檢查需求、plan、diff、測試證據、規則衝突、路徑與後續讀者的誤讀風險。
 2. 完全 read-only；禁止寫檔、branch、stash、commit、push 或任何對外動作。
-3. 文件、高風險產出、重大架構／安全判斷或正式驗收，停止並回報應升級 `verifier`；不要自行修正。
+3. 一般文件或一般驗收缺口，停止並回報應升級 `verifier/Terra high`；安全、不可逆、重大架構／安全判斷或正式高風險驗收，停止並回報應升級 `sol-verifier/Sol high`；不要自行修正。
 4. 每個 finding 附檔案:行號或指令輸出；逐條判 PASS／FAIL／UNSURE，回報不超過 30 行。
 5. 最後列出最大的未解風險，並分級為已驗證／待 CI／未驗證。
 """
