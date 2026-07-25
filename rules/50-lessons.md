@@ -22,6 +22,9 @@
 - [2026-07-18][web-pulse-workspace] i18n 字串抽取宣稱完成後，main.tsx 的殘留字串靠後續全 repo 掃描才發現 → 重構／抽取類任務完成前必跑全 repo `rg` 驗無殘留並附輸出 → 已套用到：20-judgment.md §2 補充判準
 - [2026-07-18][global] 一次性的「merge on green」指示被解讀為常設政策，導致 PR 被提前 merge → 對外／不可逆動作的授權一律逐次、逐對象，不得推廣為常設規則 → 已套用到：20-judgment.md §3 註
 - [2026-07-18][global] zsh 展開 `===`、gh comment 的 backtick 被 shell 吃掉，指令重跑且輸出誤導判斷 → 多行或含特殊字元內容一律用 quoted heredoc（`<<'EOF'`）；git 操作後用新指令 read-back，不信 scrollback → 已套用到：20-judgment.md §6（heredoc 與 read-back 併入該節）
+- [2026-07-21][web-pulse-workspace] 判「新版 UI 與舊版一致」時只看 Playwright accessibility snapshot（只含文字），漏掉純 CSS 寬度的進度條，回報「回應數呈現一致」後上線才被使用者抓到少一條 bar → a11y snapshot 不含只有視覺、無文字的元素（進度條、色塊、icon-only）；判 UI 視覺對齊要用截圖或 `browser_evaluate` 抓 DOM/computed style，不能只憑 a11y 樹 → 已套用到：尚未（再踩就提案入 20-judgment §5）
+- [2026-07-21][global] 把「加 import」與「加使用處」拆成兩次 Edit，per-file lint hook 在中間態抓到 `unused-imports` 假 error → 有 PostToolUse per-file lint hook 時，import 與其使用處併在同一次 Edit（或先改使用處再加 import）避免中間態假告警；真假存疑一律補跑 eslint 確認 → 已套用到：尚未
+- [2026-07-23][web-pulse-survey-sdk] tsup→tsdown 遷移（#110）改了 package.json build script 卻漏改 `.github/actions/deploy-widget` 裡的 `pnpm exec tsup`；PR CI 不跑部署路徑故全綠，直到發 0.20.0 時 release CI 的 deploy-staging 才炸（`Command "tsup" not found`）、連帶 prod 部署與 Slack 通知被 skip；重跑舊 run 又沿用含 bug 的 action，只能修 action 後另發 patch（0.20.1）讓部署帶新 action 重跑 → build-tool／依賴遷移後，`rg` 全 repo（含 `.github/workflows` 與 `.github/actions`）搜舊工具名；release/deploy-only 路徑 PR CI 測不到、發版才會爆，要另外查 → 已套用到：尚未（再踩提案入 20-judgment §2 補充判準）
 
 ## 交接欄
 
