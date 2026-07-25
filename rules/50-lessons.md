@@ -1,30 +1,18 @@
-# 50 — 教訓日誌（append-only）
+# 50 — 教訓日誌（只留未升級的活躍教訓）
 
 > 格式：`- [YYYY-MM-DD][專案名或 global] 情境 → 教訓 → 已套用到：{檔名 或「尚未」}`
-> 寫入門檻與瘦身規則見 `40-maintenance.md`。
+> 寫入門檻與格式見 `maintain-guideline` skill §3；瘦身與封存規則見同 skill §5。
+> **本檔只留「已套用到：尚未」的教訓**——它們還沒有正式判準承接，所以需要常駐提醒。
+> 一旦升級成正式判準（改到 10／20 或 agent 定義），把該條移到 `docs/lessons-archive.md`，別讓同一件事在 context 裡佔兩份位置。
 
-- [2026-07-06][global] 盤點發現持久記憶目錄全空，過去所有 session 學到的東西都蒸發了 → 每 session 結束前自查該寫的記憶，這比當日任何單一任務都值錢 → 已套用到：40-maintenance.md §4
-- [2026-07-06][global] Agent 工具呼叫無法指定 effort；effort 只能設在 agent 定義的 frontmatter → 需要特定 effort 的角色先建 `~/.claude/agents/` 定義 → 已套用到：00-environment.md、agents/verifier.md
-- [2026-07-06][document] 驗收 agent 查 `.remember/` 時跑去 `~/.claude` 下找，實際在專案根目錄，差點誤判環境異常 → 給 subagent 的路徑一律寫絕對路徑，文件裡的路徑要寫到能直接 `ls` 的精確度 → 已套用到：30-delegation-templates.md 通用規則
-- [2026-07-06][document] 第一版守則把「教訓記錄」分散在各檔檔尾，與交接欄用途重疊、弱模型不知道寫哪邊 → 教訓集中單一檔案（本檔），升級成正式判準才進 rules → 已套用到：40-maintenance.md §3
-- [2026-07-06][global] 使用者背景第一版只憑單一 repo 的文件推斷，寫得過窄（把 side project 當工作重心）→ 背景事實用 `gh` CLI 等來源現查，文件裡的列舉標明「不要依賴，現查為準」→ 已套用到：00-environment.md
-- [2026-07-06][global] 每份 rules 檔頭都放查證日期，重複且像 changelog 浪費 context → 查證日全系統只記在 00-environment.md 一處，其他檔用指向 → 已套用到：00-environment.md、10-dispatch.md
-- [2026-07-06][global] 開場看 `.remember/` 只有 logs 就判定 remember plugin 沒在運作，實際上記憶檔是 session 進行中才寫入、其他專案都有完整檔組 → 判定「某機制壞了/沒在用」前，多看幾個專案與時間點，單一時點快照會騙人 → 已套用到：00-environment.md §記憶機制
-- [2026-07-06][macroeconomics-report] 文件重組 sed 批次改連結、把「早已因改標題而死掉」的 anchor 原樣搬過去、verifier 抓到 3 條死鏈 → 改 markdown 標題（不只搬檔）也會斷下游 anchor、改完要 rg "檔名#" 全 repo 驗存活；手算 GitHub anchor 易錯、歷史文件用檔案層連結+章節名文字更穩 → 已套用到：尚未（再踩就提案入 40-maintenance §6）
-- [2026-07-07][agents-guideline] 派 subagent 做分析，subagent 繼承全域 CLAUDE.md 後把「指揮官不下場」套在自己身上、再往下轉包，形成 5 層以上遞迴鏈，每層 ~55k tokens 空燒且回報「已派工」即結束（假完成的新型態）→ 派工 prompt 開頭明寫「你是被派來的執行者，親自完成，禁止呼叫 Agent 工具」；收到「我已再派背景工作」的回報一律視為未完成，立即糾正 → 已套用到：rules/30-delegation-templates.md、codex/rules/30-delegation-templates-codex.md、README.md 的 max_depth = 1 設定
-- [2026-07-07][macroeconomics-report] 背景 subagent（Agent tool、run_in_background）在筆電休眠時被中斷（Connection closed mid-response、status failed），最後訊息停在「Both clean post-commit. Now write report」→ 教訓：background agent 遇機器休眠會死，但**若已 commit，work 原子性保留在 git**；agent 死掉的 partial 自我回報不可信，controller 一律用 `git log`/`git show`/獨立跑測試核實際落地，從最後 commit 續接而非重跑（本例 Task 5 已 commit、獨立驗證全綠後照常進 review→PR）→ 已套用到：rules/10-dispatch.md、codex/rules/10-dispatch-codex.md 的 blocking 任務規則
+- [2026-07-06][macroeconomics-report] 文件重組 sed 批次改連結、把「早已因改標題而死掉」的 anchor 原樣搬過去、verifier 抓到 3 條死鏈 → 改 markdown 標題（不只搬檔）也會斷下游 anchor、改完要 rg "檔名#" 全 repo 驗存活；手算 GitHub anchor 易錯、歷史文件用檔案層連結+章節名文字更穩 → 已套用到：尚未（再踩就提案入 maintain-guideline skill §6）
 - [2026-07-08][macroeconomics-report] 逐源獨立 PR、第二刀 stacked 在第一刀 branch 上（共用檔避 merge 衝突）；merge 第一刀 PR 時用 `gh pr merge --delete-branch` 刪掉 base branch → GitHub 自動**關閉**（非 retarget）stacked 在其上的第二刀 PR、且 closed PR 無法 reopen/改 base → 教訓：merge「有其他 PR stack 在其上」的 branch 時**勿用 --delete-branch**；正解＝先 `gh pr edit <stacked#> --base main` retarget 再 merge base PR，或 merge 時不刪 branch。救援：stacked branch 本身未受影響（commits 完整）、直接用它開新 PR 到 main 即可（本例 #130 被誤關→開 #131 救回、兩刀順利進 main）→ 已套用到：尚未（再踩就提案入 20-judgment 或 dispatch 檔）
 - [2026-07-08][global] figma plugin 已啟用但 session 內搜不到 `figma-dev-mode-mcp-server` 工具（MCP 未在 session 啟動時註冊）→ Figma 桌面 App 的 Dev Mode MCP server 若在 127.0.0.1:3845 有跑，可用 curl 手動走 JSON-RPC（initialize→tools/call get_design_context/get_screenshot/get_metadata）直接取設計稿，不必重開 session → 已套用到：尚未
 - [2026-07-08][web-pulse-workspace] 背景 Explore agent 無聲消失（TaskList 查無、無完成通知）→ 需要結果才能往下走的掃描任務改 run_in_background:false 同步等 → 已套用到：尚未
-- [2026-07-08][web-pulse-workspace] spawn_task 背景 session 與主 session 在**同一個 git 工作目錄**動工（非隔離 worktree）：背景任務把主 session 未提交的變更 stash 走、換了分支，主 session 的 `git add -A` 把對方做到一半的檔案 commit＋push 上去 → 同 repo 有其他 session 在跑時，commit 前先 `git status`＋`git stash list` 核對內容物是不是自己的；要並行就自己開 `git worktree`，誤推立即 `push --delete` 撤下 → 已套用到：rules/10-dispatch.md、codex/rules/10-dispatch-codex.md、rules/40-maintenance.md 的 single-writer/worktree 規則
-- [2026-07-09][global] /doctor 查出 `~/.claude/rules` 是**目錄 symlink → agents-guideline/rules**，Claude Code 會把整個資料夾**每 session 無條件全文載入**（官方 memory 功能：無 `paths` frontmatter 的 rule＝launch 時載入，與 CLAUDE.md 同級）；router 寫的「rules/ 按需載入」對 Claude 其實無效、9 檔約 ~10.3k tokens 常駐。純 Codex 檔（`10/30-*-codex.md`）先試加 `paths` frontmatter（可行，但依賴未確認的 user 層級 paths 支援），最後改**結構性分離**：`git mv` 到 `agents-guideline/codex/rules/`（Claude 的 symlink 看不到→保證不載入；Codex 靠 AGENTS.md 絕對路徑按需讀、不受影響），引用同步改 `AGENTS.md`／`README.md` → 教訓：要讓某檔在 Claude 不自動載入，**把它移出被 symlink 的 `rules/` 目錄**比加 frontmatter 穩；日後 Codex-only 或非 Claude 的守則一律放 `codex/rules/`、不放 `rules/`。router「按需載入」措辭對 rules 檔其實不成立，是否修正留給使用者 → 已套用到：AGENTS.md、README.md、檔案位置 codex/rules/
-- [2026-07-18][global] insights 報告盤點 128 sessions：最長的幾次除錯繞路全是環境問題（stale mock-server 佔 port 8787、cwd 站錯、zsh quoting 弄壞輸出）被當成程式 bug 追 → 除錯前先驗環境（pwd、port 佔用者、git 狀態 read-back）再提程式假設 → 已套用到：20-judgment.md §6
-- [2026-07-18][web-pulse-workspace] i18n 字串抽取宣稱完成後，main.tsx 的殘留字串靠後續全 repo 掃描才發現 → 重構／抽取類任務完成前必跑全 repo `rg` 驗無殘留並附輸出 → 已套用到：20-judgment.md §2 補充判準
-- [2026-07-18][global] 一次性的「merge on green」指示被解讀為常設政策，導致 PR 被提前 merge → 對外／不可逆動作的授權一律逐次、逐對象，不得推廣為常設規則 → 已套用到：20-judgment.md §3 註
-- [2026-07-18][global] zsh 展開 `===`、gh comment 的 backtick 被 shell 吃掉，指令重跑且輸出誤導判斷 → 多行或含特殊字元內容一律用 quoted heredoc（`<<'EOF'`）；git 操作後用新指令 read-back，不信 scrollback → 已套用到：20-judgment.md §6（heredoc 與 read-back 併入該節）
-- [2026-07-21][web-pulse-workspace] 判「新版 UI 與舊版一致」時只看 Playwright accessibility snapshot（只含文字），漏掉純 CSS 寬度的進度條，回報「回應數呈現一致」後上線才被使用者抓到少一條 bar → a11y snapshot 不含只有視覺、無文字的元素（進度條、色塊、icon-only）；判 UI 視覺對齊要用截圖或 `browser_evaluate` 抓 DOM/computed style，不能只憑 a11y 樹 → 已套用到：尚未（再踩就提案入 20-judgment §5）
+- [2026-07-21][web-pulse-workspace] 判「新版 UI 與舊版一致」時只看 Playwright accessibility snapshot（只含文字），漏掉純 CSS 寬度的進度條，回報「回應數呈現一致」後上線才被使用者抓到少一條 bar → a11y snapshot 不含只有視覺、無文字的元素（進度條、色塊、icon-only）；判 UI 視覺對齊要用截圖或 `browser_evaluate` 抓 DOM/computed style，不能只憑 a11y 樹 → 已套用到：尚未（再踩就提案入 `rubrics/code-change.md`）
 - [2026-07-21][global] 把「加 import」與「加使用處」拆成兩次 Edit，per-file lint hook 在中間態抓到 `unused-imports` 假 error → 有 PostToolUse per-file lint hook 時，import 與其使用處併在同一次 Edit（或先改使用處再加 import）避免中間態假告警；真假存疑一律補跑 eslint 確認 → 已套用到：尚未
 - [2026-07-23][web-pulse-survey-sdk] tsup→tsdown 遷移（#110）改了 package.json build script 卻漏改 `.github/actions/deploy-widget` 裡的 `pnpm exec tsup`；PR CI 不跑部署路徑故全綠，直到發 0.20.0 時 release CI 的 deploy-staging 才炸（`Command "tsup" not found`）、連帶 prod 部署與 Slack 通知被 skip；重跑舊 run 又沿用含 bug 的 action，只能修 action 後另發 patch（0.20.1）讓部署帶新 action 重跑 → build-tool／依賴遷移後，`rg` 全 repo（含 `.github/workflows` 與 `.github/actions`）搜舊工具名；release/deploy-only 路徑 PR CI 測不到、發版才會爆，要另外查 → 已套用到：尚未（再踩提案入 20-judgment §2 補充判準）
+- [2026-07-25][agents-guideline] 為去重把重複規則改成「見對應平台 dispatch 文件 §N」的單一指向，但 Claude 與 Codex 兩份 dispatch 的章節編號不同（升降級 Claude §4／Codex §5，驗證 Claude §5／Codex §6），Codex session 照 §N 會翻到回報合約——fable-verifier 抓到 → 跨平台共用的指向一律**逐平台各寫一組編號並附章節名**（「§5『升降級路徑』」），不要用一個 §N 指兩份結構不同的文件；章節名是編號漂移時的救命錨點 → 已套用到：尚未（再踩就提案入 maintain-guideline skill §6）
 
 ## 交接欄
 

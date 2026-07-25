@@ -1,0 +1,81 @@
+---
+name: maintain-guideline
+description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全域 CLAUDE.md／AGENTS.md、`agents/*.md`、`codex/agents/*.toml`、`rubrics/*`、任何專案的 CLAUDE.md／AGENTS.md。內含權限分級（哪些可自行改、哪些要先問使用者）、標準修改流程、教訓寫回格式、瘦身與日落條款、路由完整性檢查。動這些檔案之前先讀。
+---
+
+# 系統維護協議
+
+> 讀者：要維護本 repo、`~/.claude/`、`~/.codex/`、任何專案 CLAUDE.md 或 AGENTS.md 的 session。
+> 本系統以 symlink 安裝：Claude Code 裝到 `~/.claude/`，Codex 裝到 `~/.codex/`，檔案連回 `~/Projects/FatJohn/agents-guideline`，改動會直接反映在 repo，由使用者定期 review 後 commit。
+> 本檔在 `skills/` 底下而非 `rules/`，所以**不會每 session 自動載入**——這是刻意的：維護協議只在真的要動系統時才需要在 context 裡。
+
+## 1. 檔案清單與權限分級
+
+| 檔案 | 性質 | 可以自行改嗎 |
+|------|------|-------------|
+| `rules/00-environment.md` | 跨機器事實與風險 | ✅ 更新過時事實（附當場驗證與查證日期）；「三大結構性風險」框架不可移除 |
+| `rules/05-hosts.md` | 各機器事實 | ✅ 新機器段落可自行加；過時事實可更新（附探測日） |
+| `rules/10-dispatch.md`／`rules/20-judgment.md`／`codex/rules/10-dispatch-codex.md`／`codex/rules/30-delegation-templates-codex.md` | 系統核心 | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |
+| `skills/maintain-guideline/SKILL.md`（本檔） | 憲法 | ❌ 動之前先問使用者 |
+| `rules/50-lessons.md` | 活躍教訓日誌 | ✅ 隨時可加；升級成判準後移到 `docs/lessons-archive.md` |
+| `docs/lessons-archive.md` | 教訓封存 | ✅ 可加封存條目；**不改寫既有條目原文** |
+| `rubrics/*.md` | 驗收判準（verifier 讀） | ⚠️ 新增條目可以；修改或刪除既有判準要先問使用者 |
+| `agents/*.md`／`codex/agents/*.toml` | agent 定義（＝角色介面） | ✅ 新角色可加；改既有角色的職責先問 |
+| 全域 CLAUDE.md | 路由 | ⚠️ 只能加/修路由行，不准把長內容塞回去 |
+| 全域 AGENTS.md | Codex 路由 | ⚠️ 只能加/修路由行，不准把長內容塞回去 |
+| 各專案的 CLAUDE.md／AGENTS.md | 專案規格，可能是團隊共用 | ❌ 內容修改先問使用者 |
+
+「我覺得這條規則不合理」的情況：提出來問，不要默默繞過。
+
+## 2. 標準修改流程
+
+1. 確認回退路徑：`git status --short` 應為乾淨，或至少確認未提交變更是你自己的。**本 repo 有 git 版控，不要 `cp` 出 `.bak` 檔**——那是雜訊，回退用 `git checkout`／`git diff`。
+2. 修改（優先「新增段落」而非動既有文字）。
+3. 驗證：派 fresh-context `verifier`（高風險或動到憲法／判準時用 `fable-verifier`）做 read-back，驗收條件至少包含「與其他 rules 檔無矛盾」「引用的路徑/指令實際存在」。
+4. 提醒使用者 repo 有未 commit 的變更（不要自行 commit）。
+
+### 本機設定安全
+
+- 修改 `~/.codex/config.toml` 前先備份（這個檔不在 git 裡），修改後驗證不存在重複的 TOML table。
+- commit 前 read-back：`git status --short`、`git diff --cached`、`git stash list`；確認 staged scope 與 stash 狀態後才進行下一步。仍須遵守本節第 4 步：不要自行 commit。
+- 平行寫入與 working-tree 所有權規則見 `~/.claude/rules/10-dispatch.md` §工作目錄與背景任務安全（canonical 位置）。
+
+## 3. 教訓寫回（每次踩坑後）
+
+寫進 `rules/50-lessons.md`，一行一條，格式：
+
+```
+- [YYYY-MM-DD][專案名或 global] 一句情境 → 一句教訓 → 已套用到：{檔名 或「尚未」}
+```
+
+- 「值得寫」的門檻：這個坑會讓下個 session 多花 10 分鐘以上，且從 repo/git log 看不出來。
+- **同一個坑踩第二次＝該從教訓升級成正式判準**：走「先問使用者」流程提案修改 `rules/20-judgment.md`。
+- **升級落地後把該條移到 `docs/lessons-archive.md`**（原文不改寫，只搬位置）。`rules/50-lessons.md` 常駐在每個 session 的 context 裡，只該留「尚未」有判準承接的教訓；已被判準吸收的條目留在那裡等於同一件事佔兩份 context。
+
+## 4. 記憶寫入規則（制度存活的關鍵）
+
+每個 session 結束前自查一次：
+- **使用者糾正過你** → 寫進可用的持久記憶層（Claude：`~/.claude/projects/<專案slug>/memory/`；Codex：`~/.codex/memories/` 由內建 memories 產生／整合），type: feedback，含「為什麼」與「怎麼套用」；能進 repo 的長期制度仍優先進本 repo。
+- **發現使用者的偏好／背景** → type: user。
+- **跨 session 的進行中工作** → type: project，日期寫絕對日期；Codex 端另用 `session-handoff` skill 更新專案 `.codex/HANDOFF.md`。
+- **不要存**：repo 本身就記錄的事（程式結構、git 歷史）、只對當次對話有意義的細節。
+- 環境級（跨專案）的事實不進記憶，進 `rules/00-environment.md`。
+
+## 5. 瘦身協議（防膨脹＋日落條款）
+
+- 觸發：`rules/50-lessons.md` 的活躍教訓超過 15 條，或任一 `rules/` 檔超過 200 行，或 `rules/` 全目錄超過 40,000 bytes（該目錄每 session 全文載入，bytes 就是固定成本）。
+- 動作：已升級成判準的教訓搬到 `docs/lessons-archive.md`；只在特定情境才需要的長內容搬出 `rules/`（進 `skills/`、`rubrics/` 或 `docs/`）；合併重複；同一條規則只留一個 canonical 位置，其餘改為指向。
+- **只在特定情境才用得到的內容不該放 `rules/`**：`rules/` 是無條件常駐區，付的是每個 session 的固定成本。維護協議、驗收 rubric、封存教訓、派工範例都屬於「用到才讀」，放 `skills/`／`rubrics/`／`docs/`。
+- **日落條款**：本系統多數規則是在補償當代模型的弱點（context 上限、自驗偏誤、記憶斷裂）。當發現某條規則「不寫模型也自然做得到」時，提案刪除它——制度的理想終點是只剩事實（00／05）與授權邊界，規則越少代表模型越強，不是制度失敗。判斷訊號：這條規則在講**風格偏好或通用做事方法**（模型自己會）還是在講**這個環境的具體 gotcha**（模型不可能知道）？前者日落，後者保留。
+- 瘦身是「搬移與合併」不是「重寫」——整檔重寫需使用者同意；刪併清單先列給使用者確認。
+
+## 6. 路由完整性（防斷鏈）
+
+- 搬移或改名任何被引用的檔案時，同一次修改先用 `rg -l '<舊檔名>' ~/.claude/ ~/.codex/ ~/Projects/FatJohn/agents-guideline/` 找出所有引用一起改；專案 CLAUDE.md／AGENTS.md 裡的引用照 §1 權限先問再改。
+- 定期（或使用者要求時）健檢：派 verifier 對每個 rules 檔引用的路徑與指令做存在性檢查。
+
+## 7. 跨專案應用
+
+- 本系統是**環境級**（管「怎麼工作」）；各專案的 CLAUDE.md／AGENTS.md 是**專案規格**（管「寫出什麼樣的東西」）。衝突時專案規格優先。
+- 到新專案開工時，先確認該 repo 的可驗證性（能不能本地 build/test？這決定 `rules/20-judgment.md` §2 的完成定義與 `rubrics/code-change.md` 怎麼落地）。
+- 值得留下的專案事實寫進該專案的記憶目錄，不要寫進全域 rules。

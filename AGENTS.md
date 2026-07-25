@@ -19,8 +19,9 @@
 | 判斷題：該不該升級／算不算完成／要不要問使用者／該不該換路 | `/Users/fatjohn/Projects/FatJohn/agents-guideline/rules/20-judgment.md` |
 | 撰寫 Codex subagent prompt | `/Users/fatjohn/Projects/FatJohn/agents-guideline/codex/rules/30-delegation-templates-codex.md`（一般驗收用 `verifier`；高風險驗收用 `sol_verifier`） |
 | 收尾、交接、記錄目前進度、下次續接 | 使用 `session-handoff` skill，預設寫到專案 `.codex/HANDOFF.md` |
-| 修改 rules 檔、`AGENTS.md`、`CLAUDE.md` 或 agent 定義 | `/Users/fatjohn/Projects/FatJohn/agents-guideline/rules/40-maintenance.md`（先讀，內有權限分級） |
-| 踩坑之後 | 在 `/Users/fatjohn/Projects/FatJohn/agents-guideline/rules/50-lessons.md` 加一行 |
+| 寫驗收條件、或驗收者要逐條判品質 | `/Users/fatjohn/Projects/FatJohn/agents-guideline/rubrics/` 底下對應產出類型的 `document-quality.md`／`code-change.md`／`research-analysis.md` |
+| 修改 rules 檔、`AGENTS.md`、`CLAUDE.md`、agent 定義或 rubric | `maintain-guideline` skill（或直接讀 `/Users/fatjohn/Projects/FatJohn/agents-guideline/skills/maintain-guideline/SKILL.md`；先讀，內有權限分級） |
+| 踩坑之後 | 在 `/Users/fatjohn/Projects/FatJohn/agents-guideline/rules/50-lessons.md` 加一行（已升級成判準的歷史條目在 `docs/lessons-archive.md`） |
 
 ## 三條鐵律（隨時生效）
 

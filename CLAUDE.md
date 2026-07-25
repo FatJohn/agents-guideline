@@ -9,17 +9,17 @@
 
 ## 工作系統（`rules/` 每 session 常駐；下表＝內容索引）
 
-`~/.claude/rules/` 是這個環境的工作系統。**`~/.claude/rules` 是目錄 symlink，其中無 `paths` frontmatter 的 `*.md` 會被 Claude Code 每 session 全文載入、與 CLAUDE.md 同級常駐（非按需）**——故下列各檔內容其實已在 context，下表是「主題 → 檔案」索引，不是待讀清單。新增檔案若非每次都需要，加 `paths` frontmatter 或改放非 symlink 目錄（如 `codex/rules/`）讓它用到再載入：
+`~/.claude/rules/` 是這個環境的工作系統。**`~/.claude/rules` 是目錄 symlink，其中無 `paths` frontmatter 的 `*.md` 會被 Claude Code 每 session 全文載入、與 CLAUDE.md 同級常駐（非按需）**——故下表標 ✅ 的那幾列內容其實已在 context，是「主題 → 檔案」索引而非待讀清單。**只有每個 session 都需要的內容才放 `rules/`**；用到才讀的長內容放 `skills/`、`rubrics/` 或 `docs/`（那些目錄不會自動載入），即下表標 ❌ 的列。
 
-| 情境 | 讀這份 |
-|------|--------|
-| 開工前：確認這台機器有什麼工具、能跑哪些驗證 | `rules/05-hosts.md`（機器沒列 → 照檔頭探測清單自己補段落） |
-| 了解這個環境的結構性風險、記憶機制、好用的 skill/plugin 清單 | `rules/00-environment.md` |
-| 派 subagent、選 model/effort、驗收產出 | `rules/10-dispatch.md` |
-| 判斷題：該不該升級模型／算不算完成／要不要問使用者／該不該換路 | `rules/20-judgment.md` |
-| 撰寫派工 prompt | `rules/30-delegation-templates.md`（驗收用 `verifier` agent） |
-| 修改 rules 檔或任何 CLAUDE.md | `rules/40-maintenance.md`（先讀，內有權限分級） |
-| 踩坑之後 | 在 `rules/50-lessons.md` 加一行 |
+| 情境 | 讀這份 | 已在 context？ |
+|------|--------|----|
+| 開工前：確認這台機器有什麼工具、能跑哪些驗證 | `rules/05-hosts.md`（機器沒列 → 照檔頭探測清單自己補段落） | ✅ |
+| 了解這個環境的結構性風險、記憶機制、好用的 skill/plugin 清單 | `rules/00-environment.md` | ✅ |
+| 派 subagent、選 model/effort、驗收分工、升降級 | `rules/10-dispatch.md` | ✅ |
+| 判斷題：該不該升級模型／算不算完成／要不要問使用者／該不該換路 | `rules/20-judgment.md` | ✅ |
+| 還沒有正式判準承接的活躍教訓；踩坑之後在此加一行 | `rules/50-lessons.md`（已升級的歷史條目在 `docs/lessons-archive.md`） | ✅ |
+| 寫驗收條件、或當 verifier 要逐條判品質 | `~/.claude/rubrics/{document-quality,code-change,research-analysis}.md` | ❌ 要讀 |
+| 修改 rules 檔、CLAUDE.md、AGENTS.md、agent 定義或 rubric | `maintain-guideline` skill（先讀，內有權限分級） | ❌ 要讀 |
 
 ## 三條鐵律（隨時生效）
 

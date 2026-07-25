@@ -9,7 +9,7 @@
 - 公司專案（自己主導的代表作）：`flutter-slimgo`（Flutter App）、`web-starvision`／`web-starvision-cms`（網站）等。
 - 個人 side project：財經類（macroeconomics-report 等，自己玩玩性質）等。完整清單用 `gh repo list`（個人）、`gh search repos --owner tvbstw`（公司）現查，不要依賴這裡的列舉。
 - 技術背景：C#／.NET／WPF／UWP 熟、C++ 部分會；Flutter、TypeScript 可；JavaScript／Vue 一般、React 初學。**後端與雲端架構不熟**——個人專案部署以 Zeabur 為主；財經專案另碰過 CloudFront＋自有 domain、R2 storage。涉及雲端架構的建議要多給脈絡、少假設既有知識。
-- LLM 資源：Claude Code 訂閱 Max；主對話的實際設定（`~/.claude/settings.json`，只查非敏感欄位）為 `opus[1m]`／effort `xhigh`。Codex 目前為 Plus，主對話預設 `gpt-5.6-terra`／effort `high`；若升級 Pro，主對話預設改為 `gpt-5.6-terra`／effort `xhigh`。Codex 可透過 codex plugin 派工，見 `10-dispatch.md`。
+- LLM 資源：Claude Code 訂閱 Max；主對話 effort 由 `~/.claude/settings.json` 的 `effortLevel: xhigh` 設定，**model 不在 settings.json 裡**（由 UI 選，2026-07-25 核對；當次實際型號以主對話自報的 model ID 為準，該日為 `claude-opus-5`）。Codex 目前為 Plus，主對話預設 `gpt-5.6-terra`／effort `high`；若升級 Pro，主對話預設改為 `gpt-5.6-terra`／effort `xhigh`。Codex 可透過 codex plugin 派工，見 `10-dispatch.md`。
 - Codex custom agent runtime 限制（主力 Mac，0.144.4，2026-07-14 實跑）：`~/.codex/agents/` 的 standalone TOML 可被 `--strict-config` 接受，但目前 collaboration v2 的 `spawn_agent` 只帶 `task_name`；fresh child metadata 仍可能是 `agent_role:null`，即使同名檔案與 `[agents.<name>] config_file` 都存在。只有 child metadata 的 `agent_role` 明確符合角色，才可宣稱 custom model／effort／contract 已套用；`null` 必須標記 runtime unavailable／模型未驗證，不得用 child 文案當載入證據。
 
 ## 三大結構性風險與修法（按嚴重度）
@@ -26,7 +26,7 @@
 
 **症狀**：說「測試通過」「已修好」但沒有跑過任何驗證，或驗證是自己看自己的產出。
 
-**修法**：鐵律一（回報分級：已驗證／待 CI／未驗證）＋按產出風險分工驗證：文件、主觀品質與高風險產出派 fresh-context `verifier`；程式碼的測試、build、lint、實跑、schema 等機械驗證可由製作者執行，但必須附指令輸出或實跑證據，高風險程式碼另加 fresh review。完成的定義見 `20-judgment.md` §2。
+**修法**：鐵律一（回報分級：已驗證／待 CI／未驗證）＋按產出風險分工驗證。完成的定義見 `20-judgment.md` §2；誰驗什麼、用哪份 rubric 見 `10-dispatch.md` §5。
 
 ### 3. 固定注入肥大：每個 session 開場漏掉數千 token
 

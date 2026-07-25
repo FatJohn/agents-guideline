@@ -5,13 +5,13 @@
 
 ## 0. 可用模型與 subagent（查證過，不要憑印象改）
 
-**Agent 工具的 `model` 參數**可逐次指定常用 alias，也可使用完整 model ID 或 `inherit`：
+**Agent 工具的 `model` 參數**可逐次指定常用 alias，也可使用完整 model ID 或 `inherit`。alias 會隨平台改版重新指向新一代同層模型——要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準，不引用本表：
 
 | 參數值 | 實際型號 | 用途定位 |
 |--------|----------|----------|
 | `haiku` | claude-haiku-4-5 | 平台可用模型；不列入本制度 active routing |
 | `sonnet` | claude-sonnet-5 | 掃描、總結、批次機械車道主力；Pro 檔位的實作預設 |
-| `opus` | claude-opus-4-8 | 難題升級、高風險判斷 |
+| `opus` | claude-opus-5 | 難題升級、高風險判斷 |
 | `fable` | claude-fable-5 | 最高階；高風險、最終升級與獨立驗收 |
 
 agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用範圍受模型與組織設定限制（見 `00-environment.md` §查證過的事實）。
@@ -72,13 +72,20 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - 需要其結果才能繼續的 blocking 任務不得只依賴可能因休眠中斷的背景執行。
 - Subagent 回報不等於實際狀態；controller 必須 read-back `git status`、diff、commit 與驗證輸出。
 
-## 2. 派工三件套
+## 2. 派工合約
 
-每個 subagent prompt 必含三段，缺一段就是不合格的派工（模板見 `30-delegation-templates.md`）：
+每個 subagent prompt 必含三段，缺一段就是不合格的派工：
 
-1. **目標與動機**——要達成什麼、為什麼（subagent 看不到主對話，脈絡要自帶）。
-2. **驗收條件**——可機械判定的完成定義；判準：另一個 agent 能只憑這句話判定過或不過。
-3. **回報格式**——規定回什麼、多長。
+1. **目標與動機**——要達成什麼、為什麼（subagent 看不到主對話，脈絡要自帶：相關檔案、使用者原話、已知限制）。
+2. **驗收條件**——可機械判定的完成定義；判準：另一個 agent 能只憑這句話判定過或不過。填不出驗收條件代表你還沒想清楚要什麼，先想再派。
+3. **回報格式**——規定回什麼、多長（預設合約見 §3）。
+
+兩個非顯然的必要條件（漏掉會出事，不是風格建議）：
+
+- **路徑一律寫絕對路徑**——subagent 的工作目錄認知可能跟你不同，相對路徑會找錯地方。
+- **prompt 開頭明寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」**——subagent 也會讀到全域 rules，不加這句會把「指揮官不下場」套在自己身上、逐層轉包（2026-07-07 實測發生過 5 層遞迴）。收到「我已再派背景工作」類回報＝未完成，立即糾正。
+
+各自帶行為合約的角色（`verifier`／`fable-verifier`／`recovery-worker`／`escalation-worker`／`escalation-planner`）已把「需要哪些輸入、缺什麼就停」寫進 `~/.claude/agents/<角色>.md`——派工時只需提供該檔要求的素材，不必重述其職責。
 
 ## 3. 回報合約
 
@@ -89,12 +96,14 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 ## 4. 升降級路徑
 
-- **實作側：標準層實作者在同一個子任務連錯兩次（無論錯誤相同與否）或揭露高風險** → 依入口與失敗型態選路，prompt 一律必附**對應門檻的證據**——失敗入口附完整失敗軌跡（試了什麼、輸出什麼、為什麼判定失敗）；高風險入口附風險判定依據（發現了什麼、為何屬高風險）——不能只丟原題：
-  - 失敗者是 **sonnet** → 一律改派 fresh-context `recovery-worker`（opus／xhigh，跳階＋fresh），它必須先建立 root cause 再編輯。
-  - 失敗者是 **opus／xhigh（Max 檔位進場）**、失敗型態是 **context 汙染型**（錯誤有在演變、越修越糟、開始疊 workaround）→ 仍派 `recovery-worker`：同階 fresh 重啟，價值在乾淨 context 與強制 root cause，這型失敗換更大的模型沒用。
-  - 失敗者是 **opus／xhigh**、失敗型態是 **能力天花板型**（反覆撞同一面牆、模型明顯理解問題但解不動）→ 直升 `escalation-worker`（fable／xhigh），不浪費一輪同階 recovery。型態難辨時先走同階 recovery（便宜的那條）。
-- **實作側：recovery-worker 在同一子任務再失敗兩次，或確認 root cause 需要 Fable 能力** → 升 `escalation-worker`（fable／xhigh），prompt 附對應門檻證據（再失敗兩次＝兩層失敗軌跡；確認需要 Fable＝recovery 的 root cause 報告與判定理由）；重大架構／安全／資料遺失／不可逆決策也須先確認需要 Fable 能力才符合此門檻。Fable 與 Codex Sol 屬同一個最高風險角色層。
-- **規劃側：Plan 或探索路徑（opus）無法建立可靠方案** → 先以 fresh-context Plan（opus）重述問題並附完整探索輸出重試一次；仍無法形成可靠方案才升 `escalation-planner`（fable／xhigh），同樣附完整軌跡。它唯讀出 plan，實作仍走上面的實作側路徑。
+升級**門檻**（幾次失敗、什麼算高風險）的 canonical 定義在 `20-judgment.md` §1；本節只講門檻成立後**派給誰**。
+
+任何升級派工一律必附**對應門檻的證據**，不能只丟原題：失敗入口附完整失敗軌跡（改了什麼／跑了什麼指令／輸出關鍵行／為什麼判定失敗，每次嘗試各一段）；高風險入口附風險判定依據（發現了什麼、為何屬高風險）；「確認需要 Fable」入口附 recovery 的 root cause 報告與判定理由。缺對應證據時 agent 會直接回報「升級素材不足」。
+
+- **實作側，門檻成立** → 派 fresh-context `recovery-worker`（opus／xhigh）。它先建立 root cause 再編輯；價值同時來自乾淨 context 與強制 root cause，所以即使失敗者已是 opus 也適用。
+  - **例外可直升 `escalation-worker`（fable／xhigh）**：失敗者已是 opus／xhigh，且明顯是**能力天花板**——反覆撞同一面牆、看得出理解問題但解不動，而不是越修越糟、越疊 workaround。難以判定就走 recovery（便宜的那條）。
+- **實作側，recovery-worker 也沒收斂**（再兩次失敗，或它自己判定 root cause 需要 Fable 能力）→ 升 `escalation-worker`（fable／xhigh）。Fable 與 Codex Sol 屬同一個最高風險角色層。
+- **規劃側：Plan 或探索路徑（opus）無法建立可靠方案** → 先以 fresh-context Plan（opus）重述問題並附完整探索輸出重試一次；仍無法形成可靠方案才升 `escalation-planner`（fable／xhigh）。它唯讀出 plan，實作仍走上面的實作側路徑。
 - **fable 回報 unsupported 或 unavailable** → 不得宣稱已使用 Fable；改用 fresh-context opus 或 `codex:codex-rescue`，並把 model mapping 標記為「未驗證」。
 - **fable 仍卡住** → 改用 Codex Sol 作跨平台第二意見，或依 `20-judgment.md` §3 問使用者；不可只換措辭重試第三輪。
 - **降級**：難題被 Opus／Fable 解出可重複且可機械驗證的 pattern 後，把 pattern 寫進 prompt，降回 sonnet 批次套用；不降到 haiku。
@@ -102,7 +111,17 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 ## 5. 驗證不自驗（鐵律三）
 
+> 本節是「誰驗什麼」的 canonical 位置；「什麼叫完成」在 `20-judgment.md` §2。
+
 主觀判斷、文件品質與高風險產出不得由製作者自己背書。測試、build、lint、實跑與 schema 驗證等可重現的機械驗證可由製作者執行，但必須附指令與輸出；高風險程式碼另加 fresh-context review。
+
+驗收條件不必每次重寫——按產出類型直接引用 rubric，再補該次任務特有的條件：
+
+| 產出類型 | rubric |
+|---|---|
+| 文件、規則、說明 | `~/.claude/rubrics/document-quality.md` |
+| 實作、修 bug、重構 | `~/.claude/rubrics/code-change.md` |
+| 查證、調研、盤點 | `~/.claude/rubrics/research-analysis.md` |
 
 - **文件／主觀品質** → 派 fresh-context `verifier` 做 read-back：給它「產出檔案路徑＋驗收條件清單」，逐條判 PASS/FAIL；verifier 不參與製作。
 - **高風險文件／規則／架構決策／最終驗收** → 使用 `fable-verifier`；它與 Codex `sol-verifier/Sol high` 對應，只讀取、找碴與判定，不修正產物。
