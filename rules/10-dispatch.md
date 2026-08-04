@@ -71,6 +71,9 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - 平行寫入的 subagent 必須設定 `isolation: worktree`；若仍共用 working tree，即使檔案不重疊也只能序列寫入。
 - 需要其結果才能繼續的 blocking 任務不得只依賴可能因休眠中斷的背景執行。
 - Subagent 回報不等於實際狀態；controller 必須 read-back `git status`、diff、commit 與驗證輸出。
+- **唯讀角色也受影響**：verifier／Explore 與寫入者共用 working tree 時，它的**唯讀結論**
+  （檔案內容、路徑與指令是否存在）仍可信，但**任何跑測試／build 取得的數字**都被污染——
+  工作區在它量測期間被改動過。要嘛等它跑完再動手，要嘛給它 `isolation: worktree`。
 
 ## 2. 派工合約
 

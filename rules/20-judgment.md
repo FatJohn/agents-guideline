@@ -83,6 +83,12 @@
 - 目標 port 被誰佔用（`lsof -i :<port>`）；跑著的 server 是不是本 repo、本分支起的（看啟動時間或 build 產物）。
 - `git status --short && git log --oneline -3` 用新指令重新確認分支與 merge 狀態——不從舊的 scrollback 推斷。
 - 輸出像亂碼或被截斷時，先懷疑 shell quoting（zsh 會展開 `===`、吃掉 backtick），多行或含特殊字元的內容改用 quoted heredoc（`<<'EOF'`）重跑一次，再解讀結果。
+- **量測方法要先自證，再拿它的結果下結論**——「壞了」與「我量錯了」長得一樣：
+  - HTTP 檢查一律帶 `-L`，並看 `%{http_code}` ＋ `size_download`（不跟隨 302 會得到 `000`／0 bytes）。
+  - 數 XML/JSON 元素用 `grep -o … | wc -l`，不要用 `grep -c`（它數的是**行**，單行文件恆為 1）。
+  - **破壞性檢驗（竄改後確認測試會紅）必須先證明自己真的改到了東西**：`assert 搜尋字串 in 內容`，或改完 read-back diff。
+    引號層一多，shell 與目標檔案對 backslash 的認知就會錯開，replace 靜默 no-op 時**輸出完全沒有異狀**，
+    於是竄改沒發生、測試照樣綠，被讀成「守衛有效」——這是本節前一條的觸發條件（亂碼／截斷）涵蓋不到的失敗模式。
 
 ✅ **正例**：dev server 一直回 400/503 → 先 `lsof -i :8787`，發現是另一個 clone 殘留的 mock-server 佔著 port，殺掉即復原，程式碼一行不用改。
 ❌ **反例**：反覆修改 API 呼叫端程式碼想解 503，兩小時後才發現打到的根本不是自己起的 server。

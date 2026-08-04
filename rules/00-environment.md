@@ -58,6 +58,9 @@
 - **外部第二意見／整包委派**：codex plugin（用法見 `10-dispatch.md`）。
 - **Codex 收尾交接**：`session-handoff` skill——使用者說「收尾」「記一下」「下次續接」「handoff」時，整理目標／已完成／驗證／下一步到 `.codex/HANDOFF.md`。
 - **找新工具**：遇到「感覺應該有現成工具」的問題，先搜 mcp-registry 的 connector 清單或問使用者，找不到再自己寫。
+- **Figma 設計稿**：plugin 已啟用但 session 內搜不到 `figma-dev-mode-mcp-server` 工具時（MCP 未在 session 啟動時註冊），
+  只要 Figma 桌面 App 的 Dev Mode MCP server 在 `127.0.0.1:3845` 有跑，就能用 `curl` 手動走 JSON-RPC
+  （initialize → tools/call `get_design_context`／`get_screenshot`／`get_metadata`）直接取設計稿，不必重開 session。
 
 ## 查證過的事實（2026-07-13；版本更新後重新核對）
 
