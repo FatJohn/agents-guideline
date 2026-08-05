@@ -31,7 +31,7 @@
 
 使用「能可靠完成該階段的最低 model tier」，並把 model tier 與 reasoning effort 分開判斷；不要只因任務困難就直接使用 Sol Ultra。
 
-**入口檔位依訂閱事實**（`rules/00-environment.md`）：Plus 主對話預設 Terra/high，標準實作用 `worker/Luna max`；Pro 主對話預設 Terra/xhigh，標準實作用 `pro_worker/Terra xhigh`。方案未知或環境事實未查證時不得猜測，先回 controller 查明。掃描、探索、一般規劃／review／驗收與 Sol 高風險角色不因 Pro 全面升級；Pro 的額外額度優先用在非機械實作入口。
+**入口檔位依訂閱事實**（`rules/00-environment.md`）：Plus 主對話預設 Sol/medium，標準實作用 `worker/Luna max`；Pro 主對話預設 Terra/xhigh，標準實作用 `pro_worker/Terra xhigh`。方案未知或環境事實未查證時不得猜測，先回 controller 查明。掃描、探索、一般規劃／review／驗收與 Sol 高風險角色不因 Pro 全面升級；Pro 的額外額度優先用在非機械實作入口。
 
 - 小型、範圍明確、驗收條件清楚的修改留在主對話；不強制經過昂貴的規劃階段。
 - 非平凡實作依訂閱使用 `planner/Terra high → worker/Luna max（Plus）或 pro_worker/Terra xhigh（Pro）→ reviewer/Terra high`。

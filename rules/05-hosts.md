@@ -31,7 +31,7 @@
 - Windows 11 專業版（Build 26200）、PowerShell 7.6.4（`pwsh`，主要 shell）；Git Bash 與 WSL 皆可用（`bash`／`wsl` 都在 PATH）
 - 套件管理器：winget ✓、mise ✓（node／npm／python／codex 都走 mise shim）；scoop ✗、Homebrew ✗
 - Claude Code 2.1.222；Codex CLI 0.146.0（走 mise shim 會自動更新，同一天內就跳過版——版本號一律現查）
-- Codex 主對話 `gpt-5.6-terra`／effort `high`（2026-08-05 修正，原本停在舊世代的 `gpt-5.5`）
+- Codex 本機 config 的主對話為 `gpt-5.6-sol`／effort `medium`（2026-08-06 00:14 現查 `~/.codex/config.toml`；與 Plus 制度預設一致）
 - 工具：git ✓、gh ✓、node ✓、npm ✓、python ✓、flutter ✓（`D:\flutter\bin\flutter.bat`）、dotnet ✓、rg ✓、jq ✓、docker ✓、uv ✓；fd ✗、yarn ✗
 - **`python3` 沒有別名，只有 `python`**——探測清單第 3 項的指令直接照抄會誤判 Python 未安裝
 - 專案位置：個人專案放在 `E:\` 根層，不是 Mac 的 `~/Projects/FatJohn/`
