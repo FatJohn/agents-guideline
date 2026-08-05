@@ -6,7 +6,8 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 # 系統維護協議
 
 > 讀者：要維護本 repo、`~/.claude/`、`~/.codex/`、任何專案 CLAUDE.md 或 AGENTS.md 的 session。
-> 本系統以 symlink 安裝：Claude Code 裝到 `~/.claude/`，Codex 裝到 `~/.codex/`，檔案連回 `~/Projects/FatJohn/agents-guideline`，改動會直接反映在 repo，由使用者定期 review 後 commit。
+> 本系統以 symlink 安裝：Claude Code 裝到 `~/.claude/`，Codex 裝到 `~/.codex/`，檔案連回本系統 repo，改動會直接反映在 repo，由使用者定期 review 後 commit。
+> 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異，canonical 清單只有一份，在 `rules/05-hosts.md`；不確定就取 `readlink ~/.claude/CLAUDE.md`（PowerShell：`(Get-Item ~/.claude/CLAUDE.md).Target`）的目錄部分。
 > 本檔在 `skills/` 底下而非 `rules/`，所以**不會每 session 自動載入**——這是刻意的：維護協議只在真的要動系統時才需要在 context 裡。
 
 ## 1. 檔案清單與權限分級
@@ -78,7 +79,9 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 
 ## 6. 路由完整性（防斷鏈）
 
-- 搬移或改名任何被引用的檔案時，同一次修改先用 `rg -l '<舊檔名>' ~/.claude/ ~/.codex/ ~/Projects/FatJohn/agents-guideline/` 找出所有引用一起改；專案 CLAUDE.md／AGENTS.md 裡的引用照 §1 權限先問再改。
+- 搬移或改名任何被引用的檔案時，同一次修改先用 `rg -l '<舊檔名>' ~/.claude/ ~/.codex/ <REPO>/` 找出所有引用一起改；專案 CLAUDE.md／AGENTS.md 裡的引用照 §1 權限先問再改。
+- **改 markdown 標題也會斷鏈，不是只有搬檔會**：標題一改，下游所有 anchor 連結（`檔名#章節`）就死。改完用 `rg '檔名#'` 全 repo 驗存活。手算 GitHub anchor 容易錯，歷史文件寧可用「檔案層連結＋章節名文字」而不是 anchor。
+- **跨平台共用的章節指向，一律逐平台各寫一組編號並附章節名**（「Claude：`<REPO>/rules/10-dispatch.md` §5『驗證不自驗』；Codex：`<REPO>/codex/rules/10-dispatch-codex.md` §6『驗證語意』」）。兩份 dispatch 的章節編號本來就不同，只寫 §N 會讓另一個平台翻到別節；章節名是編號漂移時唯一的救命錨點。連例子裡的檔名也要寫成可解析的路徑——本檔在 `skills/` 底下，裸檔名從這裡解析不到。
 - 定期（或使用者要求時）健檢：派 verifier 對每個 rules 檔引用的路徑與指令做存在性檢查。
 
 ## 7. 跨專案應用

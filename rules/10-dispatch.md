@@ -40,7 +40,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `codex:codex-rescue`——外部模型（GPT 系，使用者有 Codex 訂閱）。兩種用法：(a) 卡死或高風險判斷時的第二意見；(b) 把獨立性高的完整實作／診斷任務整包委派出去，與 Claude subagent 平行運作。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。
 
-註：Claude 端不設 Codex `scanner`／`explorer`／`planner`／`worker` 的等價 custom agent——內建 `Explore`／`Plan`／`general-purpose` 加逐次指定 `model` 已涵蓋，且本制度不把 haiku 列入 active routing。自建 agent 只補「Agent 呼叫無法逐次指定 effort」的缺口（recovery／escalation／驗收角色需要綁定 effort 與行為合約）。另注意 Claude agent 沒有 sandbox 欄位：唯讀角色（escalation-planner、verifier、fable-verifier）靠 tools 清單與指令合約約束，controller 驗收時仍須 read-back `git status` 確認無意外寫入。
+註：Claude agent **沒有 sandbox 欄位**——唯讀角色（escalation-planner、verifier、fable-verifier）只靠 tools 清單與指令合約約束，controller 驗收時仍須 read-back `git status` 確認無意外寫入。（為什麼 Claude 端不設 Codex `scanner`／`worker` 等價 agent，見 README「檔案結構」。）
 
 ## 1. 雙軸判斷：context 成本 × 任務耦合
 
@@ -118,13 +118,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 主觀判斷、文件品質與高風險產出不得由製作者自己背書。測試、build、lint、實跑與 schema 驗證等可重現的機械驗證可由製作者執行，但必須附指令與輸出；高風險程式碼另加 fresh-context review。
 
-驗收條件不必每次重寫——按產出類型直接引用 rubric，再補該次任務特有的條件：
-
-| 產出類型 | rubric |
-|---|---|
-| 文件、規則、說明 | `~/.claude/rubrics/document-quality.md` |
-| 實作、修 bug、重構 | `~/.claude/rubrics/code-change.md` |
-| 查證、調研、盤點 | `~/.claude/rubrics/research-analysis.md` |
+驗收條件不必每次重寫——按產出類型直接引用 rubric（產出類型 → rubric 檔的對照表在 `20-judgment.md` §5「品質底線怎麼驗」，canonical 只有那一份），再補該次任務特有的條件。
 
 - **文件／主觀品質** → 派 fresh-context `verifier` 做 read-back：給它「產出檔案路徑＋驗收條件清單」，逐條判 PASS/FAIL；verifier 不參與製作。
 - **高風險文件／規則／架構決策／最終驗收** → 使用 `fable-verifier`；它與 Codex `sol-verifier/Sol high` 對應，只讀取、找碴與判定，不修正產物。

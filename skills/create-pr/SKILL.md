@@ -149,6 +149,21 @@ rm -f "$PR_BODY_FILE"
 
 3. 輸出 PR URL。
 
+### 2.8 merge 時的 stacked PR 陷阱
+
+**有其他 PR stack 在這個 branch 上時，merge 一律不要用 `--delete-branch`。** base branch 一被刪，GitHub 會把 stack 在其上的 PR **自動關閉，而且無法 reopen**。
+
+正解是先 retarget 再 merge：
+
+```bash
+gh pr edit <stacked#> --base main   # 先把上層 PR 改指向 main
+gh pr merge <base#>                 # 再 merge 下層，不加 --delete-branch
+```
+
+已經誤刪的救援：stacked branch 的 commits 還完整存在，直接用它開一個新 PR 到 `main`（原 PR 救不回來，不用浪費時間試）。
+
+（原為 `rules/50-lessons.md` 的活躍教訓，2026-08-05 升級封存。）
+
 ## 3. 完整輸出範例
 
 ### 範例 A：有單一主軸（融合敘述）

@@ -2,12 +2,13 @@
 
 > 這些教訓的內容已經被正式判準或 agent 定義承接，故從常駐的 `rules/50-lessons.md` 移出，避免同一件事在每個 session 的 context 裡佔兩份位置。**原文保留不改寫**，作為判準的來歷證據。
 > 本檔不在 `~/.claude/rules/` 底下，不會自動載入；要查某條判準為什麼存在時再讀。
-> 封存日：2026-07-25。
+> 封存日：2026-07-25（第一批）、2026-08-05（第二批，本檔末 5 條）。
 >
 > 注意：條目內的路徑是**寫入當時**的位置。之後發生過的搬移：
 > - `rules/30-delegation-templates.md` → 已刪除，內容併入 `rules/10-dispatch.md` §2 與各 `agents/*.md` 角色合約（2026-07-25）
 > - `rules/40-maintenance.md` → `skills/maintain-guideline/SKILL.md`（2026-07-25）
 > - `codex/rules/10-dispatch-codex.md`、`codex/rules/30-delegation-templates-codex.md` 原本在 `rules/`（2026-07-09 移出）
+> - **`rules/20-judgment.md` §6「除錯前先驗證環境」整節 → `skills/debug-environment-first/SKILL.md`（2026-08-05 瘦身移出常駐區）**。下方多條寫「已套用到：20-judgment.md §6」的條目，判準現在在那個 skill 裡，20-judgment §6 只剩一行指向。
 
 - [2026-07-06][global] 盤點發現持久記憶目錄全空，過去所有 session 學到的東西都蒸發了 → 每 session 結束前自查該寫的記憶，這比當日任何單一任務都值錢 → 已套用到：40-maintenance.md §4
 - [2026-07-06][global] Agent 工具呼叫無法指定 effort；effort 只能設在 agent 定義的 frontmatter → 需要特定 effort 的角色先建 `~/.claude/agents/` 定義 → 已套用到：00-environment.md、agents/verifier.md
@@ -29,4 +30,9 @@
 - [2026-08-03][macroeconomics-report] 把 verifier 丟背景跑，同時自己繼續切分支、改檔、跑測試；verifier 回報時自己標註「驗收期間工作區被平行改動、pass/fail 條數不可用來論斷 main」 → 背景 verifier 與主對話**共用同一個 working tree**，等於違反「同一 working tree 同時只能有一個寫入者」；它的**唯讀結論**（檔案內容、指令可用性）仍可信，但**任何跑測試取得的數字**都被污染。要嘛等它跑完再動手，要嘛給它 `isolation: worktree` → 已套用到：10-dispatch.md §工作目錄與背景任務安全、codex/rules/10-dispatch-codex.md §2「工作目錄與執行安全」
 - [2026-08-03][global] 判「這個 RSS feed 死了沒」時 `curl` 沒加 `-L` 得到 `000`／0 bytes（實際是 302），又用 `grep -c "<item>"` 數單行 XML 得到 1（實際 100 筆），連續兩次把「量錯」讀成「壞了」，差點據此改掉一個健康的資料源 → **提出「資料/程式壞了」的假設前先自證量測方法**：HTTP 檢查一律帶 `-L` 並看 `%{http_code}` ＋ `size_download`；數 XML/JSON 元素用 `grep -o … | wc -l`，不要用 `grep -c`（它數的是行，單行文件恆為 1）。這是 `20-judgment.md` §6「除錯前先驗證環境」在網路層的同一個病灶 → 已套用到：20-judgment.md §6
 - [2026-08-04][macroeconomics-report] 寫 Q4 spec 時把數字容差寫成「沿用 `nasdaq-client` 一致性檢查的同一套容差」，但那段程式碼**當時**只在未 merge 的 PR #209 上，spec 所在分支從 main 切出、main 上查不到（該 PR 已於 2026-08-04 17:02 merge，現在 main 有 `nasdaq-client.ts` 的 `closeEnough`——**這條教訓成立於寫 spec 的當下**）；fresh verifier 抓到，照著實作的人會去找一個查不到的先例 → **引用「既有慣例」前要確認它在讀者會看到的那棵樹上**：不是查證不足，是查在自己的工作分支上。文件要嘛自帶完整定義，要嘛註明「來源在 PR #N、尚未 merge」 → 已套用到：rubrics/document-quality.md §2（與 2026-07-25 那條併案）
+- [2026-07-06][macroeconomics-report] 文件重組時改了 markdown 標題又批次搬連結，verifier 抓到 3 條死鏈 → 改標題（不只搬檔）會斷下游 anchor，改完要 `rg "檔名#"` 全 repo 驗存活；手算 GitHub anchor 易錯，歷史文件用「檔案層連結＋章節名文字」更穩 → 已套用到：skills/maintain-guideline/SKILL.md §6（2026-08-05 升級）
+- [2026-07-08][macroeconomics-report] 用 `--delete-branch` 合併 base PR，GitHub 把 stacked 在其上的 PR 自動**關閉**、且無法 reopen → 有 PR stack 在其上的 branch，merge 時**勿用 --delete-branch**；正解是先 `gh pr edit <stacked#> --base main` retarget 再 merge。救援：stacked branch 的 commits 完整，直接用它開新 PR 到 main → 已套用到：skills/create-pr/SKILL.md §2.8（2026-08-05 升級）
+- [2026-07-08][web-pulse-workspace] 背景 Explore agent 無聲消失（TaskList 查無、無完成通知） → 需要結果才能往下走的掃描任務改 `run_in_background: false` 同步等 → 已套用到：10-dispatch.md §工作目錄與背景任務安全（該節既有的「blocking 任務不得只依賴可能因休眠中斷的背景執行」已涵蓋本條；2026-08-05 判定已被吸收而封存）
+- [2026-07-23][web-pulse-survey-sdk] tsup→tsdown 遷移漏改 `.github/actions` 裡的舊指令，PR CI 不跑部署路徑故全綠，發版時 release CI 才炸 → build-tool／依賴遷移後 `rg` 全 repo（**含 `.github/workflows` 與 `.github/actions`**）搜舊工具名；release／deploy-only 路徑 PR CI 測不到、要另外查。**救援**：重跑舊 run 仍會沿用含 bug 的 action，必須先修 action、再發一個 patch 版本帶新 action 重跑 → 已套用到：20-judgment.md §2 補充判準（2026-08-05 升級；救援手法未進判準，留在本條）
+- [2026-07-25][agents-guideline] 把重複規則改成「見對應平台 dispatch 文件 §N」，但兩份 dispatch 的章節編號不同，Codex 照 §N 會翻到別節 → 跨平台共用的指向一律**逐平台各寫一組編號並附章節名**（「§5『升降級路徑』」）；章節名是編號漂移時的救命錨點 → 已套用到：skills/maintain-guideline/SKILL.md §6（2026-08-05 升級）
 - [2026-08-04][global] 為驗證新加的守衛「真的會紅」，用 `python3 -c "...replace(...)..."` 把舊規格注回一個 TS 檔；**該檔是 template literal、內含跳脫過的 backslash+backtick，而 zsh 雙引號把我命令裡的 backslash 吃掉**，於是 python 的搜尋字串（純 backtick）與檔案內容不符、replace **靜默 no-op**，破壞性檢驗因此「通過」，差點據此宣稱守衛有效（實測 `needle in s` → False；**注意方向取決於目標檔**：若檔案本身是純 backtick，吃掉 backslash 反而會相符）→ 通則是**引號層一多，shell 與目標檔案對 backslash 的認知就會錯開**。`20-judgment.md` §6 已有「先懷疑 shell quoting、改用 quoted heredoc」，但**它的觸發條件是「輸出像亂碼或被截斷時」，而 no-op 完全沒有異狀** → 真正的教訓：**破壞性檢驗必須先證明自己改到了東西**（`assert 搜尋字串 in 內容`，或改完 read-back diff），否則 no-op 會偽裝成 PASS → 已套用到：20-judgment.md §6

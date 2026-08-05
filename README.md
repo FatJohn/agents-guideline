@@ -6,20 +6,24 @@
 
 寫作原則（2026-07-25 依 [Claude 5 世代的 context engineering 指南](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models) 修正）：**寫這個環境的 gotcha 與授權邊界，不寫通用做事方法**。模型自己就會的判斷不寫成決策樹；自我文件化的介面（agent 定義）不附填空範例；同一條規則只留一個 canonical 位置；只有每次開工都需要的內容放進常駐的 `rules/`。原則是「規則越少代表模型越強」，不是「規則越多越安全」。
 
-## 安裝 Claude Code（symlink 版，repo 即唯一事實來源）
+## 安裝 Claude Code（macOS／Linux，symlink 版，repo 即唯一事實來源）
+
+> Windows 用 PowerShell 版，見下方「安裝（Windows／PowerShell）」。
+> `REPO` 依機器而異，各機器的實際位置見 `rules/05-hosts.md`。
 
 ```bash
 # 備份既有設定
 cp -r ~/.claude ~/.claude.backup-$(date +%F) 2>/dev/null
 
-REPO=~/Projects/FatJohn/agents-guideline
+REPO=~/Projects/FatJohn/agents-guideline   # macOS 主力機；其他機器見 rules/05-hosts.md
 mkdir -p ~/.claude/agents ~/.claude/skills
 for pair in \
   "CLAUDE.md:$HOME/.claude/CLAUDE.md" \
   "rules:$HOME/.claude/rules" \
   "rubrics:$HOME/.claude/rubrics" \
   "skills/maintain-guideline:$HOME/.claude/skills/maintain-guideline" \
-  "skills/create-pr:$HOME/.claude/skills/create-pr"; do
+  "skills/create-pr:$HOME/.claude/skills/create-pr" \
+  "skills/debug-environment-first:$HOME/.claude/skills/debug-environment-first"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -44,13 +48,78 @@ symlink 的好處：session 依規則附加教訓、更新事實時直接改到 
 
 ⚠️ **`~/.claude/rules/` 是無條件常駐區**：Claude Code 會把該目錄下無 `paths` frontmatter 的 `*.md` 每 session 全文載入，付的是每個 session 的固定 context 成本。所以只有「每次開工都需要」的內容放 `rules/`；只在特定情境才用得到的長內容放 `skills/`（維護協議）、`rubrics/`（驗收判準）或 `docs/`（封存），這三個目錄不會自動載入。`~/.claude/rubrics` 雖然也是目錄 symlink，但 `rules/` 才是 Claude Code 的 memory 目錄，`rubrics/` 不會被自動載入。
 
-## 安裝 Codex（symlink 版）
+## 安裝（Windows／PowerShell）
+
+一次裝好 Claude Code 與 Codex 兩側。**前置條件：開啟 Developer Mode**（設定 → 系統 → 開發人員專用），否則建 symlink 需要 admin 權限。實測 `FatJohn-PC` 上 Developer Mode 已開，非 admin 的 PowerShell 7 即可建立跨磁碟（C: → E:）的檔案與目錄 symlink。
+
+```powershell
+$REPO = 'E:\agents-guideline'   # 本機 repo 位置；其他機器見 rules/05-hosts.md
+
+# 備份會被取代的既有設定（只備份實際衝突的檔案，不整包複製 ~/.claude——裡面有大量 cache/sessions）
+# 兩道保護缺一不可，否則同日重跑會用 symlink 蓋掉第一次跑時保存的那份真備份（$stamp 同一天相同），
+# 使用者的原始設定永久消失，而事後 read-back 只查 LinkType，25 條連結照樣全綠、看不出來。
+$stamp = Get-Date -Format 'yyyy-MM-dd'
+foreach ($f in "$HOME\.claude\CLAUDE.md", "$HOME\.codex\AGENTS.md") {
+  $i = Get-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue
+  if (-not $i) { "無需備份（不存在）：$f"; continue }
+  if ($i.LinkType -eq 'SymbolicLink') { "已是 symlink，不重複備份：$f"; continue }   # 保護一：已安裝過就不動
+  $bak = "$f.bak-$stamp"
+  if (Get-Item -LiteralPath $bak -Force -EA SilentlyContinue) { "備份已存在，停手請自行處理：$bak"; continue }  # 保護二：不覆蓋既有備份
+  Move-Item -LiteralPath $f $bak      # 刻意不加 -Force
+  "已備份：$f -> $bak"
+}
+
+function Link-One($src, $dst) {
+  # 用 Get-Item -Force 而非 Test-Path：斷掉的 symlink 在 Test-Path 會回 False，會誤判成「不存在」而覆蓋失敗
+  if (Get-Item -LiteralPath $dst -Force -ErrorAction SilentlyContinue) { "略過（已存在，需手動處理）：$dst"; return }
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst) | Out-Null
+  New-Item -ItemType SymbolicLink -Path $dst -Target $src | Out-Null
+  "已連結：$dst -> $src"
+}
+
+# Claude Code
+Link-One "$REPO\CLAUDE.md"                 "$HOME\.claude\CLAUDE.md"
+Link-One "$REPO\rules"                     "$HOME\.claude\rules"
+Link-One "$REPO\rubrics"                   "$HOME\.claude\rubrics"
+Link-One "$REPO\skills\maintain-guideline"       "$HOME\.claude\skills\maintain-guideline"
+Link-One "$REPO\skills\create-pr"                "$HOME\.claude\skills\create-pr"
+Link-One "$REPO\skills\debug-environment-first"  "$HOME\.claude\skills\debug-environment-first"
+foreach ($a in 'verifier','fable-verifier','recovery-worker','escalation-planner','escalation-worker') {
+  Link-One "$REPO\agents\$a.md" "$HOME\.claude\agents\$a.md"
+}
+
+# Codex
+Link-One "$REPO\AGENTS.md" "$HOME\.codex\AGENTS.md"
+foreach ($a in 'scanner','explorer','planner','worker','pro_worker','recovery_worker','reviewer',
+               'escalation_planner','escalation_worker','verifier','sol_verifier') {
+  Link-One "$REPO\codex\agents\$a.toml" "$HOME\.codex\agents\$a.toml"
+}
+Link-One "$REPO\codex\skills\session-handoff"    "$HOME\.agents\skills\session-handoff"
+Link-One "$REPO\skills\create-pr"                "$HOME\.agents\skills\create-pr"
+Link-One "$REPO\skills\maintain-guideline"       "$HOME\.agents\skills\maintain-guideline"
+Link-One "$REPO\skills\debug-environment-first"  "$HOME\.agents\skills\debug-environment-first"
+```
+
+指令可重跑：連結部分已存在就略過不覆蓋，備份部分已安裝過就整段跳過（見上方兩道保護）。read-back 驗證：
+
+```powershell
+Get-ChildItem "$HOME\.claude","$HOME\.claude\agents","$HOME\.claude\skills","$HOME\.codex","$HOME\.codex\agents","$HOME\.agents\skills" -Force |
+  Where-Object LinkType | Select-Object FullName, LinkType, @{n='Target';e={$_.Target}}
+```
+
+Windows 專屬注意：
+
+- **目錄可用 symlink 或 junction，檔案只能用 symlink**——`~/.claude/CLAUDE.md` 這種跨磁碟的檔案不能用 hardlink（hardlink 不可跨磁碟區）。
+- **Windows 檔名不分大小寫**：既有的 `~/.claude/claude.md` 與本 repo 的 `CLAUDE.md` 是同一個檔，所以上面腳本一定會動到它。跑完務必打開 `.bak-<日期>` 檔看一次——舊的全域 CLAUDE.md 若有值得保留的個人偏好，照 macOS 段第 44 行的要求手動併進 repo 的 `CLAUDE.md`（腳本只負責搬開，不負責合併）。
+- 底下 Codex 的 `~/.codex/config.toml` 合併說明（model／`[agents]`／`[features] memories`）**兩個平台都適用**，Windows 也要照做。
+
+## 安裝 Codex（macOS／Linux，symlink 版）
 
 ```bash
 # 備份既有設定
 cp -r ~/.codex ~/.codex.backup-$(date +%F) 2>/dev/null
 
-REPO=~/Projects/FatJohn/agents-guideline
+REPO=~/Projects/FatJohn/agents-guideline   # macOS 主力機；其他機器見 rules/05-hosts.md
 mkdir -p ~/.codex/agents
 for pair in "AGENTS.md:$HOME/.codex/AGENTS.md"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
@@ -74,7 +143,8 @@ mkdir -p ~/.agents/skills
 for pair in \
   "codex/skills/session-handoff:session-handoff" \
   "skills/create-pr:create-pr" \
-  "skills/maintain-guideline:maintain-guideline"; do
+  "skills/maintain-guideline:maintain-guideline" \
+  "skills/debug-environment-first:debug-environment-first"; do
   src="$REPO/${pair%%:*}"; dst="$HOME/.agents/skills/${pair#*:}"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -136,6 +206,7 @@ memories = true
 | 檔案 | 用途 |
 |------|------|
 | `skills/maintain-guideline/SKILL.md` | 系統維護協議：權限分級、修改流程、教訓寫回、瘦身與日落條款、路由完整性（原 `rules/40-maintenance.md`） |
+| `skills/debug-environment-first/SKILL.md` | 除錯前的環境事實檢查清單＋量測方法自證陷阱（原 `rules/20-judgment.md` §6，2026-08-05 移出常駐區） |
 | `rubrics/document-quality.md` | 文件類產出的逐條驗收判準（verifier 讀） |
 | `rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描與作假偵測） |
 | `rubrics/research-analysis.md` | 研究／盤點類產出的逐條驗收判準 |
@@ -162,6 +233,8 @@ memories = true
 | `skills/create-pr/SKILL.md` | Codex／Claude 共用的 Pull Request 建立 skill |
 
 `agents/*.md` 與 `codex/agents/*.toml` 的**正文**只在該角色被派工時進入該 subagent 的 context（name／description 會出現在每 session 的可用 agent 清單裡）。這是刻意的：每個角色需要哪些輸入、缺什麼就停、回報格式，寫在角色定義裡而不是派工守則裡——角色定義就是它的介面。
+
+**為什麼 Claude 側沒有 `scanner`／`explorer`／`planner`／`worker` 的等價 custom agent**：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋，且本制度不把 haiku 列入 active routing。Claude 側自建 agent 只補一個缺口——**Agent 呼叫無法逐次指定 effort**，所以 recovery／escalation／驗收這些需要綁定 effort 與行為合約的角色才需要獨立定義檔。（原為 `rules/10-dispatch.md` §0 註，2026-08-05 移出常駐區。）
 
 **為什麼 Claude 側沒有派工模板檔、Codex 側有**：Claude 側的模板（原 `rules/30-delegation-templates.md`）在 2026-07-25 移除，內容併入 `rules/10-dispatch.md` §2 的派工合約與各 `agents/*.md` 的角色合約——填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `codex/rules/30-delegation-templates-codex.md`：那份不會進 Claude 的 context（成本為零），且 Codex 端的 custom role runtime 尚未穩定套用角色合約（見 `rules/00-environment.md` 的 `agent_role:null` 觀察），模板仍在補這個缺口。
 
