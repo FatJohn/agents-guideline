@@ -7,7 +7,7 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 
 > 讀者：要維護本 repo、`~/.claude/`、`~/.codex/`、任何專案 CLAUDE.md 或 AGENTS.md 的 session。
 > 本系統以 symlink 安裝：Claude Code 裝到 `~/.claude/`，Codex 裝到 `~/.codex/`，檔案連回本系統 repo，改動會直接反映在 repo，由使用者定期 review 後 commit。
-> 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異，canonical 清單只有一份，在 `~/.claude/rules/05-hosts.md`；不確定就取 `readlink ~/.claude/CLAUDE.md`（PowerShell：`(Get-Item ~/.claude/CLAUDE.md).Target`）的目錄部分。
+> 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異，canonical 清單在 `<REPO>/rules/05-hosts.md`。不確定時依當前平台讀全域入口的 symlink target：Claude 用 `readlink ~/.claude/CLAUDE.md`，Codex 用 `readlink ~/.codex/AGENTS.md`；PowerShell 分別用 `(Get-Item ~/.claude/CLAUDE.md).Target`、`(Get-Item ~/.codex/AGENTS.md).Target`。target 的目錄部分就是 `<REPO>`。
 > 本檔在 `skills/` 底下而非 `rules/`，所以**不會每 session 自動載入**——這是刻意的：維護協議只在真的要動系統時才需要在 context 裡。
 
 ## 1. 檔案清單與權限分級
@@ -32,7 +32,7 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 
 1. 確認回退路徑：`git status --short` 應為乾淨，或至少確認未提交變更是你自己的。**本 repo 有 git 版控，不要 `cp` 出 `.bak` 檔**——那是雜訊，回退用 `git checkout`／`git diff`。
 2. 修改（優先「新增段落」而非動既有文字）。
-3. 驗證：派 fresh-context `verifier`（高風險或動到憲法／判準時用 `fable-verifier`）做 read-back，驗收條件至少包含「與其他 rules 檔無矛盾」「引用的路徑/指令實際存在」。
+3. 驗證：派 fresh-context verifier 做 read-back；一般驗收兩端都用 `verifier`，高風險或動到憲法／判準時 Claude 用 `fable-verifier`、Codex 用 `sol_verifier`。驗收條件至少包含「與其他 rules 檔無矛盾」「引用的路徑/指令實際存在」。
 4. 提醒使用者 repo 有未 commit 的變更（不要自行 commit）。
 
 ### 本機設定安全
