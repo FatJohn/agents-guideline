@@ -33,12 +33,13 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `Plan`——出實作計畫、架構取捨。
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）。
 - `verifier`——fresh-context 驗收（本系統自帶，定義在 `~/.claude/agents/verifier.md`）。
+- `fable-verifier`——高風險文件／規則／架構決策與最終驗收（fable／high，唯讀；本系統自帶）。
 - `recovery-worker`——標準層實作者（sonnet 或 opus 進場）同一子任務兩次失敗或揭露高風險後的 fresh-context recovery 實作（opus／xhigh，先建 root cause 再動手；與失敗者同階時，價值在乾淨 context 與強制 root cause；本系統自帶）。
 - `escalation-planner`——Plan 或探索路徑（opus）無法建立可靠方案時的規劃升級（fable／xhigh，唯讀；本系統自帶）。
 - `escalation-worker`——recovery-worker 再兩次失敗或確認 root cause 需要 Fable 能力時的最終升級實作；opus 進場者的能力天花板型失敗可直升（fable／xhigh；本系統自帶）。
-- `code-simplifier:code-simplifier`——簡化整理剛改過的程式碼。
+- 簡化整理剛改過的程式碼——用內建 `simplify` skill，不是 subagent（`code-simplifier` plugin 2026-08-06 現查未安裝，寫成 `subagent_type` 會叫不出來）。
 - `codex:codex-rescue`——外部模型（GPT 系，使用者有 Codex 訂閱）。兩種用法：(a) 卡死或高風險判斷時的第二意見；(b) 把獨立性高的完整實作／診斷任務整包委派出去，與 Claude subagent 平行運作。
-- `claude-code-guide`——回答 Claude Code / API 本身的問題。
+- `claude-code-guide`——回答 Claude Code / API 本身的問題。**不是每個 session 都有**：2026-08-06 實測 `claude -p` 起的 session 清單裡沒有它（主對話清單裡有），機制未查明。派工前先確認當下清單真的有這個名字。
 
 註：Claude agent **沒有 sandbox 欄位**——唯讀角色（escalation-planner、verifier、fable-verifier）只靠 tools 清單與指令合約約束，controller 驗收時仍須 read-back `git status` 確認無意外寫入。（為什麼 Claude 端不設 Codex `scanner`／`worker` 等價 agent，見 README「檔案結構」。）
 
@@ -52,7 +53,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 |------|------|-------|
 | 掃 repo、找出「哪些檔案有 X」 | Explore | sonnet |
 | 讀多份長文件並總結 | general-purpose | sonnet |
-| 查網頁、抓文件 | general-purpose（firecrawl skill 在 subagent 內用） | sonnet |
+| 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用；firecrawl 已移除，見 `00-environment.md`） | sonnet |
 | 批次機械性改檔（同 pattern 套 N 個檔） | general-purpose | sonnet |
 | 實作一個功能 | general-purpose | opus（Max 檔位；Pro 檔位降回 sonnet） |
 | 設計實作方案 | Plan | opus／high |
@@ -121,7 +122,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 驗收條件不必每次重寫——按產出類型直接引用 rubric（產出類型 → rubric 檔的對照表在 `20-judgment.md` §5「品質底線怎麼驗」，canonical 只有那一份），再補該次任務特有的條件。
 
 - **文件／主觀品質** → 派 fresh-context `verifier` 做 read-back：給它「產出檔案路徑＋驗收條件清單」，逐條判 PASS/FAIL；verifier 不參與製作。
-- **高風險文件／規則／架構決策／最終驗收** → 使用 `fable-verifier`；它與 Codex `sol-verifier/Sol high` 對應，只讀取、找碴與判定，不修正產物。
+- **高風險文件／規則／架構決策／最終驗收** → 使用 `fable-verifier`；它與 Codex `sol_verifier/Sol high` 對應（Codex role 名一律底線，見 README「檔案結構」），只讀取、找碴與判定，不修正產物。
 - **程式碼機械驗證** → 測試、build、lint、實跑、schema 可由製作者執行，但必須附指令與輸出；「我看程式碼邏輯是對的」不算驗證。
 - **高風險程式碼** → 除機械驗證外再加 fresh-context review。
 - **高風險判斷**（對外文件、不可逆操作、架構決策）→ 加第二意見：codex-rescue，或派兩個 agent 各自獨立解再比對；不一致時把分歧點呈給使用者。

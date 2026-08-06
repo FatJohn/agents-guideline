@@ -7,7 +7,7 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 
 > 讀者：要維護本 repo、`~/.claude/`、`~/.codex/`、任何專案 CLAUDE.md 或 AGENTS.md 的 session。
 > 本系統以 symlink 安裝：Claude Code 裝到 `~/.claude/`，Codex 裝到 `~/.codex/`，檔案連回本系統 repo，改動會直接反映在 repo，由使用者定期 review 後 commit。
-> 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異，canonical 清單只有一份，在 `rules/05-hosts.md`；不確定就取 `readlink ~/.claude/CLAUDE.md`（PowerShell：`(Get-Item ~/.claude/CLAUDE.md).Target`）的目錄部分。
+> 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異，canonical 清單只有一份，在 `~/.claude/rules/05-hosts.md`；不確定就取 `readlink ~/.claude/CLAUDE.md`（PowerShell：`(Get-Item ~/.claude/CLAUDE.md).Target`）的目錄部分。
 > 本檔在 `skills/` 底下而非 `rules/`，所以**不會每 session 自動載入**——這是刻意的：維護協議只在真的要動系統時才需要在 context 裡。
 
 ## 1. 檔案清單與權限分級
@@ -18,7 +18,7 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 | `rules/05-hosts.md` | 各機器事實 | ✅ 新機器段落可自行加；過時事實可更新（附探測日） |
 | `rules/10-dispatch.md`／`rules/20-judgment.md`／`codex/rules/10-dispatch-codex.md`／`codex/rules/30-delegation-templates-codex.md` | 系統核心 | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |
 | `skills/maintain-guideline/SKILL.md`（本檔） | 憲法 | ❌ 動之前先問使用者 |
-| `rules/50-lessons.md` | 活躍教訓日誌 | ✅ 隨時可加；升級成判準後移到 `docs/lessons-archive.md` |
+| `rules/50-lessons.md` | 活躍教訓日誌 | ✅ 隨時可加；升級成判準後移到 `<REPO>/docs/lessons-archive.md` |
 | `docs/lessons-archive.md` | 教訓封存 | ✅ 可加封存條目；**不改寫既有條目原文** |
 | `rubrics/*.md` | 驗收判準（verifier 讀） | ⚠️ 新增條目可以；修改或刪除既有判準要先問使用者 |
 | `agents/*.md`／`codex/agents/*.toml` | agent 定義（＝角色介面） | ✅ 新角色可加；改既有角色的職責先問 |
@@ -43,7 +43,7 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 
 ## 3. 教訓寫回（每次踩坑後）
 
-寫進 `rules/50-lessons.md`，一行一條，格式：
+寫進 `<REPO>/rules/50-lessons.md`，一行一條，格式：
 
 ```
 - [YYYY-MM-DD][專案名或 global] 一句情境 → 一句教訓 → 已套用到：{檔名 或「尚未」}
@@ -53,8 +53,8 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 - **情境壓在一行、上限 80 字**：活躍條目只留「觸發訊號 → 該怎麼做」，完整事故脈絡留在當時的 PR／commit 或封存檔。
   情境是專案專屬、且每個 session 都不需要的那部分，而它正是條目變長的主因。
   （80 是量現有條目後訂的可達值，不是理想值——訂一個沒人做得到的數字等於沒訂。）
-- **同一個坑踩第二次＝該從教訓升級成正式判準**：走「先問使用者」流程提案修改 `rules/20-judgment.md`。
-- **升級落地後把該條移到 `docs/lessons-archive.md`**（原文不改寫，只搬位置）。`rules/50-lessons.md` 常駐在每個 session 的 context 裡，只該留「尚未」有判準承接的教訓；已被判準吸收的條目留在那裡等於同一件事佔兩份 context。
+- **同一個坑踩第二次＝該從教訓升級成正式判準**：走「先問使用者」流程提案修改 `<REPO>/rules/20-judgment.md`。
+- **升級落地後把該條移到 `<REPO>/docs/lessons-archive.md`**（原文不改寫，只搬位置）。`<REPO>/rules/50-lessons.md` 常駐在每個 session 的 context 裡，只該留「尚未」有判準承接的教訓；已被判準吸收的條目留在那裡等於同一件事佔兩份 context。
 
 ## 4. 記憶寫入規則（制度存活的關鍵）
 
@@ -63,16 +63,16 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 - **發現使用者的偏好／背景** → type: user。
 - **跨 session 的進行中工作** → type: project，日期寫絕對日期；Codex 端另用 `session-handoff` skill 更新專案 `.codex/HANDOFF.md`。
 - **不要存**：repo 本身就記錄的事（程式結構、git 歷史）、只對當次對話有意義的細節。
-- 環境級（跨專案）的事實不進記憶，進 `rules/00-environment.md`。
+- 環境級（跨專案）的事實不進記憶，進 `<REPO>/rules/00-environment.md`。
 
 ## 5. 瘦身協議（防膨脹＋日落條款）
 
-- 觸發：`rules/50-lessons.md` 的活躍教訓超過 **8** 條，或任一 `rules/` 檔超過 200 行，或 `rules/` 全目錄超過 40,000 bytes（該目錄每 session 全文載入，bytes 就是固定成本）。
+- 觸發：`<REPO>/rules/50-lessons.md` 的活躍教訓超過 **8** 條，或任一 `<REPO>/rules/` 檔超過 200 行，或 `<REPO>/rules/` 全目錄超過 40,000 bytes（該目錄每 session 全文載入，bytes 就是固定成本）。
 - **活躍教訓是硬上限 8 條，不是軟建議**：滿 8 條時要記新教訓，**必須先升級或封存一條**，不准「先加了再說」。
   下修理由（2026-08-04）：原本的 15 條門檻從未被觸發過，而實測 14 條就吃掉 `rules/` 24% 的常駐預算；
   同期 14 條**全部**是「已套用到：尚未」——一個月零升級證明這個檔案的失敗模式是「只進不出」，
   所以真正有效的機制不是更大的容量，是逼人在加新條目時付出清舊條目的成本。
-- 動作：已升級成判準的教訓搬到 `docs/lessons-archive.md`；只在特定情境才需要的長內容搬出 `rules/`（進 `skills/`、`rubrics/` 或 `docs/`）；合併重複；同一條規則只留一個 canonical 位置，其餘改為指向。
+- 動作：已升級成判準的教訓搬到 `<REPO>/docs/lessons-archive.md`；只在特定情境才需要的長內容搬出 `<REPO>/rules/`（進 `<REPO>/skills/`、`<REPO>/rubrics/` 或 `<REPO>/docs/`）；合併重複；同一條規則只留一個 canonical 位置，其餘改為指向。
 - **只在特定情境才用得到的內容不該放 `rules/`**：`rules/` 是無條件常駐區，付的是每個 session 的固定成本。維護協議、驗收 rubric、封存教訓、派工範例都屬於「用到才讀」，放 `skills/`／`rubrics/`／`docs/`。
 - **日落條款**：本系統多數規則是在補償當代模型的弱點（context 上限、自驗偏誤、記憶斷裂）。當發現某條規則「不寫模型也自然做得到」時，提案刪除它——制度的理想終點是只剩事實（00／05）與授權邊界，規則越少代表模型越強，不是制度失敗。判斷訊號：這條規則在講**風格偏好或通用做事方法**（模型自己會）還是在講**這個環境的具體 gotcha**（模型不可能知道）？前者日落，後者保留。
 - 瘦身是「搬移與合併」不是「重寫」——整檔重寫需使用者同意；刪併清單先列給使用者確認。
@@ -87,5 +87,5 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 ## 7. 跨專案應用
 
 - 本系統是**環境級**（管「怎麼工作」）；各專案的 CLAUDE.md／AGENTS.md 是**專案規格**（管「寫出什麼樣的東西」）。衝突時專案規格優先。
-- 到新專案開工時，先確認該 repo 的可驗證性（能不能本地 build/test？這決定 `rules/20-judgment.md` §2 的完成定義與 `rubrics/code-change.md` 怎麼落地）。
+- 到新專案開工時，先確認該 repo 的可驗證性（能不能本地 build/test？這決定 `<REPO>/rules/20-judgment.md` §2「何時算真的完成」與 `<REPO>/rubrics/code-change.md` 怎麼落地）。
 - 值得留下的專案事實寫進該專案的記憶目錄，不要寫進全域 rules。

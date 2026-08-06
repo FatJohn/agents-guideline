@@ -163,8 +163,8 @@ done
 model = "gpt-5.6-sol"
 model_reasoning_effort = "medium"
 
-# Pro（升級方案後用這組取代上面兩行）
-# model = "gpt-5.6-terra"
+# Pro（升級方案後用這組取代上面兩行；同型號拉高 effort）
+# model = "gpt-5.6-sol"
 # model_reasoning_effort = "xhigh"
 ```
 
@@ -240,7 +240,7 @@ memories = true
 
 Codex Plus 的一般升級路徑是 `worker/Luna max → recovery_worker/Terra xhigh → escalation_worker/Sol xhigh`。Codex Pro 由 `pro_worker/Terra xhigh` 進場：context 汙染型或型態難辨走同階 fresh `recovery_worker/Terra xhigh`，能力天花板型可直升 `escalation_worker/Sol xhigh`。`Sol max` 僅保留給 controller 在 `Sol xhigh` 仍無法收斂或明確遇到最困難單一路徑時使用，`Sol Ultra` 僅用於可獨立平行的大型工作流。
 
-Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工後必須 read-back child metadata，只有 `agent_role` 明確等於指定角色才能宣稱其固定 model／effort／contract 生效；`agent_role:null` 時必須視為 generic child，停止該 custom routing 並標記模型未驗證。主力 Mac 的 Codex 0.144.4 collaboration v2 目前已實跑觀察到此限制，詳見 `rules/00-environment.md`。
+Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工後必須 read-back child metadata，只有 `agent_role` 明確等於指定角色才能宣稱其固定 model／effort／contract 生效；`agent_role:null` 時必須視為 generic child，停止該 custom routing 並標記模型未驗證。此限制是主力 Mac 的 Codex 0.144.4 collaboration v2 實跑觀察到的；本機 2026-08-06 已升到 0.146.0，**未在新版重驗**，要據此下結論前先實跑一次（詳見 `rules/00-environment.md`）。
 
 ## 三條鐵律
 

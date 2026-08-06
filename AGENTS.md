@@ -4,7 +4,7 @@
 > 只放路由與鐵律；長內容放在本 repo 的 `rules/`，按需載入。
 >
 > **下表的 `<REPO>` 是本系統 repo 的絕對路徑，依機器而異——讀檔前先認機器再展開**：
-> - macOS（hostname `Mac`）：`/Users/fatjohn/Projects/FatJohn/agents-guideline`
+> - macOS（hostname `xushengzhedeMacBook-Pro.local`，2026-08-06 現查；hostname 會隨設定改名而變，對不上就走下面第三條的 `readlink`）：`/Users/fatjohn/Projects/FatJohn/agents-guideline`
 > - Windows（hostname `FatJohn-PC`）：`E:\agents-guideline`
 > - 不確定或新機器：`readlink ~/.codex/AGENTS.md`（PowerShell：`(Get-Item ~/.codex/AGENTS.md).Target`）的目錄部分就是 `<REPO>`；機器事實照 `<REPO>/rules/05-hosts.md` 檔頭的探測清單自己建檔。
 >

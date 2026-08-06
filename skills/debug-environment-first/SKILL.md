@@ -5,7 +5,7 @@ description: 除錯、追 bug、或量測結果看起來不對時使用。遇到
 
 # 除錯前先驗證環境（訊號常在 shell，不在程式）
 
-> 這一節原本常駐在 `rules/20-judgment.md` §6。它只在除錯時用得到，不是每次開工都需要，故依 `maintain-guideline` §5 搬進 `skills/`（2026-08-05）。判準本身沒有改動。
+> 這一節原本常駐在 `~/.claude/rules/20-judgment.md` §6「除錯前先驗證環境」。它只在除錯時用得到，不是每次開工都需要，故依 `maintain-guideline` §5 搬進 `skills/`（2026-08-05）。判準本身沒有改動。
 
 **判準**：遇到 HTTP 錯誤、port 相關異常、或指令輸出與預期不符時，在提出任何「程式碼有 bug」的假設之前，先花 30 秒驗證環境事實並回報：
 
@@ -25,4 +25,4 @@ description: 除錯、追 bug、或量測結果看起來不對時使用。遇到
 
 ## Windows 對照
 
-`lsof` 在 Windows 沒有；改用 `Get-NetTCPConnection -LocalPort <port> | Select-Object OwningProcess` 再 `Get-Process -Id`。shell quoting 的坑同樣存在，只是主角換成 PowerShell 的 backtick 逸出與 `@'...'@` here-string（見 `rules/05-hosts.md`）。
+`lsof` 在 Windows 沒有；改用 `Get-NetTCPConnection -LocalPort <port> | Select-Object OwningProcess` 再 `Get-Process -Id`。shell quoting 的坑同樣存在，只是主角換成 PowerShell 的 backtick 逸出與 `@'...'@` here-string（見 `~/.claude/rules/05-hosts.md`）。

@@ -1,7 +1,7 @@
 # 00 — 環境事實與結構性風險
 
 > 本檔只放**跨機器皆真**的結論；單機事實（工具鏈、驗證能力）在 `05-hosts.md`，開工前先去認機器。
-> 本檔是全系統唯一記查證日的地方：**2026-07-14**；距今超過 90 天，先當場核對再引用，核對後更新此日期。事實過時就更新本檔，不要另開新檔。
+> **跨機器事實**的查證日以本檔檔頭為準：**2026-08-06**（單機事實的探測日各自記在 `05-hosts.md`；個別條目另帶戳記者，如下方 Codex runtime 限制，以其戳記為準）。距今超過 90 天，先當場核對再引用，核對後更新此日期。事實過時就更新本檔，不要另開新檔。
 
 ## 使用者背景（最低必要認知）
 
@@ -9,8 +9,8 @@
 - 公司專案（自己主導的代表作）：`flutter-slimgo`（Flutter App）、`web-starvision`／`web-starvision-cms`（網站）等。
 - 個人 side project：財經類（macroeconomics-report 等，自己玩玩性質）等。完整清單用 `gh repo list`（個人）、`gh search repos --owner tvbstw`（公司）現查，不要依賴這裡的列舉。
 - 技術背景：C#／.NET／WPF／UWP 熟、C++ 部分會；Flutter、TypeScript 可；JavaScript／Vue 一般、React 初學。**後端與雲端架構不熟**——個人專案部署以 Zeabur 為主；財經專案另碰過 CloudFront＋自有 domain、R2 storage。涉及雲端架構的建議要多給脈絡、少假設既有知識。
-- LLM 資源：Claude Code 訂閱 Max；主對話 effort 由 `~/.claude/settings.json` 的 `effortLevel: xhigh` 設定，**model 不在 settings.json 裡**（由 UI 選，2026-07-25 核對；當次實際型號以主對話自報的 model ID 為準，該日為 `claude-opus-5`）。Codex 目前為 Plus，制度建議的主對話預設是 `gpt-5.6-sol`／effort `medium`（2026-08-06 依 Codex 官方 Power 預設更新）；各機器或當次 session 可明確 override，機器現況記在 `05-hosts.md`。若升級 Pro，制度預設改為 `gpt-5.6-terra`／effort `xhigh`。Codex 5.6 世代由弱到強為 `gpt-5.6-luna`／`terra`／`sol`（2026-08-05 三檔實測皆可用；`~/.codex/models_cache.json` 會過期，判斷可用型號要現打不要讀 cache）。Codex 可透過 codex plugin 派工，見 `10-dispatch.md`。
-- Codex custom agent runtime 限制（主力 Mac，0.144.4，2026-07-14 實跑）：`~/.codex/agents/` 的 standalone TOML 可被 `--strict-config` 接受，但目前 collaboration v2 的 `spawn_agent` 只帶 `task_name`；fresh child metadata 仍可能是 `agent_role:null`，即使同名檔案與 `[agents.<name>] config_file` 都存在。只有 child metadata 的 `agent_role` 明確符合角色，才可宣稱 custom model／effort／contract 已套用；`null` 必須標記 runtime unavailable／模型未驗證，不得用 child 文案當載入證據。
+- LLM 資源：Claude Code 訂閱 Max；主對話 effort 由 `~/.claude/settings.json` 的 `effortLevel: xhigh` 設定，**model 不在 settings.json 裡**（由 UI 選，2026-07-25 核對；當次實際型號以主對話自報的 model ID 為準，該日為 `claude-opus-5`）。Codex 目前為 Plus，制度建議的主對話預設是 `gpt-5.6-sol`／effort `medium`（2026-08-06 依 Codex 官方 Power 預設更新）；各機器或當次 session 可明確 override，機器現況記在 `05-hosts.md`。若升級 Pro，制度預設改為 `gpt-5.6-sol`／effort `xhigh`（2026-08-06 使用者裁決：同型號拉高 effort，不是換型號；Pro 的額外額度另外用在把標準實作入口從 `worker/Luna` 升到 `pro_worker/Terra`）。Codex 5.6 世代由弱到強為 `gpt-5.6-luna`／`terra`／`sol`（2026-08-05 三檔實測皆可用；`~/.codex/models_cache.json` 會過期，判斷可用型號要現打不要讀 cache）。Codex 可透過 codex plugin 派工，見 `10-dispatch.md`。
+- Codex custom agent runtime 限制（主力 Mac，0.144.4，2026-07-14 實跑；本機已升到 0.146.0，此限制**未在新版重驗**——要據此下結論前先實跑一次）：`~/.codex/agents/` 的 standalone TOML 可被 `--strict-config` 接受，但目前 collaboration v2 的 `spawn_agent` 只帶 `task_name`；fresh child metadata 仍可能是 `agent_role:null`，即使同名檔案與 `[agents.<name>] config_file` 都存在。只有 child metadata 的 `agent_role` 明確符合角色，才可宣稱 custom model／effort／contract 已套用；`null` 必須標記 runtime unavailable／模型未驗證，不得用 child 文案當載入證據。
 
 ## 三大結構性風險與修法（按嚴重度）
 
@@ -20,7 +20,7 @@
 
 **修法**：
 - 判斷基準同時看 **context 成本**與**任務獨立性**：大量原始內容且可獨立驗收時優先派工；強依賴主線決策或需要即時整合時留在主對話並控制讀取範圍。Claude 派工見 `10-dispatch.md`；Codex 派工見 `../codex/rules/10-dispatch-codex.md`。
-- session 內優先使用平台提供的 plan／task 狀態，不強制在 repo 建 scratchpad；跨 session 續接才使用 `session-handoff` skill 更新專案 `.codex/HANDOFF.md`。
+- session 內優先使用平台提供的 plan／task 狀態，不強制在 repo 建 scratchpad；跨 session 續接才使用 `session-handoff` skill 更新專案 `.codex/HANDOFF.md`——該 skill **只裝在 Codex 端**（`~/.agents/skills/`），Claude 端叫不到，Claude 的跨 session 續接靠 remember plugin 的 `.remember/` 與精選持久記憶。
 
 ### 2. 假完成：宣稱通過但沒有實際執行
 
@@ -30,7 +30,7 @@
 
 ### 3. 固定注入肥大：每個 session 開場漏掉數千 token
 
-**症狀**：大量 plugin（superpowers、firecrawl 全家桶、chrome、computer-use…）每 session 注入工具清單與絕對化指令；其中 superpowers 要求「任何動作前先叫 skill」。
+**症狀**：plugin 與 MCP server 每 session 注入工具清單、skill 描述與絕對化指令；skill 清單本身就是固定成本，跟用不用得到無關。（2026-08-06 現查：曾是最大注入源的 superpowers 與 firecrawl 全家桶已移除，`~/.claude/settings.json` 的 `enabledPlugins` 現存 context7／codex／remember／document-skills／mattpocock-skills／andrej-karpathy-skills 六個；要引用當下清單一律現查該檔，不要照抄這一行。）
 
 **修法**：
 - 抓住優先權排序（見全域 CLAUDE.md），不被注入音量牽著走。
@@ -49,22 +49,22 @@
 
 原則：動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造；但真正符合任務才叫用（優先權排序見全域 CLAUDE.md）。
 
-- **開發流程（使用者常用且信任）**：superpowers 系列——動工前 `brainstorming`、實作 `test-driven-development`、除錯 `systematic-debugging`、宣稱完成前 `verification-before-completion`。與本系統的分工：superpowers 管「執行者怎麼做好一件事」，本系統管「指揮官怎麼調度與驗收」，兩者疊加使用。
+- **開發流程**：mattpocock-skills 系列——壓力測試想法 `grilling`、實作 `tdd`、除錯 `diagnosing-bugs`（本系統的 `debug-environment-first` 先跑，確認不是量錯了再進去追 bug）、模組介面設計 `codebase-design`（叫用前綴 `mattpocock-skills:`）；另有 `andrej-karpathy-skills:karpathy-guidelines`。與本系統的分工：這些 skill 管「執行者怎麼做好一件事」，本系統管「指揮官怎麼調度與驗收」，兩者疊加使用。（2026-08-06 現查：使用者過去慣用的 superpowers 系列已不在本機，`brainstorming`／`test-driven-development`／`systematic-debugging`／`verification-before-completion` 這些名字叫用會失敗；宣稱完成前的把關由 `20-judgment.md` §2 與 `verifier` 承接，不需要外部 skill。）
 - **Claude 派工**：見 `10-dispatch.md`。
 - **Codex 派工**：見 `../codex/rules/10-dispatch-codex.md`。
 - **工具分工**：Memories、handoff、hooks、Chronicle 各自獨立，不合併成單一機制；Chronicle 只作為精選持久記憶的可選補充，不新增或取代 remember／自動事件史、Memories／精選持久記憶、handoff／顯式交接檔、repo 文件／制度層的四層定義。
-- **查網頁／爬資料**：firecrawl 系列（search／scrape／crawl）——在 subagent 內用，只把結論帶回主對話。
+- **查網頁／爬資料**：內建 `WebSearch`／`WebFetch`（firecrawl 全家桶已移除，2026-08-06 現查）——在 subagent 內用，只把結論帶回主對話；查套件／框架文件優先用 context7 MCP。
 - **產出文件**：docx／pptx／xlsx／pdf 等 anthropic-skills。
 - **外部第二意見／整包委派**：codex plugin（用法見 `10-dispatch.md`）。
 - **Codex 收尾交接**：`session-handoff` skill——使用者說「收尾」「記一下」「下次續接」「handoff」時，整理目標／已完成／驗證／下一步到 `.codex/HANDOFF.md`。
 - **找新工具**：遇到「感覺應該有現成工具」的問題，先搜 mcp-registry 的 connector 清單或問使用者，找不到再自己寫。
-- **Figma 設計稿**：plugin 已啟用但 session 內搜不到 `figma-dev-mode-mcp-server` 工具時（MCP 未在 session 啟動時註冊），
+- **Figma 設計稿**：session 內搜不到 `figma-dev-mode-mcp-server` 工具時（plugin 未啟用，或 MCP 未在 session 啟動時註冊；2026-08-06 現查主力 Mac 的 `enabledPlugins` 已無 figma），
   只要 Figma 桌面 App 的 Dev Mode MCP server 在 `127.0.0.1:3845` 有跑，就能用 `curl` 手動走 JSON-RPC
   （initialize → tools/call `get_design_context`／`get_screenshot`／`get_metadata`）直接取設計稿，不必重開 session。
 
-## 查證過的事實（2026-07-13；版本更新後重新核對）
+## 查證過的事實（2026-08-06 複查；版本更新後重新核對）
 
 - Agent 呼叫可逐次指定 model；effort 仍由 agent 定義 frontmatter 或 session/workflow 設定控制。
 - Agent frontmatter 的 `effort` 可填 `low`／`medium`／`high`／`xhigh`／`max`，實際可用值仍受模型與組織限制。
 - Agent frontmatter 的 `model` 可填 `haiku`／`sonnet`／`opus`／`fable`／完整 model ID／`inherit`。
-- Claude Code 2.1.207 的 subagent 可使用 `isolation: worktree`；需要 blocking 結果時不得只依賴可能因休眠中斷的背景執行。
+- Claude Code 2.1.222 的 subagent 可使用 `isolation: worktree`（2026-08-06 由 Agent 工具 schema 現查確認該參數仍存在）；需要 blocking 結果時不得只依賴可能因休眠中斷的背景執行。

@@ -12,17 +12,18 @@
 4. 這台機器能做哪些驗證：能不能跑 Flutter build？.NET build？（決定 `20-judgment.md` §2 在這台機器怎麼落地）
 5. 記憶注意：內建持久記憶與 `.remember/` 都是本機的——機器綁定的事實要註明是哪台機器的
 
-## 主力 Mac（目前 hostname：`Mac`，arm64）
+## 主力 Mac（目前 hostname：`xushengzhedeMacBook-Pro.local`，arm64）
 
-> 探測日：2026-07-14
+> 探測日：2026-07-14；2026-08-06 複查身分／版本／工具鏈
 
 - macOS 26.5.2（Build 25F84）、zsh（`/bin/zsh`）、Homebrew ✓（`/opt/homebrew/bin/brew`）
-- Claude Code 2.1.207；Codex 0.144.4
+- Claude Code 2.1.222；Codex 0.146.0（版本會隨自動更新跳動，一律現查）
 - 工具：git ✓、gh ✓、node ✓、python3 ✓、flutter ✓、dotnet ✓、rg ✓、jq ✓；fd ✗（找檔用 `rg --files` 或安裝 fd）
 - hostname 只作當場參考，不作跨重開機或改名後的唯一識別。
 - 專案位置：`~/Projects/`（公司與個人混放）、個人專案集中在 `~/Projects/FatJohn/`
 - 本系統 repo：`~/Projects/FatJohn/agents-guideline`，Claude Code symlink 裝進 `~/.claude/`，Codex symlink 裝進 `~/.codex/`
 - 驗證能力：Flutter／.NET／Node 皆可本地跑；個人專案部署走 Zeabur
+- **port 5000 被 macOS ControlCenter（AirPlay 接收器）佔在 `*:5000`**（2026-08-06 實測）：自己的服務綁 `localhost:5000` 仍可共存，但 `lsof -ti tcp:5000` 回的是 ControlCenter 的 PID —— 照著 kill 會殺到系統進程、自己的服務還活著，重啟後拿舊進程的回應當新版本的驗證。停服務用 `pkill -f <專案名>`，並以 `ps aux | grep <專案名>` 確認真的消失。
 
 ## Windows 桌機（目前 hostname：`FatJohn-PC`，AMD64）
 

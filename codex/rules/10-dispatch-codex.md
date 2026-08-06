@@ -1,7 +1,8 @@
 # 10C — Codex 模型調度守則
 
 > 讀者：Codex 主對話（controller）。每次要派工、選模型或驗收之前照著做。
-> 本檔是 `rules/10-dispatch.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
+> 本檔是 `<REPO>/rules/10-dispatch.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
+> 下文的 `<REPO>` 同 `~/.codex/AGENTS.md` 檔頭定義（依機器而異；不確定就取 `readlink ~/.codex/AGENTS.md` 的目錄部分）。本檔位在 `<REPO>/codex/rules/`，寫成裸 `rules/…` 從這裡解析不到。
 
 ## 0. Codex 可用角色（以當前 session 實際工具為準）
 
@@ -21,7 +22,7 @@
 
 `scanner` 使用 Luna 做低風險、可機械驗證的唯讀工作；Plus 使用 `worker/Luna max`，Pro 使用 `pro_worker/Terra xhigh`，兩者都只可寫入父任務明確授權的 working tree 與範圍。`recovery_worker` 以 Terra xhigh 接手任一標準實作者失敗或揭露高風險的情況，並先建立 root cause；與 Pro 失敗者同階時，價值在 fresh context 與強制 root-cause 合約。`planner`、`explorer`、`reviewer`、`verifier`、`escalation_planner`、`sol_verifier` 都是 read-only。`reviewer` 處理一般實作 review；一般文件與一般驗收使用 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險驗收才升級 `sol_verifier/Sol high`。`escalation_planner` 只處理規劃／探索升級；`escalation_worker` 處理 recovery 仍不足或 Pro Terra 能力天花板型失敗；所有 verifier 只找碴與判定，不製作也不修正產物。
 
-角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。主力 Mac 的 Codex 0.144.4 collaboration v2 已實跑觀察到 custom role 可能未被傳入 child；每次派 custom agent 都必須 read-back child session metadata：只有 `agent_role` 明確等於指定角色，才能宣稱該 TOML 的 model、effort、sandbox 與 developer contract 已套用。若 `agent_role:null`、role 不符或 surface 沒有 agent-type 選擇入口，該 custom role 視為 **runtime unavailable**；不得把同名 generic child 當作成功載入，也不得依它的回答反推 contract。此時留在 controller、改用當前 surface 已明確提供的角色，或標記「模型未驗證」後停止該 routing。
+角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。主力 Mac 的 Codex 0.144.4 collaboration v2 已實跑觀察到 custom role 可能未被傳入 child（本機 2026-08-06 已升到 0.146.0，**未在新版重驗**）；每次派 custom agent 都必須 read-back child session metadata：只有 `agent_role` 明確等於指定角色，才能宣稱該 TOML 的 model、effort、sandbox 與 developer contract 已套用。若 `agent_role:null`、role 不符或 surface 沒有 agent-type 選擇入口，該 custom role 視為 **runtime unavailable**；不得把同名 generic child 當作成功載入，也不得依它的回答反推 contract。此時留在 controller、改用當前 surface 已明確提供的角色，或標記「模型未驗證」後停止該 routing。
 
 ## 1. 雙軸派工判斷
 
@@ -31,7 +32,7 @@
 
 使用「能可靠完成該階段的最低 model tier」，並把 model tier 與 reasoning effort 分開判斷；不要只因任務困難就直接使用 Sol Ultra。
 
-**入口檔位依訂閱事實**（`rules/00-environment.md`）：Plus 主對話預設 Sol/medium，標準實作用 `worker/Luna max`；Pro 主對話預設 Terra/xhigh，標準實作用 `pro_worker/Terra xhigh`。方案未知或環境事實未查證時不得猜測，先回 controller 查明。掃描、探索、一般規劃／review／驗收與 Sol 高風險角色不因 Pro 全面升級；Pro 的額外額度優先用在非機械實作入口。
+**入口檔位依訂閱事實**（`<REPO>/rules/00-environment.md`）：Plus 主對話預設 Sol/medium，標準實作用 `worker/Luna max`；Pro 主對話預設 Sol/xhigh，標準實作用 `pro_worker/Terra xhigh`。方案未知或環境事實未查證時不得猜測，先回 controller 查明。掃描、探索、一般規劃／review／驗收與 Sol 高風險角色不因 Pro 全面升級；Pro 的額外額度優先用在非機械實作入口。
 
 - 小型、範圍明確、驗收條件清楚的修改留在主對話；不強制經過昂貴的規劃階段。
 - 非平凡實作依訂閱使用 `planner/Terra high → worker/Luna max（Plus）或 pro_worker/Terra xhigh（Pro）→ reviewer/Terra high`。
@@ -95,7 +96,7 @@
 - 升級角色（`recovery_worker`、`escalation_planner`、`escalation_worker`、`verifier`、`sol_verifier`）只處理能力需求，不取代使用者授權；對外或不可逆動作未在本 session 明確授權時，停止並交回 controller。
 - `Sol xhigh` 卡住 → 先換 fresh-context Sol、取得獨立第二意見或重定義問題與驗收條件；只有仍需最終能力時，controller 才可顯式使用 `Sol max`。`Sol Ultra` 僅限可獨立平行的大型工作流。
 - 高能力角色解出可重複且可機械驗證的 pattern 後，可把 pattern 寫入 prompt，降級交給較輕角色套用。
-- 同一件事最多重試兩輪；兩輪仍失敗就換方法或依 `rules/20-judgment.md` 向使用者取得方向。
+- 同一件事最多重試兩輪；兩輪仍失敗就換方法或依 `<REPO>/rules/20-judgment.md` §3「何時該停下來問使用者」向使用者取得方向。
 
 ## 6. 驗證語意（鐵律三）
 
