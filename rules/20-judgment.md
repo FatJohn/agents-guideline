@@ -84,3 +84,16 @@
 ## 6. 除錯前先驗證環境
 
 遇到 HTTP 錯誤、port 異常、輸出與預期不符，或準備提出「程式碼有 bug」的假設之前 → 叫用 `debug-environment-first` skill（環境事實檢查清單＋量測方法自證的具體陷阱）。「壞了」與「我量錯了」長得一樣。
+
+## 7. commit message 的固定格式
+
+**判準**：commit message（subject 與 body）全英文，subject 符合 Conventional Commits——`type: 小寫祈使句`，scope 可省略（`type(scope):` 同樣合格），type 限 `build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test`。對話、PR title 與 body、程式註解、issue 仍是繁體中文。
+
+**銜接點（漏掉就破功）**：`gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題，而 `~/.claude/skills/create-pr/SKILL.md` 規定 PR title 用中文且不加 prefix——兩者衝突，所以 squash 一律要覆寫標題：
+
+```
+gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
+```
+
+✅ **正例**：`build(ios): move to SPM-only and drop CocoaPods (#25)`
+❌ **反例**：PR title 是中文就直接 `gh pr merge --squash`——歷史第一行從此中文無 prefix，事後只能重寫共享歷史（flutter-app-template 2026-08-12 為此重寫 36 個 commit）。
