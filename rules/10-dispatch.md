@@ -89,6 +89,17 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 ## 3. 回報合約
 
+**派工揭露（controller → 使用者，每次派 subagent 都要）**：派工當下講明四項——**派給誰／model／effort／依據**。依據要指得出制度出處（§1、§5 或 `20-judgment.md` §1 的哪一條），「範圍明確」這類自由心證不算。主對話自己做時，只有在**符合 §1 任一派工條件卻仍不派**時才要交代；例行讀檔、跑指令、對話不必。
+
+揭露不帶證據就只是宣告，稽核不到。所以：
+
+- **派工 prompt 一律要求 subagent 自報實際 model ID 與該資訊的來源**，原樣轉給使用者。這是稽核鏈上唯一的外部證據，但仍是自述，非鐵證。
+- 分清**「我派了什麼」**（Agent 呼叫參數，你自述即可）與**「它實際跑在什麼」**（以自報 model ID 為準，見 §0）。兩者不符時**明確標出不一致**並說明處置，不得原樣轉述當沒事。
+- **自己忘了在 prompt 裡要求＝重派一次**，不得標「未驗證」了事——agent 結束後補問不到，那是自造的證據缺口（`20-judgment.md` §2）。agent 有回但沒照做，才寫「未取得自報，model 未驗證」。
+- **effort 無法逐次指定**（Agent 工具無 effort 參數，見 §0）**，也無法 runtime 自報**：有 `agents/<角色>.md` 的自帶角色引其 frontmatter 並標「宣告值」；外部模型（`codex:codex-rescue`）model／effort 都寫「不適用」；其餘一律寫「未指定，繼承主對話」（內建 type 與 plugin／平台提供的 agent 如 `claude-code-guide` 都在此類）。
+
+**Subagent 回報：**
+
 - Subagent 只回**結論與證據**（檔案:行號、指令輸出關鍵行），不回原始內容傾倒。
 - 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接才寫 `.codex/HANDOFF.md`。
 - 回報上限預設 30 行；需要更多就落檔。
