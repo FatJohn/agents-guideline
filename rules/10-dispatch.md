@@ -32,11 +32,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `Explore`——唯讀搜索，掃 repo、找檔案、答「哪裡有 X」。不能改檔。
 - `Plan`——出實作計畫、架構取捨。
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）。
-- `verifier`——fresh-context 驗收（本系統自帶，定義在 `~/.claude/agents/verifier.md`）。
-- `fable-verifier`——高風險文件／規則／架構決策與最終驗收（fable／high，唯讀；本系統自帶）。
-- `recovery-worker`——標準層實作者（sonnet 或 opus 進場）同一子任務兩次失敗或揭露高風險後的 fresh-context recovery 實作（opus／xhigh，先建 root cause 再動手；與失敗者同階時，價值在乾淨 context 與強制 root cause；本系統自帶）。
-- `escalation-planner`——Plan 或探索路徑（opus）無法建立可靠方案時的規劃升級（fable／xhigh，唯讀；本系統自帶）。
-- `escalation-worker`——recovery-worker 再兩次失敗或確認 root cause 需要 Fable 能力時的最終升級實作；opus 進場者的能力天花板型失敗可直升（fable／xhigh；本系統自帶）。
+- 本系統自帶 5 個角色，**進場門檻、缺什麼素材就停、model／effort 與行為合約的 canonical 在 `~/.claude/agents/<角色>.md`**，派工前讀該檔，此處不複述：`verifier`（opus／high，唯讀）一般 fresh-context 驗收；`fable-verifier`（fable／high，唯讀）高風險文件／規則／架構決策與最終驗收；`recovery-worker`（opus／xhigh）root-cause recovery 實作；`escalation-planner`（fable／xhigh，唯讀）規劃升級；`escalation-worker`（fable／xhigh）最終升級實作。門檻成立後派給誰見 §4。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill，不是 subagent（`code-simplifier` plugin 2026-08-06 現查未安裝，寫成 `subagent_type` 會叫不出來）。
 - `codex:codex-rescue`——外部模型（GPT 系，使用者有 Codex 訂閱）。兩種用法：(a) 卡死或高風險判斷時的第二意見；(b) 把獨立性高的完整實作／診斷任務整包委派出去，與 Claude subagent 平行運作。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。**不是每個 session 都有**：2026-08-06 實測 `claude -p` 起的 session 清單裡沒有它（主對話清單裡有），機制未查明。派工前先確認當下清單真的有這個名字。

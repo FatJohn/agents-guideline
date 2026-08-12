@@ -46,7 +46,7 @@ done
 
 symlink 的好處：session 依規則附加教訓、更新事實時直接改到 repo，git diff 一目了然，由使用者 review 後 commit。若遇到不跟隨 symlink 的工具，改用 `cp` 安裝並在每次改 repo 後重新複製。
 
-⚠️ **`~/.claude/rules/` 是無條件常駐區**：Claude Code 會把該目錄下無 `paths` frontmatter 的 `*.md` 每 session 全文載入，付的是每個 session 的固定 context 成本。所以只有「每次開工都需要」的內容放 `rules/`；只在特定情境才用得到的長內容放 `skills/`（維護協議）、`rubrics/`（驗收判準）或 `docs/`（封存），這三個目錄不會自動載入。`~/.claude/rubrics` 雖然也是目錄 symlink，但 `rules/` 才是 Claude Code 的 memory 目錄，`rubrics/` 不會被自動載入。
+⚠️ **`~/.claude/rules/` 是無條件常駐區**：Claude Code 會把該目錄下無 `paths` frontmatter 的 `*.md` 每 session 全文載入，付的是每個 session 的固定 context 成本。所以只有「每次開工都需要」的內容放 `rules/`；只在特定情境才用得到的長內容放 `skills/`（維護協議）、`rubrics/`（驗收判準）或 `docs/`（封存與情境化參考），這三個目錄不會自動載入。`~/.claude/rubrics` 雖然也是目錄 symlink，但 `rules/` 才是 Claude Code 的 memory 目錄，`rubrics/` 不會被自動載入。
 
 ## 安裝（Windows／PowerShell）
 
@@ -211,6 +211,7 @@ memories = true
 | `rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描與作假偵測） |
 | `rubrics/research-analysis.md` | 研究／盤點類產出的逐條驗收判準 |
 | `docs/lessons-archive.md` | 已升級成正式判準的歷史教訓（保留原文，作為判準來歷） |
+| `docs/skill-catalog.md` | 各類任務用哪個 skill／plugin，含 Figma 在 MCP 缺席時的 curl fallback（原 `rules/00-environment.md` §好用的 skill／plugin，2026-08-12 移出常駐區） |
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份派工模板（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
 | `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high） |
@@ -236,11 +237,11 @@ memories = true
 
 **為什麼 Claude 側沒有 `scanner`／`explorer`／`planner`／`worker` 的等價 custom agent**：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋，且本制度不把 haiku 列入 active routing。Claude 側自建 agent 只補一個缺口——**Agent 呼叫無法逐次指定 effort**，所以 recovery／escalation／驗收這些需要綁定 effort 與行為合約的角色才需要獨立定義檔。（原為 `rules/10-dispatch.md` §0 註，2026-08-05 移出常駐區。）
 
-**為什麼 Claude 側沒有派工模板檔、Codex 側有**：Claude 側的模板（原 `rules/30-delegation-templates.md`）在 2026-07-25 移除，內容併入 `rules/10-dispatch.md` §2 的派工合約與各 `agents/*.md` 的角色合約——填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `codex/rules/30-delegation-templates-codex.md`：那份不會進 Claude 的 context（成本為零），且 Codex 端的 custom role runtime 尚未穩定套用角色合約（見 `rules/00-environment.md` 的 `agent_role:null` 觀察），模板仍在補這個缺口。
+**為什麼 Claude 側沒有派工模板檔、Codex 側有**：Claude 側的模板（原 `rules/30-delegation-templates.md`）在 2026-07-25 移除，內容併入 `rules/10-dispatch.md` §2 的派工合約與各 `agents/*.md` 的角色合約——填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `codex/rules/30-delegation-templates-codex.md`：那份不會進 Claude 的 context（成本為零），且 Codex 端的 custom role runtime 尚未穩定套用角色合約（見 `codex/rules/10-dispatch-codex.md` §0「Codex 可用角色」的 `agent_role:null` 觀察），模板仍在補這個缺口。
 
 Codex Plus 的一般升級路徑是 `worker/Luna max → recovery_worker/Terra xhigh → escalation_worker/Sol xhigh`。Codex Pro 由 `pro_worker/Terra xhigh` 進場：context 汙染型或型態難辨走同階 fresh `recovery_worker/Terra xhigh`，能力天花板型可直升 `escalation_worker/Sol xhigh`。`Sol max` 僅保留給 controller 在 `Sol xhigh` 仍無法收斂或明確遇到最困難單一路徑時使用，`Sol Ultra` 僅用於可獨立平行的大型工作流。
 
-Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工後必須 read-back child metadata，只有 `agent_role` 明確等於指定角色才能宣稱其固定 model／effort／contract 生效；`agent_role:null` 時必須視為 generic child，停止該 custom routing 並標記模型未驗證。此限制是主力 Mac 的 Codex 0.144.4 collaboration v2 實跑觀察到的；主力 Mac 於 2026-08-06 現查為 0.146.1，**未在新版重驗**，要據此下結論前先實跑一次（詳見 `rules/00-environment.md`）。
+Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工後必須 read-back child metadata，只有 `agent_role` 明確等於指定角色才能宣稱其固定 model／effort／contract 生效；`agent_role:null` 時必須視為 generic child，停止該 custom routing 並標記模型未驗證。此限制是主力 Mac 的 Codex 0.144.4 collaboration v2 實跑觀察到的；主力 Mac 於 2026-08-06 現查為 0.146.1，**未在新版重驗**，要據此下結論前先實跑一次（canonical 在 `codex/rules/10-dispatch-codex.md` §0「Codex 可用角色」；2026-08-12 前另有一份副本在 `rules/00-environment.md`，瘦身時刪除）。
 
 ## 三條鐵律
 

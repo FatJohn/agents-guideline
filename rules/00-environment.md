@@ -1,7 +1,7 @@
 # 00 — 環境事實與結構性風險
 
 > 本檔只放**跨機器皆真**的結論；單機事實（工具鏈、驗證能力）在 `05-hosts.md`，開工前先去認機器。
-> **跨機器事實**的查證日以本檔檔頭為準：**2026-08-06**（單機事實的探測日各自記在 `05-hosts.md`；個別條目另帶戳記者，如下方 Codex runtime 限制，以其戳記為準）。距今超過 90 天，先當場核對再引用，核對後更新此日期。事實過時就更新本檔，不要另開新檔。
+> **跨機器事實**的查證日以本檔檔頭為準：**2026-08-06**（單機事實的探測日各自記在 `05-hosts.md`；個別條目另帶戳記者，以其戳記為準）。距今超過 90 天，先當場核對再引用，核對後更新此日期。事實過時就更新本檔，不要另開新檔。
 
 ## 使用者背景（最低必要認知）
 
@@ -10,7 +10,6 @@
 - 個人 side project：財經類（macroeconomics-report 等，自己玩玩性質）等。完整清單用 `gh repo list`（個人）、`gh search repos --owner tvbstw`（公司）現查，不要依賴這裡的列舉。
 - 技術背景：C#／.NET／WPF／UWP 熟、C++ 部分會；Flutter、TypeScript 可；JavaScript／Vue 一般、React 初學。**後端與雲端架構不熟**——個人專案部署以 Zeabur 為主；財經專案另碰過 CloudFront＋自有 domain、R2 storage。涉及雲端架構的建議要多給脈絡、少假設既有知識。
 - LLM 資源：Claude Code 訂閱 Max；主對話 effort 由 `~/.claude/settings.json` 的 `effortLevel: xhigh` 設定，**model 不在 settings.json 裡**（由 UI 選，2026-07-25 核對；當次實際型號以主對話自報的 model ID 為準，該日為 `claude-opus-5`）。Codex 目前為 Plus，制度建議的主對話預設是 `gpt-5.6-sol`／effort `medium`（2026-08-06 依 Codex 官方 Power 預設更新）；各機器或當次 session 可明確 override，機器現況記在 `05-hosts.md`。若升級 Pro，制度預設改為 `gpt-5.6-sol`／effort `xhigh`（2026-08-06 使用者裁決：同型號拉高 effort，不是換型號；Pro 的額外額度另外用在把標準實作入口從 `worker/Luna` 升到 `pro_worker/Terra`）。Codex 5.6 世代由弱到強為 `gpt-5.6-luna`／`terra`／`sol`（2026-08-05 三檔實測皆可用；`~/.codex/models_cache.json` 會過期，判斷可用型號要現打不要讀 cache）。Claude 透過 codex plugin 派 Codex 外部第二意見，見 `10-dispatch.md`；Codex 自身派工見 `../codex/rules/10-dispatch-codex.md`。
-- Codex custom agent runtime 限制（主力 Mac，0.144.4，2026-07-14 實跑；主力 Mac 於 2026-08-06 現查為 0.146.1，此限制**未在新版重驗**——要據此下結論前先實跑一次）：`~/.codex/agents/` 的 standalone TOML 可被 `--strict-config` 接受，但目前 collaboration v2 的 `spawn_agent` 只帶 `task_name`；fresh child metadata 仍可能是 `agent_role:null`，即使同名檔案與 `[agents.<name>] config_file` 都存在。只有 child metadata 的 `agent_role` 明確符合角色，才可宣稱 custom model／effort／contract 已套用；`null` 必須標記 runtime unavailable／模型未驗證，不得用 child 文案當載入證據。
 
 ## 三大結構性風險與修法（按嚴重度）
 
@@ -49,18 +48,7 @@
 
 原則：動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造；但真正符合任務才叫用（優先權排序依平台見全域 `CLAUDE.md`／`AGENTS.md`）。
 
-- **開發流程**：兩端共用本 repo 的 `debug-environment-first`；其他 skill 必須以當前 session 公開的清單為準，不跨平台猜名稱。若 Claude 當前有公開 `mattpocock-skills:` 或 `andrej-karpathy-skills:`，可依任務叫用；Codex 只有在自己的清單也公開對應 skill 時才能叫用，否則依當前可用 skill 或主流程完成。這些 skill 管「執行者怎麼做好一件事」，本系統管「指揮官怎麼調度與驗收」；宣稱完成前由 `20-judgment.md` §2 與 verifier 把關。
-- **Claude 派工**：見 `10-dispatch.md`。
-- **Codex 派工**：見 `../codex/rules/10-dispatch-codex.md`。
-- **工具分工**：Memories、handoff、hooks、Chronicle 各自獨立，不合併成單一機制；Chronicle 只作為精選持久記憶的可選補充，不新增或取代 remember／自動事件史、Memories／精選持久記憶、handoff／顯式交接檔、repo 文件／制度層的四層定義。
-- **查網頁／爬資料**：Claude 使用當前 session 公開的 web search／fetch 或已註冊的文件 MCP；Codex 使用自己當前 session 公開的 web／browser 工具。這份跨機器檔不固定暫時的 tool 名稱；每次現查，不把另一平台的名稱直接套用。適合派工時只把結論帶回主對話。
-- **產出文件**：兩端都只使用當前 session 公開的文件產出 skill；Claude／Codex 的實際名稱可能不同，以各自當前清單為準，不跨平台猜名稱。
-- **外部第二意見／整包委派**：Claude 使用 codex plugin（用法見 `10-dispatch.md`）；Codex 依 `../codex/rules/10-dispatch-codex.md` 使用當前 surface 提供的 subagent。
-- **Codex 收尾交接**：`session-handoff` skill——使用者說「收尾」「記一下」「下次續接」「handoff」時，整理目標／已完成／驗證／下一步到 `.codex/HANDOFF.md`。
-- **找新工具**：遇到「感覺應該有現成工具」的問題，先查當前平台公開的 skill／plugin／connector 清單；需要安裝或沒有可用入口時再問使用者，找不到才自己寫。
-- **Figma 設計稿**：session 內搜不到 `figma-dev-mode-mcp-server` 工具時（plugin 未啟用，或 MCP 未在 session 啟動時註冊；2026-08-06 現查主力 Mac 的 `enabledPlugins` 已無 figma），
-  只要 Figma 桌面 App 的 Dev Mode MCP server 在 `127.0.0.1:3845` 有跑，就能用 `curl` 手動走 JSON-RPC
-  （initialize → tools/call `get_design_context`／`get_screenshot`／`get_metadata`）直接取設計稿，不必重開 session。
+具體清單（各類任務用哪個 skill、Figma 在 MCP 缺席時的 curl fallback）在 `../docs/skill-catalog.md`——那份不常駐，要用時再讀。清單內容一律以當前 session 公開的 skill／tool 名稱為準，不跨平台猜名稱。
 
 ## 查證過的事實（2026-08-06 複查；版本更新後重新核對）
 
