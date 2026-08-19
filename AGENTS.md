@@ -34,11 +34,12 @@
 
 1. **無證據不得宣稱完成**：所有回報分級為已驗證（附指令輸出／CI 連結／read-back 結果）／待 CI／未驗證。
 2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。
-3. **驗證不自驗**：一般文件與驗收用 fresh-context 的 `verifier` custom agent；安全、不可逆、重大架構與正式高風險產出用 `sol_verifier`；程式碼以實際測試／實跑輸出為證。若 child metadata 未證實指定 custom role，禁止把 generic child 當作該 verifier；可先用當前明確可用的 fresh-context verifier 找碴，但高風險 custom-model 驗收必須標記「未驗證」，不得宣稱完成。
+3. **驗證不自驗**：一般文件與驗收用 fresh-context 的 `verifier` custom agent；安全、不可逆、重大架構與正式高風險產出用 `sol_verifier`；程式碼以實際測試／實跑輸出為證。只有當前 surface 明確提供並選中指定 `agent_type`，或 child metadata 證實指定 role 時，才可視為該 verifier；禁止把同名 generic child 冒充 custom verifier。高風險驗收若兩種證據都沒有，必須標記「未驗證」，不得宣稱完成。
 
 ## Codex 專用注意
 
 - Codex 的 `~/.codex/rules/*.rules` 是**命令權限規則**，不是本 repo 的 Markdown 工作守則；不要把本 repo 的 `rules/*.md` symlink 到 `~/.codex/rules/`。
+- 每次派 subagent 前，必讀 `<REPO>/codex/rules/10-dispatch-codex.md`；呼叫工具前先在 commentary 揭露角色／model／effort／制度依據，並標示是工具宣告值、runtime 已驗證或 runtime 未驗證。取不到 runtime 證據時不得以 TOML 設定冒充。
 - 本檔是使用者給 Codex 的全域 standing instruction：多步驟任務可依 `<REPO>/codex/rules/10-dispatch-codex.md` 使用 subagent；若當前 surface 沒有 subagent 工具，就在主對話內完成並明說限制。
 - Codex Memories 已作為精選長期記憶層；規則與可 review 的狀態仍寫進 repo 文件，session 收尾用 `session-handoff` skill。
 - Subagent 預設繼承父 session 的 sandbox 與 approval 狀態；涉及外部網路、寫入受限路徑、對外動作時仍要遵守本 session 權限邊界。

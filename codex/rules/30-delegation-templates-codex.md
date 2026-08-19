@@ -51,30 +51,32 @@
 回報格式：最多 30 行，結論先行，分級為已驗證／待 CI／未驗證；列出未決問題供 controller 釐清。
 ```
 
-## D. 實作（角色：worker／pro_worker；Plus Luna/max／Pro Terra/xhigh；workspace-write）
+## D. 實作（角色：worker；Luna/max/workspace-write）
 
 ```text
-你是【Plus：worker／Pro：pro_worker】，親自完成本任務；禁止再 spawn subagent。訂閱入口：【Plus／Pro；來源為 rules/00-environment.md】。
+你是 worker，親自完成本任務；禁止再 spawn subagent。
 
 目標：【要做出的行為】。
 動機：【使用者原始需求與必要脈絡】。
+approved plan：【affected files、寫入所有權、invariants、implementation phases、validation commands、completion criteria；附 controller 已核定的完整內容】。
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
 寫入所有權：【絕對路徑清單】；禁止修改清單外檔案。
-限制：最小必要變更；不改【禁止範圍】；不新增依賴除非必要。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；若任務需要對外或不可逆動作，立即停止並回報 controller，由 controller 決定授權與後續路徑。
+限制：先核對 approved plan 已含必填項且未決問題均已解決或列為禁止範圍；不完整就停止並交回 controller，禁止邊做邊補 plan。最小必要變更；不改【禁止範圍】；不新增依賴除非必要。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；若任務需要對外或不可逆動作，立即停止並回報 controller，由 controller 決定授權與後續路徑。
 機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。
 回報格式：最多 30 行；列出改動檔案、驗證指令與輸出關鍵行、偏離 prompt 的決定，分級為已驗證／待 CI／未驗證。
 ```
 
-## E. 重構（角色：worker／pro_worker；Plus Luna/max／Pro Terra/xhigh；workspace-write）
+## E. 重構（角色：worker；Luna/max/workspace-write）
 
 ```text
-你是【Plus：worker／Pro：pro_worker】，親自完成本任務；禁止再 spawn subagent。訂閱入口：【Plus／Pro；來源為 rules/00-environment.md】。
+你是 worker，親自完成本任務；禁止再 spawn subagent。
 
 目標：把【範圍】重構為【目標狀態】，行為不得改變。
 動機：【為什麼值得重構】。
+approved plan：【affected files、寫入所有權、invariants、implementation phases、validation commands、completion criteria；附 controller 已核定的完整內容】。
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
 寫入所有權：【絕對路徑清單】；禁止修改清單外檔案。
-限制：一次一小步；發現需順便修 bug 時停下回報。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；若任務需要對外或不可逆動作，立即停止並回報 controller，由 controller 決定授權與後續路徑。
+限制：先核對 approved plan 已含必填項且未決問題均已解決或列為禁止範圍；不完整就停止並交回 controller。一次一小步；發現需順便修 bug 時停下回報。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；若任務需要對外或不可逆動作，立即停止並回報 controller，由 controller 決定授權與後續路徑。
 機械驗證：(1) 重構前跑【測試指令】記錄基準；(2) 重構後同一指令結果一致；(3) 對外介面與輸出格式不變。
 回報格式：最多 30 行；改動摘要、前後輸出對照、發現但未修改的問題，分級為已驗證／待 CI／未驗證。
 ```
@@ -119,7 +121,7 @@
 範圍：【repo 與絕對路徑；包含與排除項】。
 輸入證據：原始需求【】；目前 plan【】；相關 diff【】；完整探索／失敗輸出【】；已嘗試 hypotheses【】。
 限制：完全 read-only；不得寫檔、branch、stash、commit、push、對外動作或替 controller 做授權決策。先建立並回報 root cause、假設、affected files、invariants、failure modes、rollback strategy、implementation phases、validation commands 與 completion criteria。
-驗收條件：plan 可由對應訂閱的 worker／pro_worker 直接執行；每個關鍵判斷有來源或明確標示假設；Sol xhigh 仍無法形成可靠方案時停止並交回 controller，由 controller 顯式決定是否使用 Sol max。
+驗收條件：plan 可由 worker/Luna max 直接執行；每個關鍵判斷有來源或明確標示假設；Sol xhigh 仍無法形成可靠方案時停止並交回 controller，由 controller 顯式決定是否使用 Sol max。
 回報格式：最多 30 行；先列 root cause 與策略，再列 plan、證據、未決問題，分級為已驗證／待 CI／未驗證。
 ```
 
@@ -128,10 +130,10 @@
 ```text
 你是 escalation_worker，親自完成本任務；禁止再 spawn subagent。
 
-目標：在 approved plan 已存在，且標準實作者經 recovery_worker/Terra xhigh 仍失敗、recovery_worker 確認需要 Sol，或 Pro pro_worker/Terra xhigh 出現能力天花板型失敗後，先建立【root cause】，再完成【授權範圍內的修正】。
+目標：在 approved plan 已存在，且標準實作者經 recovery_worker/Terra xhigh 仍失敗或 recovery_worker 確認需要 Sol 後，先建立【root cause】，再完成【授權範圍內的修正】。
 動機：【原始需求與為什麼需要升級能力】。
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
-輸入證據：訂閱入口【Plus／Pro】；原始需求【】；approved plan【】；標準實作者與 recovery_worker 的相關 diff【】；對應門檻證據【經「recovery 再失敗兩次」入口：兩階段完整失敗輸出＋已嘗試 hypotheses；經「確認需要 Sol 能力」入口：recovery_worker 的 root cause 報告與判定理由；經「Pro Terra 能力天花板直升」入口：pro_worker 的兩次失敗軌跡＋能力天花板判定理由】。
+輸入證據：原始需求【】；approved plan【】；標準實作者與 recovery_worker 的相關 diff【】；對應門檻證據【經「recovery 再失敗兩次」入口：兩階段完整失敗輸出＋已嘗試 hypotheses；經「確認需要 Sol 能力」入口：recovery_worker 的 root cause 報告與判定理由】。
 限制：先分析並回報 root cause 與修正策略，再編輯；只修改【絕對路徑清單】。禁止 branch、stash、commit、push、對外動作與不可逆範圍擴張；若仍需要新的授權或不可逆決策，停止交回 controller。
 機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。
 回報格式：最多 30 行；先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目，分級為已驗證／待 CI／未驗證。
@@ -158,10 +160,10 @@
 ```text
 你是 recovery_worker，親自完成本任務；禁止再 spawn subagent。
 
-目標：在標準實作者（Plus worker/Luna max 或 Pro pro_worker/Terra xhigh）同一子任務失敗兩次，或實作揭露架構／安全／資料遺失風險後，先建立【root cause】，再完成【授權範圍內的修正】。
+目標：在標準實作者 worker/Luna max 同一子任務失敗兩次，或實作揭露架構／安全／資料遺失風險後，先建立【root cause】，再完成【授權範圍內的修正】。
 動機：【原始需求與為什麼需要 Terra xhigh recovery】。
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
-輸入證據：訂閱入口【Plus／Pro】；原始需求【】；approved plan【】；標準實作者相關 diff【】；對應門檻證據【失敗入口：完整測試／錯誤輸出＋已嘗試 hypotheses；高風險入口：風險判定依據（發現了什麼、為何屬架構／安全／資料遺失風險）】。
+輸入證據：原始需求【】；approved plan【】；標準實作者相關 diff【】；對應門檻證據【失敗入口：完整測試／錯誤輸出＋已嘗試 hypotheses；高風險入口：風險判定依據（發現了什麼、為何屬架構／安全／資料遺失風險）】。
 限制：先分析並回報 root cause 與修正策略，再編輯；只修改【絕對路徑清單】；遵循既有 invariants、rollback strategy 與 completion criteria。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；需要這些動作時交回 controller。
 機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。一般失敗可自行修復；同一子任務再失敗兩次，或先建立 root cause 並確認需要 Sol 能力時，停止並回報應升級 `escalation_worker/Sol xhigh`；新的架構／安全／資料遺失／不可逆決策只有在確認需要 Sol 能力後才符合此門檻。其他一般失敗或尚可形成可靠修正時，繼續依 approved plan 修復。
 驗收條件：root cause 可由對應門檻證據支持；修正符合 approved plan；相關驗證通過或明確分級未驗證；不擴大寫入範圍。
