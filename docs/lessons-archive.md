@@ -2,7 +2,7 @@
 
 > 這些教訓的內容已經被正式判準或 agent 定義承接，故從常駐的 `rules/50-lessons.md` 移出，避免同一件事在每個 session 的 context 裡佔兩份位置。**原文保留不改寫**，作為判準的來歷證據。
 > 本檔不在 `~/.claude/rules/` 底下，不會自動載入；要查某條判準為什麼存在時再讀。
-> 封存日：2026-07-25（第一批）、2026-08-05（第二批，本檔末 5 條）。
+> 封存日：2026-07-25（第一批）、2026-08-05（第二批）、2026-08-21（第三批，本檔末 8 條——該次把 `rules/50-lessons.md` 的活躍教訓清空歸零）。
 >
 > 注意：條目內的路徑是**寫入當時**的位置。之後發生過的搬移：
 > - `rules/30-delegation-templates.md` → 已刪除，內容併入 `rules/10-dispatch.md` §2 與各 `agents/*.md` 角色合約（2026-07-25）
@@ -37,3 +37,14 @@
 - [2026-07-23][web-pulse-survey-sdk] tsup→tsdown 遷移漏改 `.github/actions` 裡的舊指令，PR CI 不跑部署路徑故全綠，發版時 release CI 才炸 → build-tool／依賴遷移後 `rg` 全 repo（**含 `.github/workflows` 與 `.github/actions`**）搜舊工具名；release／deploy-only 路徑 PR CI 測不到、要另外查。**救援**：重跑舊 run 仍會沿用含 bug 的 action，必須先修 action、再發一個 patch 版本帶新 action 重跑 → 已套用到：20-judgment.md §2 補充判準（2026-08-05 升級；救援手法未進判準，留在本條）
 - [2026-07-25][agents-guideline] 把重複規則改成「見對應平台 dispatch 文件 §N」，但兩份 dispatch 的章節編號不同，Codex 照 §N 會翻到別節 → 跨平台共用的指向一律**逐平台各寫一組編號並附章節名**（「§5『升降級路徑』」）；章節名是編號漂移時的救命錨點 → 已套用到：skills/maintain-guideline/SKILL.md §6（2026-08-05 升級）
 - [2026-08-04][global] 為驗證新加的守衛「真的會紅」，用 `python3 -c "...replace(...)..."` 把舊規格注回一個 TS 檔；**該檔是 template literal、內含跳脫過的 backslash+backtick，而 zsh 雙引號把我命令裡的 backslash 吃掉**，於是 python 的搜尋字串（純 backtick）與檔案內容不符、replace **靜默 no-op**，破壞性檢驗因此「通過」，差點據此宣稱守衛有效（實測 `needle in s` → False；**注意方向取決於目標檔**：若檔案本身是純 backtick，吃掉 backslash 反而會相符）→ 通則是**引號層一多，shell 與目標檔案對 backslash 的認知就會錯開**。`20-judgment.md` §6 已有「先懷疑 shell quoting、改用 quoted heredoc」，但**它的觸發條件是「輸出像亂碼或被截斷時」，而 no-op 完全沒有異狀** → 真正的教訓：**破壞性檢驗必須先證明自己改到了東西**（`assert 搜尋字串 in 內容`，或改完 read-back diff），否則 no-op 會偽裝成 PASS → 已套用到：20-judgment.md §6
+
+<!-- 第三批（2026-08-21）：以下 8 條為 rules/50-lessons.md 活躍區全數升級後移入 -->
+
+- [2026-07-21][web-pulse-workspace] 只憑 Playwright a11y snapshot 判「新版 UI 與舊版一致」，漏掉純 CSS 寬度的進度條，上線才被抓到 → a11y snapshot **不含只有視覺、無文字的元素**（進度條、色塊、icon-only）；判視覺對齊要用截圖或 `browser_evaluate` 抓 computed style → 已套用到：rubrics/code-change.md §1（2026-08-21 升級）
+- [2026-07-21][global] 把「加 import」與「加使用處」拆成兩次 Edit，per-file lint hook 在中間態報 `unused-imports` 假 error → 有 PostToolUse per-file lint hook 時，import 與其使用處併在同一次 Edit（或先改使用處再加 import）；真假存疑一律補跑 eslint 確認 → 已套用到：skills/debug-environment-first/SKILL.md（2026-08-21 升級）
+- [2026-07-25][flutter-slimgo] 見兩份同名 SKILL.md `diff -q` 顯示 differ 就當成漂移去問使用者，拿到授權後才發現一份是刻意為 Codex 寫的精簡版 → 拿「兩個檔案不一致」問人**之前**先看清不一致的**性質**（漂移事故 vs 刻意分版），否則拿到的是基於錯誤前提的授權；動手前再複查一次前提 → 已套用到：rules/20-judgment.md §3「補充判準（問之前先驗前提）」（2026-08-21 升級）
+- [2026-08-06][global] repo 新增 `debug-environment-first` skill，`20-judgment.md` §6 已指向它，但本機沒重跑安裝、skill 清單裡根本沒這個名字 → 在 repo 加 skill／agent 不等於任何機器已安裝；加完當場重跑 README 安裝段（可重跑，已存在會略過）並 read-back 連結，否則規則會指向一個叫不出來的名字 → 已套用到：skills/maintain-guideline/SKILL.md §2（2026-08-21 升級）
+- [2026-08-12][global] 判定某段是重複副本就刪，事後才發現留下的 canonical 少了三個機制事實 → 刪重複前逐項比對資訊量，「看起來更完整」不等於涵蓋；用 `rg` 確認被刪的每個關鍵詞在別處仍有命中才動手 → 已套用到：skills/maintain-guideline/SKILL.md §5（2026-08-21 升級）
+- [2026-08-12][global] 寫「讓使用者能稽核派工」的規則，寫出來的卻是全由 controller 自述、零外部證據的宣告 → 規則要求「揭露」之前先問**證據由誰產生**；自述不是稽核，可稽核性要落在 controller 改不了的紀錄上（如 session transcript） → 已套用到：rules/10-dispatch.md §3（判準當時就已落地，只是本欄漏更新；2026-08-21 補記並封存）
+- [2026-08-19][global] 改 create-pr skill：同檔的判準表與範例互相矛盾、code span 裡的指令帶著 python 跳脫，複製出去 git 直接報錯，三輪 verifier 才抓完 → 文件含可執行片段或判準表時，收尾要做兩件只讀渲染結果驗不出來的事——把指令原樣複製出檔案實跑、拿同檔範例逐條核對自己剛寫的判準 → 已套用到：rubrics/document-quality.md §2 與 §3（2026-08-21 升級，拆成兩條）
+- [2026-08-21][flutter-slimgo] 重構整個函式後只掃 diff 新增行，漏掉函式內沿用的舊違規，PR reviewer 抓到 → 規範掃描的對象是改動過的整段 code，不是 `^\+` 命中的行；動過的函式就要為它的現況負責 → 已套用到：rubrics/code-change.md §3（2026-08-21 升級）

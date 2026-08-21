@@ -12,6 +12,7 @@ description: 除錯、追 bug、或量測結果看起來不對時使用。遇到
 - `pwd` 與目標 repo 是否一致（多 clone／多 worktree 環境特別容易站錯目錄）。
 - 目標 port 被誰佔用（`lsof -i :<port>`）；跑著的 server 是不是本 repo、本分支起的（看啟動時間或 build 產物）。
 - `git status --short && git log --oneline -3` 用新指令重新確認分支與 merge 狀態——不從舊的 scrollback 推斷。
+- **per-file lint hook 會在多步編輯的中間態報假 error**：有 PostToolUse per-file lint hook 時，把「加 import」與「加使用處」拆成兩次 Edit，中間那次必被判 `unused-imports`。兩者併在同一次 Edit（或先改使用處再加 import）；真假存疑一律補跑一次完整 lint 確認，不要照著假 error 改程式。
 - 輸出像亂碼或被截斷時，先懷疑 shell quoting（zsh 會展開 `===`、吃掉 backtick），多行或含特殊字元的內容改用 quoted heredoc（`<<'EOF'`）重跑一次，再解讀結果。
 - **量測方法要先自證，再拿它的結果下結論**——「壞了」與「我量錯了」長得一樣：
   - HTTP 檢查一律帶 `-L`，並看 `%{http_code}` ＋ `size_download`（不跟隨 302 會得到 `000`／0 bytes）。
