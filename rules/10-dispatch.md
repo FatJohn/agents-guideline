@@ -124,14 +124,14 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 > 本節是「誰驗什麼」的 canonical 位置；「什麼叫完成」在 `20-judgment.md` §2。
 
-主觀判斷、文件品質與高風險產出不得由製作者自己背書。測試、build、lint、實跑與 schema 驗證等可重現的機械驗證可由製作者執行，但必須附指令與輸出；高風險程式碼另加 fresh-context review。
+主觀判斷、文件品質與高風險產出不得由製作者自己背書。測試、build、lint、實跑與 schema 驗證等可重現的機械驗證可由製作者執行，但必須附指令與輸出；高風險程式碼、以及修使用者實際回報的 bug，另加 fresh-context review。
 
 驗收條件不必每次重寫——按產出類型直接引用 rubric（產出類型 → rubric 檔的對照表在 `20-judgment.md` §5「品質底線怎麼驗」，canonical 只有那一份），再補該次任務特有的條件。
 
 - **文件／主觀品質** → 派 fresh-context `verifier` 做 read-back：給它「產出檔案路徑＋驗收條件清單」，逐條判 PASS/FAIL；verifier 不參與製作。
 - **高風險文件／規則／架構決策／最終驗收** → 使用 `fable-verifier`；它與 Codex `sol_verifier/Sol high` 對應（Codex role 名一律底線，見 README「檔案結構」），只讀取、找碴與判定，不修正產物。
 - **程式碼機械驗證** → 測試、build、lint、實跑、schema 可由製作者執行，但必須附指令與輸出；「我看程式碼邏輯是對的」不算驗證。
-- **高風險程式碼** → 除機械驗證外再加 fresh-context review。
+- **高風險程式碼，或修使用者實際回報的 bug** → 除機械驗證外再加 fresh-context review。「高風險」要當場判斷，「使用者回報的 bug」不用——只要這件事成立就派，不必先判定風險等級或改動大小。這類驗收一定要問「**同一個錯誤還有沒有第二個現場**」：那是製作者最不適合回答的問題（他的心智模型正是漏掉那一處的原因），也是機械驗證最驗不到的——測試只覆蓋你改的那條路，改對的那條會全綠。
 - **高風險判斷**（對外文件、不可逆操作、架構決策）→ 加第二意見：codex-rescue，或派兩個 agent 各自獨立解再比對；不一致時把分歧點呈給使用者。
 - 驗證 prompt 要求**找碴**而不是背書：「假設這份產出有問題，找出來」比「確認這份沒問題」有效。
 
