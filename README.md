@@ -195,7 +195,9 @@ memories = true
 |------|------|
 | `CLAUDE.md` | 路由表＋三鐵律＋優先權排序（裝在 `~/.claude/`） |
 | `AGENTS.md` | Codex 路由表＋三鐵律＋Codex 專用注意（裝在 `~/.codex/`） |
-| `rules/00-environment.md` | 跨機器事實、三大結構性風險與修法、記憶機制、查證過的 harness 事實 |
+| `rules/00-environment.md` | 跨機器事實、三大結構性風險與修法 |
+| `docs/harness-facts.md` | 查證過的 harness 事實（2026-08-22 從 00-environment 搬出，非常駐） |
+| `docs/memory-layers.md` | 記憶機制四層的分工與邊界（2026-08-22 從 00-environment 搬出，非常駐） |
 | `rules/05-hosts.md` | 各機器事實（探測清單＋按機器分段；新機器由 AI 自行探測建檔） |
 | `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |
 | `rules/20-judgment.md` | 判斷準則：升級／完成／問使用者／換路／環境先驗，各附正反例 |

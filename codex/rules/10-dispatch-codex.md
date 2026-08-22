@@ -22,6 +22,8 @@
 
 `scanner` 使用 Luna 做低風險、可機械驗證的唯讀工作；所有訂閱檔位的標準實作都使用 `worker/Luna max`，且只可寫入父任務明確授權的 working tree 與範圍。`pro_worker` 僅為既有安裝相容性保留，不在 active routing；除非使用者本 session 明確要求 Terra 實作，否則不得派送。`recovery_worker` 以 Terra xhigh 接手標準實作者失敗或揭露高風險的情況，並先建立 root cause。`planner`、`explorer`、`reviewer`、`verifier`、`escalation_planner`、`sol_verifier` 都是 read-only。`reviewer` 處理一般實作 review；一般文件與一般驗收使用 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險驗收才升級 `sol_verifier/Sol high`。`escalation_planner` 只處理規劃／探索升級；`escalation_worker` 處理 recovery 仍不足；所有 verifier 只找碴與判定，不製作也不修正產物。
 
+**別名對應的實際型號與訂閱檔位預設**（2026-08-22 從 `<REPO>/rules/00-environment.md` 搬來——上表通篇只用 Luna／Terra／Sol，在此之前沒有任何一處寫出它們對應哪個 model id）：Luna＝`gpt-5.6-luna`、Terra＝`gpt-5.6-terra`、Sol＝`gpt-5.6-sol`。Codex 目前為 Plus，制度建議的主對話預設是 `gpt-5.6-sol`／effort `medium`（2026-08-06 依 Codex 官方 Power 預設更新）；各機器或當次 session 可明確 override，機器現況記在 `<REPO>/rules/05-hosts.md`。若升級 Pro，制度預設改為 `gpt-5.6-sol`／effort `xhigh`（同型號拉高 effort，不是換型號）。不論訂閱檔位，標準實作入口一律使用 `worker/gpt-5.6-luna/max`；Pro 額度優先用在主對話、規劃、review 與失敗後的 recovery，不自動提高標準實作者 model tier（2026-08-19 使用者裁決）。Codex 5.6 世代由弱到強為 `gpt-5.6-luna`／`terra`／`sol`（2026-08-05 三檔實測皆可用；`~/.codex/models_cache.json` 會過期，判斷可用型號要現打不要讀 cache）。
+
 角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。安裝 `~/.codex/agents/*.toml` 與 runtime 選中角色是兩件事：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata。可選中時，把 surface metadata 當作「工具宣告值」揭露；若回傳或 child metadata 另有實際 runtime model／effort，再一併 read-back。surface 沒有角色選擇入口、role 不符或 runtime 證據與宣告不一致時，不得假裝 custom role 已套用；改用當前明確可用角色，或標記「模型／effort 未驗證」後停止該 routing。
 
 ## 1. 雙軸派工判斷

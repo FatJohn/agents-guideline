@@ -18,6 +18,6 @@
 
 原節另有 4 條在別處已有 canonical，未搬入本檔，直接刪除：
 
-- 「工具分工」（Memories／handoff／hooks／Chronicle 四層不合併）→ canonical 在 `rules/00-environment.md` §記憶機制（四層，各有分工）。
-- 「Codex 收尾交接」（`session-handoff` 寫 `.codex/HANDOFF.md`）→ canonical 在 `rules/00-environment.md` §記憶機制的「顯式交接檔」條。
+- 「工具分工」（Memories／handoff／hooks／Chronicle 四層不合併）→ canonical 在 `docs/memory-layers.md`（2026-08-22 從 `rules/00-environment.md` 搬出）。
+- 「Codex 收尾交接」（`session-handoff` 寫 `.codex/HANDOFF.md`）→ canonical 在 `docs/memory-layers.md` 的「顯式交接檔」條（2026-08-22 從 `rules/00-environment.md` 搬出）。
 - 「Claude 派工」「Codex 派工」「外部第二意見／整包委派」→ 純指標，canonical 在 `rules/10-dispatch.md` 與 `codex/rules/10-dispatch-codex.md`，全域 `CLAUDE.md`／`AGENTS.md` 的索引表也已有路由。
