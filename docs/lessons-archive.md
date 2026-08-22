@@ -8,6 +8,8 @@
 > - `rules/30-delegation-templates.md` → 已刪除，內容併入 `rules/10-dispatch.md` §2 與各 `agents/*.md` 角色合約（2026-07-25）
 > - `rules/40-maintenance.md` → `skills/maintain-guideline/SKILL.md`（2026-07-25）
 > - `codex/rules/10-dispatch-codex.md`、`codex/rules/30-delegation-templates-codex.md` 原本在 `rules/`（2026-07-09 移出）
+> - `rules/00-environment.md` §記憶機制 → `docs/memory-layers.md`（2026-08-22 瘦身移出常駐區）
+> - `rules/00-environment.md` §查證過的事實 → `docs/harness-facts.md`（2026-08-22 瘦身移出常駐區）
 > - **`rules/20-judgment.md` §6「除錯前先驗證環境」整節 → `skills/debug-environment-first/SKILL.md`（2026-08-05 瘦身移出常駐區）**。下方多條寫「已套用到：20-judgment.md §6」的條目，判準現在在那個 skill 裡，20-judgment §6 只剩一行指向。
 
 - [2026-07-06][global] 盤點發現持久記憶目錄全空，過去所有 session 學到的東西都蒸發了 → 每 session 結束前自查該寫的記憶，這比當日任何單一任務都值錢 → 已套用到：40-maintenance.md §4
@@ -48,3 +50,7 @@
 - [2026-08-12][global] 寫「讓使用者能稽核派工」的規則，寫出來的卻是全由 controller 自述、零外部證據的宣告 → 規則要求「揭露」之前先問**證據由誰產生**；自述不是稽核，可稽核性要落在 controller 改不了的紀錄上（如 session transcript） → 已套用到：rules/10-dispatch.md §3（判準當時就已落地，只是本欄漏更新；2026-08-21 補記並封存）
 - [2026-08-19][global] 改 create-pr skill：同檔的判準表與範例互相矛盾、code span 裡的指令帶著 python 跳脫，複製出去 git 直接報錯，三輪 verifier 才抓完 → 文件含可執行片段或判準表時，收尾要做兩件只讀渲染結果驗不出來的事——把指令原樣複製出檔案實跑、拿同檔範例逐條核對自己剛寫的判準 → 已套用到：rubrics/document-quality.md §2 與 §3（2026-08-21 升級，拆成兩條）
 - [2026-08-21][flutter-slimgo] 重構整個函式後只掃 diff 新增行，漏掉函式內沿用的舊違規，PR reviewer 抓到 → 規範掃描的對象是改動過的整段 code，不是 `^\+` 命中的行；動過的函式就要為它的現況負責 → 已套用到：rubrics/code-change.md §3（2026-08-21 升級）
+- [2026-08-22][macroeconomics-report] 新增的啟動檢查把「總開關開了但沒金鑰」一律判 fatal，而被檢查的 fallback 分支要另一個條件才走得到，擋掉一個原本可用的組態 → 判定條件要對齊被檢查者**實際會走到的分支**，不是對齊「這設定看起來不完整」；誤叫比漏叫更快讓一個檢查失去信任 → 已套用到：rubrics/code-change.md §6（2026-08-22 升級）
+- [2026-08-22][macroeconomics-report] 寫了條守衛數「解析出幾筆」，卻用跟解析器同一個 pattern 去數，pattern 一變兩邊一起瞎 → 守衛的訊號要與被守衛的機制獨立；同源訊號＝自己驗自己，與恆真的鏡像斷言同類 → 已套用到：rubrics/code-change.md §6（2026-08-22 升級）
+- [2026-08-22][macroeconomics-report] 守衛拿 seed 全集當期望值，於是「停用一個來源並照規矩從頁面移除」會讓測試變紅——做對事被測試擋 → 守衛要比該比的子集；拿全集比會逼下一個人把正確的改動改回去 → 已套用到：rubrics/code-change.md §6（2026-08-22 升級）
+- [2026-08-22][global] 更正一句錯的事實宣稱（某來源的失敗根因），只改了發現它的那一處，同一句話在 spec 三處＋另一張 seed 表共四個現場 → **更正事實宣稱＝字串替換任務**，也要照 `20-judgment.md` §2 補充判準做全 repo `rg`；rubric `code-change.md` §5 的觸發清單目前只列重構／改名／抽取／工具遷移，沒有涵蓋這一類 → 已套用到：rubrics/code-change.md §5（2026-08-22 升級，觸發清單加入「更正事實宣稱」）
