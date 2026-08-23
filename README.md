@@ -199,7 +199,7 @@ memories = true
 | `docs/harness-facts.md` | 查證過的 harness 事實（2026-08-22 從 00-environment 搬出，非常駐） |
 | `docs/memory-layers.md` | 記憶機制四層的分工與邊界（2026-08-22 從 00-environment 搬出，非常駐） |
 | `rules/05-hosts.md` | 各機器事實（探測清單＋按機器分段；新機器由 AI 自行探測建檔） |
-| `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |
+| `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、驗證分工與 rubric 對應（§4「升降級路徑」只留指向，內容在 `docs/escalation-paths.md`） |
 | `rules/20-judgment.md` | 判斷準則：升級／完成／問使用者／換路／環境先驗，各附正反例 |
 | `rules/50-lessons.md` | **還沒有正式判準承接的**活躍教訓＋交接欄 |
 
@@ -214,6 +214,7 @@ memories = true
 | `rubrics/research-analysis.md` | 研究／盤點類產出的逐條驗收判準 |
 | `docs/lessons-archive.md` | 已升級成正式判準的歷史教訓（保留原文，作為判準來歷） |
 | `docs/skill-catalog.md` | 各類任務用哪個 skill／plugin，含 Figma 在 MCP 缺席時的 curl fallback（原 `rules/00-environment.md` §好用的 skill／plugin，2026-08-12 移出常駐區） |
+| `docs/escalation-paths.md` | 升級門檻成立**之後**派給誰的決策樹，含升級 prompt 必附的證據（原 `rules/10-dispatch.md` §4，2026-08-23 移出常駐區） |
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份派工模板（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
 | `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high） |
