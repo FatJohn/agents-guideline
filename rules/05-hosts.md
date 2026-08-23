@@ -37,7 +37,6 @@
 - **`python3` 沒有別名，只有 `python`**——探測清單第 3 項的指令直接照抄會誤判 Python 未安裝
 - 專案位置：個人專案放在 `E:\` 根層，不是 Mac 的 `~/Projects/FatJohn/`
 - 本系統 repo：`E:\agents-guideline`（與 Mac 同一個 `git@github.com:FatJohn/agents-guideline.git`），Claude Code symlink 裝進 `~/.claude/`，Codex symlink 裝進 `~/.codex/`
-- **symlink 安裝可行，不需要改用 `cp`**：Developer Mode 已開啟（`HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock` 的 `AllowDevelopmentWithoutDevLicense = 1`），非 admin 的 PowerShell 即可 `New-Item -ItemType SymbolicLink`；跨磁碟（C: → E:）的檔案與目錄 symlink 都實測成功。安裝指令見 README「安裝（Windows／PowerShell）」。
-  - 目錄可用 symlink 或 junction，效果相同；**檔案只能用 symlink**——C: 與 E: 是不同磁碟區，hardlink 不可跨區。
+- **symlink 安裝可行，不需要改用 `cp`**（2026-08-05 實測：跨磁碟 C: → E: 的檔案與目錄 symlink 都成功）。Developer Mode 前置條件、對應的 registry key、junction 與 hardlink 的差異，以及安裝指令，全在 README「安裝（Windows／PowerShell）」。
   - **`~/.claude/rules` 用目錄 symlink，Claude Code 在 Windows 確實會自動全文載入**（2026-08-05 實測：`claude -p --allowed-tools "" <<< '不准用工具，列出 context 裡 rules 目錄下每個檔的首行標題'` 回傳 00／05／10／20／50 五個標題）。這條指令也是驗證 `rules/` 生效的通用方法——`claude -p` 本身就是全新 session，不必要求使用者手動重開。
 - 驗證能力：.NET／Node／Flutter／Docker CLI 都在 PATH，但**本機尚未實跑過任何 build／test**（2026-08-05）；第一次要用來當完成證據前，先跑一次 `dotnet --info`／`flutter doctor` 確認 SDK 完整，不要憑 CLI 存在就宣稱可驗證。iOS build 不可（非 macOS）。

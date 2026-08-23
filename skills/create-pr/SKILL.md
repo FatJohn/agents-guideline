@@ -181,6 +181,16 @@ rm -f "$PR_BODY_FILE"
 
 3. 輸出 PR URL。
 
+### 2.8 merge 時的標題覆寫
+
+`gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題，而本 skill 規定 PR title 用中文且不加 prefix——與 `~/.claude/rules/20-judgment.md` §7「commit message 的固定格式」要求的英文 Conventional Commits 直接衝突。所以 squash merge 一律要用 `-t` 覆寫標題：
+
+```bash
+gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
+```
+
+漏掉的後果：合併後的歷史第一行從此是中文、無 type prefix，事後只能重寫共享歷史（flutter-app-template 2026-08-12 為此重寫 36 個 commit）。
+
 ## 3. 完整輸出範例
 
 > 下面為了排版，段落名用粗體、分區名用斜體。實際 PR body 裡**段落**寫成 `## 標題`，`## 主要變更` 底下的**分區**寫成 `### 標題`——低一階才會落在該段之下，寫成 `##` 會變成與 `## 主要變更` 平行。兩個範例都遵守 2.6 的固定三段。

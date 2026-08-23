@@ -42,6 +42,36 @@
 ✅ **正例**：不確定 symlink 進來的 `rules/` 有沒有被自動載入 → `claude -p --allowed-tools "" <<< '不准用工具，列出 context 裡 rules 目錄下每個檔的首行標題'`，拿到標題才下結論。
 ❌ **反例**：「這要重開 session 才看得到，先標未驗證」——三十秒能驗的事被講成能力邊界。
 
+**補充判準（驗證要驗到被嵌的那一層）**：設定檔內嵌別的語言時——GitHub Actions 的 `run:`、
+Dockerfile 的 `RUN`、YAML 裡的 jq 或 SQL——**上層格式 parse 通過不算驗過那一層**。要跑被嵌
+那層自己的檢查；跑不了的就明說那一層未驗，不要含混帶過。**哪個語言跑什麼檢查、哪些跑不了，
+canonical 在 `debug-environment-first` skill**，新增的語言寫進那份、不要兩邊各記一份。
+
+✅ **正例**：改完 workflow 的 shell，把每個 `run:` 抽出來跑 `bash -n`，抓到未收尾的引號。
+❌ **反例**：YAML parse 過、CI 也綠，而那一步每天 cron 都是 bash syntax error。
+
+**補充判準（修正本身要重新驗）**：驗收指出缺陷後的修正是**新的、未驗證的改動**，而且是最容易
+出事的那一種——注意力全在「有沒有修到它說的那點」。修完要對 delta 重新派一次 fresh-context
+驗收，不能拿上一輪的驗證結果當數。同理適用於「順手」修掉的東西。
+
+✅ **正例**：第一輪五個發現修完後只驗 delta，第二輪抓到修的過程中新造的致命 bug。
+❌ **反例**：「這五處都照它說的改了，原本那輪已經驗過。」
+
+**補充判準（量測方法要先自證）**：把任何數字寫進 PR、判準或告警門檻之前，先問這個量法會不會
+給出「跑完了、看起來合理、但是錯的」答案。**陷阱清單的 canonical 在 `debug-environment-first`
+skill**（該 skill 的觸發條件已涵蓋「要報數字之前」）；這裡只留判準，新增陷阱寫進那份。
+
+✅ **正例**：訂靜默告警的門檻前實際量該來源的產出間隔，發現最大 18.74 天、沿用別處量出的
+7 天會誤報。
+❌ **反例**：拿歷史資料推「哪些來源會掛零」，其中兩個的設定早就換過，結論多算兩個。
+
+**補充判準（覆蓋與刪除前先看目標）**：`cat > file`、`>` 重導向與整檔重寫都是**覆蓋**，
+目標存在與否不會有任何提示。寫之前先確認它不存在（`test -e`／`ls`），或改用會擋覆蓋的
+寫檔工具；事後靠 `git status` 顯示 `M` 才發現，代表你已經賭過一次。
+
+✅ **正例**：要新增測試檔前先 `ls` 該路徑，發現同名檔已有 9 條測試，改成附加。
+❌ **反例**：`cat > x.test.ts` 蓋掉既有測試，總數從 131 變 133 讓它看起來像「多了兩條」。
+
 ## 3. 何時該停下來問使用者
 
 **判準**：符合任一條就停，其餘情況自主前進不要問：
@@ -88,17 +118,13 @@
 
 ## 6. 除錯前先驗證環境
 
-遇到 HTTP 錯誤、port 異常、hook／lint 在多步編輯中途報錯、輸出與預期不符，或準備提出「程式碼有 bug」的假設之前 → 叫用 `debug-environment-first` skill（環境事實檢查清單＋量測方法自證的具體陷阱）。「壞了」與「我量錯了」長得一樣。
+遇到 HTTP 錯誤、port 異常、hook／lint 在多步編輯中途報錯、輸出與預期不符，或準備提出「程式碼有 bug」的假設之前 → 叫用 `debug-environment-first` skill（環境事實檢查清單＋量測方法自證的具體陷阱＋內嵌各語言各自要跑什麼語法檢查）。「壞了」與「我量錯了」長得一樣。
 
 ## 7. commit message 的固定格式
 
 **判準**：commit message（subject 與 body）全英文，subject 符合 Conventional Commits——`type: 小寫祈使句`，scope 可省略（`type(scope):` 同樣合格），type 限 `build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test`。對話、PR title 與 body、程式註解、issue 仍是繁體中文。
 
-**銜接點（漏掉就破功）**：`gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題，而 `~/.claude/skills/create-pr/SKILL.md` 規定 PR title 用中文且不加 prefix——兩者衝突，所以 squash 一律要覆寫標題：
-
-```
-gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
-```
+**銜接點（漏掉就破功）**：PR title 依 `create-pr` skill 規定用中文且不加 prefix，而 `gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題——兩者衝突，所以 squash merge 一律要用 `-t` 把標題覆寫成本節格式。指令與事故案例見 `~/.claude/skills/create-pr/SKILL.md` §2.8。
 
 ✅ **正例**：`build(ios): move to SPM-only and drop CocoaPods (#25)`
-❌ **反例**：PR title 是中文就直接 `gh pr merge --squash`——歷史第一行從此中文無 prefix，事後只能重寫共享歷史（flutter-app-template 2026-08-12 為此重寫 36 個 commit）。
+❌ **反例**：PR title 是中文就直接 `gh pr merge --squash`——歷史第一行從此中文無 prefix，事後只能重寫共享歷史。

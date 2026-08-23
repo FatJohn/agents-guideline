@@ -49,7 +49,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 |------|------|-------|
 | 掃 repo、找出「哪些檔案有 X」 | Explore | sonnet |
 | 讀多份長文件並總結 | general-purpose | sonnet |
-| 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用；firecrawl 已移除，見 `00-environment.md`） | sonnet |
+| 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用；沒有 firecrawl，2026-08-06 已移除） | sonnet |
 | 批次機械性改檔（同 pattern 套 N 個檔） | general-purpose | sonnet |
 | 實作一個功能 | general-purpose | opus（Max 檔位；Pro 檔位降回 sonnet） |
 | 設計實作方案 | Plan | opus／high |

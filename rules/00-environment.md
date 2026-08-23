@@ -29,7 +29,7 @@
 
 ### 3. 固定注入肥大：每個 session 開場漏掉數千 token
 
-**症狀**：plugin 與 MCP server 每 session 注入工具清單、skill 描述與絕對化指令；skill 清單本身就是固定成本，跟用不用得到無關。（2026-08-06 現查：曾是最大注入源的 superpowers 與 firecrawl 全家桶已移除，`~/.claude/settings.json` 的 `enabledPlugins` 現存 context7／codex／remember／document-skills／mattpocock-skills／andrej-karpathy-skills 六個；要引用當下清單一律現查該檔，不要照抄這一行。）
+**症狀**：plugin 與 MCP server 每 session 注入工具清單、skill 描述與絕對化指令；skill 清單本身就是固定成本，跟用不用得到無關。（當下啟用了哪些 plugin 一律現查 `~/.claude/settings.json` 的 `enabledPlugins`，此處刻意不列舉——列了就會過時，而過時的清單比沒有清單更糟。）
 
 **修法**：
 - 抓住優先權排序（見全域 CLAUDE.md），不被注入音量牽著走。

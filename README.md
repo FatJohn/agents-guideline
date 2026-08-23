@@ -50,7 +50,7 @@ symlink 的好處：session 依規則附加教訓、更新事實時直接改到 
 
 ## 安裝（Windows／PowerShell）
 
-一次裝好 Claude Code 與 Codex 兩側。**前置條件：開啟 Developer Mode**（設定 → 系統 → 開發人員專用），否則建 symlink 需要 admin 權限。實測 `FatJohn-PC` 上 Developer Mode 已開，非 admin 的 PowerShell 7 即可建立跨磁碟（C: → E:）的檔案與目錄 symlink。
+一次裝好 Claude Code 與 Codex 兩側。**前置條件：開啟 Developer Mode**（設定 → 系統 → 開發人員專用），否則建 symlink 需要 admin 權限。已開的話 `(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock').AllowDevelopmentWithoutDevLicense` 會回 1。實測 `FatJohn-PC` 上 Developer Mode 已開，非 admin 的 PowerShell 7 即可 `New-Item -ItemType SymbolicLink` 建立跨磁碟（C: → E:）的檔案與目錄連結。
 
 ```powershell
 $REPO = 'E:\agents-guideline'   # 本機 repo 位置；其他機器見 rules/05-hosts.md
