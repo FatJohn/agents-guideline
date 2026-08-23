@@ -77,6 +77,8 @@
 
 主對話自己做時，只有在符合 §1 任一派工條件卻仍不派時才要交代；例行讀檔、跑指令與對話不必。這段揭露是給使用者看的稽核鏈，不放進 subagent prompt 取代下面三件套。
 
+Claude 端 `<REPO>/rules/10-dispatch.md` §3 只要求揭露「派了誰」，**兩邊詳略不同是刻意分版、不是漂移**：Claude 的 Agent 工具沒有 runtime model 的 read-back 管道，四項揭露在那個 surface 兌現不了。不要修齊。
+
 每個 subagent prompt 必含三段，缺一段就是不合格派工（模板見 `30-delegation-templates-codex.md`）：
 
 1. **目標與動機**：要達成什麼、為什麼；subagent 看不到完整主對話，脈絡要自帶。

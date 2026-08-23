@@ -83,14 +83,11 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 ## 3. 回報合約
 
-**派工揭露（controller → 使用者，每次派 subagent 都要）**：派工當下講明四項——**派給誰／model／effort／依據**。依據要指得出制度出處（§1、§5 或 `20-judgment.md` §1 的哪一條），「範圍明確」這類自由心證不算。主對話自己做時，只有在**符合 §1 任一派工條件卻仍不派**時才要交代；例行讀檔、跑指令、對話不必。
+**派工揭露（controller → 使用者，每次派 subagent 都要）**：派工當下講明**派了誰**（agent 名稱即可，例如「派 Explore 掃 repo」）。目的是讓使用者看得出派工規則有沒有被遵守，不是建稽核鏈——model／effort 與制度出處使用者問了才報；報制度出處要指得出是 §1、§5 或 `20-judgment.md` §1 的哪一條，「範圍明確」這類自由心證不算。主對話自己做時，只有在**符合 §1 任一派工條件卻仍不派**時才要交代；例行讀檔、跑指令、對話不必。
 
-揭露不帶證據就只是宣告，稽核不到。所以：
+被問到 model／effort 時報**呼叫時指定的參數**——那是你自述得出的。**本制度不稽核 subagent 實際跑在哪個 model**：runtime model ID 只能在派工 prompt 裡事前要求 subagent 自報，事後補問不到，而每次派工都加那段話的成本高過它的價值。所以被問時答「呼叫參數是 X，runtime 未驗證」，不要改口說已驗證。effort 另有硬限制：Agent 工具沒有 effort 參數、也無法 runtime 自報，有 `agents/<角色>.md` 的角色引其 frontmatter 標「宣告值」，其餘寫「未指定，繼承主對話」；外部模型（`codex:codex-rescue`）model／effort 都寫「不適用」。
 
-- **派工 prompt 一律要求 subagent 自報實際 model ID 與該資訊的來源**，原樣轉給使用者。這是稽核鏈上唯一的外部證據，但仍是自述，非鐵證。
-- 分清**「我派了什麼」**（Agent 呼叫參數，你自述即可）與**「它實際跑在什麼」**（以自報 model ID 為準，見 §0）。兩者不符時**明確標出不一致**並說明處置，不得原樣轉述當沒事。
-- **自己忘了在 prompt 裡要求＝重派一次**，不得標「未驗證」了事——agent 結束後補問不到，那是自造的證據缺口（`20-judgment.md` §2）。agent 有回但沒照做，才寫「未取得自報，model 未驗證」。
-- **effort 無法逐次指定**（Agent 工具無 effort 參數，見 §0）**，也無法 runtime 自報**：有 `agents/<角色>.md` 的自帶角色引其 frontmatter 並標「宣告值」；外部模型（`codex:codex-rescue`）model／effort 都寫「不適用」；其餘一律寫「未指定，繼承主對話」（內建 type 與 plugin／平台提供的 agent 如 `claude-code-guide` 都在此類）。
+Codex 端 `../codex/rules/10-dispatch-codex.md` §3 要求的是四項揭露＋證據層級，**兩邊詳略不同是刻意分版、不是漂移**：Codex surface 拿得到 runtime model 的 read-back，Claude 的 Agent 工具沒有。不要修齊。
 
 **Subagent 回報：**
 
