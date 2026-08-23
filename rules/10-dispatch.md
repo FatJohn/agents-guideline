@@ -34,7 +34,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）。
 - 本系統自帶 5 個角色：`verifier`／`fable-verifier`／`recovery-worker`／`escalation-planner`／`escalation-worker`。**進場門檻、model／effort、tools 與行為合約的 canonical 全在 `~/.claude/agents/<角色>.md` 的 frontmatter 與本文**，派工前讀該檔；哪個門檻成立後派給誰見 §4（2026-08-22 移除此處的 model／effort 抄本）。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill，不是 subagent（`code-simplifier` plugin 2026-08-06 現查未安裝，寫成 `subagent_type` 會叫不出來）。
-- `codex:codex-rescue`——外部模型（GPT 系，使用者有 Codex 訂閱）。兩種用法：(a) 卡死或高風險判斷時的第二意見；(b) 把獨立性高的完整實作／診斷任務整包委派出去，與 Claude subagent 平行運作。
+- `codex:codex-rescue`——外部模型（GPT 系，使用者有 Codex 訂閱，不占 Claude 配額）。兩種用法：(a) 卡死或高風險判斷時的第二意見；(b) 把獨立性高的完整實作／診斷任務整包委派出去（需要換視角的診斷同樣走這條），與 Claude subagent 平行運作。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。**不是每個 session 都有**：2026-08-06 實測 `claude -p` 起的 session 清單裡沒有它（主對話清單裡有），機制未查明。派工前先確認當下清單真的有這個名字。
 
 ## 1. 雙軸判斷：context 成本 × 任務耦合
@@ -51,12 +51,8 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 | 批次機械性改檔（同 pattern 套 N 個檔） | general-purpose | sonnet |
 | 實作一個功能 | general-purpose | opus（Max 檔位；Pro 檔位降回 sonnet） |
 | 設計實作方案 | Plan | opus／high |
-| 同一子任務兩次失敗後的 root-cause recovery 實作 | recovery-worker | opus／xhigh |
-| Plan 或探索路徑無法形成可靠方案時的規劃升級（先 fresh Plan 重試一次，見 §4） | escalation-planner | fable／xhigh |
-| recovery 再失敗後的最終升級實作 | escalation-worker | fable／xhigh |
-| 獨立性高的完整實作、或需要換視角的診斷 | codex:codex-rescue | —（外部 GPT 系，不占 Claude 配額） |
-| 一般文件／主觀品質 read-back | verifier | opus／high |
-| 高風險文件、規則、架構決策與最終驗收 | fable-verifier | fable／high |
+
+這張表只列日常派工。升級要派給誰見 §4 指向的 `../docs/escalation-paths.md`，驗收要派給誰見 §5，整包委派給外部模型見 §0 的 `codex:codex-rescue`。
 
 主對話**可以**自己做的：讀單一已知檔案的特定段落、改一兩個檔、跑一條指令、跟使用者對話、做決策。
 
