@@ -9,6 +9,29 @@
 - 回報上限 30 行；長內容由父任務接手落檔，subagent 只回摘要、來源與建議路徑。
 - 回報須分級：已驗證（附證據）／待 CI／未驗證。
 - prompt 開頭必須禁止遞迴 spawn：subagent 親自完成，不得再派 subagent。
+- 以下 A–L 每一個 code block 都是完整的 logical-role contract；實際派送時，先把一次性的 adapter envelope 貼在對應 code block 前。`logical role`、`actual agent_type`、model／effort、runtime evidence 與 permission contract 缺一不可；不因使用 generic `default` 而刪減 A–L 內容。
+- A–L 內「你是 `<role>`」是 logical role 標籤，不是 runtime 身份。child 的 `actual agent_type` 依 `10-dispatch-codex.md` §0 的 named-first → `default` fallback 決定；direct CLI review 填 `direct CLI process`，generic child 不得自稱 custom role。
+- `pro_worker` 沒有另一份重複模板：它重用 D 的 worker contract，把 logical role 改為 `pro_worker`，依 §0 改用 Terra/xhigh，並附使用者本 session 明確 override 標準 Luna route 的證據。
+
+### Adapter envelope（A–L 共用前綴）
+
+每次複製任一 A–L 模板時，先填入這段，再接該模板的完整 role contract；不要在各模板逐一重複這段規則：
+
+```text
+runtime adapter envelope:
+recursion boundary: subagent 親自完成；不得再 spawn subagent
+logical role: 【A–L 對應角色；這是任務語意，不是 runtime 身份】
+actual agent_type: 【named role／default／direct CLI process；依當前 surface 實際選中值】
+fork context: 【none／正整數／不適用；generic spawn override model／effort 時不得用 full-history fork】
+requested model: 【實際 model id，例如 gpt-5.6-luna；依 10-dispatch-codex.md §0 mapping】
+requested effort: 【實際 effort，例如 max；依 10-dispatch-codex.md §0 mapping】
+runtime evidence: 【工具宣告值／runtime 已驗證／runtime 未驗證；附 surface、child metadata 或 CLI header 來源】
+logical permission contract: 【read-only／workspace-write；允許行為、working tree 與絕對路徑範圍】
+runtime permission evidence: 【named metadata／CLI header／繼承父 session／runtime 未驗證；實際 sandbox 與 approval 來源】
+authorization boundary: 【controller 已授權的動作；對外或不可逆動作一律交回 controller】
+```
+
+`actual agent_type=default` 時，完整 logical-role contract 仍照貼；沒有 child metadata 時 runtime evidence 必須保留「runtime 未驗證」。generic spawn surface 沒有 sandbox override 時，runtime permission evidence 寫「繼承父 session」；寫入角色須先證明父權限涵蓋 approved scope，read-only 角色則只有父 runtime 已是 read-only 時可派，否則改走 direct CLI 或停止。不得把 prompt 內的 read-only 自稱或事後 read-back 當作 sandbox 證據。若使用 `codex exec --ephemeral --sandbox read-only` 走 direct CLI review，該 process 是單體 fresh reviewer，直接完成驗收，不在其中 nested spawn；CLI header 只能補 model／effort與 sandbox 證據，不能把 generic child 稱為 custom role。
 
 ## A. 搜尋／掃描（角色：scanner）
 

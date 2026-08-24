@@ -168,7 +168,7 @@ model_reasoning_effort = "medium"
 # model_reasoning_effort = "xhigh"
 ```
 
-若檔案已有 `[agents]`，只更新其中的 `max_threads` 與 `max_depth`，不可新增第二個 `[agents]` table；只有原本沒有 `[agents]` 時才新增整段。下面三個 `[agents.<name>]` 也採相同合併規則：table 已存在就只核對或更新其中的 `description` 與 `config_file`，不存在才新增，不可重複宣告。Codex CLI 0.149.1 若未自動接受 `~/.codex/agents/*.toml` 角色，可用對應的 `[agents.<name>]` 與 `config_file` 作相容性註冊；是否可派送仍以 fresh-session runtime smoke 為準。
+若檔案已有 `[agents]`，只更新其中的 `max_threads` 與 `max_depth`，不可新增第二個 `[agents]` table；只有原本沒有 `[agents]` 時才新增整段。下面三個 `[agents.<name>]` 也採相同合併規則：table 已存在就只核對或更新其中的 `description` 與 `config_file`，不存在才新增，不可重複宣告。Codex CLI 0.149.1 若未自動接受 `~/.codex/agents/*.toml` 角色，可用對應的 `[agents.<name>]` 與 `config_file` 作相容性註冊；這只是 standalone TOML／註冊層，不等於 runtime 已選中 named role。
 
 Codex subagent 並行與遞迴上限建議固定：
 
@@ -188,9 +188,11 @@ Codex subagent 並行與遞迴上限建議固定：
     description = "Sol high 高風險 fresh-context 驗收者。只處理安全、不可逆、重大架構與正式高風險驗收。"
     config_file = "agents/sol_verifier.toml"
 
-`max_depth = 1` 禁止 subagent 再往下遞迴派工；調高前需重新評估 token、延遲與 working-tree 風險。
+`max_depth = 1` 禁止 subagent 再往下遞迴派工；調高前需重新評估 token、延遲與 working-tree 風險。`codex exec --ephemeral --sandbox read-only` 是單體 fresh reviewer 的 direct CLI 路徑；它直接驗收，不在該 ephemeral process nested spawn。
 
-合併後要用全新 CLI session 實際指定三種 `agent_type` 做唯讀 smoke test；TOML parse 通過、檔案存在或 surface 顯示角色名稱都不等於 runtime 已接受該角色。若工具回覆 `agent type is currently not available`，依 `codex/rules/10-dispatch-codex.md` §0 的降級規則處理，不得用同名 generic child 冒充 custom role。
+合併後要在全新 CLI session 檢查當前 surface 實際提供的 named `agent_type`，並另以實際 `agent_type=default` 測試 adapter 需要的 model／effort mapping（例如 Luna/max、Terra/high、Sol/high）；不要求把三種 verifier 名稱當成可用入口。TOML parse 通過、檔案存在或 surface 顯示角色名稱都不等於 runtime 已接受該角色。若工具回覆 `agent type is currently not available`，依 `codex/rules/10-dispatch-codex.md` §0 的 named-first → `default` fallback 處理；generic child 不得冒充 custom role。
+
+Codex 的三個層次要分開看：standalone `~/.codex/agents/*.toml` 只提供角色設定與註冊來源；named role runtime 只有在當前 surface 明確選中並取得證據時才算套用；named unavailable 時由 runtime adapter 選擇實際 `agent_type=default` 或 direct CLI，並加上 `codex/rules/30-delegation-templates-codex.md` 的 adapter envelope 與完整 logical-role contract，再明確傳入 mapping 的 model／effort。generic spawn 要 override model／effort 時，`fork_turns` 必須是 `none` 或正整數，不能用 full-history fork。permission 分成 logical contract 與 runtime evidence：寫入角色可在父 session 權限涵蓋 approved scope 時用 `default`；read-only 角色只有 runtime 已是 read-only 時可用 `default`，否則改走 `codex exec --sandbox read-only`。generic adapter 是可執行 fallback，不是 custom role；沒有 child metadata 就標記 runtime 未驗證。
 
 Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用：
 
@@ -229,8 +231,8 @@ memories = true
 | `docs/escalation-paths.md` | 升級門檻成立**之後**派給誰的決策樹，含升級 prompt 必附的證據（原 `rules/10-dispatch.md` §4，2026-08-23 移出常駐區） |
 | `docs/harness-facts.md` | 查證過的 harness 事實（2026-08-22 從 00-environment 搬出，非常駐） |
 | `docs/memory-layers.md` | 記憶機制四層的分工與邊界（2026-08-22 從 00-environment 搬出，非常駐） |
-| `codex/rules/10-dispatch-codex.md` | Codex 調度：角色、reasoning effort、subagent 使用邊界、驗證不自驗 |
-| `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份派工模板（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
+| `codex/rules/10-dispatch-codex.md` | Codex 調度：角色 mapping、named-first → `default` runtime adapter、reasoning effort、subagent 使用邊界、驗證不自驗 |
+| `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份 logical-role 派工模板與共用 adapter envelope（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
 | `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high） |
 | `agents/fable-verifier.md` | Claude Fable/high-risk fresh-context 驗收 agent（read-only） |
 | `agents/recovery-worker.md` | Claude Opus/xhigh recovery 實作 agent（標準層實作者同一子任務兩次失敗或揭露高風險後接手，先建 root cause；同階時價值在 fresh context） |
@@ -250,7 +252,7 @@ memories = true
 | `codex/skills/session-handoff/SKILL.md` | Codex 收尾／交接 skill，產生專案 `.codex/HANDOFF.md` |
 | `skills/create-pr/SKILL.md` | Codex／Claude 共用的 Pull Request 建立 skill |
 
-`agents/*.md` 與 `codex/agents/*.toml` 的**正文**只在該角色被派工時進入該 subagent 的 context（name／description 會出現在每 session 的可用 agent 清單裡）。這是刻意的：每個角色需要哪些輸入、缺什麼就停、回報格式，寫在角色定義裡而不是派工守則裡——角色定義就是它的介面。
+`agents/*.md` 與 `codex/agents/*.toml` 是 standalone role 定義／設定；它們的正文只在該 named role 被派工時進入 subagent context（name／description 會出現在每 session 的可用 agent 清單裡）。named unavailable 時，generic adapter 仍須在 prompt 帶入 `30-delegation-templates-codex.md` 的完整 logical-role contract；`pro_worker` 明確重用 D 的 worker contract，只替換 Terra/xhigh mapping 與 explicit-override 門檻。TOML 安裝或角色名稱不能取代 runtime evidence。
 
 **為什麼 Claude 側沒有 `scanner`／`explorer`／`planner`／`worker` 的等價 custom agent**：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋，且本制度不把 haiku 列入 active routing。Claude 側自建 agent 只補一個缺口——**Agent 呼叫無法逐次指定 effort**，所以 recovery／escalation／驗收這些需要綁定 effort 與行為合約的角色才需要獨立定義檔。（原為 `rules/10-dispatch.md` §0 註，2026-08-05 移出常駐區。）
 
@@ -258,13 +260,13 @@ memories = true
 
 Codex 所有訂閱檔位的一般升級路徑都是 `planner/Terra high → controller 核定 approved plan → worker/Luna max → recovery_worker/Terra xhigh → escalation_worker/Sol xhigh`。`pro_worker/Terra xhigh` 只為相容性保留，需使用者本 session 明確 override 才能使用。`Sol max` 僅保留給 controller 在 `Sol xhigh` 仍無法收斂或明確遇到最困難單一路徑時使用，`Sol Ultra` 僅用於可獨立平行的大型工作流。
 
-Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata。這些值只能揭露為「工具宣告值」；若工具回傳或 child metadata 另有 runtime 值，再升級為「runtime 已驗證」。兩者不一致或沒有角色選擇入口時，停止該 custom routing 並標記模型／effort 未驗證（canonical 在 `codex/rules/10-dispatch-codex.md` §0「Codex 可用角色」）。
+Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata；named 可用時優先選 named，unavailable 時依 `codex/rules/10-dispatch-codex.md` §0 以實際 `agent_type=default` 套用 logical-role contract。這些值只能揭露為「工具宣告值」；若工具回傳或 child metadata 另有 runtime 值，再升級為「runtime 已驗證」。沒有 metadata 就標「runtime 未驗證」，不得把 generic child 稱為 custom role。
 
 ## 三條鐵律
 
 1. **無證據不得宣稱完成**——回報分級：已驗證（附測試輸出／CI 連結）／待 CI／未驗證
 2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。
-3. **驗證不自驗**——一般文件與驗收派 fresh-context 的 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險產出派 `sol_verifier/Sol high`，不用繼承脈絡的 agent
+3. **驗證不自驗**——一般文件與驗收優先派 named `verifier/Terra high`；named unavailable 時使用 sandbox 強制 read-only 的 Terra/high direct CLI，只有 runtime 已是 read-only 時才可用 `agent_type=default` + 完整 logical `verifier` contract。安全、不可逆、重大架構與正式高風險產出優先派 named `sol_verifier/Sol high`；generic Sol review 只作補強，仍標記未取得 custom `sol_verifier` 驗收／未驗證。
 
 ## 已知退化模式與預防（維護者必讀）
 

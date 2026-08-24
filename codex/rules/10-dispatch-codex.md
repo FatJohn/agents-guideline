@@ -4,7 +4,7 @@
 > 本檔是 `<REPO>/rules/10-dispatch.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
 > 下文的 `<REPO>` 同 `~/.codex/AGENTS.md` 檔頭定義（依機器而異；不確定就取 `readlink ~/.codex/AGENTS.md` 的目錄部分）。本檔位在 `<REPO>/codex/rules/`，寫成裸 `rules/…` 從這裡解析不到。
 
-## 0. Codex 可用角色（以當前 session 實際工具為準）
+## 0. Codex 角色與 runtime adapter（以當前 session 實際工具為準）
 
 | 角色 | Agent／effort／權限 | 用途定位 |
 |------|--------------------|----------|
@@ -24,9 +24,28 @@
 
 **別名對應的實際型號與訂閱檔位預設**（2026-08-22 從 `<REPO>/rules/00-environment.md` 搬來——上表通篇只用 Luna／Terra／Sol，在此之前沒有任何一處寫出它們對應哪個 model id）：Luna＝`gpt-5.6-luna`、Terra＝`gpt-5.6-terra`、Sol＝`gpt-5.6-sol`。Codex 目前為 Plus，制度建議的主對話預設是 `gpt-5.6-sol`／effort `medium`（2026-08-06 依 Codex 官方 Power 預設更新）；各機器或當次 session 可明確 override，機器現況記在 `<REPO>/rules/05-hosts.md`。若升級 Pro，制度預設改為 `gpt-5.6-sol`／effort `xhigh`（同型號拉高 effort，不是換型號）。不論訂閱檔位，標準實作入口一律使用 `worker/gpt-5.6-luna/max`；Pro 額度優先用在主對話、規劃、review 與失敗後的 recovery，不自動提高標準實作者 model tier（2026-08-19 使用者裁決）。Codex 5.6 世代由弱到強為 `gpt-5.6-luna`／`terra`／`sol`（2026-08-05 三檔實測皆可用；`~/.codex/models_cache.json` 會過期，判斷可用型號要現打不要讀 cache）。
 
-角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。安裝 `~/.codex/agents/*.toml` 與 runtime 選中角色是兩件事：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata。可選中時，把 surface metadata 當作「工具宣告值」揭露；若回傳或 child metadata 另有實際 runtime model／effort，再一併 read-back。surface 沒有角色選擇入口、role 不符或 runtime 證據與宣告不一致時，不得假裝 custom role 已套用；改用當前明確可用角色，或標記「模型／effort 未驗證」後停止該 routing。
+角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。安裝 `~/.codex/agents/*.toml` 與 runtime 選中角色是兩件事：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata。可選中時，把 surface metadata 當作「工具宣告值」揭露；若回傳或 child metadata 另有實際 runtime model／effort，再一併 read-back。surface 沒有角色選擇入口、role 不符或 runtime 證據與宣告不一致時，不得假裝 custom role 已套用；依下方 adapter 改用 `default`，或標記「模型／effort 未驗證」後停止該 routing。
 
-**Verifier role unavailable 時的降級**：先確認 `~/.codex/config.toml` 已用 `[agents.<name>]` 的 `config_file` 註冊角色，並在全新 session 重試一次。若 `verifier`／`reviewer`／`sol_verifier` 仍回覆 `agent type is currently not available`，一般文件驗收改用 fresh `codex exec --ephemeral --strict-config --sandbox read-only -m gpt-5.6-terra -c 'model_reasoning_effort="high"'`，高風險驗收把 model 改為 `gpt-5.6-sol`；prompt 必須包含原始需求、產物絕對路徑、對應 rubric、逐條驗收條件、禁止修改與回報格式。程式碼 diff 可用 `codex exec --ephemeral --strict-config --sandbox read-only -m <model> -c 'model_reasoning_effort="high"' review --uncommitted`。CLI header 是 model／effort 的 runtime 證據，但這些都只能稱為 **generic fresh-context review**，不可稱 custom verifier；依全域鐵律，高風險產出仍標記「未取得 `sol_verifier` 驗收／未驗證」，generic Sol review 只作補強證據。
+### Runtime adapter（所有 A–L logical role 共用）
+
+上表是唯一的 logical-role、model／effort、權限 mapping；A–L 模板提供完整 contract，不在此複製第二張角色表。`pro_worker` 重用 D 的 worker contract，只替換上表的 Terra/xhigh mapping 與「使用者明確 override」門檻。每次派工先分開記錄兩個身份：`logical role` 是要完成的角色（例如 `reviewer`），`actual agent_type` 是當前 runtime 實際接受的 agent type。
+
+1. **Named-first**：先檢查當前 surface 是否明確提供 `agent_type=<logical role>`，且 metadata 的 model／effort／權限符合上表；符合才以 named role 派送。surface metadata 先標「工具宣告值」，只有工具回傳或 child metadata read-back 的實際值才可升級為「runtime 已驗證」。若角色看似已註冊但回覆 unavailable，可在不修改 local config 的前提下 read-only 核對 `[agents.<name>]`／`config_file` 並於 fresh session 重試一次。
+2. **Default fallback**：surface 沒有 named selector、named call 回覆 `agent type is currently not available`，或 named metadata 不符合時，改以實際 `agent_type=default` 啟動；仍明確傳入上表對應的 model／effort，並在 prompt 寫入 permission contract。明確 override model／effort 時，`fork_turns` 必須用 `none` 或正整數；full-history fork 不接受 override，禁止用它靜默繼承父 mapping。prompt 必須先放 `30-delegation-templates-codex.md` 的 adapter envelope，再接對應的完整 logical-role contract。contract 內的「你是 `<role>`」只表示 logical role，不是 custom runtime 身份；generic `default` 不得稱為該 custom role。`default` 本身 unavailable 或無法接受明確 model／effort mapping 時，停止並標記「runtime 未驗證」，不得靜默換 role。
+3. **Evidence／permission gate**：envelope 必須分開記錄 logical role、actual `agent_type`、fork context、requested model／effort、logical permission contract、runtime permission evidence 與其他 runtime evidence。surface 固定值是「工具宣告值」；child metadata 是「runtime 已驗證」；兩者都取不到就是「runtime 未驗證」。TOML、檔案存在、角色名稱或 prompt 內容都不能冒充 runtime 證據。generic `default` 沒有 sandbox override 時繼承父 session：寫入角色只有在父 session runtime 權限已知且涵蓋 approved scope 時可派；read-only 角色只有父 session runtime 已是 read-only 時可派，否則強制改走下方 read-only direct CLI branch 或停止，不得靠 prompt 禁寫與事後 read-back 補救。指定 model／effort 無法明確傳入時，停止並回 controller。
+4. **Role transitions**：升級、recovery、single-writer、approved plan、權限、授權與兩次失敗門檻不因 adapter 改變；每次轉派都重新套用 named-first → `default` fallback 與同一個 logical-role contract。generic reviewer／verifier／`sol_verifier` 都只能回報 generic review；generic Sol/high 只能補強高風險證據，仍標記「未取得 custom `sol_verifier` 驗收／未驗證」。
+
+### Direct CLI review branch
+
+read-only 的 `reviewer`、`verifier`、`sol_verifier` 或其他唯讀 logical role 若沒有可用 child surface，controller 可直接啟動 fresh process：
+
+```bash
+codex exec --ephemeral --strict-config --sandbox read-only \
+  -m <上表對應 model> -c 'model_reasoning_effort="<上表對應 effort>"' \
+  "<adapter envelope + 對應 A–L 完整 contract + 原始需求與驗收條件>"
+```
+
+若是程式碼 diff，可在同一組明確 model／effort 參數後使用 `review --uncommitted`。這個 `--ephemeral --sandbox read-only` process 本身就是單體 fresh reviewer，直接完成驗收，不在其中 nested spawn；CLI header 可驗證 model／effort，但不能證明 custom role。generic Sol review 仍只作補強，不能改寫高風險「未取得 custom `sol_verifier` 驗收／未驗證」的分級。
 
 ## 1. 雙軸派工判斷
 
@@ -75,7 +94,7 @@
 
 ## 3. 派工三件套
 
-**派工揭露（controller → 使用者，每次派 subagent 都要）**：在呼叫工具前，用 commentary 講明四項——**角色／model／effort／依據**。model 與 effort 必須標示證據層級：當前 `spawn_agent` surface 固定角色 metadata 寫「工具宣告值」；工具回傳或 child metadata 能 read-back 的實際 runtime 值寫「runtime 已驗證」；取不到則明寫「runtime 未驗證」，不得把 TOML 設定或角色名稱冒充實際執行證據。派工結果若與事前揭露不一致，立即指出差異與處置。
+**派工揭露（controller → 使用者，每次派 subagent 都要）**：在呼叫工具前，用 commentary 講明 **logical role／actual `agent_type`／model／effort／permission／依據**。model、effort、actual agent type 與 permission 必須標示證據層級：當前 `spawn_agent` surface 固定角色 metadata 寫「工具宣告值」；工具回傳或 child metadata 能 read-back 的實際 runtime 值寫「runtime 已驗證」；取不到則明寫「runtime 未驗證」，不得把 TOML 設定或角色名稱冒充實際執行證據。派工結果若與事前揭露不一致，立即指出差異與處置。
 
 主對話自己做時，只有在符合 §1 任一派工條件卻仍不派時才要交代；例行讀檔、跑指令與對話不必。這段揭露是給使用者看的稽核鏈，不放進 subagent prompt 取代下面三件套。
 
