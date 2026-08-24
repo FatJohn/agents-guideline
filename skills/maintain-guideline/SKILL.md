@@ -1,6 +1,6 @@
 ---
 name: maintain-guideline
-description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全域 CLAUDE.md／AGENTS.md、`agents/*.md`、`codex/agents/*.toml`、`rubrics/*`、任何專案的 CLAUDE.md／AGENTS.md。內含權限分級（哪些可自行改、哪些要先問使用者）、標準修改流程、教訓寫回格式、瘦身與日落條款、路由完整性檢查。動這些檔案之前先讀。
+description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域 CLAUDE.md／AGENTS.md、`agents/*.md`、`codex/agents/*.toml`、`rubrics/*`、任何專案的 CLAUDE.md／AGENTS.md。內含權限分級（哪些可自行改、哪些要先問使用者）、標準修改流程、教訓寫回格式、瘦身與日落條款、路由完整性檢查。動這些檔案之前先讀。
 ---
 
 # 系統維護協議
@@ -41,7 +41,7 @@ description: 修改本工作系統本身時使用——`~/.claude/rules/*`、全
 
 - 修改 `~/.codex/config.toml` 前先備份（這個檔不在 git 裡），修改後驗證不存在重複的 TOML table。
 - commit 前 read-back：`git status --short`、`git diff --cached`、`git stash list`；確認 staged scope 與 stash 狀態後才進行下一步。仍須遵守本節第 4 步：不要自行 commit。
-- 平行寫入與 working-tree 所有權規則見 `~/.claude/rules/10-dispatch.md` §工作目錄與背景任務安全（canonical 位置）。
+- 平行寫入與 working-tree 所有權規則見對應平台 dispatch：Claude 為 `<REPO>/rules/10-dispatch.md`「工作目錄與背景任務安全」；Codex 為 `<REPO>/codex/rules/10-dispatch-codex.md` §2「工作目錄與執行安全」。
 
 ## 3. 教訓寫回（每次踩坑後）
 

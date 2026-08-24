@@ -113,9 +113,9 @@ validator，方向也錯。
 
 逐條判準寫在 rubric 檔裡（不常駐，要用時再讀；派工驗收時直接把路徑給 verifier）：
 
-- 文件、規則、說明 → `~/.claude/rubrics/document-quality.md`
-- 實作、修 bug、重構 → `~/.claude/rubrics/code-change.md`
-- 查證、調研、盤點 → `~/.claude/rubrics/research-analysis.md`
+- 文件、規則、說明 → `<REPO>/rubrics/document-quality.md`
+- 實作、修 bug、重構 → `<REPO>/rubrics/code-change.md`
+- 查證、調研、盤點 → `<REPO>/rubrics/research-analysis.md`
 
 **寫驗收條件時的自我檢查**：另一個 agent 能不能只憑這句話判定過或不過？做不到就是空話，verifier 見到模糊條件應直接 FAIL。
 
@@ -130,7 +130,7 @@ validator，方向也錯。
 
 **判準**：commit message（subject 與 body）全英文，subject 符合 Conventional Commits——`type: 小寫祈使句`，scope 可省略（`type(scope):` 同樣合格），type 限 `build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test`。對話、PR title 與 body、程式註解、issue 仍是繁體中文。
 
-**銜接點（漏掉就破功）**：PR title 依 `create-pr` skill 規定用中文且不加 prefix，而 `gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題——兩者衝突，所以 squash merge 一律要用 `-t` 把標題覆寫成本節格式。指令與事故案例見 `~/.claude/skills/create-pr/SKILL.md` §2.8。
+**銜接點（漏掉就破功）**：PR title 依 `create-pr` skill 規定用中文且不加 prefix，而 `gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題——兩者衝突，所以 squash merge 一律要用 `-t` 把標題覆寫成本節格式。指令與事故案例見 `<REPO>/skills/create-pr/SKILL.md` §2.8。
 
 ✅ **正例**：`build(ios): move to SPM-only and drop CocoaPods (#25)`
 ❌ **反例**：PR title 是中文就直接 `gh pr merge --squash`——歷史第一行從此中文無 prefix，事後只能重寫共享歷史。

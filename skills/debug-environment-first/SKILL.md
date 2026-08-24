@@ -5,7 +5,7 @@ description: 三個時機使用：除錯或量測結果看起來不對時；**�
 
 # 除錯前先驗證環境（訊號常在 shell，不在程式）
 
-> 這一節原本常駐在 `~/.claude/rules/20-judgment.md` §6「除錯前先驗證環境」。它只在除錯時用得到，不是每次開工都需要，故依 `maintain-guideline` §5 搬進 `skills/`（2026-08-05）。判準本身沒有改動。
+> 這一節原本常駐在 `<REPO>/rules/20-judgment.md` §6「除錯前先驗證環境」。它只在除錯時用得到，不是每次開工都需要，故依 `maintain-guideline` §5 搬進 `skills/`（2026-08-05）。判準本身沒有改動。
 
 **判準**：遇到 HTTP 錯誤、port 相關異常、或指令輸出與預期不符時，在提出任何「程式碼有 bug」的假設之前，先花 30 秒驗證環境事實並回報：
 
@@ -15,7 +15,7 @@ description: 三個時機使用：除錯或量測結果看起來不對時；**�
 - **per-file lint hook 會在多步編輯的中間態報假 error**：有 PostToolUse per-file lint hook 時，把「加 import」與「加使用處」拆成兩次 Edit，中間那次必被判 `unused-imports`。兩者併在同一次 Edit（或先改使用處再加 import）；真假存疑一律補跑一次完整 lint 確認，不要照著假 error 改程式。
 - 輸出像亂碼或被截斷時，先懷疑 shell quoting（zsh 會展開 `===`、吃掉 backtick），多行或含特殊字元的內容改用 quoted heredoc（`<<'EOF'`）重跑一次，再解讀結果。
 - **量測方法要先自證，再拿它的結果下結論**——「壞了」與「我量錯了」長得一樣。
-  這是 `~/.claude/rules/20-judgment.md` §2「補充判準（量測方法要先自證）」的細節 canonical：
+  這是 `<REPO>/rules/20-judgment.md` §2「補充判準（量測方法要先自證）」的細節 canonical：
   常駐區只留判準，**新增的陷阱一律寫進這裡**，不要在兩邊各記一份。
   兩個場合都會踩，而**報數字時比除錯時貴**——除錯時錯的量測只是多繞一圈，報數字時錯的量測
   會被寫進 PR、判準與告警門檻，之後每個人都照著那個數字做決定。
@@ -45,7 +45,7 @@ description: 三個時機使用：除錯或量測結果看起來不對時；**�
     整條路是通的。**沒跑過的估計不該用來關掉一個選項。**
   - **拿「預設會跳過某些目標」的工具當成「我搜過了」的證據**：`rg` 預設不掃隱藏目錄，
     `.github/` 要另外抓（`rg --hidden` 或直接指定路徑）。這與
-    `~/.claude/rules/20-judgment.md` §2「補充判準（重構／字串抽取／搬移／更正事實宣稱類任務）」
+    `<REPO>/rules/20-judgment.md` §2「補充判準（重構／字串抽取／搬移／更正事實宣稱類任務）」
     是同一件事的兩半：那條說要搜，這條說你的搜可能是假陰性。
 
 ✅ **正例**：dev server 一直回 400/503 → 先 `lsof -i :8787`，發現是另一個 clone 殘留的 mock-server 佔著 port，殺掉即復原，程式碼一行不用改。
@@ -53,7 +53,7 @@ description: 三個時機使用：除錯或量測結果看起來不對時；**�
 
 ## 內嵌程式碼要驗到被嵌的那一層
 
-判準常駐在 `~/.claude/rules/20-judgment.md` §2「補充判準（驗證要驗到被嵌的那一層）」；這裡是
+判準常駐在 `<REPO>/rules/20-judgment.md` §2「補充判準（驗證要驗到被嵌的那一層）」；這裡是
 細節 canonical，**新增的語言與檢查方式一律寫進這裡**（2026-08-23 從常駐區搬入）。
 
 設定檔內嵌別的語言時——GitHub Actions 的 `run:`、Dockerfile 的 `RUN`、husky hook、YAML 裡的
@@ -71,4 +71,4 @@ bash syntax error，六條告警全滅。macroeconomics-report 的 workflows bas
 
 ## Windows 對照
 
-`lsof` 在 Windows 沒有；改用 `Get-NetTCPConnection -LocalPort <port> | Select-Object OwningProcess` 再 `Get-Process -Id`。shell quoting 的坑同樣存在，只是主角換成 PowerShell 的 backtick 逸出與 `@'...'@` here-string（見 `~/.claude/rules/05-hosts.md`）。
+`lsof` 在 Windows 沒有；改用 `Get-NetTCPConnection -LocalPort <port> | Select-Object OwningProcess` 再 `Get-Process -Id`。shell quoting 的坑同樣存在，只是主角換成 PowerShell 的 backtick 逸出與 `@'...'@` here-string（見 `<REPO>/rules/05-hosts.md`）。

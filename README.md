@@ -168,7 +168,7 @@ model_reasoning_effort = "medium"
 # model_reasoning_effort = "xhigh"
 ```
 
-若檔案已有 `[agents]`，只更新其中的 `max_threads` 與 `max_depth`，不可新增第二個 `[agents]` table；只有原本沒有 `[agents]` 時才新增整段。
+若檔案已有 `[agents]`，只更新其中的 `max_threads` 與 `max_depth`，不可新增第二個 `[agents]` table；只有原本沒有 `[agents]` 時才新增整段。下面三個 `[agents.<name>]` 也採相同合併規則：table 已存在就只核對或更新其中的 `description` 與 `config_file`，不存在才新增，不可重複宣告。Codex CLI 0.149.1 若未自動接受 `~/.codex/agents/*.toml` 角色，可用對應的 `[agents.<name>]` 與 `config_file` 作相容性註冊；是否可派送仍以 fresh-session runtime smoke 為準。
 
 Codex subagent 並行與遞迴上限建議固定：
 
@@ -176,7 +176,21 @@ Codex subagent 並行與遞迴上限建議固定：
     max_threads = 4
     max_depth = 1
 
+    [agents.reviewer]
+    description = "Terra high 唯讀 reviewer。用 fresh context 做一般實作的對抗式 read-back review。"
+    config_file = "agents/reviewer.toml"
+
+    [agents.verifier]
+    description = "Terra high fresh-context 一般驗收審查者。用於檔案產出的 read-back 驗證。"
+    config_file = "agents/verifier.toml"
+
+    [agents.sol_verifier]
+    description = "Sol high 高風險 fresh-context 驗收者。只處理安全、不可逆、重大架構與正式高風險驗收。"
+    config_file = "agents/sol_verifier.toml"
+
 `max_depth = 1` 禁止 subagent 再往下遞迴派工；調高前需重新評估 token、延遲與 working-tree 風險。
+
+合併後要用全新 CLI session 實際指定三種 `agent_type` 做唯讀 smoke test；TOML parse 通過、檔案存在或 surface 顯示角色名稱都不等於 runtime 已接受該角色。若工具回覆 `agent type is currently not available`，依 `codex/rules/10-dispatch-codex.md` §0 的降級規則處理，不得用同名 generic child 冒充 custom role。
 
 Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用：
 

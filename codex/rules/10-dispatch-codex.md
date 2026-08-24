@@ -26,6 +26,8 @@
 
 角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。安裝 `~/.codex/agents/*.toml` 與 runtime 選中角色是兩件事：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata。可選中時，把 surface metadata 當作「工具宣告值」揭露；若回傳或 child metadata 另有實際 runtime model／effort，再一併 read-back。surface 沒有角色選擇入口、role 不符或 runtime 證據與宣告不一致時，不得假裝 custom role 已套用；改用當前明確可用角色，或標記「模型／effort 未驗證」後停止該 routing。
 
+**Verifier role unavailable 時的降級**：先確認 `~/.codex/config.toml` 已用 `[agents.<name>]` 的 `config_file` 註冊角色，並在全新 session 重試一次。若 `verifier`／`reviewer`／`sol_verifier` 仍回覆 `agent type is currently not available`，一般文件驗收改用 fresh `codex exec --ephemeral --strict-config --sandbox read-only -m gpt-5.6-terra -c 'model_reasoning_effort="high"'`，高風險驗收把 model 改為 `gpt-5.6-sol`；prompt 必須包含原始需求、產物絕對路徑、對應 rubric、逐條驗收條件、禁止修改與回報格式。程式碼 diff 可用 `codex exec --ephemeral --strict-config --sandbox read-only -m <model> -c 'model_reasoning_effort="high"' review --uncommitted`。CLI header 是 model／effort 的 runtime 證據，但這些都只能稱為 **generic fresh-context review**，不可稱 custom verifier；依全域鐵律，高風險產出仍標記「未取得 `sol_verifier` 驗收／未驗證」，generic Sol review 只作補強證據。
+
 ## 1. 雙軸派工判斷
 
 派工同時看兩軸：**任務獨立性**（能否只靠完整 prompt 獨立完成）與**脈絡／輸出成本**（原始內容是否會淹沒主對話、後續是否需要全文）。角色選擇再依風險與可機械驗證程度決定。
