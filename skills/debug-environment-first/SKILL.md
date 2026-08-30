@@ -9,13 +9,14 @@ description: 三個時機使用：除錯或量測結果看起來不對時；**�
 
 **判準**：遇到 HTTP 錯誤、port 相關異常、或指令輸出與預期不符時，在提出任何「程式碼有 bug」的假設之前，先花 30 秒驗證環境事實並回報：
 
-- `pwd` 與目標 repo 是否一致（多 clone／多 worktree 環境特別容易站錯目錄）。
+- `pwd` 與目標 repo 是否一致（多 clone／多 worktree 環境特別容易站錯目錄）。**但別靠 `cd` 修**
+  ——見下方「指令自己綁定目標」，那是 `<REPO>/rules/20-judgment.md` §2 同名判準的細節 canonical。
 - 目標 port 被誰佔用（`lsof -i :<port>`）；跑著的 server 是不是本 repo、本分支起的（看啟動時間或 build 產物）。
 - `git status --short && git log --oneline -3` 用新指令重新確認分支與 merge 狀態——不從舊的 scrollback 推斷。
 - **per-file lint hook 會在多步編輯的中間態報假 error**：有 PostToolUse per-file lint hook 時，把「加 import」與「加使用處」拆成兩次 Edit，中間那次必被判 `unused-imports`。兩者併在同一次 Edit（或先改使用處再加 import）；真假存疑一律補跑一次完整 lint 確認，不要照著假 error 改程式。
 - 輸出像亂碼或被截斷時，先懷疑 shell quoting（zsh 會展開 `===`、吃掉 backtick），多行或含特殊字元的內容改用 quoted heredoc（`<<'EOF'`）重跑一次，再解讀結果。
 - **量測方法要先自證，再拿它的結果下結論**——「壞了」與「我量錯了」長得一樣。
-  這是 `<REPO>/rules/20-judgment.md` §2「補充判準（量測方法要先自證）」的細節 canonical：
+  這是 `<REPO>/rules/20-judgment.md` §2「補充判準（把可證偽宣稱寫下來之前）」的細節 canonical：
   常駐區只留判準，**新增的陷阱一律寫進這裡**，不要在兩邊各記一份。
   兩個場合都會踩，而**報數字時比除錯時貴**——除錯時錯的量測只是多繞一圈，報數字時錯的量測
   會被寫進 PR、判準與告警門檻，之後每個人都照著那個數字做決定。
@@ -43,6 +44,11 @@ description: 三個時機使用：除錯或量測結果看起來不對時；**�
   - **宣稱「這條路不可行／成本太高」之前先跑一次**：可行性估計與數字一樣要自證，而它通常更便宜——
     看到某個 lint 開關報 36 項就下結論「打開要配 20 幾條 ignore」，實際再加一個選項只剩 9 項，
     整條路是通的。**沒跑過的估計不該用來關掉一個選項。**
+  - **`rg <欄位名>` 命中的是賦值點，不是值的來源**：讀到 `foo: bar` 那一行不等於讀懂了 `bar`
+    怎麼來——**決定 `bar` 的那一行通常不含你搜的欄位名，所以不會出現在命中裡**（實例：
+    `hasOtherOption: otherOption !== undefined` 命中，而同一個函式裡把它閘掉的
+    `const otherOption = liftsOther ? … : undefined` 沒有）。要宣稱「這條路徑會產生 X」，
+    跑那條路徑比往上讀更快也更準。
   - **拿「預設會跳過某些目標」的工具當成「我搜過了」的證據**：`rg` 預設不掃隱藏目錄，
     `.github/` 要另外抓（`rg --hidden` 或直接指定路徑）。這與
     `<REPO>/rules/20-judgment.md` §2「補充判準（重構／字串抽取／搬移／更正事實宣稱類任務）」
@@ -50,6 +56,26 @@ description: 三個時機使用：除錯或量測結果看起來不對時；**�
 
 ✅ **正例**：dev server 一直回 400/503 → 先 `lsof -i :8787`，發現是另一個 clone 殘留的 mock-server 佔著 port，殺掉即復原，程式碼一行不用改。
 ❌ **反例**：反覆修改 API 呼叫端程式碼想解 503，兩小時後才發現打到的根本不是自己起的 server。
+
+## 指令自己綁定目標（cwd 會漂）
+
+`<REPO>/rules/20-judgment.md` §2「補充判準（指令要自己綁定目標，不要靠 cwd）」的細節；判準留
+在常駐區，**新踩到的工具寫進這裡**。
+
+| 工具 | 綁定方式 | read-back |
+|---|---|---|
+| git | `git -C <絕對路徑> …` | `git -C <path> rev-parse --show-toplevel` |
+| gh | `gh -R <owner/repo> …`（`pr`／`issue`／`run` 都吃） | 回應裡的 repo 欄位，或 `gh repo view <owner/repo> --json nameWithOwner`（**`repo view` 不吃 `-R`**，倉庫名走位置引數） |
+| pnpm | `pnpm -C <路徑> …`（workspace 內另可 `--filter <pkg>`） | `pnpm -C <path> exec pwd` |
+| rg／find | 路徑當引數傳，不要靠 cwd | 命中路徑本身 |
+
+- **`cd X && a && b` 只保護到這一串**：換一行、換一個 Bash 呼叫、丟背景執行，都回到漂移狀態。
+- **背景指令與跨 turn 的呼叫最容易中**：它們不繼承你上一個呼叫的 `cd`。
+- **失敗長得像別的東西**：`gh` 在錯的 repo 下回「找不到 PR」，`exit 1` 會被讀成 CI 紅；
+  `git status` 在錯的 repo 下回乾淨，會被讀成「改動已推上去」。兩者都不會有任何錯誤訊息說
+  「你站錯地方了」。
+- 對外或破壞性指令（push／merge／commit --amend／reset）做完一律 read-back 上表右欄那條，
+  確認打到的是預期的 repo 與 commit，再回報。
 
 ## 內嵌程式碼要驗到被嵌的那一層
 
