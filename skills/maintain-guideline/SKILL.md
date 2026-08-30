@@ -32,7 +32,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域
 
 1. 確認回退路徑：`git status --short` 應為乾淨，或至少確認未提交變更是你自己的。**本 repo 有 git 版控，不要 `cp` 出 `.bak` 檔**——那是雜訊，回退用 `git checkout`／`git diff`。
 2. 修改（優先「新增段落」而非動既有文字）。
-3. 驗證：派 fresh-context verifier 做 read-back；一般驗收兩端都用 `verifier`，高風險或動到憲法／判準時 Claude 用 `fable-verifier`、Codex 用 `sol_verifier`。驗收條件至少包含「與其他 rules 檔無矛盾」「引用的路徑/指令實際存在」。
+3. 驗證：派 fresh-context verifier 做 read-back；一般驗收兩端都用 `verifier`，高風險或動到憲法／判準時 Claude 用同一個 `verifier` 但呼叫時指定 `model: fable`、Codex 用 `sol_verifier`。驗收條件至少包含「與其他 rules 檔無矛盾」「引用的路徑/指令實際存在」。
 4. 提醒使用者 repo 有未 commit 的變更（不要自行 commit）。
 
 **新增 skill／agent／rubric 檔時多一步**：在 repo 加檔**不等於**任何機器已安裝——加完當場重跑 README 的安裝段（可重跑，已存在會略過），再 read-back symlink 與當下的 skill／agent 清單確認叫得出名字。漏掉這步，規則會指向一個當下根本叫不出來的名字。

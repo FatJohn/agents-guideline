@@ -32,7 +32,7 @@ for pair in \
   fi
 done
 
-for agent in verifier fable-verifier recovery-worker escalation-planner escalation-worker; do
+for agent in verifier; do
   src="$REPO/agents/$agent.md"; dst="$HOME/.claude/agents/$agent.md"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -84,7 +84,7 @@ Link-One "$REPO\rubrics"                   "$HOME\.claude\rubrics"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.claude\skills\maintain-guideline"
 Link-One "$REPO\skills\create-pr"                "$HOME\.claude\skills\create-pr"
 Link-One "$REPO\skills\debug-environment-first"  "$HOME\.claude\skills\debug-environment-first"
-foreach ($a in 'verifier','fable-verifier','recovery-worker','escalation-planner','escalation-worker') {
+foreach ($a in 'verifier') {
   Link-One "$REPO\agents\$a.md" "$HOME\.claude\agents\$a.md"
 }
 
@@ -213,7 +213,7 @@ memories = true
 | `AGENTS.md` | Codex 路由表＋三鐵律＋Codex 專用注意（裝在 `~/.codex/`） |
 | `rules/00-environment.md` | 跨機器事實、三大結構性風險與修法 |
 | `rules/05-hosts.md` | 各機器事實（探測清單＋按機器分段；新機器由 AI 自行探測建檔） |
-| `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、驗證分工與 rubric 對應（§4「升降級路徑」只留指向，內容在 `docs/escalation-paths.md`） |
+| `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |
 | `rules/20-judgment.md` | 判斷準則：升級／完成／問使用者／換路／環境先驗，各附正反例 |
 | `rules/50-lessons.md` | **還沒有正式判準承接的**活躍教訓＋交接欄 |
 
@@ -228,16 +228,11 @@ memories = true
 | `rubrics/research-analysis.md` | 研究／盤點類產出的逐條驗收判準 |
 | `docs/lessons-archive.md` | 已升級成正式判準的歷史教訓（保留原文，作為判準來歷） |
 | `docs/skill-catalog.md` | 各類任務用哪個 skill／plugin，含 Figma 在 MCP 缺席時的 curl fallback（原 `rules/00-environment.md` §好用的 skill／plugin，2026-08-12 移出常駐區） |
-| `docs/escalation-paths.md` | 升級門檻成立**之後**派給誰的決策樹，含升級 prompt 必附的證據（原 `rules/10-dispatch.md` §4，2026-08-23 移出常駐區） |
 | `docs/harness-facts.md` | 查證過的 harness 事實（2026-08-22 從 00-environment 搬出，非常駐） |
 | `docs/memory-layers.md` | 記憶機制四層的分工與邊界（2026-08-22 從 00-environment 搬出，非常駐） |
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色 mapping、named-first → `default` runtime adapter、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份 logical-role 派工模板與共用 adapter envelope（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
-| `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high） |
-| `agents/fable-verifier.md` | Claude Fable/high-risk fresh-context 驗收 agent（read-only） |
-| `agents/recovery-worker.md` | Claude Opus/xhigh recovery 實作 agent（標準層實作者同一子任務兩次失敗或揭露高風險後接手，先建 root cause；同階時價值在 fresh context） |
-| `agents/escalation-planner.md` | Claude Fable/xhigh/read-only 規劃升級 agent（Plan 或探索路徑/opus 無法建立可靠方案時） |
-| `agents/escalation-worker.md` | Claude Fable/xhigh 最終升級實作 agent（recovery-worker 再兩次失敗或確認需要 Fable 能力後接手；opus 進場的能力天花板型失敗可直升） |
+| `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high）。含「找碴範圍」與收斂標記；**高風險驗收用同一個角色、呼叫時指定 `model: fable`**，Claude 端不另設 agent 檔 |
 | `codex/agents/scanner.toml` | Codex Luna/medium/read-only 精確掃描 agent |
 | `codex/agents/explorer.toml` | Codex Terra/medium/read-only 探索 agent |
 | `codex/agents/planner.toml` | Codex Terra/high/read-only 非平凡任務規劃 agent |

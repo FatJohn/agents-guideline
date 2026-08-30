@@ -11,4 +11,4 @@
 - Agent frontmatter 的 `effort` 可填 `low`／`medium`／`high`／`xhigh`／`max`，實際可用值仍受模型與組織限制。
 - Agent frontmatter 的 `model` 可填 `haiku`／`sonnet`／`opus`／`fable`／完整 model ID／`inherit`。
 - Claude Code 2.1.222 的 subagent 可使用 `isolation: worktree`（2026-08-06 由 Agent 工具 schema 現查確認該參數仍存在）；需要 blocking 結果時不得只依賴可能因休眠中斷的背景執行。
-- Claude agent **沒有 sandbox 欄位**——唯讀角色（escalation-planner、verifier、fable-verifier）只靠 tools 清單與指令合約約束，controller 驗收時仍須 read-back `git status` 確認無意外寫入。（為什麼 Claude 端不設 Codex `scanner`／`worker` 等價 agent，見 README「檔案結構」。）（2026-08-23 從 `rules/10-dispatch.md` §0 搬入；原文僅去掉句首的「註：」。）
+- Claude agent **沒有 sandbox 欄位**——唯讀角色（`verifier`）只靠 tools 清單與指令合約約束，controller 驗收時仍須 read-back `git status` 確認無意外寫入。（為什麼 Claude 端不設 Codex `scanner`／`worker` 等價 agent，見 README「檔案結構」。）（2026-08-23 從 `rules/10-dispatch.md` §0 搬入；原文僅去掉句首的「註：」。）
