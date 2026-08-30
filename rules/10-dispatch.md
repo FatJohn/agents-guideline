@@ -5,18 +5,11 @@
 
 ## 0. 可用模型與 subagent（查證過，不要憑印象改）
 
-**Agent 工具的 `model` 參數**可逐次指定常用 alias，也可使用完整 model ID 或 `inherit`。alias 會隨平台改版重新指向新一代同層模型——要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準，不引用本表：
-
-| 參數值 | 實際型號 | 用途定位 |
-|--------|----------|----------|
-| `haiku` | claude-haiku-4-5 | 平台可用模型；不列入本制度 active routing |
-| `sonnet` | claude-sonnet-5 | 掃描、總結、批次機械車道主力；Pro 檔位的實作預設 |
-| `opus` | claude-opus-5 | 難題升級、高風險判斷 |
-| `fable` | claude-fable-5 | 最高階；高風險、最終升級與獨立驗收 |
+**Agent 工具的 `model` 參數**可逐次指定常用 alias（`haiku`／`sonnet`／`opus`／`fable`；harness 每 session 已注入同一份 enum，2026-08-30 由 Agent 工具 schema 現查確認），也可使用完整 model ID 或 `inherit`。alias→實際型號的對照 2026-08-30 搬到 `../docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」——alias 會隨平台改版重新指向新一代同層模型，要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準。
 
 agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用範圍受模型與組織設定限制（見 `../docs/harness-facts.md`）。
 
-**入口檔位依訂閱事實**（`00-environment.md`）：主對話預設 Opus，**subagent 不指定 `model` 時繼承主對話的模型**，所以上表的 model 欄是「顯式 routing」指示——掃描、總結、抓網頁與批次套用已驗證 pattern 寫明 `sonnet`（即使在 Max 也保留這條車道：opus 在這類任務的品質增益趨近零，且 opus 配額耗盡時的被動降級不挑任務），實作與規劃 Max 檔位預設 `opus`、Pro 檔位降回 `sonnet`，`fable` 只在明確高風險時指定；Haiku 不作為本制度的預設或 fallback。
+**入口檔位依訂閱事實**（`00-environment.md`）：主對話預設 Opus，**subagent 不指定 `model` 時繼承主對話的模型**，所以本檔各表寫出的 model 欄是「顯式 routing」指示——掃描、總結、抓網頁與批次套用已驗證 pattern 寫明 `sonnet`（即使在 Max 也保留這條車道：opus 在這類任務的品質增益趨近零，且 opus 配額耗盡時的被動降級不挑任務），實作與規劃 Max 檔位預設 `opus`、Pro 檔位降回 `sonnet`，`fable` 只在明確高風險時指定；Haiku 不作為本制度的預設或 fallback。
 
 ### Active model routing
 
@@ -85,7 +78,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 **派工揭露（controller → 使用者，每次派 subagent 都要）**：派工當下講明**派了誰**（agent 名稱即可，例如「派 Explore 掃 repo」）。目的是讓使用者看得出派工規則有沒有被遵守，不是建稽核鏈——model／effort 與制度出處使用者問了才報；報制度出處要指得出是 §1、§5 或 `20-judgment.md` §1 的哪一條，「範圍明確」這類自由心證不算。主對話自己做時，只有在**符合 §1 任一派工條件卻仍不派**時才要交代；例行讀檔、跑指令、對話不必。
 
-被問到 model／effort 時報**呼叫時指定的參數**——那是你自述得出的。**本制度不稽核 subagent 實際跑在哪個 model**：runtime model ID 只能在派工 prompt 裡事前要求 subagent 自報，事後補問不到，而每次派工都加那段話的成本高過它的價值。所以被問時答「呼叫參數是 X，runtime 未驗證」，不要改口說已驗證。effort 另有硬限制：Agent 工具沒有 effort 參數、也無法 runtime 自報，有 `agents/<角色>.md` 的角色引其 frontmatter 標「宣告值」，其餘寫「未指定，繼承主對話」；外部模型（`codex:codex-rescue`）model／effort 都寫「不適用」。
+被問到 model／effort 時報**呼叫時指定的參數**，並註明 runtime 未驗證，不要改口說已驗證。為什麼不稽核 runtime model、各類角色的 effort 各自怎麼標，見 `../docs/harness-facts.md`「被問到 model／effort 時怎麼答」（2026-08-30 搬出）。
 
 Codex 端 `../codex/rules/10-dispatch-codex.md` §3 要求的是四項揭露＋證據層級，**兩邊詳略不同是刻意分版、不是漂移**：Codex surface 拿得到 runtime model 的 read-back，Claude 的 Agent 工具沒有。不要修齊。
 

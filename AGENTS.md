@@ -6,7 +6,7 @@
 > **下表的 `<REPO>` 是本系統 repo 的絕對路徑，依機器而異——讀檔前先認機器再展開**：
 > - macOS（hostname `xushengzhedeMacBook-Pro.local`，2026-08-06 現查；hostname 會隨設定改名而變，對不上就走下面第三條的 `readlink`）：`/Users/fatjohn/Projects/FatJohn/agents-guideline`
 > - Windows（hostname `FatJohn-PC`）：`E:\agents-guideline`
-> - 不確定或新機器：`readlink ~/.codex/AGENTS.md`（PowerShell：`(Get-Item ~/.codex/AGENTS.md).Target`）的目錄部分就是 `<REPO>`；機器事實照 `<REPO>/rules/05-hosts.md` 檔頭的探測清單自己建檔。
+> - 不確定或新機器：`readlink ~/.codex/AGENTS.md`（PowerShell：`(Get-Item ~/.codex/AGENTS.md).Target`）的目錄部分就是 `<REPO>`；機器事實照 `<REPO>/README.md`「新機器建檔」的探測清單自己建檔，補進 `<REPO>/rules/05-hosts.md`。
 >
 > （這份對照表的 canonical 位置是 `<REPO>/rules/05-hosts.md`。這裡刻意重複一份是 bootstrap 需要——Codex 得先解出 `<REPO>` 才讀得到 05-hosts，不是可以合併掉的冗餘。新增機器時兩處都要加。）
 
@@ -20,7 +20,7 @@
 
 | 情境 | 讀這份 |
 |------|--------|
-| 開工前：確認這台機器有什麼工具、能跑哪些驗證 | `<REPO>/rules/05-hosts.md`（機器沒列 → 照檔頭探測清單自己補段落） |
+| 開工前：確認這台機器有什麼工具、能跑哪些驗證 | `<REPO>/rules/05-hosts.md`（機器沒列 → 照 `<REPO>/README.md`「新機器建檔」的探測清單自己補段落） |
 | 了解環境的結構性風險、好用的 skill/plugin 清單 | `<REPO>/rules/00-environment.md` |
 | 記憶機制四層的分工與邊界（寫或讀記憶時） | `<REPO>/docs/memory-layers.md` |
 | Codex 派 subagent、選 model/reasoning effort、驗收產出 | `<REPO>/codex/rules/10-dispatch-codex.md` |

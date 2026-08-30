@@ -43,7 +43,7 @@
 
 ## 好用的 skill／plugin（實戰驗證的優先選項）
 
-原則：動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造；但真正符合任務才叫用（優先權排序依平台見全域 `CLAUDE.md`／`AGENTS.md`）。
+原則：動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造。
 
 具體清單（各類任務用哪個 skill、Figma 在 MCP 缺席時的 curl fallback）在 `../docs/skill-catalog.md`——那份不常駐，要用時再讀。清單內容一律以當前 session 公開的 skill／tool 名稱為準，不跨平台猜名稱。
 

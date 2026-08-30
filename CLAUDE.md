@@ -13,7 +13,7 @@
 
 | 情境 | 讀這份 | 已在 context？ |
 |------|--------|----|
-| 開工前：確認這台機器有什麼工具、能跑哪些驗證 | `rules/05-hosts.md`（機器沒列 → 照檔頭探測清單自己補段落） | ✅ |
+| 開工前：確認這台機器有什麼工具、能跑哪些驗證 | `rules/05-hosts.md`（機器沒列 → 照 README「新機器建檔」的探測清單自己補段落） | ✅ |
 | 了解這個環境的結構性風險、好用的 skill/plugin 清單 | `rules/00-environment.md` | ✅ |
 | 記憶機制四層的分工與邊界（寫或讀記憶時） | `docs/memory-layers.md` | ❌ 要讀 |
 | 派 subagent、選 model/effort、驗收分工、升降級 | `rules/10-dispatch.md` | ✅ |

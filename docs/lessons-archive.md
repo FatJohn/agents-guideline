@@ -59,3 +59,4 @@
 - [2026-08-23][global] 修 verifier 指出的缺陷時，順手改的那幾行新造了一個更嚴重的 bug → 修完發現要再派 fresh-context 驗一次 delta，不能拿「原本那輪驗過了」當數 → 已套用到：rules/20-judgment.md §2（2026-08-23 升級）
 - [2026-08-23][global] 改完 workflow 的 shell 只跑了 YAML parse 就宣稱驗過，漏掉未收尾的引號 → 改內嵌程式碼的設定檔要跑**被嵌那個語言**的檢查、上層 parse 不算（`bash -n` 可用；jq 沒有純語法模式，`jq -n` 會執行程式、且缺 `--arg` 時假紅 exit 3，與真語法錯同碼）；macroeconomics-report 的 workflows bash 區塊已有常設守衛，缺口剩 Dockerfile／husky／jq 與其他 repo → 已套用到：rules/20-judgment.md §2（2026-08-23 升級）
 - [2026-08-23][global] 刪重複內容前 `rg` 查到某關鍵詞零命中，我判斷「語意已被別處涵蓋」就照刪 → 零命中＝未涵蓋，沒有自行判斷的例外；補回時還要確認落在語意同一邊 → 已套用到：skills/maintain-guideline/SKILL.md §5（2026-08-23 升級）
+- [2026-08-26][global] 改檔後 rg 全 repo 掃殘留引用回報乾淨，實際漏掉 .claude/ .agents/ .gemini/ → rg 預設不進隱藏目錄，掃殘留一律加 --hidden，否則是假的乾淨 → 已套用到：rules/20-judgment.md §2（2026-08-30 升級）

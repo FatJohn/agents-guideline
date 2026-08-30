@@ -1,16 +1,7 @@
 # 05 — 各機器事實（單機的事寫這裡，跨機器的結論寫 00）
 
-> 多步驟任務開工前：`hostname` 認機器 → 找到對應段落沿用其事實；沒有段落就照下面的探測清單跑一輪，**自己把新段落補上**（本檔可直接寫入，不用問）。
+> 多步驟任務開工前：`hostname` 認機器 → 找到對應段落沿用其事實；沒有段落就照 `../README.md`「新機器建檔（5 分鐘探測清單）」跑一輪，**自己把新段落補上**（本檔可直接寫入，不用問）。
 > 事實看起來過時就抽查一兩項再用；工具「有沒有裝」永遠以 `command -v` 現查為準，清單只是加速。
-
-## 探測清單（新機器 5 分鐘建檔）
-
-1. 身分：`hostname`＋OS（macOS 用 `sw_vers`；Windows 看 shell 環境是 PowerShell / Git Bash / WSL）
-2. shell 與套件管理器（brew／winget／scoop）
-3. 常用工具盤點：`for t in git gh node python3 flutter dotnet rg jq; do command -v $t; done`
-   （PowerShell：`'git','gh','node','python','flutter','dotnet','rg','jq' | % { Get-Command $_ -EA SilentlyContinue }`；Windows 常無 `python3` 別名）
-4. 這台機器能做哪些驗證：能不能跑 Flutter build？.NET build？（決定 `20-judgment.md` §2 在這台機器怎麼落地）
-5. 記憶注意：內建持久記憶與 `.remember/` 都是本機的——機器綁定的事實要註明是哪台機器的
 
 ## 主力 Mac（目前 hostname：`xushengzhedeMacBook-Pro.local`，arm64）
 
@@ -34,9 +25,9 @@
 - Claude Code 2.1.222；Codex CLI 0.146.0（走 mise shim 會自動更新，同一天內就跳過版——版本號一律現查）
 - Codex 本機 config 的主對話為 `gpt-5.6-sol`／effort `medium`（2026-08-06 00:14 現查 `~/.codex/config.toml`；與 Plus 制度預設一致）
 - 工具：git ✓、gh ✓、node ✓、npm ✓、python ✓、flutter ✓（`D:\flutter\bin\flutter.bat`）、dotnet ✓、rg ✓、jq ✓、docker ✓、uv ✓；fd ✗、yarn ✗
-- **`python3` 沒有別名，只有 `python`**——探測清單第 3 項的指令直接照抄會誤判 Python 未安裝
+- **`python3` 沒有別名，只有 `python`**——README 探測清單第 3 項的指令直接照抄會誤判 Python 未安裝
 - 專案位置：個人專案放在 `E:\` 根層，不是 Mac 的 `~/Projects/FatJohn/`
 - 本系統 repo：`E:\agents-guideline`（與 Mac 同一個 `git@github.com:FatJohn/agents-guideline.git`），Claude Code symlink 裝進 `~/.claude/`，Codex symlink 裝進 `~/.codex/`
-- **symlink 安裝可行，不需要改用 `cp`**（2026-08-05 實測：跨磁碟 C: → E: 的檔案與目錄 symlink 都成功）。Developer Mode 前置條件、對應的 registry key、junction 與 hardlink 的差異，以及安裝指令，全在 README「安裝（Windows／PowerShell）」。
-  - **`~/.claude/rules` 用目錄 symlink，Claude Code 在 Windows 確實會自動全文載入**（2026-08-05 實測：`claude -p --allowed-tools "" <<< '不准用工具，列出 context 裡 rules 目錄下每個檔的首行標題'` 回傳 00／05／10／20／50 五個標題）。這條指令也是驗證 `rules/` 生效的通用方法——`claude -p` 本身就是全新 session，不必要求使用者手動重開。
+- **symlink 安裝可行，不需要改用 `cp`**（2026-08-05 實測：跨磁碟 C: → E: 的檔案與目錄 symlink 都成功）；Developer Mode、registry key、junction 與 hardlink 的差異及安裝指令見 README「安裝（Windows／PowerShell）」。
+  - **`~/.claude/rules` 用目錄 symlink，Claude Code 在 Windows 確實會自動全文載入**（2026-08-05 實測回傳 00／05／10／20／50 五個標題；驗法見 `20-judgment.md` §2 的 `claude -p --allowed-tools` 正例）。
 - 驗證能力：.NET／Node／Flutter／Docker CLI 都在 PATH，但**本機尚未實跑過任何 build／test**（2026-08-05）；第一次要用來當完成證據前，先跑一次 `dotnet --info`／`flutter doctor` 確認 SDK 完整，不要憑 CLI 存在就宣稱可驗證。iOS build 不可（非 macOS）。

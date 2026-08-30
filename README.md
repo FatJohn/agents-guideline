@@ -203,6 +203,19 @@ memories = true
 
 本 repo 另外提供四個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議，`debug-environment-first` 負責除錯前確認環境事實與量測方法。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
 
+## 新機器建檔（5 分鐘探測清單）
+
+> 2026-08-30 從 `rules/05-hosts.md` 搬出。理由：這份清單只在裝新機器當下用得到，而 `rules/` 是每個 session 全文載入的常駐區（`maintain-guideline` §5「只在特定情境才用得到的內容不該放 rules/」）。內容原文未改寫，僅把相對路徑補成 repo 根目錄視角。
+
+`rules/05-hosts.md` 沒有這台機器的段落時，照這份跑一輪，然後**自己把新段落補進該檔**（該檔可直接寫入，不用問）。
+
+1. 身分：`hostname`＋OS（macOS 用 `sw_vers`；Windows 看 shell 環境是 PowerShell / Git Bash / WSL）
+2. shell 與套件管理器（brew／winget／scoop）
+3. 常用工具盤點：`for t in git gh node python3 flutter dotnet rg jq; do command -v $t; done`
+   （PowerShell：`'git','gh','node','python','flutter','dotnet','rg','jq' | % { Get-Command $_ -EA SilentlyContinue }`；Windows 常無 `python3` 別名）
+4. 這台機器能做哪些驗證：能不能跑 Flutter build？.NET build？（決定 `rules/20-judgment.md` §2 在這台機器怎麼落地）
+5. 記憶注意：內建持久記憶與 `.remember/` 都是本機的——機器綁定的事實要註明是哪台機器的
+
 ## 檔案結構
 
 **每 session 自動載入**（固定 context 成本，只放每次都要的）：
@@ -212,7 +225,7 @@ memories = true
 | `CLAUDE.md` | 路由表＋三鐵律＋優先權排序（裝在 `~/.claude/`） |
 | `AGENTS.md` | Codex 路由表＋三鐵律＋Codex 專用注意（裝在 `~/.codex/`） |
 | `rules/00-environment.md` | 跨機器事實、三大結構性風險與修法 |
-| `rules/05-hosts.md` | 各機器事實（探測清單＋按機器分段；新機器由 AI 自行探測建檔） |
+| `rules/05-hosts.md` | 各機器事實（按機器分段；新機器由 AI 照本檔「新機器建檔」的探測清單自行建檔） |
 | `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |
 | `rules/20-judgment.md` | 判斷準則：升級／完成／問使用者／換路／環境先驗，各附正反例 |
 | `rules/50-lessons.md` | **還沒有正式判準承接的**活躍教訓＋交接欄 |
