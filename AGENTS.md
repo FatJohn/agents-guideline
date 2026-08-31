@@ -23,7 +23,7 @@
 | 開工前：確認這台機器有什麼工具、能跑哪些驗證 | `<REPO>/rules/05-hosts.md`（機器沒列 → 照 `<REPO>/README.md`「新機器建檔」的探測清單自己補段落） |
 | 了解環境的結構性風險、好用的 skill/plugin 清單 | `<REPO>/rules/00-environment.md` |
 | 記憶機制四層的分工與邊界（寫或讀記憶時） | `<REPO>/docs/memory-layers.md` |
-| Codex 派 subagent、選 model/reasoning effort、驗收產出 | `<REPO>/codex/rules/10-dispatch-codex.md` |
+| Codex 派 subagent、依 complexity signals 選 model/reasoning effort、判斷 retry／escalation、驗收產出 | `<REPO>/codex/rules/10-dispatch-codex.md` |
 | 判斷題：該不該升級／算不算完成／要不要問使用者／該不該換路 | `<REPO>/rules/20-judgment.md` |
 | 撰寫 Codex subagent prompt | `<REPO>/codex/rules/30-delegation-templates-codex.md`（A–L logical-role contract 與共用 runtime adapter envelope） |
 | 收尾、交接、記錄目前進度、下次續接 | 使用 `session-handoff` skill，預設寫到專案 `.codex/HANDOFF.md` |

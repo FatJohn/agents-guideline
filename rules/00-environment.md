@@ -9,7 +9,13 @@
 - 公司專案（自己主導的代表作）：`flutter-slimgo`（Flutter App）、`web-starvision`／`web-starvision-cms`（網站）等。
 - 個人 side project：財經類（macroeconomics-report 等，自己玩玩性質）等。完整清單用 `gh repo list`（個人）、`gh search repos --owner tvbstw`（公司）現查，不要依賴這裡的列舉。
 - 技術背景：C#／.NET／WPF／UWP 熟、C++ 部分會；Flutter、TypeScript 可；JavaScript／Vue 一般、React 初學。**後端與雲端架構不熟**——個人專案部署以 Zeabur 為主；財經專案另碰過 CloudFront＋自有 domain、R2 storage。涉及雲端架構的建議要多給脈絡、少假設既有知識。
-- LLM 資源：Claude Code 訂閱 Max；主對話 effort 由 `~/.claude/settings.json` 的 `effortLevel: xhigh` 設定，**model 不在 settings.json 裡**（由 UI 選，2026-07-25 核對；當次實際型號以主對話自報的 model ID 為準，該日為 `claude-opus-5`）。Codex 的訂閱檔位、主對話預設與 5.6 世代型號分層已移到 `../codex/rules/10-dispatch-codex.md` §0（2026-08-22 瘦身：那是 Codex 派工時才用得到的東西，Claude session 每次載入它是純浪費）。Claude 透過 codex plugin 派 Codex 外部第二意見，見 `10-dispatch.md`；Codex 自身派工見 `../codex/rules/10-dispatch-codex.md`。
+
+## LLM 資源（先分流）
+
+先辨識當前 runtime，只展開相符的一條；另一平台的 dispatch 檔留在 context 外：
+
+- **Claude Code** → 只讀 `10-dispatch.md` §0「可用模型與 subagent」。
+- **Codex** → 只讀 `../codex/rules/10-dispatch-codex.md` §0–1「角色與 runtime adapter／雙軸派工判斷」。
 
 ## 三大結構性風險與修法（按嚴重度）
 

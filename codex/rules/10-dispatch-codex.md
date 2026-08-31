@@ -12,28 +12,28 @@
 | `explorer` | Terra／medium／read-only | repo 探索、跨檔追查、文件研究、影響範圍分析 |
 | `planner` | Terra／high／read-only | 非平凡任務的 scope、風險、invariants、執行計畫與完成條件 |
 | `worker` | Luna／max／workspace-write | 所有訂閱檔位依 approved plan 實作、除錯、執行機械驗證 |
-| `pro_worker` | Terra／xhigh／workspace-write | 相容性保留的非預設角色；只有使用者明確 override 標準 Luna 路由時才可使用 |
-| `recovery_worker` | Terra／xhigh／workspace-write | Luna 標準實作者失敗／揭露高風險後的 fresh-context root-cause recovery 實作 |
+| `pro_worker` | Terra／high／workspace-write | 已有複雜度證據時，預先承接跨模組、large-context 或高 ambiguity 實作 |
+| `recovery_worker` | Terra／high／workspace-write | Luna 顯示能力／脈絡理解不足，或兩次未明失敗後的 fresh-context recovery |
 | `reviewer` | Terra／high／read-only | 一般實作的 fresh-context 對抗式 review |
 | `verifier` | Terra／high／read-only | 一般 read-back、文件與驗收審查 |
-| `escalation_planner` | Sol／xhigh／read-only | Terra planner／explorer 無法建立可靠方案時的 root-cause 規劃升級 |
-| `escalation_worker` | Sol／xhigh／workspace-write | recovery 再失敗或確認需要 Sol 時的 final root-cause 實作 |
+| `escalation_planner` | Sol／medium／read-only | Terra 已確認模型能力或高 judgment 成為限制時的 root-cause 規劃升級 |
+| `escalation_worker` | Sol／medium／workspace-write | Terra 已確認模型能力不足後的 root-cause 升級實作 |
 | `sol_verifier` | Sol／high／read-only | 安全、不可逆、重大架構與正式高風險驗收 |
 
-`scanner` 使用 Luna 做低風險、可機械驗證的唯讀工作；所有訂閱檔位的標準實作都使用 `worker/Luna max`，且只可寫入父任務明確授權的 working tree 與範圍。`pro_worker` 僅為既有安裝相容性保留，不在 active routing；除非使用者本 session 明確要求 Terra 實作，否則不得派送。`recovery_worker` 以 Terra xhigh 接手標準實作者失敗或揭露高風險的情況，並先建立 root cause。`planner`、`explorer`、`reviewer`、`verifier`、`escalation_planner`、`sol_verifier` 都是 read-only。`reviewer` 處理一般實作 review；一般文件與一般驗收使用 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險驗收才升級 `sol_verifier/Sol high`。`escalation_planner` 只處理規劃／探索升級；`escalation_worker` 處理 recovery 仍不足；所有 verifier 只找碴與判定，不製作也不修正產物。
+`scanner` 使用 Luna 做低風險、可機械驗證的唯讀工作；一般實作使用 `worker/Luna max`。若開工前已有多 subsystem、依賴關係密集、脈絡量大、需求高 ambiguity 或 architecture judgment 等證據，可直接使用 `pro_worker/Terra high`，不必先犧牲一次 Luna 嘗試；失敗後的 Terra 路徑則使用 `recovery_worker/Terra high`。`planner`、`explorer`、`reviewer`、`verifier`、`escalation_planner`、`sol_verifier` 都是 read-only。一般文件與一般驗收使用 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險驗收使用 `sol_verifier/Sol high`。Sol 升級實作與規劃先從 medium 開始，只有 exceptional difficulty 才提高 effort；所有 verifier 只找碴與判定，不製作也不修正產物。
 
-**別名對應的實際型號與訂閱檔位預設**（2026-08-22 從 `<REPO>/rules/00-environment.md` 搬來——上表通篇只用 Luna／Terra／Sol，在此之前沒有任何一處寫出它們對應哪個 model id）：Luna＝`gpt-5.6-luna`、Terra＝`gpt-5.6-terra`、Sol＝`gpt-5.6-sol`。Codex 目前為 Plus，制度建議的主對話預設是 `gpt-5.6-sol`／effort `medium`（2026-08-06 依 Codex 官方 Power 預設更新）；各機器或當次 session 可明確 override，機器現況記在 `<REPO>/rules/05-hosts.md`。若升級 Pro，制度預設改為 `gpt-5.6-sol`／effort `xhigh`（同型號拉高 effort，不是換型號）。不論訂閱檔位，標準實作入口一律使用 `worker/gpt-5.6-luna/max`；Pro 額度優先用在主對話、規劃、review 與失敗後的 recovery，不自動提高標準實作者 model tier（2026-08-19 使用者裁決）。Codex 5.6 世代由弱到強為 `gpt-5.6-luna`／`terra`／`sol`（2026-08-05 三檔實測皆可用；`~/.codex/models_cache.json` 會過期，判斷可用型號要現打不要讀 cache）。
+**別名與主對話邊界**：Luna＝`gpt-5.6-luna`、Terra＝`gpt-5.6-terra`、Sol＝`gpt-5.6-sol`。本機新 session 的靜態預設是 Luna/max，讓一般 coding 不先支付 Sol 成本；使用者仍可在 UI 或 CLI 為特定任務明確選擇其他 model／effort，目前這種刻意使用 Sol/high 的高 judgment session 就屬於 override。global instruction 不能在已啟動的主對話中自動切換主 agent，只能指導 delegated agent、direct CLI，或下一個 session 的選擇。當前 runtime 若已是較強主 agent，仍按本表把可獨立工作派給能可靠完成的最低 tier。型號與 effort 可用性以當前 surface 或 `codex debug models` 現查；不要把可能過期的 `~/.codex/models_cache.json` 當 runtime 證據。
 
 角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。安裝 `~/.codex/agents/*.toml` 與 runtime 選中角色是兩件事：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata。可選中時，把 surface metadata 當作「工具宣告值」記進 adapter envelope；若回傳或 child metadata 另有實際 runtime model／effort，再一併 read-back。surface 沒有角色選擇入口、role 不符或 runtime 證據與宣告不一致時，不得假裝 custom role 已套用；依下方 adapter 改用 `default`，或標記「模型／effort 未驗證」後停止該 routing。
 
 ### Runtime adapter（所有 A–L logical role 共用）
 
-上表是唯一的 logical-role、model／effort、權限 mapping；A–L 模板提供完整 contract，不在此複製第二張角色表。`pro_worker` 重用 D 的 worker contract，只替換上表的 Terra/xhigh mapping 與「使用者明確 override」門檻。每次派工先分開記錄兩個身份：`logical role` 是要完成的角色（例如 `reviewer`），`actual agent_type` 是當前 runtime 實際接受的 agent type。
+上表是唯一的 logical-role、model／effort、權限 mapping；A–L 模板提供完整 contract，不在此複製第二張角色表。`pro_worker` 重用 D 的 worker contract，替換為 Terra/high，並附觸發它的複雜度證據。每次派工先分開記錄兩個身份：`logical role` 是要完成的角色（例如 `reviewer`），`actual agent_type` 是當前 runtime 實際接受的 agent type。
 
 1. **Named-first**：先檢查當前 surface 是否明確提供 `agent_type=<logical role>`，且 metadata 的 model／effort／權限符合上表；符合才以 named role 派送。surface metadata 先標「工具宣告值」，只有工具回傳或 child metadata read-back 的實際值才可升級為「runtime 已驗證」。若角色看似已註冊但回覆 unavailable，可在不修改 local config 的前提下 read-only 核對 `[agents.<name>]`／`config_file` 並於 fresh session 重試一次。
-2. **Default fallback**：surface 沒有 named selector、named call 回覆 `agent type is currently not available`，或 named metadata 不符合時，改以實際 `agent_type=default` 啟動；仍明確傳入上表對應的 model／effort，並在 prompt 寫入 permission contract。明確 override model／effort 時，`fork_turns` 必須用 `none` 或正整數；full-history fork 不接受 override，禁止用它靜默繼承父 mapping。prompt 必須先放 `30-delegation-templates-codex.md` 的 adapter envelope，再接對應的完整 logical-role contract。contract 內的「你是 `<role>`」只表示 logical role，不是 custom runtime 身份；generic `default` 不得稱為該 custom role。`default` 本身 unavailable 或無法接受明確 model／effort mapping 時，停止並標記「runtime 未驗證」，不得靜默換 role。
+2. **Default／effort fallback**：surface 沒有 named selector、named call 回覆 `agent type is currently not available`、named metadata 不符合，或 exceptional route 需要同一 logical contract 搭配不同 effort 時，改以實際 `agent_type=default` 啟動；明確傳入選定的 model／effort，並在 prompt 寫入 permission contract 與 route evidence。override model／effort 時，`fork_turns` 必須用 `none` 或正整數；full-history fork 不接受 override。prompt 必須先放 `30-delegation-templates-codex.md` 的 adapter envelope，再接完整 logical-role contract。generic `default` 不得稱為 custom role；`default` unavailable 或無法接受 mapping 時停止並標記「runtime 未驗證」。
 3. **Evidence／permission gate**：envelope 必須分開記錄 logical role、actual `agent_type`、fork context、requested model／effort、logical permission contract、runtime permission evidence 與其他 runtime evidence。surface 固定值是「工具宣告值」；child metadata 是「runtime 已驗證」；兩者都取不到就是「runtime 未驗證」。TOML、檔案存在、角色名稱或 prompt 內容都不能冒充 runtime 證據。generic `default` 沒有 sandbox override 時繼承父 session：寫入角色只有在父 session runtime 權限已知且涵蓋 approved scope 時可派；read-only 角色只有父 session runtime 已是 read-only 時可派，否則強制改走下方 read-only direct CLI branch 或停止，不得靠 prompt 禁寫與事後 read-back 補救。指定 model／effort 無法明確傳入時，停止並回 controller。
-4. **Role transitions**：升級、recovery、single-writer、approved plan、權限、授權與兩次失敗門檻不因 adapter 改變；每次轉派都重新套用 named-first → `default` fallback 與同一個 logical-role contract。generic reviewer／verifier／`sol_verifier` 都只能回報 generic review；generic Sol/high 只能補強高風險證據，仍標記「未取得 custom `sol_verifier` 驗收／未驗證」。
+4. **Role transitions**：升級原因分類、single-writer、approved plan、權限與授權不因 adapter 改變；每次轉派都重新套用 named-first → fallback 與同一個 logical-role contract。generic reviewer／verifier／`sol_verifier` 都只能回報 generic review；generic Sol/high 只能補強高風險證據，仍標記「未取得 custom `sol_verifier` 驗收／未驗證」。
 
 ### Direct CLI review branch
 
@@ -53,19 +53,26 @@ codex exec --ephemeral --strict-config --sandbox read-only \
 
 ### 預設 workflow 與最低模型原則
 
-使用「能可靠完成該階段的最低 model tier」，並把 model tier 與 reasoning effort 分開判斷；不要只因任務困難就直接使用 Sol Ultra。
+使用「能可靠完成該階段的最低 model tier」，優化 **total cost to success**：reasoning tokens、重讀 repo、tool calls、錯誤修改、retry 與人工修正都算成本。只在任務開始、scope 明顯改變或一次嘗試失敗後重判路由，不在每個步驟反覆做模型分析。model tier 與 reasoning effort 分開判斷；高 tier 不自動配高 effort，小模型也不自動配 max。
 
-**入口檔位依訂閱事實**（`<REPO>/rules/00-environment.md`）：Plus 主對話預設 Sol/medium，Pro 主對話預設 Sol/xhigh；所有訂閱檔位的標準實作都使用 `worker/Luna max`。方案未知或環境事實未查證時不得猜測，先回 controller 查明。Pro 的額外額度優先用在主對話、規劃、review 與失敗後的 recovery，不自動提高標準實作者 model tier。
+快速看六個 complexity signals：scope／檔案與模組廣度、subsystem 數量、dependency 與既有 code 理解量、ambiguity／debug search space、architecture／correctness／security judgment、既有失敗證據。任務名稱只提供背景，不決定 tier。
 
-- 小型、範圍明確、驗收條件清楚的修改留在主對話；不強制經過昂貴的規劃階段。
-- 非平凡實作使用 `planner/Terra high → controller 核定 approved plan → worker/Luna max → reviewer/Terra high`。
+- **Simple／mechanical**：可明確描述且可機械驗證，使用 Luna low／medium（如 `scanner`）或留在主對話。
+- **Normal development**：需求清楚、scope 有界的一般 feature、bug fix、refactor、test、UI／API 修改，使用 `worker/Luna max`；controller 可自行核定完整 plan，不強制先派 Terra planner。
+- **Higher complexity／large-context reasoning**：上述 signals 有一項很強或多項同時成立，使用 Terra；探索可 medium，規劃、實作 recovery 與重要 review 用 high。已有充分證據時可預先派 `pro_worker/Terra high`。
+- **Very difficult／high judgment**：Terra 已確認模型能力不足，或任務本身是高影響且需要跨 subsystem judgment，使用 Sol medium。
+- **Exceptional difficulty**：Sol medium 仍顯示能力不足、或錯誤代價極高且可說明 high 的邊際價值，才使用 Sol high。xhigh／max 不設固定 route，僅在 high 仍無法收斂且 controller 有證據時顯式使用；Ultra 不是一般 coding route。
+
+Reasoning effort 只回答「同一模型需要思考多深」：問題已理解但推理鏈不夠完整，可提高一級 effort 並 fresh retry 一次；若 root cause、跨模組關係或需求模型本身理解錯誤，應升 model tier，而不是持續加 effort。
+
+- 小型、範圍明確、驗收條件清楚的修改留在主對話；不強制經過額外規劃或 review 階段。
+- 一般實作由 controller 核定 approved plan 後派 `worker/Luna max`；只有 complexity signals 支持時才加入 `planner/Terra high`、`pro_worker/Terra high` 或 `reviewer/Terra high`。
 - `planner` 只檢查 repo、列出未決問題與提出 plan；controller 負責和使用者釐清 scope、取得授權、做最後決策。
 - controller 只有在 plan 已列出 affected files、寫入所有權、invariants、implementation phases、validation commands 與 completion criteria，且未決問題均已解決或明確交由 worker 不得碰觸時，才可標為 approved plan 並派 `worker`。缺任一項就留在規劃階段，不得用高 effort 取代清楚 plan。
 - `worker` 依 approved plan 分階段實作、執行測試／靜態檢查並修復一般失敗；不得自行擴大範圍或執行對外動作。
 - `reviewer` 做一般實作的 fresh-context review；一般文件與一般驗收改派 `verifier/Terra high`，安全、不可逆、重大架構與正式高風險驗收才改派 `sol_verifier/Sol high`。
-- 若 planner 的 Terra high plan 仍卡在高難度推理，controller 可先以 fresh-context `planner/Terra xhigh` 重試，再進入 `escalation_planner/Sol xhigh`。
-- 若 worker/Luna max 在同一子任務失敗兩次，或揭露架構／安全／資料遺失風險，先進入 `recovery_worker/Terra xhigh`。recovery_worker 再失敗兩次或確認 root cause 需要 Sol 能力時，才升 Sol。
-- `Sol max` 不作為固定 agent route；只有 `Sol xhigh` 仍無法收斂、或 controller 明確判定是最困難的單一路徑任務時才顯式使用。若需要可獨立平行的大型工作流，且當前 runtime 明確支援 Sol Ultra，才可使用。
+- 若 planner 的 Terra high 已抓對問題但推理仍不足，可 fresh-context 提高 Terra effort 一次；若它誤判核心、遺漏跨模組關係或無法承載必要脈絡，直接進入 `escalation_planner/Sol medium`。
+- retry／escalation 依 §5 的失敗原因處理；兩次失敗是未能判明原因時的硬上限，不是每條路都必須先浪費兩次。
 
 優先派 subagent：
 
@@ -116,16 +123,20 @@ Claude 端 `<REPO>/rules/10-dispatch.md` §3 使用同一套 user-facing 揭露�
 ## 5. 升降級路徑
 
 - `scanner` 出現一次實質錯誤，或任務變成跨檔推理、不可機械驗證 → 升級 `explorer` 或 `planner`。
-- `planner` 或 `explorer` 無法提出 affected files、invariants、failure modes、rollback strategy、validation commands 與 completion criteria → 先以 fresh-context `planner/Terra xhigh` 重試；仍無法建立可靠方案才升級 `escalation_planner/Sol xhigh`。prompt 必須附原始需求、目前 plan、完整探索／失敗輸出與已嘗試 hypotheses，且 Sol 必須先建立 root cause 與可靠策略。
-- `worker/Luna max` 在同一子任務失敗兩次（無論錯誤相同與否）→ 升級 `recovery_worker/Terra xhigh`（跳階＋fresh）。
-- 任一標準實作者揭露架構／安全／資料遺失風險 → 先升級 `recovery_worker/Terra xhigh` 建立 root cause；不得只因風險標籤直接跳 Sol。recovery_worker 若在同一子任務再失敗兩次，或確認 root cause 需要 Sol 能力，才升級 `escalation_worker/Sol xhigh`。
-- 所有升級 prompt 都必須附原始需求、approved plan、相關 diff 與**對應門檻的證據**：失敗入口附完整失敗輸出與已嘗試 hypotheses；高風險入口附風險判定依據；「確認需要 Sol 能力」入口附 recovery 的 root cause 報告與判定理由。升級實作者必須先建立 root cause 再編輯。若 approved plan 不完整或需要擴大 scope，先停止並交回 controller 走 planner 路徑，不得把沒有 approved plan 的工作直接交給 recovery_worker。若任務本身需要對外或不可逆動作，worker／recovery_worker／escalation_worker 直接停止並交回 controller，由 controller 決定授權與後續路徑；任何 subagent 都不得代替 controller 執行外部或不可逆動作。
+- **execution mistake**：syntax、漏改一處、指令拼錯或 fixture 小錯，且正確修法已明確 → 同 model 修正一次；若再失敗就重新分類，不把同一路線包裝成重試。
+- **insufficient reasoning**：root cause 與相關脈絡已抓對，但推理鏈、比較或驗證深度不足 → 同 tier 提高一級 effort、換 fresh context 重試一次；不得連續加 effort。
+- **insufficient model capability／context understanding**：抓錯問題核心、反覆遺漏跨模組關係、無法維持必要脈絡，或 architecture judgment 明顯不足 → 立即換 fresh context 並升一個 model tier，不必等第二次失敗。Luna 升 Terra/high；Terra 升 Sol/medium。
+- **insufficient evidence／environment understanding**：缺 repo 事實、log、重現步驟或環境量測錯誤 → 先補查證或依 `debug-environment-first` skill 校正量法；換更強模型不會補出不存在的證據。
+- 失敗原因仍不明時，同一子任務最多兩次未收斂嘗試；達上限就升 tier 或換方法。若每次錯誤都不同且驗收條件持續增加，視為正常收斂，不計作無效重試。
+- 開工前已有 higher-complexity signals，可直接使用 `pro_worker/Terra high`；Luna 失敗後若已符合 capability／context 訊號，使用 `recovery_worker/Terra high`。Terra 已確認自身能力不足時，升級 `escalation_worker/Sol medium`；Sol medium 仍顯示能力不足或高代價風險支持更深推理時，才由 controller 顯式改用 Sol high。
+- 風險與實作難度分開判斷：安全／資料遺失／不可逆風險會提高規劃與驗收強度，但不自動證明實作一定需要 Sol；先看 root cause 與 complexity signals。
+- 所有升級 prompt 都必須附原始需求、approved plan、相關 diff 與**對應門檻的證據**：失敗入口附完整失敗輸出與已嘗試 hypotheses；能力／脈絡入口附誤判或遺漏證據；高風險入口附風險判定依據。升級實作者必須先建立 root cause 再編輯。若 approved plan 不完整或需要擴大 scope，先停止並交回 controller 走 planner 路徑。若任務需要對外或不可逆動作，worker／pro_worker／recovery_worker／escalation_worker 直接停止並交回 controller；任何 subagent 都不得代替 controller 執行。
 - `reviewer` 發現一般文件或一般驗收缺口 → 改派 `verifier/Terra high`；發現安全、不可逆、重大架構問題或正式高風險驗收需求 → 改派 `sol_verifier/Sol high`，不讓 reviewer 自行修正。
 - 任一指定 model 回報 unsupported 或 unavailable → 停止宣稱該 model mapping 已驗證，改用已核准的 fallback 並標記「模型未驗證」；不得靜默繼承另一個 model。
 - 升級角色（`recovery_worker`、`escalation_planner`、`escalation_worker`、`verifier`、`sol_verifier`）只處理能力需求，不取代使用者授權；對外或不可逆動作未在本 session 明確授權時，停止並交回 controller。
-- `Sol xhigh` 卡住 → 先換 fresh-context Sol、取得獨立第二意見或重定義問題與驗收條件；只有仍需最終能力時，controller 才可顯式使用 `Sol max`。`Sol Ultra` 僅限可獨立平行的大型工作流。
+- `Sol high` 卡住 → 先換 fresh-context Sol、取得獨立第二意見或重定義問題與驗收條件；只有仍有明確邊際價值時，controller 才可顯式使用 xhigh／max。Ultra 只在當前 runtime 明確支援且工作可安全拆成獨立大型工作流時考慮。
 - 高能力角色解出可重複且可機械驗證的 pattern 後，可把 pattern 寫入 prompt，降級交給較輕角色套用。
-- 同一件事最多重試兩輪；兩輪仍失敗就換方法或依 `<REPO>/rules/20-judgment.md` §3「何時該停下來問使用者」向使用者取得方向。
+- 同一件事最多兩輪**無進展**重試；兩輪仍失敗就換方法、升級或依 `<REPO>/rules/20-judgment.md` §3「何時該停下來問使用者」取得方向。
 
 ## 6. 驗證語意（鐵律三）
 

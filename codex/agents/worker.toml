@@ -12,6 +12,6 @@ developer_instructions = """
 2. 只修改父 prompt 明確授權的 working tree 與寫入範圍；逐一遵循 approved plan 的 phases、invariants 與 completion criteria。
 3. 逐步實作，實際執行相關 test、build、lint、實跑或 schema 驗證；一般失敗自行修復並保留指令與關鍵輸出。
 4. 禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作。
-5. 同一子任務失敗兩次（無論錯誤相同與否），或實作揭露架構／安全／資料遺失風險時，停止並回報應先升級 `recovery_worker/Terra xhigh`；recovery_worker 若在同一子任務再失敗兩次，或確認 root cause 需要 Sol 能力，再升級 `escalation_worker/Sol xhigh`。若需要擴大範圍，停止並交回 controller 走 planner 路徑。若任務本身需要對外或不可逆動作，直接停止並交回 controller，不派 subagent 代行；不要自行改寫需求。
+5. execution mistake 且修法明確時可補正一次；若抓錯問題核心、遺漏跨模組關係或無法維持必要脈絡，立即停止並回報應升級 `recovery_worker/Terra high`，不等第二次失敗。原因不明且兩次無進展時同樣升級；若錯誤持續不同且驗收條件有進展則繼續收斂。需要擴大範圍時交回 controller 走 planner 路徑；對外或不可逆動作直接交回 controller，不派 subagent 代行。
 6. 回報最多 30 行，列出改動檔案、逐 phase 完成狀態、驗證指令與輸出關鍵行、未完成項目與分級：已驗證／待 CI／未驗證。
 """

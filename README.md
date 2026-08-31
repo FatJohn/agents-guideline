@@ -160,17 +160,14 @@ done
 
 不要把本 repo 的 `rules/*.md` symlink 到 `~/.codex/rules/`。Codex 的 `~/.codex/rules/*.rules` 是命令權限規則（Starlark），不是 Markdown 工作守則；Codex 入口 `AGENTS.md` 會直接指向本 repo 的 `rules/` 文件。
 
-請將下列設定合併進 `~/.codex/config.toml`。主對話 default 依 `rules/00-environment.md` 的已查證訂閱事實選一組，不要同時保留兩組：
+請將下列設定合併進 `~/.codex/config.toml`，作為一般 coding 的新 session 靜態預設：
 
 ```toml
-# Plus
-model = "gpt-5.6-sol"
-model_reasoning_effort = "medium"
-
-# Pro（升級方案後用這組取代上面兩行；同型號拉高 effort）
-# model = "gpt-5.6-sol"
-# model_reasoning_effort = "xhigh"
+model = "gpt-5.6-luna"
+model_reasoning_effort = "max"
 ```
+
+特定困難任務可在 UI 或 CLI 當次明確選擇 Terra／Sol 與相應 effort；這不代表要改掉一般預設。global instruction 無法在已啟動的主對話中自動切換主 agent，實際可控點是 delegated agent、direct CLI 與下一個 session。
 
 目前 Codex release 會自動從 `~/.codex/agents/*.toml` 探索 custom agents，所以上面的 symlink 是主要安裝路徑，不必預先替少數角色另寫 `[agents.<name>]`。若檔案已有 `[agents]`，只更新其中的並行設定，不可新增第二個 `[agents]` table；只有原本沒有時才新增整段。官方現行 key 是 `max_concurrent_threads_per_session`；`max_threads` 仍可讀取，但只是 legacy alias（見 [Codex subagents 設定](https://learn.chatgpt.com/docs/agent-configuration/subagents)）。
 
@@ -242,23 +239,23 @@ memories = true
 | `codex/agents/explorer.toml` | Codex Terra/medium/read-only 探索 agent |
 | `codex/agents/planner.toml` | Codex Terra/high/read-only 非平凡任務規劃 agent |
 | `codex/agents/worker.toml` | Codex 所有訂閱檔位的 Luna/max/workspace-write 標準實作 agent；需完整 approved plan |
-| `codex/agents/pro_worker.toml` | 相容性保留的 Terra/xhigh/workspace-write 實作 agent；只有使用者明確 override 時使用 |
-| `codex/agents/recovery_worker.toml` | Codex Terra/xhigh/workspace-write 標準實作者失敗或揭露高風險後的 recovery 實作 agent |
+| `codex/agents/pro_worker.toml` | Codex Terra/high/workspace-write higher-complexity 實作 agent；有 complexity signals 時可預先使用 |
+| `codex/agents/recovery_worker.toml` | Codex Terra/high/workspace-write Luna 能力／脈絡理解不足或兩次未明失敗後的 recovery agent |
 | `codex/agents/reviewer.toml` | Codex Terra/high/read-only 一般實作 review agent |
-| `codex/agents/escalation_planner.toml` | Codex Sol/xhigh/read-only root-cause 規劃升級 agent |
-| `codex/agents/escalation_worker.toml` | Codex Sol/xhigh/workspace-write recovery 仍失敗或確認需要 Sol 後的 root-cause 升級實作 agent |
+| `codex/agents/escalation_planner.toml` | Codex Sol/medium/read-only root-cause 規劃升級 agent |
+| `codex/agents/escalation_worker.toml` | Codex Sol/medium/workspace-write Terra 已確認能力不足後的 root-cause 升級實作 agent |
 | `codex/agents/verifier.toml` | Codex Terra/high/read-only 一般 fresh-context 驗收 agent |
 | `codex/agents/sol_verifier.toml` | Codex Sol/high/read-only 高風險 fresh-context 驗收 agent |
 | `codex/skills/session-handoff/SKILL.md` | Codex 收尾／交接 skill，產生專案 `.codex/HANDOFF.md` |
 | `skills/create-pr/SKILL.md` | Codex／Claude 共用的 Pull Request 建立 skill |
 
-`agents/*.md` 與 `codex/agents/*.toml` 是 standalone role 定義／設定；它們的正文只在該 named role 被派工時進入 subagent context（name／description 會出現在每 session 的可用 agent 清單裡）。named unavailable 時，generic adapter 仍須在 prompt 帶入 `30-delegation-templates-codex.md` 的完整 logical-role contract；`pro_worker` 明確重用 D 的 worker contract，只替換 Terra/xhigh mapping 與 explicit-override 門檻。TOML 安裝或角色名稱不能取代 runtime evidence。
+`agents/*.md` 與 `codex/agents/*.toml` 是 standalone role 定義／設定；它們的正文只在該 named role 被派工時進入 subagent context（name／description 會出現在每 session 的可用 agent 清單裡）。named unavailable 時，generic adapter 仍須在 prompt 帶入 `30-delegation-templates-codex.md` 的完整 logical-role contract；`pro_worker` 明確重用 D 的 worker contract，只替換 Terra/high mapping，並附 higher-complexity route 證據。TOML 安裝或角色名稱不能取代 runtime evidence。
 
 **為什麼 Claude 側沒有 `scanner`／`explorer`／`planner`／`worker` 的等價 custom agent**：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋，且本制度不把 haiku 列入 active routing。Claude 側自建 agent 只補一個缺口——**Agent 呼叫無法逐次指定 effort**，所以 recovery／escalation／驗收這些需要綁定 effort 與行為合約的角色才需要獨立定義檔。（原為 `rules/10-dispatch.md` §0 註，2026-08-05 移出常駐區。）
 
 **為什麼 Claude 側沒有派工模板檔、Codex 側有**：Claude 側的模板（原 `rules/30-delegation-templates.md`）在 2026-07-25 移除，內容併入 `rules/10-dispatch.md` §2 的派工合約與各 `agents/*.md` 的角色合約——填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `codex/rules/30-delegation-templates-codex.md`：它把 approved plan、寫入所有權、驗證命令與回報格式做成可核對欄位，避免 controller 只靠角色名稱推定 child 已取得完整脈絡。
 
-Codex 所有訂閱檔位的一般升級路徑都是 `planner/Terra high → controller 核定 approved plan → worker/Luna max → recovery_worker/Terra xhigh → escalation_worker/Sol xhigh`。`pro_worker/Terra xhigh` 只為相容性保留，需使用者本 session 明確 override 才能使用。`Sol max` 僅保留給 controller 在 `Sol xhigh` 仍無法收斂或明確遇到最困難單一路徑時使用，`Sol Ultra` 僅用於可獨立平行的大型工作流。
+Codex routing 依 complexity signals，而不是 task 名稱：simple／mechanical 用 Luna low／medium；normal development 用 `worker/Luna max`；higher complexity 可預先用 `planner`／`pro_worker` 的 Terra high，Luna 失敗後才由 `recovery_worker/Terra high` 接手；high-impact judgment 可直接用 `escalation_planner`／`escalation_worker` 的 Sol medium，其他路徑則等 Terra 已確認能力不足才升 Sol medium；exceptional difficulty 才用 Sol high。xhigh／max 沒有固定 route。失敗時先分 execution mistake、reasoning 不足、model／context 理解不足與 evidence／environment 不足，再決定補正、加 effort、升 tier 或補證據。
 
 Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata；named 可用時優先選 named，unavailable 時依 `codex/rules/10-dispatch-codex.md` §0 以實際 `agent_type=default` 套用 logical-role contract。這些值只進 adapter envelope：surface metadata 記「工具宣告值」，工具回傳或 child metadata 另有 runtime 值才升級為「runtime 已驗證」，沒有 metadata 就記「runtime 未驗證」。user-facing commentary 正常只報指定 role 名稱與任務摘要；generic／direct CLI fallback 必須標示，避免把 generic child 冒充 custom role。
 

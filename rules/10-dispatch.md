@@ -9,7 +9,7 @@
 
 agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用範圍受模型與組織設定限制（見 `../docs/harness-facts.md`）。
 
-**入口檔位依訂閱事實**（`00-environment.md`）：主對話預設 Opus，**subagent 不指定 `model` 時繼承主對話的模型**，所以本檔各表寫出的 model 欄是「顯式 routing」指示——掃描、總結、抓網頁與批次套用已驗證 pattern 寫明 `sonnet`（即使在 Max 也保留這條車道：opus 在這類任務的品質增益趨近零，且 opus 配額耗盡時的被動降級不挑任務），實作與規劃 Max 檔位預設 `opus`、Pro 檔位降回 `sonnet`，`fable` 只在明確高風險時指定；Haiku 不作為本制度的預設或 fallback。
+**入口檔位依訂閱事實**：使用者的 Claude Code 訂閱為 Max；主對話 effort 由 `~/.claude/settings.json` 的 `effortLevel: xhigh` 設定，model 由 UI 選擇（2026-07-25 核對；當次實際型號以主對話自報的 model ID 為準）。主對話預設 Opus，**subagent 不指定 `model` 時繼承主對話的模型**，所以本檔各表寫出的 model 欄是「顯式 routing」指示——掃描、總結、抓網頁與批次套用已驗證 pattern 寫明 `sonnet`（即使在 Max 也保留這條車道：opus 在這類任務的品質增益趨近零，且 opus 配額耗盡時的被動降級不挑任務），實作與規劃 Max 檔位預設 `opus`、Pro 檔位降回 `sonnet`，`fable` 只在明確高風險時指定；Haiku 不作為本制度的預設或 fallback。
 
 ### Active model routing
 

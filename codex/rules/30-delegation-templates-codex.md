@@ -11,7 +11,7 @@
 - prompt 開頭必須禁止遞迴 spawn：subagent 親自完成，不得再派 subagent。
 - 以下 A–L 每一個 code block 都是完整的 logical-role contract；實際派送時，先把一次性的 adapter envelope 貼在對應 code block 前。`logical role`、`actual agent_type`、model／effort、runtime evidence 與 permission contract 缺一不可；不因使用 generic `default` 而刪減 A–L 內容。
 - A–L 內「你是 `<role>`」是 logical role 標籤，不是 runtime 身份。child 的 `actual agent_type` 依 `10-dispatch-codex.md` §0 的 named-first → `default` fallback 決定；direct CLI review 填 `direct CLI process`，generic child 不得自稱 custom role。
-- `pro_worker` 沒有另一份重複模板：它重用 D 的 worker contract，把 logical role 改為 `pro_worker`，依 §0 改用 Terra/xhigh，並附使用者本 session 明確 override 標準 Luna route 的證據。
+- `pro_worker` 沒有另一份重複模板：它重用 D 的 worker contract，把 logical role 改為 `pro_worker`，依 §0 改用 Terra/high，並附觸發 higher-complexity route 的 signals 與證據；execution mistake 可補正一次，若 Terra 抓錯核心、遺漏跨模組關係或能力不足就立即停止並建議 Sol/medium，原因不明且兩次無進展也停止。
 
 ### Adapter envelope（A–L 共用前綴）
 
@@ -54,7 +54,7 @@ authorization boundary: 【controller 已授權的動作；對外或不可逆動
 目標：【要回答的 repo 內執行路徑、跨檔關係或影響範圍】。
 動機：【這份探索／研究結果將支援什麼決定】。
 範圍：【repo 內檔案／目錄的絕對路徑與明確界線】。
-限制：完全 read-only；禁止寫檔、git 修改與對外動作。遇到高風險判斷，或同一子任務失敗兩次，停止並回報 controller 可先 fresh rerun `planner/Terra xhigh`；仍無法形成可靠方案再升級 `escalation_planner/Sol xhigh`。
+限制：完全 read-only；禁止寫檔、git 修改與對外動作。高風險判斷交給 planner；已抓對問題但推理不足可提高 Terra effort fresh retry 一次，抓錯核心、遺漏跨模組關係或無法維持必要脈絡則直接回報升級 `escalation_planner/Sol medium`。
 方法：追查 repo 內執行路徑與跨檔關係；每個結論附檔案:行號；查不到標記「未查證」並列出查過的位置。
 驗收條件：每個子問題都有「答案＋來源」或「未查證＋查過哪裡」。
 回報格式：結論先行，最多 30 行並分級；長內容由父任務接手落檔，explorer 不落檔。
@@ -70,7 +70,7 @@ authorization boundary: 【controller 已授權的動作；對外或不可逆動
 範圍：【repo 與絕對路徑；包含與排除項】。
 限制：完全 read-only；不得寫檔、branch、stash、commit、push 或對外動作。只能辨識 scope clarification 問題，不代替 controller 和使用者做最後決策。
 方法：實查執行路徑與既有慣例，列出 affected files/modules、invariants、failure modes、rollback strategy、implementation phases、validation commands 與 completion criteria。
-驗收條件：每個規劃項目都有來源或明確假設；所有 phase 都有可執行的驗證命令與完成判準；若 Terra high 無法形成可靠 plan，先由 controller fresh rerun `planner/Terra xhigh`；仍失敗才回報升級 `escalation_planner/Sol xhigh`。
+驗收條件：每個規劃項目都有來源或明確假設；所有 phase 都有可執行的驗證命令與完成判準；若 Terra high 已抓對問題但推理不足，可提高 effort fresh retry 一次；若是能力／脈絡理解不足則回報升級 `escalation_planner/Sol medium`。
 回報格式：最多 30 行，結論先行，分級為已驗證／待 CI／未驗證；列出未決問題供 controller 釐清。
 ```
 
@@ -112,7 +112,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 目標：回答【外部官方文件、版本事實或來源查證的具體問題】。
 動機：【答案會用於什麼決定】。
 範圍：【外部官方文件與 URL；指定產品、版本及查證界線】。
-限制：read-only，不寫檔、不做對外動作；高風險判斷交回 controller；需要規劃升級時先使用 `planner/Terra xhigh`，仍無法形成可靠方案才使用 `escalation_planner/Sol xhigh`。
+限制：read-only，不寫檔、不做對外動作；高風險判斷交回 controller；需要規劃升級時，已抓對問題但推理不足可提高 Terra effort 一次，模型能力／脈絡理解不足則使用 `escalation_planner/Sol medium`。
 方法：每個結論附 URL 或 檔案:行號；查不到標「未查證」，不得以訓練記憶充當查證結果。
 驗收條件：每個子項都有「答案＋來源」或「未查證＋查過哪裡」。
 回報格式：最多 30 行、結論先行並分級；不落檔，長內容由父任務接手整理。
@@ -134,30 +134,31 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 回報格式：最多 30 行；逐條判定、附證據位置與最大未解風險，分級為已驗證／待 CI／未驗證。
 ```
 
-## H. 規劃升級（角色：escalation_planner；Sol/xhigh/read-only）
+## H. 規劃升級（角色：escalation_planner；Sol/medium/read-only）
 
 ```text
 你是 escalation_planner，親自完成本任務；禁止再 spawn subagent，也不得修改任何產物。
 
-目標：在 Terra planner／explorer 無法建立可靠方案後，重新建立【root cause、假設與可執行 plan】。
+目標：在 Terra 已確認模型能力或高 judgment 成為限制後，重新建立【root cause、假設與可執行 plan】。
 動機：【原始需求與為什麼需要升級規劃能力】。
 範圍：【repo 與絕對路徑；包含與排除項】。
 輸入證據：原始需求【】；目前 plan【】；相關 diff【】；完整探索／失敗輸出【】；已嘗試 hypotheses【】。
 限制：完全 read-only；不得寫檔、branch、stash、commit、push、對外動作或替 controller 做授權決策。先建立並回報 root cause、假設、affected files、invariants、failure modes、rollback strategy、implementation phases、validation commands 與 completion criteria。
-驗收條件：plan 可由 worker/Luna max 直接執行；每個關鍵判斷有來源或明確標示假設；Sol xhigh 仍無法形成可靠方案時停止並交回 controller，由 controller 顯式決定是否使用 Sol max。
+驗收條件：plan 可由適當 tier 的 worker 直接執行；每個關鍵判斷有來源或明確標示假設；Sol medium 仍顯示能力不足時停止並交回 controller，由 controller 顯式決定是否使用 Sol high。
 回報格式：最多 30 行；先列 root cause 與策略，再列 plan、證據、未決問題，分級為已驗證／待 CI／未驗證。
 ```
 
-## I. 升級實作（角色：escalation_worker；Sol/xhigh/workspace-write）
+## I. 升級實作（角色：escalation_worker；Sol/medium/workspace-write）
 
 ```text
 你是 escalation_worker，親自完成本任務；禁止再 spawn subagent。
 
-目標：在 approved plan 已存在，且標準實作者經 recovery_worker/Terra xhigh 仍失敗或 recovery_worker 確認需要 Sol 後，先建立【root cause】，再完成【授權範圍內的修正】。
+目標：在 approved plan 已存在，且 pro_worker／recovery_worker 已確認 Terra 能力不足後，先建立【root cause】，再完成【授權範圍內的修正】。
 動機：【原始需求與為什麼需要升級能力】。
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
-輸入證據：原始需求【】；approved plan【】；標準實作者與 recovery_worker 的相關 diff【】；對應門檻證據【經「recovery 再失敗兩次」入口：兩階段完整失敗輸出＋已嘗試 hypotheses；經「確認需要 Sol 能力」入口：recovery_worker 的 root cause 報告與判定理由】。
+輸入證據：原始需求【】；approved plan【】；Terra 實作者的相關 diff【】；Terra root cause 報告與能力不足判定【】；原因不明但達兩次無進展上限時，另附完整失敗輸出與已嘗試 hypotheses【】。
 限制：先分析並回報 root cause 與修正策略，再編輯；只修改【絕對路徑清單】。禁止 branch、stash、commit、push、對外動作與不可逆範圍擴張；若仍需要新的授權或不可逆決策，停止交回 controller。
+失敗處理：先分 execution mistake、reasoning 不足、model／context 理解不足與 evidence／environment 不足；execution mistake 可補正一次，原因不明且兩次無進展就停止。只有 Sol medium 的 capability／context 確認不足，或新證據顯示 exceptional high-risk，才交回 controller 決定是否升 Sol high。
 機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。
 回報格式：最多 30 行；先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目，分級為已驗證／待 CI／未驗證。
 ```
@@ -179,17 +180,17 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 回報格式：最多 30 行；第一行標 `CONVERGED`／`PROSE-ONLY`／`OPEN`，再列逐條判定、證據位置、缺口與風險，分級為已驗證／待 CI／未驗證。
 ```
 
-## K. Recovery 實作（角色：recovery_worker；Terra/xhigh/workspace-write）
+## K. Recovery 實作（角色：recovery_worker；Terra/high/workspace-write）
 
 ```text
 你是 recovery_worker，親自完成本任務；禁止再 spawn subagent。
 
-目標：在標準實作者 worker/Luna max 同一子任務失敗兩次，或實作揭露架構／安全／資料遺失風險後，先建立【root cause】，再完成【授權範圍內的修正】。
-動機：【原始需求與為什麼需要 Terra xhigh recovery】。
+目標：在 worker/Luna max 顯示模型能力／脈絡理解不足，或兩次未明失敗後，先建立【root cause】，再完成【授權範圍內的修正】。
+動機：【原始需求與為什麼需要 Terra high recovery】。
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
-輸入證據：原始需求【】；approved plan【】；標準實作者相關 diff【】；對應門檻證據【失敗入口：完整測試／錯誤輸出＋已嘗試 hypotheses；高風險入口：風險判定依據（發現了什麼、為何屬架構／安全／資料遺失風險）】。
+輸入證據：原始需求【】；approved plan【】；標準實作者相關 diff【】；對應門檻證據【能力／脈絡入口：抓錯核心或遺漏關係的證據；未明失敗入口：兩次完整測試／錯誤輸出＋已嘗試 hypotheses】。
 限制：先分析並回報 root cause 與修正策略，再編輯；只修改【絕對路徑清單】；遵循既有 invariants、rollback strategy 與 completion criteria。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；需要這些動作時交回 controller。
-機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。一般失敗可自行修復；同一子任務再失敗兩次，或先建立 root cause 並確認需要 Sol 能力時，停止並回報應升級 `escalation_worker/Sol xhigh`；新的架構／安全／資料遺失／不可逆決策只有在確認需要 Sol 能力後才符合此門檻。其他一般失敗或尚可形成可靠修正時，繼續依 approved plan 修復。
+機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。execution mistake 且修法明確時可補正一次；建立 root cause 後確認 Terra 能力不足，或原因不明且兩次無進展時，停止並回報應升級 `escalation_worker/Sol medium`。其他仍可可靠收斂的失敗繼續依 approved plan 修復。
 驗收條件：root cause 可由對應門檻證據支持；修正符合 approved plan；相關驗證通過或明確分級未驗證；不擴大寫入範圍。
 回報格式：最多 30 行；先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目，分級為已驗證／待 CI／未驗證。
 ```
@@ -211,4 +212,4 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 回報格式：最多 30 行；第一行標 `CONVERGED`／`PROSE-ONLY`／`OPEN`，再列逐條判定、證據、最大風險與分級為已驗證／待 CI／未驗證。
 ```
 
-一般文件與一般驗收使用 `verifier/Terra high`；只有安全、不可逆、重大架構或正式高風險驗收才使用 `sol_verifier/Sol high`。`Sol max` 不是固定模板路徑，只能由 controller 在 `Sol xhigh` 仍無法收斂時顯式決定。
+一般文件與一般驗收使用 `verifier/Terra high`；只有安全、不可逆、重大架構或正式高風險驗收才使用 `sol_verifier/Sol high`。Sol 實作／規劃升級先從 medium 開始；high 是 exceptional route，xhigh／max 只在 high 仍無法收斂且有證據時由 controller 顯式決定。
