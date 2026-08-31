@@ -48,6 +48,10 @@ symlink 的好處：session 依規則附加教訓、更新事實時直接改到 
 
 ⚠️ **`~/.claude/rules/` 是無條件常駐區**：Claude Code 會把該目錄下無 `paths` frontmatter 的 `*.md` 每 session 全文載入，付的是每個 session 的固定 context 成本。所以只有「每次開工都需要」的內容放 `rules/`；只在特定情境才用得到的長內容放 `skills/`（維護協議）、`rubrics/`（驗收判準）或 `docs/`（封存與情境化參考），這三個目錄不會自動載入。`~/.claude/rubrics` 雖然也是目錄 symlink，但 `rules/` 才是 Claude Code 的 memory 目錄，`rubrics/` 不會被自動載入。
 
+### Claude Code permissions 要和鐵律二對齊
+
+`CLAUDE.md` 是 advisory context，不是 permission gate。`~/.claude/settings.json` 的全域 allowlist 不要放 `Bash(git push:*)`、`Bash(gh pr:*)` 或 `Bash(gh api:*)` 這類同時涵蓋唯讀與對外寫入的 wildcard；否則 push、merge 或任意 GitHub API 寫入可能不會出現逐次權限確認。只預先允許可明確判定為唯讀的子命令，例如 `git status`／`git diff`／`git log` 與 `gh pr view`／`gh pr checks`／`gh pr diff`。需要零例外硬擋時使用 `PreToolUse` hook 驗證 Bash command；不要把「規則文字通常會被遵守」當成 deterministic enforcement（見 [Anthropic 的 steering 指南](https://claude.com/blog/steering-claude-code-skills-hooks-rules-subagents-and-more)）。本 repo 不管理 `settings.json`，新機器安裝後要另行 audit。
+
 ## 安裝（Windows／PowerShell）
 
 一次裝好 Claude Code 與 Codex 兩側。**前置條件：開啟 Developer Mode**（設定 → 系統 → 開發人員專用），否則建 symlink 需要 admin 權限。已開的話 `(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock').AllowDevelopmentWithoutDevLicense` 會回 1。實測 `FatJohn-PC` 上 Developer Mode 已開，非 admin 的 PowerShell 7 即可 `New-Item -ItemType SymbolicLink` 建立跨磁碟（C: → E:）的檔案與目錄連結。
@@ -168,29 +172,17 @@ model_reasoning_effort = "medium"
 # model_reasoning_effort = "xhigh"
 ```
 
-若檔案已有 `[agents]`，只更新其中的 `max_threads` 與 `max_depth`，不可新增第二個 `[agents]` table；只有原本沒有 `[agents]` 時才新增整段。下面三個 `[agents.<name>]` 也採相同合併規則：table 已存在就只核對或更新其中的 `description` 與 `config_file`，不存在才新增，不可重複宣告。Codex CLI 0.149.1 若未自動接受 `~/.codex/agents/*.toml` 角色，可用對應的 `[agents.<name>]` 與 `config_file` 作相容性註冊；這只是 standalone TOML／註冊層，不等於 runtime 已選中 named role。
+目前 Codex release 會自動從 `~/.codex/agents/*.toml` 探索 custom agents，所以上面的 symlink 是主要安裝路徑，不必預先替少數角色另寫 `[agents.<name>]`。若檔案已有 `[agents]`，只更新其中的並行設定，不可新增第二個 `[agents]` table；只有原本沒有時才新增整段。官方現行 key 是 `max_concurrent_threads_per_session`；`max_threads` 仍可讀取，但只是 legacy alias（見 [Codex subagents 設定](https://learn.chatgpt.com/docs/agent-configuration/subagents)）。
 
 Codex subagent 並行與遞迴上限建議固定：
 
     [agents]
-    max_threads = 4
+    max_concurrent_threads_per_session = 4
     max_depth = 1
 
-    [agents.reviewer]
-    description = "Terra high 唯讀 reviewer。用 fresh context 做一般實作的對抗式 read-back review。"
-    config_file = "agents/reviewer.toml"
+`max_depth = 1` 的用意是把 subagent 遞迴限制在一層；調高前需重新評估 token、延遲與 working-tree 風險。此 key 在 2026-08-31 以本機 Codex CLI 0.151.0 的 `--strict-config` 驗證可接受，但**本次沒有實跑 nested spawn 驗證其行為**，且目前公開 config reference 沒有列出，因此是本系統的實測相容設定，不是官方 canonical；新 CLI 若拒絕就移除，角色合約本身仍禁止 nested spawn。`codex exec --ephemeral --sandbox read-only` 是單體 fresh reviewer 的 direct CLI 路徑；它直接驗收，不在該 ephemeral process nested spawn。
 
-    [agents.verifier]
-    description = "Terra high fresh-context 一般驗收審查者。用於檔案產出的 read-back 驗證。"
-    config_file = "agents/verifier.toml"
-
-    [agents.sol_verifier]
-    description = "Sol high 高風險 fresh-context 驗收者。只處理安全、不可逆、重大架構與正式高風險驗收。"
-    config_file = "agents/sol_verifier.toml"
-
-`max_depth = 1` 禁止 subagent 再往下遞迴派工；調高前需重新評估 token、延遲與 working-tree 風險。`codex exec --ephemeral --sandbox read-only` 是單體 fresh reviewer 的 direct CLI 路徑；它直接驗收，不在該 ephemeral process nested spawn。
-
-合併後要在全新 CLI session 檢查當前 surface 實際提供的 named `agent_type`，並另以實際 `agent_type=default` 測試 adapter 需要的 model／effort mapping（例如 Luna/max、Terra/high、Sol/high）；不要求把三種 verifier 名稱當成可用入口。TOML parse 通過、檔案存在或 surface 顯示角色名稱都不等於 runtime 已接受該角色。若工具回覆 `agent type is currently not available`，依 `codex/rules/10-dispatch-codex.md` §0 的 named-first → `default` fallback 處理；generic child 不得冒充 custom role。
+合併後要在全新 CLI session 檢查當前 surface 實際提供的 named `agent_type`，並另以實際 `agent_type=default` 測試 adapter 需要的 model／effort mapping（例如 Luna/max、Terra/high、Sol/high）。TOML parse 通過、檔案存在或 surface 顯示角色名稱都不等於 runtime 已接受該角色。若工具回覆 `agent type is currently not available`，依 `codex/rules/10-dispatch-codex.md` §0 的 named-first → `default` fallback 處理；generic child 不得冒充 custom role。只有在 fresh session 實際未探索到某個 standalone role，且目標 CLI 仍支援 `config_file` 註冊時，才把該角色的 `description` 與 `config_file = "agents/<name>.toml"` 合併進 `[agents.<name>]` 作相容性註冊；不要只預先註冊 verifier 三角色而讓安裝狀態分成兩套。
 
 Codex 的三個層次要分開看：standalone `~/.codex/agents/*.toml` 只提供角色設定與註冊來源；named role runtime 只有在當前 surface 明確選中並取得證據時才算套用；named unavailable 時由 runtime adapter 選擇實際 `agent_type=default` 或 direct CLI，並加上 `codex/rules/30-delegation-templates-codex.md` 的 adapter envelope 與完整 logical-role contract，再明確傳入 mapping 的 model／effort。generic spawn 要 override model／effort 時，`fork_turns` 必須是 `none` 或正整數，不能用 full-history fork。permission 分成 logical contract 與 runtime evidence：寫入角色可在父 session 權限涵蓋 approved scope 時用 `default`；read-only 角色只有 runtime 已是 read-only 時可用 `default`，否則改走 `codex exec --sandbox read-only`。generic adapter 是可執行 fallback，不是 custom role；沒有 child metadata 就標記 runtime 未驗證。
 

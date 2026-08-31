@@ -129,7 +129,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 驗收條件（逐條判 PASS/FAIL/UNSURE）：
 1.【需求與 plan 是否落地】
 2.【測試／靜態檢查／實跑證據是否足夠】
-3.【是否有規則衝突、回歸、路徑錯誤或後續讀者誤讀風險】
+3.【是否有規則衝突、行為回歸、路徑錯誤或缺漏的測試】
 限制：遇到一般文件或一般驗收，停止並回報「升級 verifier/Terra high」；遇到安全、不可逆、重大架構／安全判斷或正式高風險驗收，停止並回報「升級 sol_verifier/Sol high」；不得自行修正。
 回報格式：最多 30 行；逐條判定、附證據位置與最大未解風險，分級為已驗證／待 CI／未驗證。
 ```
@@ -170,12 +170,13 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 目標：【要驗證什麼決策或完成宣稱】。
 動機：【為何需要 fresh-context 驗收】。
 產物：【絕對路徑清單或可 read-back 的實際輸出】。
-驗收條件（逐條判 PASS/FAIL）：
+驗收條件（逐條判 PASS/FAIL/UNSURE）：
 1.【可機械判定條件一】
 2.【條件二】
 3.【條件三】
 額外脈絡：【原始需求、風險、禁止修改範圍、已知驗證證據】。
-回報格式：最多 30 行；逐條 PASS/FAIL、證據位置、缺口與風險，分級為已驗證／待 CI／未驗證。
+找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/rules/20-judgment.md` §2「停止端」。純措辭、語氣與行文品味不算缺陷。
+回報格式：最多 30 行；第一行標 `CONVERGED`／`PROSE-ONLY`／`OPEN`，再列逐條判定、證據位置、缺口與風險，分級為已驗證／待 CI／未驗證。
 ```
 
 ## K. Recovery 實作（角色：recovery_worker；Terra/xhigh/workspace-write）
@@ -204,9 +205,10 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 驗收條件（逐條判 PASS/FAIL/UNSURE）：
 1.【需求、approved plan 與高風險邊界是否落地】
 2.【invariants、failure modes、rollback strategy 與驗證證據是否完整】
-3.【是否存在安全漏洞、不可逆副作用、重大架構假設或後續讀者誤讀風險】
+3.【是否存在安全漏洞、不可逆副作用、重大架構假設，或會讓讀者採取錯誤高風險行動的語意缺陷】
 限制：完全 read-only；禁止寫檔、branch、stash、commit、push、發訊息、寄信、merge、發佈或其他對外動作。若證據不足標 UNSURE，不替製作者腦補；每個 FAIL 附 `檔案:行號` 與一行理由。
-回報格式：最多 30 行；逐條判定、證據、最大風險與分級為已驗證／待 CI／未驗證。
+找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/rules/20-judgment.md` §2「停止端」。純措辭、語氣與行文品味不算缺陷。
+回報格式：最多 30 行；第一行標 `CONVERGED`／`PROSE-ONLY`／`OPEN`，再列逐條判定、證據、最大風險與分級為已驗證／待 CI／未驗證。
 ```
 
 一般文件與一般驗收使用 `verifier/Terra high`；只有安全、不可逆、重大架構或正式高風險驗收才使用 `sol_verifier/Sol high`。`Sol max` 不是固定模板路徑，只能由 controller 在 `Sol xhigh` 仍無法收斂時顯式決定。

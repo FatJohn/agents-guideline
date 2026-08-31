@@ -57,16 +57,22 @@ canonical 在 `debug-environment-first` skill**，新增的語言寫進那份、
 ✅ **正例**：第一輪五個發現修完後只驗 delta，第二輪抓到修的過程中新造的致命 bug。
 ❌ **反例**：「這五處都照它說的改了，原本那輪已經驗過。」
 
-**停止端（與上一條配套，缺了它會無限遞迴）**：驗收的對象是程式碼、測試與設定。**一輪的發現
-若沒有一則觸及可執行的東西**，就修完、把剩餘登記下來，**不再派下一輪**——散文修正不會讓任何
-閘門變紅，所以下一輪必然還找得到措辭問題，那個迴圈沒有終點。引用真實性（路徑、指令、章節、
-引語是否存在）是可機械查的事實，修完自己 read-back 驗，同樣不另開一輪。**發現曾觸及程式碼的
-輪次不適用**——那代表產出本身還在動，照上一條重驗 delta。verifier 端見
-`~/.claude/agents/verifier.md`：「找碴範圍」從源頭排除措辭品味，回報第一行標
-`CONVERGED`／`PROSE-ONLY`／`OPEN`，前兩者就停。
+**停止端（與上一條配套，缺了它會無限遞迴）**：先分辨發現是否觸及**行為承載產物**。除了程式碼、
+測試斷言、設定與指令，會直接改變 agent／人員採取什麼行動的 control-plane instructions 也算——例如
+`CLAUDE.md`／`AGENTS.md`、rules、agent 定義、skills、rubrics、hooks、permissions，以及會改變授權或
+不可逆決策的高風險文件。檔案是 Markdown 不代表它只是散文；反過來，上述檔案的排版、語氣與不改變
+行為的措辭仍是散文。**一輪只要有一則發現觸及行為承載產物**，修正後就照上一條 fresh-context
+重驗 delta；若全部只剩**不觸及行為承載產物**的措辭品味或引用真實性，修完、read-back 引用、登記
+剩餘後停止，不再派下一輪。錯誤路徑或指令若會改變 agent／人員行動，仍屬行為承載產物，不因問題
+表面上是「引用真實性」就降成散文。
 
-✅ **正例**：第 2 輪的發現全在註解措辭，修完、登記剩餘兩處、停止。
-❌ **反例**：第 10 輪只改了 PR 描述的一句計數，仍再派一輪驗收。
+verifier 回報第一行統一標：無 FAIL＝`CONVERGED`；FAIL 全部不觸及行為承載產物＝`PROSE-ONLY`；
+至少一則觸及行為承載產物＝`OPEN`。controller 收到 `CONVERGED` 或 `PROSE-ONLY` 就停；收到 `OPEN`
+才重驗 delta。平台合約見 Claude：`~/.claude/agents/verifier.md`；Codex：
+`../codex/agents/verifier.toml`／`../codex/agents/sol_verifier.toml`。
+
+✅ **正例**：第 2 輪只修 PR 描述的數字與引用，controller read-back 後停止；若修的是 agent 授權條件，標 `OPEN` 並重驗 delta。
+❌ **反例**：只因 `agents/verifier.md` 是 Markdown，就把會改變驗收行為的修正標成 `PROSE-ONLY`。
 
 **補充判準（把可證偽宣稱寫下來之前）**：數字（PR、判準、告警門檻）、封閉量詞（「只有 N 個」
 「都沒有」「全部」「不可行」）與**行為宣稱**（「這條路徑會產生 X」「切換之後會變成 Y」）都是

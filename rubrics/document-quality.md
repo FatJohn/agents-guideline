@@ -1,7 +1,7 @@
 # Rubric — 文件品質
 
-> 用途：`verifier` 驗收文件類產出時的預設判準（高風險驗收是同一個角色指定 `model: fable`）；派工者寫驗收條件時可直接引用本檔路徑，不必重抄。
-> **本檔是清單不是擴權**：套用時受 `~/.claude/agents/verifier.md`「找碴範圍」約束——散文只有在讓讀者無法行動時才算缺陷。
+> 用途：Claude／Codex 的 `verifier` 驗收文件類產出時共用的預設判準；派工者寫驗收條件時可直接引用本檔路徑，不必重抄。本檔不指定平台角色、model 或 effort。
+> **本檔是清單不是擴權**：找碴範圍與收斂標記受平台 verifier 合約約束（Claude：`<REPO>/agents/verifier.md`；Codex：`<REPO>/codex/agents/verifier.toml`／`<REPO>/codex/agents/sol_verifier.toml`）；行為承載產物與散文的分類 canonical 在 `<REPO>/rules/20-judgment.md` §2「停止端」。
 > 判定方式：逐條 PASS／FAIL／UNSURE，每個 FAIL 附 `檔案:行號`。
 
 ## 1. 讀者能不能行動（三個必答題）
@@ -14,7 +14,7 @@
 
 ## 2. 路徑與指令真實性
 
-- 文件內出現的每個檔案路徑、目錄、指令、工具名、agent 名，用 `ls`／`command -v`／`rg` **實查**，不憑閱讀判斷。
+- 文件內出現的每個檔案路徑、目錄、指令、工具名、agent 名，用所在平台可用的等價工具**實查**，不憑閱讀判斷；例如 POSIX 用 `ls`／`command -v`／`rg`，PowerShell 用 `Test-Path`／`Get-Command`／`Select-String`。
 - 指向其他文件的章節引用（§N、小節標題）必須實際存在於該檔。
 - 文件會過時，repo 不會——衝突時以 repo 現況為準，並把差異列為 FAIL。
 - **「有機制擋著」的宣稱要查三件事才准寫**：rule/gate 的 severity、閾值的實際數字、跑它的 script 有沒有讓 warning 變成失敗。
