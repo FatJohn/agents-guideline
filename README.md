@@ -260,7 +260,7 @@ memories = true
 
 Codex 所有訂閱檔位的一般升級路徑都是 `planner/Terra high → controller 核定 approved plan → worker/Luna max → recovery_worker/Terra xhigh → escalation_worker/Sol xhigh`。`pro_worker/Terra xhigh` 只為相容性保留，需使用者本 session 明確 override 才能使用。`Sol max` 僅保留給 controller 在 `Sol xhigh` 仍無法收斂或明確遇到最困難單一路徑時使用，`Sol Ultra` 僅用於可獨立平行的大型工作流。
 
-Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata；named 可用時優先選 named，unavailable 時依 `codex/rules/10-dispatch-codex.md` §0 以實際 `agent_type=default` 套用 logical-role contract。這些值只能揭露為「工具宣告值」；若工具回傳或 child metadata 另有 runtime 值，再升級為「runtime 已驗證」。沒有 metadata 就標「runtime 未驗證」，不得把 generic child 稱為 custom role。
+Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata；named 可用時優先選 named，unavailable 時依 `codex/rules/10-dispatch-codex.md` §0 以實際 `agent_type=default` 套用 logical-role contract。這些值只進 adapter envelope：surface metadata 記「工具宣告值」，工具回傳或 child metadata 另有 runtime 值才升級為「runtime 已驗證」，沒有 metadata 就記「runtime 未驗證」。user-facing commentary 正常只報指定 role 名稱與任務摘要；generic／direct CLI fallback 必須標示，避免把 generic child 冒充 custom role。
 
 ## 三條鐵律
 

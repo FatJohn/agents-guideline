@@ -76,11 +76,11 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 ## 3. 回報合約
 
-**派工揭露（controller → 使用者，每次派 subagent 都要）**：派工當下講明**派了誰**（agent 名稱即可，例如「派 Explore 掃 repo」）。目的是讓使用者看得出派工規則有沒有被遵守，不是建稽核鏈——model／effort 與制度出處使用者問了才報；報制度出處要指得出是 §1、§5 或 `20-judgment.md` §1 的哪一條，「範圍明確」這類自由心證不算。主對話自己做時，只有在**符合 §1 任一派工條件卻仍不派**時才要交代；例行讀檔、跑指令、對話不必。
+**派工揭露（controller → 使用者，每次派 subagent 都要）**：派工當下只講明**指定的 agent 名稱與任務摘要**（例如「派 Explore 掃 repo」）。正常 named path 不例行回報 model／effort／permission／制度出處；實際派送若不是指定名稱的 named role，就在名稱後標 `fallback` 並簡述差異；建立失敗則回報「`<agent>` 未建立」與 runtime 原因。model／effort 與制度出處只有使用者詢問、runtime 不一致、unsupported／unavailable 或正式稽核時才展開；報制度出處要指得出是 §1、§5 或 `20-judgment.md` §1 的哪一條，「範圍明確」這類自由心證不算。主對話自己做時，只有在**符合 §1 任一派工條件卻仍不派**時才要交代；例行讀檔、跑指令、對話不必。
 
-被問到 model／effort 時報**呼叫時指定的參數**，並註明 runtime 未驗證，不要改口說已驗證。為什麼不稽核 runtime model、各類角色的 effort 各自怎麼標，見 `../docs/harness-facts.md`「被問到 model／effort 時怎麼答」（2026-08-30 搬出）。
+使用者詢問、runtime 不一致、unsupported／unavailable 或正式稽核時，model／effort 報**呼叫時指定的參數**，並註明 runtime 未驗證，不要改口說已驗證。為什麼不稽核 runtime model、各類角色的 effort 各自怎麼標，見 `../docs/harness-facts.md`「被問到 model／effort 時怎麼答」（2026-08-30 搬出）。
 
-Codex 端 `../codex/rules/10-dispatch-codex.md` §3 要求的是四項揭露＋證據層級，**兩邊詳略不同是刻意分版、不是漂移**：Codex surface 拿得到 runtime model 的 read-back，Claude 的 Agent 工具沒有。不要修齊。
+Codex 端 `../codex/rules/10-dispatch-codex.md` §3 使用同一套 user-facing 揭露：正常只報指定 role 名稱與任務摘要，fallback 才標差異。兩端的 runtime 證據能力仍不同：Codex 把詳細 metadata 留在內部 adapter envelope，Claude 則依 `../docs/harness-facts.md` 記錄呼叫參數；這些差異不展開成每次 commentary。
 
 **Subagent 回報：**
 

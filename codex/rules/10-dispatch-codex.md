@@ -24,7 +24,7 @@
 
 **別名對應的實際型號與訂閱檔位預設**（2026-08-22 從 `<REPO>/rules/00-environment.md` 搬來——上表通篇只用 Luna／Terra／Sol，在此之前沒有任何一處寫出它們對應哪個 model id）：Luna＝`gpt-5.6-luna`、Terra＝`gpt-5.6-terra`、Sol＝`gpt-5.6-sol`。Codex 目前為 Plus，制度建議的主對話預設是 `gpt-5.6-sol`／effort `medium`（2026-08-06 依 Codex 官方 Power 預設更新）；各機器或當次 session 可明確 override，機器現況記在 `<REPO>/rules/05-hosts.md`。若升級 Pro，制度預設改為 `gpt-5.6-sol`／effort `xhigh`（同型號拉高 effort，不是換型號）。不論訂閱檔位，標準實作入口一律使用 `worker/gpt-5.6-luna/max`；Pro 額度優先用在主對話、規劃、review 與失敗後的 recovery，不自動提高標準實作者 model tier（2026-08-19 使用者裁決）。Codex 5.6 世代由弱到強為 `gpt-5.6-luna`／`terra`／`sol`（2026-08-05 三檔實測皆可用；`~/.codex/models_cache.json` 會過期，判斷可用型號要現打不要讀 cache）。
 
-角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。安裝 `~/.codex/agents/*.toml` 與 runtime 選中角色是兩件事：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata。可選中時，把 surface metadata 當作「工具宣告值」揭露；若回傳或 child metadata 另有實際 runtime model／effort，再一併 read-back。surface 沒有角色選擇入口、role 不符或 runtime 證據與宣告不一致時，不得假裝 custom role 已套用；依下方 adapter 改用 `default`，或標記「模型／effort 未驗證」後停止該 routing。
+角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。安裝 `~/.codex/agents/*.toml` 與 runtime 選中角色是兩件事：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata。可選中時，把 surface metadata 當作「工具宣告值」記進 adapter envelope；若回傳或 child metadata 另有實際 runtime model／effort，再一併 read-back。surface 沒有角色選擇入口、role 不符或 runtime 證據與宣告不一致時，不得假裝 custom role 已套用；依下方 adapter 改用 `default`，或標記「模型／effort 未驗證」後停止該 routing。
 
 ### Runtime adapter（所有 A–L logical role 共用）
 
@@ -94,11 +94,11 @@ codex exec --ephemeral --strict-config --sandbox read-only \
 
 ## 3. 派工三件套
 
-**派工揭露（controller → 使用者，每次派 subagent 都要）**：在呼叫工具前，用 commentary 講明 **logical role／actual `agent_type`／model／effort／permission／依據**。model、effort、actual agent type 與 permission 必須標示證據層級：當前 `spawn_agent` surface 固定角色 metadata 寫「工具宣告值」；工具回傳或 child metadata 能 read-back 的實際 runtime 值寫「runtime 已驗證」；取不到則明寫「runtime 未驗證」，不得把 TOML 設定或角色名稱冒充實際執行證據。派工結果若與事前揭露不一致，立即指出差異與處置。
+**派工揭露（controller → 使用者，每次派 subagent 都要）**：在呼叫工具前，commentary 只報**指定的 logical role 名稱與任務摘要**，例如「派 `scanner` 掃描設定」。正常 named path 不例行回報 actual `agent_type`、model、effort、permission 或制度依據。named unavailable 而改走 `default` 時標成「`<logical role>`（generic fallback）」；direct CLI path 標成「`<logical role>`（direct CLI fallback）」；建立失敗則回報「`<logical role>` 未建立」與 runtime 原因。使用者詢問、runtime 不一致、unsupported／unavailable 或正式稽核時，才展開 adapter envelope 內的 actual `agent_type`、model／effort、permission 與證據層級。不得把 TOML、角色名稱或 generic child 冒充 custom runtime 身份。
 
-主對話自己做時，只有在符合 §1 任一派工條件卻仍不派時才要交代；例行讀檔、跑指令與對話不必。這段揭露是給使用者看的稽核鏈，不放進 subagent prompt 取代下面三件套。
+主對話自己做時，只有在符合 §1 任一派工條件卻仍不派時才要交代；例行讀檔、跑指令與對話不必。這段簡短揭露是給使用者看的派工狀態，不放進 subagent prompt 取代下面三件套；詳細稽核資料留在 adapter envelope。
 
-Claude 端 `<REPO>/rules/10-dispatch.md` §3 只要求揭露「派了誰」，**兩邊詳略不同是刻意分版、不是漂移**：Claude 的 Agent 工具沒有 runtime model 的 read-back 管道，四項揭露在那個 surface 兌現不了。不要修齊。
+Claude 端 `<REPO>/rules/10-dispatch.md` §3 使用同一套 user-facing 揭露：正常只報指定 role 名稱與任務摘要，fallback 才標差異。Codex 額外取得的 runtime metadata 留在 adapter envelope，不轉成每次 commentary；這是內部證據能力差異，不是使用者介面差異。
 
 每個 subagent prompt 必含三段，缺一段就是不合格派工（模板見 `30-delegation-templates-codex.md`）：
 

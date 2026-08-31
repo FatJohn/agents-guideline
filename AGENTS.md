@@ -40,7 +40,7 @@
 ## Codex 專用注意
 
 - Codex 的 `~/.codex/rules/*.rules` 是**命令權限規則**，不是本 repo 的 Markdown 工作守則；不要把本 repo 的 `rules/*.md` symlink 到 `~/.codex/rules/`。
-- 每次派 subagent 前，必讀 `<REPO>/codex/rules/10-dispatch-codex.md`；呼叫工具前先在 commentary 揭露 logical role／actual `agent_type`／model／effort／permission／制度依據，並標示是工具宣告值、runtime 已驗證或 runtime 未驗證。取不到 runtime 證據時不得以 TOML 設定冒充；named unavailable 時按 adapter 改用 `default`，不得把 generic child 稱為 custom role。
+- 每次派 subagent 前，必讀 `<REPO>/codex/rules/10-dispatch-codex.md`；呼叫工具前在 commentary 只報指定的 logical role 名稱與任務摘要。正常 named path 不例行回報 model／effort／permission／制度依據；named unavailable 而改用 `default` 或 direct CLI 時，在 role 名稱後標 `generic fallback`／`direct CLI fallback` 並簡述差異。完整 runtime 證據仍記在 adapter envelope，只有使用者詢問、runtime 不一致、unsupported／unavailable 或正式稽核時才展開；不得把 generic child 稱為 custom role。
 - 本檔是使用者給 Codex 的全域 standing instruction：多步驟任務可依 `<REPO>/codex/rules/10-dispatch-codex.md` 使用 subagent；若當前 surface 沒有 subagent 工具，就在主對話內完成並明說限制。
 - Codex Memories 已作為精選長期記憶層；規則與可 review 的狀態仍寫進 repo 文件，session 收尾用 `session-handoff` skill。
 - Subagent 預設繼承父 session 的 sandbox 與 approval 狀態；涉及外部網路、寫入受限路徑、對外動作時仍要遵守本 session 權限邊界。
