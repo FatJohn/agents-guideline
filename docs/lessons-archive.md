@@ -12,6 +12,7 @@
 > - `rules/00-environment.md` §查證過的事實 → `docs/harness-facts.md`（2026-08-22 瘦身移出常駐區）
 > - `rules/10-dispatch.md` §4「升降級路徑」→ `docs/escalation-paths.md`（2026-08-23 瘦身移出常駐區；§4 編號保留，只剩指向）
 > - **`rules/20-judgment.md` §6「除錯前先驗證環境」整節 → `skills/debug-environment-first/SKILL.md`（2026-08-05 瘦身移出常駐區）**。下方多條寫「已套用到：20-judgment.md §6」的條目，判準現在在那個 skill 裡，20-judgment §6 只剩一行指向。
+> - （2026-09-02 再降級：`skills/debug-environment-first/SKILL.md` → `docs/debug-environment-first.md`，理由見該檔檔頭；下方條目原文保留當時路徑。）
 
 - [2026-07-06][global] 盤點發現持久記憶目錄全空，過去所有 session 學到的東西都蒸發了 → 每 session 結束前自查該寫的記憶，這比當日任何單一任務都值錢 → 已套用到：40-maintenance.md §4
 - [2026-07-06][global] Agent 工具呼叫無法指定 effort；effort 只能設在 agent 定義的 frontmatter → 需要特定 effort 的角色先建 `~/.claude/agents/` 定義 → 已套用到：00-environment.md、agents/verifier.md

@@ -46,7 +46,7 @@
 **補充判準（驗證要驗到被嵌的那一層）**：設定檔內嵌別的語言時——GitHub Actions 的 `run:`、
 Dockerfile 的 `RUN`、YAML 裡的 jq 或 SQL——**上層格式 parse 通過不算驗過那一層**。要跑被嵌
 那層自己的檢查；跑不了的就明說那一層未驗，不要含混帶過。**哪個語言跑什麼檢查、哪些跑不了，
-canonical 在 `debug-environment-first` skill**，新增的語言寫進那份、不要兩邊各記一份。
+canonical 在 `<REPO>/docs/debug-environment-first.md`**，新增的語言寫進那份、不要兩邊各記一份。
 
 ✅ **正例**：改完 workflow 的 shell，把每個 `run:` 抽出來跑 `bash -n`，抓到未收尾的引號。
 ❌ **反例**：YAML parse 過、CI 也綠，而那一步每天 cron 都是 bash syntax error。
@@ -81,7 +81,7 @@ verifier 回報第一行統一標：無 FAIL＝`CONVERGED`；FAIL 全部不觸�
 指令**——它撐得起「這一行存在」「這個函式叫了誰」，撐不起一條路徑的輸出；行為宣稱要跑過那條
 路徑。兩件事各問一次：這個量法會不會給出「跑完了、看起來合理、但是錯的」答案？這句話的射程
 有沒有超過我實際量過的範圍？撐不出來就改寫成開放式（「至少有」「已知的有」）。與「重構／搬移類」那條的分工：那條管改動有沒有殘留，這條管句子的射程。**陷阱清單的
-canonical 在 `debug-environment-first` skill**（其觸發條件已涵蓋「要報數字之前」）；這裡只留
+canonical 在 `<REPO>/docs/debug-environment-first.md`**（其觸發條件已涵蓋「要報數字之前」）；這裡只留
 判準，新增陷阱寫進那份。
 
 ✅ **正例**：要寫「這個閘門不可行」之前先打開開關實跑，發現再加一個選項就從 36 項降到 9 項，
@@ -102,7 +102,7 @@ validator，方向也錯。
 一行就漂掉了。git／gh／pnpm 一律**逐指令綁定**（`git -C <path>`、`gh -R <owner/repo>`、
 `pnpm -C <path>`）。理由不是省事：**打錯 repo 的輸出看起來完全正常**——另一個 repo 也在
 main、也乾淨、也有 HEAD，所以錯的 read-back 與對的長得一模一樣，而你會照它回報。旗標與
-read-back 指令的 canonical 在 `debug-environment-first` skill。
+read-back 指令的 canonical 在 `<REPO>/docs/debug-environment-first.md`。
 
 ✅ **正例**：`gh -R tvbstw/web-pulse-portal pr checks 386`——cwd 在哪都問對 repo。
 ❌ **反例**：批次第一行 `cd portal && gh pr checks 386`，第二行 `gh pr checks 165` 沒帶路徑，
@@ -156,7 +156,7 @@ read-back 指令的 canonical 在 `debug-environment-first` skill。
 
 ## 6. 除錯前先驗證環境
 
-遇到 HTTP 錯誤、port 異常、hook／lint 在多步編輯中途報錯、輸出與預期不符，或準備提出「程式碼有 bug」的假設之前 → 叫用 `debug-environment-first` skill（環境事實檢查清單＋量測方法自證的具體陷阱＋內嵌各語言各自要跑什麼語法檢查）。「壞了」與「我量錯了」長得一樣。
+遇到 HTTP 錯誤、port 異常、hook／lint 在多步編輯中途報錯、輸出與預期不符，或準備提出「程式碼有 bug」的假設之前 → 讀 `<REPO>/docs/debug-environment-first.md`（環境事實檢查清單＋量測方法自證的具體陷阱＋內嵌各語言各自要跑什麼語法檢查）。「壞了」與「我量錯了」長得一樣。
 
 ## 7. commit message 的固定格式
 

@@ -22,8 +22,7 @@ for pair in \
   "rules:$HOME/.claude/rules" \
   "rubrics:$HOME/.claude/rubrics" \
   "skills/maintain-guideline:$HOME/.claude/skills/maintain-guideline" \
-  "skills/create-pr:$HOME/.claude/skills/create-pr" \
-  "skills/debug-environment-first:$HOME/.claude/skills/debug-environment-first"; do
+  "skills/create-pr:$HOME/.claude/skills/create-pr"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -87,7 +86,6 @@ Link-One "$REPO\rules"                     "$HOME\.claude\rules"
 Link-One "$REPO\rubrics"                   "$HOME\.claude\rubrics"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.claude\skills\maintain-guideline"
 Link-One "$REPO\skills\create-pr"                "$HOME\.claude\skills\create-pr"
-Link-One "$REPO\skills\debug-environment-first"  "$HOME\.claude\skills\debug-environment-first"
 foreach ($a in 'verifier') {
   Link-One "$REPO\agents\$a.md" "$HOME\.claude\agents\$a.md"
 }
@@ -101,7 +99,6 @@ foreach ($a in 'scanner','explorer','planner','worker','pro_worker','recovery_wo
 Link-One "$REPO\codex\skills\session-handoff"    "$HOME\.agents\skills\session-handoff"
 Link-One "$REPO\skills\create-pr"                "$HOME\.agents\skills\create-pr"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.agents\skills\maintain-guideline"
-Link-One "$REPO\skills\debug-environment-first"  "$HOME\.agents\skills\debug-environment-first"
 ```
 
 指令可重跑：連結部分已存在就略過不覆蓋，備份部分已安裝過就整段跳過（見上方兩道保護）。read-back 驗證：
@@ -147,8 +144,7 @@ mkdir -p ~/.agents/skills
 for pair in \
   "codex/skills/session-handoff:session-handoff" \
   "skills/create-pr:create-pr" \
-  "skills/maintain-guideline:maintain-guideline" \
-  "skills/debug-environment-first:debug-environment-first"; do
+  "skills/maintain-guideline:maintain-guideline"; do
   src="$REPO/${pair%%:*}"; dst="$HOME/.agents/skills/${pair#*:}"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -190,7 +186,7 @@ Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用�
 memories = true
 ```
 
-本 repo 另外提供四個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議，`debug-environment-first` 負責除錯前確認環境事實與量測方法。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
+本 repo 另外提供三個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`（2026-09-02 降級，理由見該檔檔頭）。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
 
 ## 新機器建檔（5 分鐘探測清單）
 
@@ -224,7 +220,7 @@ memories = true
 | 檔案 | 用途 |
 |------|------|
 | `skills/maintain-guideline/SKILL.md` | 系統維護協議：權限分級、修改流程、教訓寫回、瘦身與日落條款、路由完整性（原 `rules/40-maintenance.md`） |
-| `skills/debug-environment-first/SKILL.md` | 除錯前的環境事實檢查清單＋量測方法自證陷阱（原 `rules/20-judgment.md` §6，2026-08-05 移出常駐區） |
+| `docs/debug-environment-first.md` | 除錯前的環境事實檢查清單＋量測方法自證陷阱（原 `rules/20-judgment.md` §6，2026-08-05 移出常駐區成 skill，2026-09-02 依使用率降為文件） |
 | `rubrics/document-quality.md` | 文件類產出的逐條驗收判準（verifier 讀） |
 | `rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描與作假偵測） |
 | `rubrics/research-analysis.md` | 研究／盤點類產出的逐條驗收判準 |
@@ -232,6 +228,7 @@ memories = true
 | `docs/skill-catalog.md` | 各類任務用哪個 skill／plugin，含 Figma 在 MCP 缺席時的 curl fallback（原 `rules/00-environment.md` §好用的 skill／plugin，2026-08-12 移出常駐區） |
 | `docs/harness-facts.md` | 查證過的 harness 事實（2026-08-22 從 00-environment 搬出，非常駐） |
 | `docs/memory-layers.md` | 記憶機制四層的分工與邊界（2026-08-22 從 00-environment 搬出，非常駐） |
+| `docs/archive/` | 無任何檔案引用的歷史文件（2026-07 的 Codex 分層路由 spec／plan、2026-08-29 的驗收輪次盤點）；只作事故考古用 |
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色 mapping、named-first → `default` runtime adapter、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份 logical-role 派工模板與共用 adapter envelope（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
 | `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high）。含「找碴範圍」與收斂標記；**高風險驗收用同一個角色、呼叫時指定 `model: fable`**，Claude 端不另設 agent 檔 |

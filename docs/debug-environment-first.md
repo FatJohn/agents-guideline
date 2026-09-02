@@ -1,7 +1,5 @@
----
-name: debug-environment-first
-description: 三個時機使用：除錯或量測結果看起來不對時；**報出任何量測數字或訂任何門檻之前**；**改完帶內嵌程式碼的設定檔之後**（GitHub Actions 的 run、Dockerfile、husky hook、YAML 裡的 jq）。具體訊號：HTTP 錯誤、port 相關異常、指令輸出與預期不符、測試結果可疑、準備提出「程式碼有 bug」的假設。內含環境事實檢查清單、量測方法自證的陷阱清單，以及內嵌各語言各自要跑什麼語法檢查。
----
+> 2026-09-02 從 `skills/debug-environment-first/SKILL.md` 降為文件：近 45 天以 Skill 工具叫用 1 次、直接 Read 約 50 次，它實際上被當參考文件用，skill 身分只多付每 session 的 description 注入。內容原文未改寫；下文提到「本 skill」「搬進 skills/」處為當時歷史。
+> 何時讀：除錯或量測結果看起來不對時；報出任何量測數字或訂任何門檻之前；改完帶內嵌程式碼的設定檔之後（GitHub Actions 的 `run:`、Dockerfile、husky hook、YAML 裡的 jq）。
 
 # 除錯前先驗證環境（訊號常在 shell，不在程式）
 

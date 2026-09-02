@@ -1,6 +1,6 @@
 # CLAUDE.md（全域）
 
-> 本檔以 symlink 安裝於 `~/.claude/CLAUDE.md`。來源 repo 的本機絕對路徑依機器而異，canonical 清單在 `rules/05-hosts.md`（每 session 常駐，已在 context）。
+> 本檔以 symlink 安裝於 `~/.claude/CLAUDE.md`。來源 repo 的本機絕對路徑依機器而異，canonical 清單在 `rules/05-hosts.md`（每 session 常駐，已在 context）；`rules/`、`rubrics/`、`skills/` 內寫的 `<REPO>` 就是指這個路徑（不確定就 `readlink ~/.claude/CLAUDE.md` 取目錄部分）。
 > 只放路由與鐵律；長內容放 `rules/`（其載入行為見下方「工作系統」）。
 
 ## 語言

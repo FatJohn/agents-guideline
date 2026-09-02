@@ -27,7 +27,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）。
 - 本系統自帶 1 個角色：`verifier`（驗收）。**行為合約與找碴範圍的 canonical 在 `~/.claude/agents/verifier.md`**，派工前讀該檔；高風險驗收用同一個角色、呼叫時指定 `model: fable`，不另設角色。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill，不是 subagent（`code-simplifier` plugin 2026-08-06 現查未安裝，寫成 `subagent_type` 會叫不出來）。
-- `codex:codex-rescue`——外部模型（GPT 系，使用者有 Codex 訂閱，不占 Claude 配額）。兩種用法：(a) 卡死或高風險判斷時的第二意見；(b) 把獨立性高的完整實作／診斷任務整包委派出去（需要換視角的診斷同樣走這條），與 Claude subagent 平行運作。
+- `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），第二意見或整包委派用。備用車道：2026-09-02 現查近 45 天派工 0 次，不再展開用法。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。**不是每個 session 都有**：2026-08-06 實測 `claude -p` 起的 session 清單裡沒有它（主對話清單裡有），機制未查明。派工前先確認當下清單真的有這個名字。
 
 ## 1. 雙軸判斷：context 成本 × 任務耦合
@@ -45,7 +45,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 | 實作一個功能 | general-purpose | opus（Max 檔位；Pro 檔位降回 sonnet） |
 | 設計實作方案 | Plan | opus／high |
 
-這張表只列日常派工。升級怎麼做見 §4，驗收要派給誰見 §5，整包委派給外部模型見 §0 的 `codex:codex-rescue`。
+這張表只列日常派工。升級怎麼做見 §4，驗收要派給誰見 §5。
 
 主對話**可以**自己做的：讀單一已知檔案的特定段落、改一兩個檔、跑一條指令、跟使用者對話、做決策。
 
@@ -76,11 +76,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 ## 3. 回報合約
 
-**派工揭露（controller → 使用者，每次派 subagent 都要）**：派工當下只講明**指定的 agent 名稱與任務摘要**（例如「派 Explore 掃 repo」）。正常 named path 不例行回報 model／effort／permission／制度出處；實際派送若不是指定名稱的 named role，就在名稱後標 `fallback` 並簡述差異；建立失敗則回報「`<agent>` 未建立」與 runtime 原因。model／effort 與制度出處只有使用者詢問、runtime 不一致、unsupported／unavailable 或正式稽核時才展開；報制度出處要指得出是 §1、§5 或 `20-judgment.md` §1 的哪一條，「範圍明確」這類自由心證不算。主對話自己做時，只有在**符合 §1 任一派工條件卻仍不派**時才要交代；例行讀檔、跑指令、對話不必。
-
-使用者詢問、runtime 不一致、unsupported／unavailable 或正式稽核時，model／effort 報**呼叫時指定的參數**，並註明 runtime 未驗證，不要改口說已驗證。為什麼不稽核 runtime model、各類角色的 effort 各自怎麼標，見 `../docs/harness-facts.md`「被問到 model／effort 時怎麼答」（2026-08-30 搬出）。
-
-Codex 端 `../codex/rules/10-dispatch-codex.md` §3 使用同一套 user-facing 揭露：正常只報指定 role 名稱與任務摘要，fallback 才標差異。兩端的 runtime 證據能力仍不同：Codex 把詳細 metadata 留在內部 adapter envelope，Claude 則依 `../docs/harness-facts.md` 記錄呼叫參數；這些差異不展開成每次 commentary。
+**派工揭露（controller → 使用者）**：派工當下只講**指定的 agent 名稱與任務摘要**（「派 Explore 掃 repo」）；實際派送不是指定的 named role 就在名稱後標 `fallback` 並簡述差異，建立失敗回報「`<agent>` 未建立」與 runtime 原因。model／effort 與制度出處平常不報，被問到、runtime 不一致、unsupported／unavailable 或稽核時才展開——怎麼答（報呼叫參數、註明 runtime 未驗證）見 `../docs/harness-facts.md`「被問到 model／effort 時怎麼答」；報制度出處要指得出是 §1、§5 或 `20-judgment.md` §1 的哪一條，「範圍明確」這類自由心證不算。主對話自己做時，只有**符合 §1 任一派工條件卻仍不派**才要交代。Codex 端 `../codex/rules/10-dispatch-codex.md` §3 用同一套揭露。
 
 **Subagent 回報：**
 

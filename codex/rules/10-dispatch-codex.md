@@ -126,7 +126,7 @@ Claude 端 `<REPO>/rules/10-dispatch.md` §3 使用同一套 user-facing 揭露�
 - **execution mistake**：syntax、漏改一處、指令拼錯或 fixture 小錯，且正確修法已明確 → 同 model 修正一次；若再失敗就重新分類，不把同一路線包裝成重試。
 - **insufficient reasoning**：root cause 與相關脈絡已抓對，但推理鏈、比較或驗證深度不足 → 同 tier 提高一級 effort、換 fresh context 重試一次；不得連續加 effort。
 - **insufficient model capability／context understanding**：抓錯問題核心、反覆遺漏跨模組關係、無法維持必要脈絡，或 architecture judgment 明顯不足 → 立即換 fresh context 並升一個 model tier，不必等第二次失敗。Luna 升 Terra/high；Terra 升 Sol/medium。
-- **insufficient evidence／environment understanding**：缺 repo 事實、log、重現步驟或環境量測錯誤 → 先補查證或依 `debug-environment-first` skill 校正量法；換更強模型不會補出不存在的證據。
+- **insufficient evidence／environment understanding**：缺 repo 事實、log、重現步驟或環境量測錯誤 → 先補查證或依 `<REPO>/docs/debug-environment-first.md` 校正量法；換更強模型不會補出不存在的證據。
 - 失敗原因仍不明時，同一子任務最多兩次未收斂嘗試；達上限就升 tier 或換方法。若每次錯誤都不同且驗收條件持續增加，視為正常收斂，不計作無效重試。
 - 開工前已有 higher-complexity signals，可直接使用 `pro_worker/Terra high`；Luna 失敗後若已符合 capability／context 訊號，使用 `recovery_worker/Terra high`。Terra 已確認自身能力不足時，升級 `escalation_worker/Sol medium`；Sol medium 仍顯示能力不足或高代價風險支持更深推理時，才由 controller 顯式改用 Sol high。
 - 風險與實作難度分開判斷：安全／資料遺失／不可逆風險會提高規劃與驗收強度，但不自動證明實作一定需要 Sol；先看 root cause 與 complexity signals。
