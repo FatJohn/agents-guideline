@@ -220,7 +220,7 @@ memories = true
 | 檔案 | 用途 |
 |------|------|
 | `skills/maintain-guideline/SKILL.md` | 系統維護協議：權限分級、修改流程、教訓寫回、瘦身與日落條款、路由完整性（原 `rules/40-maintenance.md`） |
-| `docs/debug-environment-first.md` | 除錯前的環境事實檢查清單＋量測方法自證陷阱（原 `rules/20-judgment.md` §6，2026-08-05 移出常駐區成 skill，2026-09-02 依使用率降為文件） |
+| `docs/debug-environment-first.md` | 除錯前的環境事實檢查清單＋量測方法自證陷阱；`rules/20-judgment.md` §5 只留判準與指向 |
 | `rubrics/document-quality.md` | 文件類產出的逐條驗收判準（verifier 讀） |
 | `rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描與作假偵測） |
 | `rubrics/research-analysis.md` | 研究／盤點類產出的逐條驗收判準 |
