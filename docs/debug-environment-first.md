@@ -93,6 +93,15 @@ jq 或 SQL——上層格式 parse 通過**不算**驗過被嵌的那一層。
 bash syntax error，六條告警全滅。macroeconomics-report 的 workflows bash 區塊已加常設守衛，
 缺口剩 Dockerfile／husky／jq 與其他 repo。
 
+## Bash 覆蓋沒有保護（Write 工具有）
+
+`cat > file`、`>` 重導向與整檔重寫都是覆蓋。Write 工具會擋「沒讀過就覆蓋」；**Bash 不會，
+目標存在與否不會有任何提示**，寫之前先 `test -e`／`ls` 確認目標不存在。事後靠 `git status`
+顯示 `M` 才發現，代表已經賭過一次。（2026-09-06 從 `<REPO>/rules/20-judgment.md` §2 日落搬入：
+harness 已內建「覆蓋或刪除前先看目標」，常駐區只剩這個 Bash 專屬缺口值得記。）
+
+失敗現場：`cat > x.test.ts` 蓋掉既有 9 條測試，總數從 131 變 133 讓它看起來像「多了兩條」。
+
 ## Windows 對照
 
 `lsof` 在 Windows 沒有；改用 `Get-NetTCPConnection -LocalPort <port> | Select-Object OwningProcess` 再 `Get-Process -Id`。shell quoting 的坑同樣存在，只是主角換成 PowerShell 的 backtick 逸出與 `@'...'@` here-string（見 `<REPO>/rules/05-hosts.md`）。

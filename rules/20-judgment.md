@@ -21,7 +21,10 @@
 ✅ **正例**：標準層第一次修正就誤判跨模組 root cause → 附上誤判證據，直接 fresh＋升高能力層。
 ❌ **反例**：輕量層核對機械清單時漏了一筆，補查即可 → 這是執行疏漏，不是能力不足。
 
-註：syntax、漏改、指令拼錯等 execution mistake，正確修法明確時可同層補正一次；缺 log、repo 事實或環境量測時先補證據，不靠升級模型猜。已在高能力層時，換 fresh context、取得第二意見或重新定義問題通常比只加 effort 有效。**本節的「升級」與 §4 的「換路」是同一個決策的兩面**；具體選項見 Claude：`10-dispatch.md` §4；Codex：`../codex/rules/10-dispatch-codex.md` §5「升降級路徑」。
+註：syntax、漏改、指令拼錯等 execution mistake，正確修法明確時可同層補正一次；缺 log、repo 事實或環境量測時先補證據，不靠升級模型猜。已在高能力層時，換 fresh context、取得第二意見或重新定義問題通常比只加 effort 有效。**換路的質性訊號**（修法越疊越多層 workaround、同一錯誤訊息在兩種不同修法後原樣出現、diff 越改越大但驗收達成數不增、想先關掉檢查「之後再回來」）任一成立就不再用同一套做法重試，門檻次數不用等滿；錯誤訊息每次不同且在收斂的不算。具體選項見 Claude：`10-dispatch.md` §4；Codex：`../codex/rules/10-dispatch-codex.md` §5「升降級路徑」。
+
+✅ **正例（換路）**：改了兩輪 config 都沒讓 build 過 → 停手，改派 fresh-context 探索者查「這個專案的 build 實際是怎麼跑的」，發現根本用錯了指令。
+❌ **反例（正常收斂）**：測試失敗但錯誤訊息每次都不同且在進步（先是 import 錯、修完變成斷言差一個欄位）→ 繼續。
 
 ## 2. 何時算真的完成
 
@@ -89,14 +92,6 @@ canonical 在 `<REPO>/docs/debug-environment-first.md`**（其觸發條件已涵
 ❌ **反例**：「刻意不一樣的只有兩處」——實際四處，而且引的行號指到回應 schema 去對輸入
 validator，方向也錯。
 
-**補充判準（覆蓋與刪除前先看目標）**：`cat > file`、`>` 重導向與整檔重寫都是**覆蓋**。
-兩條路分開處理：Write 工具會擋「沒讀過就覆蓋」，可以直接寫；**Bash 沒有這層保護，目標存在
-與否不會有任何提示**，寫之前一定要 `test -e`／`ls` 確認目標不存在。事後靠 `git status` 顯示
-`M` 才發現，代表你已經賭過一次。
-
-✅ **正例**：要新增測試檔前先 `ls` 該路徑，發現同名檔已有 9 條測試，改成附加。
-❌ **反例**：`cat > x.test.ts` 蓋掉既有測試，總數從 131 變 133 讓它看起來像「多了兩條」。
-
 **補充判準（指令要自己綁定目標，不要靠 cwd）**：巢狀 clone、workspace 底下的子 repo、多專案
 並存時，**cwd 不是可靠的定位方式**——它跨呼叫會漂，而 `cd X && a` 只綁住 `a`，同一批次的下
 一行就漂掉了。git／gh／pnpm 一律**逐指令綁定**（`git -C <path>`、`gh -R <owner/repo>`、
@@ -123,25 +118,7 @@ read-back 指令的 canonical 在 `<REPO>/docs/debug-environment-first.md`。
 ✅ **正例**：兩份同名 SKILL.md `diff -q` 顯示 differ → 先讀內容，發現一份是刻意為 Codex 寫的精簡版，根本不必問。
 ❌ **反例**：`diff -q` 一 differ 就當成漂移事故去問使用者，動手時才發現前提錯了。
 
-**註（授權的時效範圍）**：鐵律二的「本 session 明確授權」是**逐次、逐對象**的——「這個 PR 綠了就 merge」只授權當次提到的那一個 PR，不得解讀為之後所有 PR 的常設政策；下一個對外或不可逆動作仍須重新確認。
-
-✅ **正例**：使用者說「#82 綠了就 merge」→ merge #82；稍後 #83 也綠了 → 停下來重新確認。
-❌ **反例**：把某次「merge on green」當成這個 repo 的常設規則，之後的 PR 綠了就自動 merge。
-
-## 4. 什麼訊號代表方向錯了（該換路，不是重試）
-
-與 §1 同一個決策的另一面：§1 給的是次數門檻，本節給的是質性訊號，任一成立都不該再用同一套做法重試。
-
-**判準**：出現任一訊號，停止當前路線，回頭重新定義問題：
-- 修法越疊越多層 workaround（為了讓上一個 fix 不炸而加下一個 fix）。
-- 同樣的錯誤訊息在兩次「不同的修法」後原樣出現。
-- diff 越改越大，但驗收條件的達成數沒有增加。
-- 你開始想「先把檢查關掉/跳過這個測試，之後再回來」。
-
-✅ **正例**：改了兩輪 config 都沒讓 build 過 → 停手，改由 fresh-context 探索者查「這個專案的 build 實際是怎麼跑的」，發現根本用錯了指令。
-❌ **反例**：測試失敗但錯誤訊息每次都不同且在進步（先是 import 錯、修完變成斷言差一個欄位）→ 這是正常收斂，繼續。
-
-## 5. 品質底線怎麼驗
+## 4. 品質底線怎麼驗
 
 逐條判準寫在 rubric 檔裡（不常駐，要用時再讀；派工驗收時直接把路徑給 verifier）：
 
@@ -154,11 +131,11 @@ read-back 指令的 canonical 在 `<REPO>/docs/debug-environment-first.md`。
 ✅ **正例**：驗收時 verifier 回報「§3 的『上面提到的門檻』找不到指的是哪個數字」→ 修掉指代後才算過。
 ❌ **反例**：「文件寫完了，內容我都檢查過一遍」——自己檢查自己，且沒有可核對的驗收輸出。
 
-## 6. 除錯前先驗證環境
+## 5. 除錯前先驗證環境
 
 遇到 HTTP 錯誤、port 異常、hook／lint 在多步編輯中途報錯、輸出與預期不符，或準備提出「程式碼有 bug」的假設之前 → 讀 `<REPO>/docs/debug-environment-first.md`（環境事實檢查清單＋量測方法自證的具體陷阱＋內嵌各語言各自要跑什麼語法檢查）。「壞了」與「我量錯了」長得一樣。
 
-## 7. commit message 的固定格式
+## 6. commit message 的固定格式
 
 **判準**：commit message（subject 與 body）全英文，subject 符合 Conventional Commits——`type: 小寫祈使句`，scope 可省略（`type(scope):` 同樣合格），type 限 `build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test`。對話、PR title 與 body、程式註解、issue 仍是繁體中文。
 
