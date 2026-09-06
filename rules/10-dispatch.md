@@ -9,7 +9,7 @@
 
 agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用範圍受模型與組織設定限制（見 `../docs/harness-facts.md`）。
 
-**入口檔位依訂閱事實**：使用者的 Claude Code 訂閱為 Max；主對話 effort 由 `~/.claude/settings.json` 的 `effortLevel: xhigh` 設定，model 由 UI 選擇（2026-07-25 核對；當次實際型號以主對話自報的 model ID 為準）。主對話預設 Opus，**subagent 不指定 `model` 時繼承主對話的模型**，所以本檔各表寫出的 model 欄是「顯式 routing」指示——掃描、總結、抓網頁與批次套用已驗證 pattern 寫明 `sonnet`（即使在 Max 也保留這條車道：opus 在這類任務的品質增益趨近零，且 opus 配額耗盡時的被動降級不挑任務），實作與規劃 Max 檔位預設 `opus`、Pro 檔位降回 `sonnet`，`fable` 只在明確高風險時指定；Haiku 不作為本制度的預設或 fallback。
+**入口檔位依訂閱事實**：使用者的 Claude Code 訂閱為 Max；主對話 effort 由 `~/.claude/settings.json` 的 `effortLevel: xhigh` 設定，model 由 UI 選擇（2026-07-25 核對；當次實際型號以主對話自報的 model ID 為準）。主對話預設 Opus，**subagent 不指定 `model` 時繼承主對話的模型**，所以本檔各表寫出的 model 欄是「顯式 routing」指示——掃描、總結、抓網頁與批次套用已驗證 pattern 寫明 `sonnet`（即使在 Max 也保留這條車道：opus 在這類任務的品質增益趨近零，且 opus 配額耗盡時的被動降級不挑任務），實作與規劃 Max 檔位預設 `opus`、Pro 檔位降回 `sonnet`，`fable` 只在明確高風險的**實作／規劃**時指定（驗收不走這條，見 §5）；Haiku 不作為本制度的預設或 fallback。
 
 ### Active model routing
 
@@ -17,7 +17,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 |------|--------------------|----------|
 | 一般探索、文件研究、批次機械工作與已驗證 pattern 套用 | Sonnet／依任務設定 | 範圍清楚、可重現驗證、無重大風險 |
 | 實作（Max 檔位）、困難規劃、跨檔推理與一般高難度 review | Opus／high 或以上 | 需要架構取捨、未決問題較多或 Sonnet 已失敗 |
-| 高風險、不可逆、重大安全判斷與獨立驗收 | Fable／high | 只在風險條件成立時使用；角色上等同 Codex Sol |
+| 高風險、不可逆、重大安全判斷的實作與規劃 | Fable／high | 只在風險條件成立時使用；角色上等同 Codex Sol。**驗收不在此列**——verifier 一律 opus，升 fable 見 §5 |
 
 升級順序：`Sonnet → Opus → Fable`。這是能力與風險的升級鏈，不代表每個任務都要經過三個階段。
 
@@ -25,7 +25,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `Explore`——唯讀搜索，掃 repo、找檔案、答「哪裡有 X」。不能改檔。
 - `Plan`——出實作計畫、架構取捨。
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）。
-- 本系統自帶 1 個角色：`verifier`（驗收）。**行為合約與找碴範圍的 canonical 在 `~/.claude/agents/verifier.md`**，派工前讀該檔；高風險驗收用同一個角色、呼叫時指定 `model: fable`，不另設角色。
+- 本系統自帶 1 個角色：`verifier`（驗收）。**行為合約與找碴範圍的 canonical 在 `~/.claude/agents/verifier.md`**，派工前讀該檔；**不分風險等級一律顯式帶 `model: opus`**（與該檔 frontmatter 一致），升 `fable` 的訊號與授權要求見 §5，不另設角色。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill，不是 subagent（`code-simplifier` plugin 2026-08-06 現查未安裝，寫成 `subagent_type` 會叫不出來）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），第二意見或整包委派用。備用車道：2026-09-02 現查近 45 天派工 0 次，不再展開用法。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。**不是每個 session 都有**：2026-08-06 實測 `claude -p` 起的 session 清單裡沒有它（主對話清單裡有），機制未查明。派工前先確認當下清單真的有這個名字。
@@ -92,7 +92,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 3. **重新定義問題**——見 `20-judgment.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。
 
 **降級**：難題解出可重複、可機械驗證的 pattern 後，把 pattern 寫進 prompt 降回 sonnet 批次套用；不降到 haiku。
-**重試上限**：同一件事最多兩輪。兩輪後還不行代表方向錯了，換方法或問人，不要換個措辭再試第三次。
+**重試上限**：同一件事最多兩輪（指同一個問題的修法重試，不含驗收輪次——那條在 `20-judgment.md` §2「補充判準（驗收輪數的回報點）」）。兩輪後還不行代表方向錯了，換方法或問人，不要換個措辭再試第三次。
 
 Codex 端的 `../codex/rules/10-dispatch-codex.md` §5「升降級路徑」未動，兩邊刻意分版。
 
@@ -105,7 +105,11 @@ Codex 端的 `../codex/rules/10-dispatch-codex.md` §5「升降級路徑」未�
 驗收條件不必每次重寫——按產出類型直接引用 rubric（產出類型 → rubric 檔的對照表在 `20-judgment.md` §4「品質底線怎麼驗」，canonical 只有那一份），再補該次任務特有的條件。
 
 - **文件／主觀品質** → 派 fresh-context `verifier` 做 read-back：給它「產出檔案路徑＋驗收條件清單」，逐條判 PASS/FAIL；verifier 不參與製作。
-- **高風險文件／規則／架構決策** → 同樣派 `verifier`，呼叫時指定 `model: fable`（Codex 端對應 `sol_verifier`／Sol high，role 名一律底線，見 README「檔案結構」）。
+- **高風險文件／規則／架構決策** → 同樣派 `verifier`，**檔位不變**：呼叫時顯式帶 `model: opus`（與 `~/.claude/agents/verifier.md` frontmatter 一致）。**不要靠「不指定就跑預設」**——§0 寫明不指定 `model` 的 subagent 繼承主對話的模型，主對話在 fable 時就會靜默升檔，而失敗現象與正常驗收長得一模一樣。要改用 `model: fable` 一律**先停下來問使用者**，講明下列哪個訊號成立、證據是什麼，使用者當次同意才派：
+  - (a) 同一項驗收條件在 opus 下**連續兩輪標 `UNSURE`**；(b) opus verifier 的判定與另一份獨立證據（實跑輸出、第二個 agent 的結論）互相矛盾且 controller 裁決不了；(c) opus 那一輪**漏掉一個後來被實測抓到的缺陷**，且該缺陷落在安全、授權或不可逆邊界上。
+  - **不算違規**：使用者當次自己指定 `model: fable`（他的決定，不必再問）；Codex 端照原路由派 `sol_verifier`；三個訊號都不成立但 controller 仍判斷該升級——照樣可以問，只要在問的時候明說「沒有訊號成立」與判斷依據，由使用者決定。
+  - 訂這條的理由（2026-09-06，web-member-login）：同一產出八輪驗收，前五輪照舊規則全開 fable 共 601,747 tokens，第六輪打爆 session 額度；輪 3–5 的範圍其實已窄化成機械對照，而改用 opus 的後三輪照樣抓到製作者自己造成的迴歸。
+  - **Codex 端刻意分版，不要同步改**：高風險驗收維持 `sol_verifier`／Sol high（`../codex/rules/10-dispatch-codex.md` §0 角色表與 §6「驗證語意」）——爆掉的是 Claude Max 配額，Codex 走另一個訂閱；且 Codex 的 `verifier`／`sol_verifier` 是兩個獨立註冊角色，降級等於改角色表。
 - **程式碼機械驗證** → 測試、build、lint、實跑、schema 可由製作者執行，但必須附指令與輸出；「我看程式碼邏輯是對的」不算驗證。
 - **高風險程式碼，或修使用者實際回報的 bug** → 除機械驗證外再加 fresh-context review。「高風險」要當場判斷，「使用者回報的 bug」不用——只要這件事成立就派，不必先判定風險等級或改動大小。這類驗收一定要問「**同一個錯誤還有沒有第二個現場**」：那是製作者最不適合回答的問題（他的心智模型正是漏掉那一處的原因），也是機械驗證最驗不到的——測試只覆蓋你改的那條路，改對的那條會全綠。
 - **「第二個現場」的答案是取樣不是清單，先按派工範圍分流**：範圍內的照 `20-judgment.md` §2 停止端修並重驗 delta；範圍外的不修，**一律開成該專案 repo 的 issue**（`gh -R <owner/repo> issue create`），回報附連結——只寫在對話裡或塞進沒人會回讀的檔案等於沒登記。**連續兩輪的 FAIL 都落在範圍外，代表你在替下一個批次做事**：停下來回報。與停止端的分工：那條管「這則發現要不要重驗 delta」，本條管「這則發現該不該由這次工作處理」。

@@ -22,7 +22,7 @@
 | `haiku` | claude-haiku-4-5 | 平台可用模型；不列入本制度 active routing |
 | `sonnet` | claude-sonnet-5 | 掃描、總結、批次機械車道主力；Pro 檔位的實作預設 |
 | `opus` | claude-opus-5 | 難題升級、高風險判斷 |
-| `fable` | claude-fable-5 | 最高階；高風險、最終升級與獨立驗收 |
+| `fable` | claude-fable-5 | 最高階；高風險實作／規劃與最終升級（驗收不自動走這條，見 `../rules/10-dispatch.md` §5） |
 
 alias 會隨平台改版重新指向新一代同層模型——要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準，不引用本表。
 

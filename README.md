@@ -231,7 +231,7 @@ memories = true
 | `docs/archive/` | 無任何檔案引用的歷史文件（2026-07 的 Codex 分層路由 spec／plan、2026-08-29 的驗收輪次盤點）；只作事故考古用 |
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色 mapping、named-first → `default` runtime adapter、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份 logical-role 派工模板與共用 adapter envelope（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
-| `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high）。含「找碴範圍」與收斂標記；**高風險驗收用同一個角色、呼叫時指定 `model: fable`**，Claude 端不另設 agent 檔 |
+| `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high）。含「找碴範圍」與收斂標記；**高風險驗收用同一個角色、檔位不變**（派工一律顯式 `model: opus`；升 `model: fable` 的條件與例外見 `rules/10-dispatch.md` §5「驗證不自驗」），Claude 端不另設 agent 檔 |
 | `codex/agents/scanner.toml` | Codex Luna/medium/read-only 精確掃描 agent |
 | `codex/agents/explorer.toml` | Codex Terra/medium/read-only 探索 agent |
 | `codex/agents/planner.toml` | Codex Terra/high/read-only 非平凡任務規劃 agent |
