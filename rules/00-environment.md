@@ -24,7 +24,7 @@
 **症狀**：大量讀檔、掃 repo、抓網頁、批次改檔在主對話進行，context 膨脹；compaction 觸發後早期決定遺失，開始重做已完成的工作或偏離原目標。
 
 **修法**：
-- 判斷基準同時看 **context 成本**與**任務獨立性**：大量原始內容且可獨立驗收時優先派工；強依賴主線決策或需要即時整合時留在主對話並控制讀取範圍。Claude 派工見 `10-dispatch.md`；Codex 派工見 `../codex/rules/10-dispatch-codex.md`。
+- 判斷基準（context 成本 × 任務獨立性）的 canonical 在 dispatch 文件：Claude `10-dispatch.md` §1「雙軸判斷：context 成本 × 任務耦合」；Codex `../codex/rules/10-dispatch-codex.md` §1「雙軸派工判斷」。
 - session 內優先使用平台提供的 plan／task 狀態，不強制在 repo 建 scratchpad；跨 session 續接才使用 `session-handoff` skill 更新專案 `.codex/HANDOFF.md`——該 skill **只裝在 Codex 端**（`~/.agents/skills/`），Claude 端叫不到，Claude 的跨 session 續接靠 remember plugin 的 `.remember/` 與精選持久記憶。
 
 ### 2. 假完成：宣稱通過但沒有實際執行
@@ -42,18 +42,12 @@
 - deferred MCP 工具只注入名稱——與任務無關的 schema 不要主動 ToolSearch。
 - ［需使用者動作］長期不用的 plugin 可停用：專案 `.claude/settings.json` 寫 `"enabledPlugins": { "<plugin>@<marketplace>": false }` 可逐專案覆寫全域設定。
 
-## 記憶機制
+## 非常駐內容索引（用到才讀）
 
-四層（自動事件史／精選持久記憶／顯式交接檔／repo 文件＝制度層），各有分工與已知邊界。
-**要寫或讀記憶時再讀 `../docs/memory-layers.md`**（2026-08-22 從本檔搬出，只在特定情境用得到）。
+動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造。下面三份都不會自動載入（2026-08-12／08-22 由本檔搬出，2026-09-06 合併成本索引）：
 
-## 好用的 skill／plugin（實戰驗證的優先選項）
-
-原則：動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造。
-
-具體清單（各類任務用哪個 skill、Figma 在 MCP 缺席時的 curl fallback）在 `../docs/skill-catalog.md`——那份不常駐，要用時再讀。清單內容一律以當前 session 公開的 skill／tool 名稱為準，不跨平台猜名稱。
-
-## 查證過的 harness 事實
-
-Agent 工具的 `model`／`effort` 可填值、`isolation: worktree` 等——**派工前要引用時再讀
-`../docs/harness-facts.md`**（2026-08-22 從本檔搬出，查證日 2026-08-06，版本更新後要重新核對）。
+| 什麼時候讀 | 讀哪份 |
+|---|---|
+| 要寫或讀記憶 | `../docs/memory-layers.md`——四層（自動事件史／精選持久記憶／顯式交接檔／repo 文件＝制度層）的分工與已知邊界 |
+| 找這類任務有沒有現成 skill／plugin | `../docs/skill-catalog.md`——含 Figma 在 MCP 缺席時的 curl fallback；名稱一律以當前 session 公開的為準，不跨平台猜 |
+| 派工前要引用 harness 事實 | `../docs/harness-facts.md`——`model`／`effort` 可填值、`isolation: worktree` 等（查證日 2026-08-06，版本更新後重新核對） |

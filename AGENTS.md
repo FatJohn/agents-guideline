@@ -20,7 +20,7 @@
 
 | 情境 | 讀這份 |
 |------|--------|
-| 開工前：確認這台機器有什麼工具、能跑哪些驗證 | `<REPO>/rules/05-hosts.md`（機器沒列 → 照 `<REPO>/README.md`「新機器建檔」的探測清單自己補段落） |
+| 開工前：確認這台機器能跑哪些驗證、有哪些已知陷阱 | `<REPO>/rules/05-hosts.md`（機器沒列 → 照 `<REPO>/README.md`「新機器建檔」的探測清單自己補段落）；工具鏈與版本明細在 `<REPO>/docs/hosts-detail.md`，不常駐 |
 | 了解環境的結構性風險、好用的 skill/plugin 清單 | `<REPO>/rules/00-environment.md` |
 | 記憶機制四層的分工與邊界（寫或讀記憶時） | `<REPO>/docs/memory-layers.md` |
 | Codex 派 subagent、依 complexity signals 選 model/reasoning effort、判斷 retry／escalation、驗收產出 | `<REPO>/codex/rules/10-dispatch-codex.md` |

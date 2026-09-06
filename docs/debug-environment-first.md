@@ -104,4 +104,4 @@ bash syntax error，六條告警全滅。macroeconomics-report 的 workflows bas
 
 ## Windows 對照
 
-`lsof` 在 Windows 沒有；改用 `Get-NetTCPConnection -LocalPort <port> | Select-Object OwningProcess` 再 `Get-Process -Id`。shell quoting 的坑同樣存在，只是主角換成 PowerShell 的 backtick 逸出與 `@'...'@` here-string（見 `<REPO>/rules/05-hosts.md`）。
+`lsof` 在 Windows 沒有；改用 `Get-NetTCPConnection -LocalPort <port> | Select-Object OwningProcess` 再 `Get-Process -Id`。shell quoting 的坑同樣存在，只是主角換成 PowerShell 的 backtick 逸出與 `@'...'@` here-string。

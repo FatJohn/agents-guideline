@@ -190,9 +190,12 @@ memories = true
 
 ## 新機器建檔（5 分鐘探測清單）
 
-> 2026-08-30 從 `rules/05-hosts.md` 搬出。理由：這份清單只在裝新機器當下用得到，而 `rules/` 是每個 session 全文載入的常駐區（`maintain-guideline` §5「只在特定情境才用得到的內容不該放 rules/」）。內容原文未改寫，僅把相對路徑補成 repo 根目錄視角。
+> 2026-08-30 從 `rules/05-hosts.md` 搬出。理由：這份清單只在裝新機器當下用得到，而 `rules/` 是每個 session 全文載入的常駐區（`maintain-guideline` §5「只在特定情境才用得到的內容不該放 rules/」）。原文僅把相對路徑補成 repo 根目錄視角；2026-09-06 另加了「探測結果分兩邊寫」的分流（工具鏈明細改進 `docs/hosts-detail.md`），探測清單 1–5 項本身未改寫。
 
-`rules/05-hosts.md` 沒有這台機器的段落時，照這份跑一輪，然後**自己把新段落補進該檔**（該檔可直接寫入，不用問）。
+`rules/05-hosts.md` 沒有這台機器的段落時，照這份跑一輪，然後**自己把新段落補進去**（兩個檔都可直接寫入，不用問）——**探測結果分兩邊寫**：
+
+- `rules/05-hosts.md`（常駐）：機器身分、專案位置、本系統 repo 位置、**驗證能力**、以及**陷阱**（不知道就會踩的那種，例如某 port 被系統佔用、`python3` 沒有別名）。
+- `docs/hosts-detail.md`（非常駐）：OS／shell／套件管理器版本、CLI 版本、工具盤點清單——這些是加速用快照，不佔每 session 的固定成本。
 
 1. 身分：`hostname`＋OS（macOS 用 `sw_vers`；Windows 看 shell 環境是 PowerShell / Git Bash / WSL）
 2. shell 與套件管理器（brew／winget／scoop）
@@ -225,6 +228,7 @@ memories = true
 | `rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描與作假偵測） |
 | `rubrics/research-analysis.md` | 研究／盤點類產出的逐條驗收判準 |
 | `docs/lessons-archive.md` | 已升級成正式判準的歷史教訓（保留原文，作為判準來歷） |
+| `docs/hosts-detail.md` | 各機器工具鏈與版本明細（探測快照，2026-09-06 從 `rules/05-hosts.md` 搬出，非常駐） |
 | `docs/skill-catalog.md` | 各類任務用哪個 skill／plugin，含 Figma 在 MCP 缺席時的 curl fallback（原 `rules/00-environment.md` §好用的 skill／plugin，2026-08-12 移出常駐區） |
 | `docs/harness-facts.md` | 查證過的 harness 事實（2026-08-22 從 00-environment 搬出，非常駐） |
 | `docs/memory-layers.md` | 記憶機制四層的分工與邊界（2026-08-22 從 00-environment 搬出，非常駐） |

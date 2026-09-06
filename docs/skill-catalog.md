@@ -2,7 +2,7 @@
 
 > 2026-08-12 由 `rules/00-environment.md` §好用的 skill／plugin 整節搬入（瘦身：該節每 session 常駐但內容本身要求「一律現查」，常駐價值低）。
 > 事實查證日沿用搬出前的 **2026-08-06**；本檔不常駐，引用前先當場核對。
-> 常駐區只留原則與指向，見 `rules/00-environment.md` §好用的 skill／plugin。
+> 常駐區只留原則與指向，見 `rules/00-environment.md` §非常駐內容索引（2026-09-06 由 §好用的 skill／plugin 併入）。
 
 原則：動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造；但真正符合任務才叫用（優先權排序依平台見全域 `CLAUDE.md`／`AGENTS.md`）。
 

@@ -11,15 +11,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 **入口檔位依訂閱事實**：使用者的 Claude Code 訂閱為 Max；主對話 effort 由 `~/.claude/settings.json` 的 `effortLevel: xhigh` 設定，model 由 UI 選擇（2026-07-25 核對；當次實際型號以主對話自報的 model ID 為準）。主對話預設 Opus，**subagent 不指定 `model` 時繼承主對話的模型**，所以本檔各表寫出的 model 欄是「顯式 routing」指示——掃描、總結、抓網頁與批次套用已驗證 pattern 寫明 `sonnet`（即使在 Max 也保留這條車道：opus 在這類任務的品質增益趨近零，且 opus 配額耗盡時的被動降級不挑任務），實作與規劃 Max 檔位預設 `opus`、Pro 檔位降回 `sonnet`，`fable` 只在明確高風險的**實作／規劃**時指定（驗收不走這條，見 §5）；Haiku 不作為本制度的預設或 fallback。
 
-### Active model routing
-
-| 階段 | 預設 model／effort | 使用邊界 |
-|------|--------------------|----------|
-| 一般探索、文件研究、批次機械工作與已驗證 pattern 套用 | Sonnet／依任務設定 | 範圍清楚、可重現驗證、無重大風險 |
-| 實作（Max 檔位）、困難規劃、跨檔推理與一般高難度 review | Opus／high 或以上 | 需要架構取捨、未決問題較多或 Sonnet 已失敗 |
-| 高風險、不可逆、重大安全判斷的實作與規劃 | Fable／high | 只在風險條件成立時使用；角色上等同 Codex Sol。**驗收不在此列**——verifier 一律 opus，升 fable 見 §5 |
-
-升級順序：`Sonnet → Opus → Fable`。這是能力與風險的升級鏈，不代表每個任務都要經過三個階段。
+升級順序：`Sonnet → Opus → Fable`（能力與風險的升級鏈，不代表每個任務都要經過三階段）。各層的使用邊界與 effort 預設：Sonnet／依任務設定＝範圍清楚、可重現驗證、無重大風險；Opus／high 或以上＝需要架構取捨、未決問題較多或 Sonnet 已失敗；Fable／high＝只在風險條件成立時，角色上等同 Codex Sol。**哪種工作派給誰、跑哪個 model 的 canonical 是 §1 那張表**，這裡不重複第二份。
 
 **常用 subagent 類型**（`subagent_type`）：
 - `Explore`——唯讀搜索，掃 repo、找檔案、答「哪裡有 X」。不能改檔。
@@ -42,8 +34,9 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 | 讀多份長文件並總結 | general-purpose | sonnet |
 | 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用；沒有 firecrawl，2026-08-06 已移除） | sonnet |
 | 批次機械性改檔（同 pattern 套 N 個檔） | general-purpose | sonnet |
-| 實作一個功能 | general-purpose | opus（Max 檔位；Pro 檔位降回 sonnet） |
+| 實作一個功能 | general-purpose | opus／high 或以上（Max 檔位；Pro 檔位降回 sonnet） |
 | 設計實作方案 | Plan | opus／high |
+| 跨檔推理、一般高難度 review | general-purpose | opus／high 或以上 |
 
 這張表只列日常派工。升級怎麼做見 §4，驗收要派給誰見 §5。
 
