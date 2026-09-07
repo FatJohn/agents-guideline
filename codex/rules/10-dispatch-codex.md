@@ -22,7 +22,7 @@
 
 `scanner` 使用 Luna 做低風險、可機械驗證的唯讀工作；一般實作使用 `worker/Luna max`。若開工前已有多 subsystem、依賴關係密集、脈絡量大、需求高 ambiguity 或 architecture judgment 等證據，可直接使用 `pro_worker/Terra high`，不必先犧牲一次 Luna 嘗試；失敗後的 Terra 路徑則使用 `recovery_worker/Terra high`。`planner`、`explorer`、`reviewer`、`verifier`、`escalation_planner`、`sol_verifier` 都是 read-only。一般文件與一般驗收使用 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險驗收使用 `sol_verifier/Sol high`。Sol 升級實作與規劃先從 medium 開始，只有 exceptional difficulty 才提高 effort；所有 verifier 只找碴與判定，不製作也不修正產物。
 
-**別名與主對話邊界**：Luna＝`gpt-5.6-luna`、Terra＝`gpt-5.6-terra`、Sol＝`gpt-5.6-sol`。本機新 session 的靜態預設是 Luna/max，讓一般 coding 不先支付 Sol 成本；使用者仍可在 UI 或 CLI 為特定任務明確選擇其他 model／effort，目前這種刻意使用 Sol/high 的高 judgment session 就屬於 override。global instruction 不能在已啟動的主對話中自動切換主 agent，只能指導 delegated agent、direct CLI，或下一個 session 的選擇。當前 runtime 若已是較強主 agent，仍按本表把可獨立工作派給能可靠完成的最低 tier。型號與 effort 可用性以當前 surface 或 `codex debug models` 現查；不要把可能過期的 `~/.codex/models_cache.json` 當 runtime 證據。
+**別名與主對話邊界**：Luna＝`gpt-5.6-luna`、Terra＝`gpt-5.6-terra`、Sol＝`gpt-5.6-sol`。主對話的靜態預設不在本檔寫死，設定預設讀 `~/.codex/config.toml`，當前 model／effort 以 runtime metadata 或 CLI header 為準。這個主 session 事實不改 logical routing table，通常 coding 仍依本表派 `worker/Luna max`，使用者也可在 UI 或 CLI 為特定任務明確選擇其他 model／effort。global instruction 不能在已啟動的主對話中自動切換主 agent，只能指導 delegated agent、direct CLI，或下一個 session 的選擇。當前 runtime 若已是較強主 agent，仍按本表把可獨立工作派給能可靠完成的最低 tier；不要把可能過期的 `~/.codex/models_cache.json` 當 runtime 證據。
 
 角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。安裝 `~/.codex/agents/*.toml` 與 runtime 選中角色是兩件事：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata。可選中時，把 surface metadata 當作「工具宣告值」記進 adapter envelope；若回傳或 child metadata 另有實際 runtime model／effort，再一併 read-back。surface 沒有角色選擇入口、role 不符或 runtime 證據與宣告不一致時，不得假裝 custom role 已套用；依下方 adapter 改用 `default`，或標記「模型／effort 未驗證」後停止該 routing。
 
@@ -33,7 +33,7 @@
 1. **Named-first**：先檢查當前 surface 是否明確提供 `agent_type=<logical role>`，且 metadata 的 model／effort／權限符合上表；符合才以 named role 派送。surface metadata 先標「工具宣告值」，只有工具回傳或 child metadata read-back 的實際值才可升級為「runtime 已驗證」。若角色看似已註冊但回覆 unavailable，可在不修改 local config 的前提下 read-only 核對 `[agents.<name>]`／`config_file` 並於 fresh session 重試一次。
 2. **Default／effort fallback**：surface 沒有 named selector、named call 回覆 `agent type is currently not available`、named metadata 不符合，或 exceptional route 需要同一 logical contract 搭配不同 effort 時，改以實際 `agent_type=default` 啟動；明確傳入選定的 model／effort，並在 prompt 寫入 permission contract 與 route evidence。override model／effort 時，`fork_turns` 必須用 `none` 或正整數；full-history fork 不接受 override。prompt 必須先放 `30-delegation-templates-codex.md` 的 adapter envelope，再接完整 logical-role contract。generic `default` 不得稱為 custom role；`default` unavailable 或無法接受 mapping 時停止並標記「runtime 未驗證」。
 3. **Evidence／permission gate**：envelope 必須分開記錄 logical role、actual `agent_type`、fork context、requested model／effort、logical permission contract、runtime permission evidence 與其他 runtime evidence。surface 固定值是「工具宣告值」；child metadata 是「runtime 已驗證」；兩者都取不到就是「runtime 未驗證」。TOML、檔案存在、角色名稱或 prompt 內容都不能冒充 runtime 證據。generic `default` 沒有 sandbox override 時繼承父 session：寫入角色只有在父 session runtime 權限已知且涵蓋 approved scope 時可派；read-only 角色只有父 session runtime 已是 read-only 時可派，否則強制改走下方 read-only direct CLI branch 或停止，不得靠 prompt 禁寫與事後 read-back 補救。指定 model／effort 無法明確傳入時，停止並回 controller。
-4. **Role transitions**：升級原因分類、single-writer、approved plan、權限與授權不因 adapter 改變；每次轉派都重新套用 named-first → fallback 與同一個 logical-role contract。generic reviewer／verifier／`sol_verifier` 都只能回報 generic review；generic Sol/high 只能補強高風險證據，仍標記「未取得 custom `sol_verifier` 驗收／未驗證」。
+4. **Role transitions**：升級原因分類、single-writer、approved plan、權限與授權不因 adapter 改變；每次轉派都重新套用 named-first → fallback 與同一個 logical-role contract。generic reviewer／verifier／`sol_verifier` 必須標記 generic 身份；若 direct CLI 或 generic child 已有指定 model／effort、強制 read-only sandbox、完整同角色 contract 與可讀 runtime 證據，可作為有效獨立驗收（包含 Sol/high 高風險驗收），但不得冒稱 custom role。缺任一 model／effort／permission 證據就只能標「runtime 未驗證」，不能正式結案。
 
 ### Direct CLI review branch
 
@@ -45,7 +45,12 @@ codex exec --ephemeral --strict-config --sandbox read-only \
   "<adapter envelope + 對應 A–L 完整 contract + 原始需求與驗收條件>"
 ```
 
-若是程式碼 diff，可在同一組明確 model／effort 參數後使用 `review --uncommitted`。這個 `--ephemeral --sandbox read-only` process 本身就是單體 fresh reviewer，直接完成驗收，不在其中 nested spawn；CLI header 可驗證 model／effort，但不能證明 custom role。generic Sol review 仍只作補強，不能改寫高風險「未取得 custom `sol_verifier` 驗收／未驗證」的分級。
+若是程式碼 diff，可在同一組明確 model／effort 參數後使用 `review --uncommitted`。這個
+`--ephemeral --sandbox read-only` process 本身就是單體 fresh reviewer，直接完成驗收，不在其中
+nested spawn；CLI header 與命令列可驗證 model／effort／permission，但不能證明 custom role。named
+unavailable 時，這條 direct CLI 是有效的獨立 fallback，包含指定 Sol/high 的高風險驗收；回報仍標
+`direct CLI fallback`／generic 身份。若 header、sandbox 或完整 logical-role contract 缺任一項，只能
+補強證據並標「runtime 未驗證」，不能正式結案。
 
 ## 1. 雙軸派工判斷
 
@@ -140,10 +145,10 @@ Claude 端 `<REPO>/rules/10-dispatch.md` §3 使用同一套 user-facing 揭露�
 
 ## 6. 驗證語意（鐵律三）
 
-- 主觀判斷、一般文件與一般驗收不得由製作者自我背書；交給 fresh-context `verifier/Terra high` read-back，逐條判 PASS/FAIL。安全、不可逆、重大架構與正式高風險產出改用 fresh-context `sol_verifier/Sol high`。
+- 主觀判斷、一般文件與一般驗收依原有首次驗收分工交給獨立 fresh-context `verifier/Terra high` read-back，逐條判 PASS/FAIL/UNSURE；安全、不可逆、重大架構與正式高風險產出改用獨立 fresh-context `sol_verifier/Sol high`。named role unavailable 時依 §0 direct CLI review branch，指定 model／effort、強制 read-only 並貼完整同角色 contract；證據完整即可作有效獨立驗收，身份仍標 generic／direct CLI，不冒稱 custom。
 - 一般程式碼 review 可由 fresh-context `reviewer` 執行；它發現一般文件問題升級 `verifier`，發現高風險或正式驗收問題升級 `sol_verifier`。
 - 測試、build、lint、實跑與 schema 驗證可由製作者執行，但回報必須附指令與輸出證據。
-- 高風險程式碼除機械驗證外，再做一次 fresh-context `reviewer` 與 `sol_verifier` review。
-- **修使用者實際回報的 bug 一律加 fresh-context `reviewer` review**，不必先判定風險等級或改動大小——「高風險」要當場判斷，「使用者回報的 bug」不用。該次驗收一定要問「同一個錯誤還有沒有第二個現場」——那是製作者最不適合回答的問題（他的心智模型正是漏掉那一處的原因），也是機械驗證最驗不到的：測試只覆蓋你改的那條路，改對的那條會全綠。答案是取樣不是清單：範圍內的修並重驗 delta，範圍外的一律開成 repo issue 並回報附連結；連續兩輪 FAIL 都落在範圍外就停下來回報（canonical 見 `<REPO>/rules/10-dispatch.md` §5）。
+- 高風險程式碼除機械驗證外，再做一次 fresh-context `reviewer` 與 `sol_verifier` review；若 named role unavailable，兩者依同一 direct CLI fallback 取得獨立證據，不能因 TOML 或角色名稱存在就視為已選中。
+- **修使用者實際回報的 bug 一律加 fresh-context `reviewer` review**，不必先判定風險等級或改動大小——「高風險」要當場判斷，「使用者回報的 bug」不用。該次驗收一定要問「同一個錯誤還有沒有第二個現場」——那是製作者最不適合回答的問題（他的心智模型正是漏掉那一處的原因），也是機械驗證最驗不到的：測試只覆蓋你改的那條路，改對的那條會全綠。答案是取樣不是清單：範圍分流與後續登記見 `<REPO>/rules/10-dispatch.md` §5；修正後依共用停止端判斷機械結案或 fresh delta。
 - `verifier` 與 `sol_verifier` 的任務是假設產物有問題並找碴；只驗收與指出缺口，不修正產物。找碴範圍與「行為承載產物」分類的 canonical 在 `<REPO>/rules/20-judgment.md` §2「停止端」；不因檔案是 Markdown 就把會改變 agent／人員行動的語意降成散文。
-- 兩種 verifier 回報第一行都標 `CONVERGED`／`PROSE-ONLY`／`OPEN`。controller 收到前兩者就修完、read-back 引用後停止；收到 `OPEN` 才依 `<REPO>/rules/20-judgment.md` §2 對修正 delta 再做 fresh-context 驗收。
+- 驗收判定前必讀 `<REPO>/rules/20-judgment.md` §2「修正與驗收輪次」及「停止端」：四種狀態、補證、修正風險分流與三輪回報點只在該處定義；不可把 OPEN 當成必派或把 UNSURE 當成通過。

@@ -156,7 +156,8 @@ done
 
 不要把本 repo 的 `rules/*.md` symlink 到 `~/.codex/rules/`。Codex 的 `~/.codex/rules/*.rules` 是命令權限規則（Starlark），不是 Markdown 工作守則；Codex 入口 `AGENTS.md` 會直接指向本 repo 的 `rules/` 文件。
 
-請將下列設定合併進 `~/.codex/config.toml`，作為一般 coding 的新 session 靜態預設：
+若要採用本制度推薦的低成本一般 coding 預設，可將下列設定合併進 `~/.codex/config.toml`；這是建議值，不是
+runtime 證據。設定檔只反映預設；當前主 session 的 model／effort 以 runtime metadata 或 CLI header 為準：
 
 ```toml
 model = "gpt-5.6-luna"
@@ -175,9 +176,9 @@ Codex subagent 並行與遞迴上限建議固定：
 
 `max_depth = 1` 的用意是把 subagent 遞迴限制在一層；調高前需重新評估 token、延遲與 working-tree 風險。此 key 在 2026-08-31 以本機 Codex CLI 0.151.0 的 `--strict-config` 驗證可接受，但**本次沒有實跑 nested spawn 驗證其行為**，且目前公開 config reference 沒有列出，因此是本系統的實測相容設定，不是官方 canonical；新 CLI 若拒絕就移除，角色合約本身仍禁止 nested spawn。`codex exec --ephemeral --sandbox read-only` 是單體 fresh reviewer 的 direct CLI 路徑；它直接驗收，不在該 ephemeral process nested spawn。
 
-合併後要在全新 CLI session 檢查當前 surface 實際提供的 named `agent_type`，並另以實際 `agent_type=default` 測試 adapter 需要的 model／effort mapping（例如 Luna/max、Terra/high、Sol/high）。TOML parse 通過、檔案存在或 surface 顯示角色名稱都不等於 runtime 已接受該角色。若工具回覆 `agent type is currently not available`，依 `codex/rules/10-dispatch-codex.md` §0 的 named-first → `default` fallback 處理；generic child 不得冒充 custom role。只有在 fresh session 實際未探索到某個 standalone role，且目標 CLI 仍支援 `config_file` 註冊時，才把該角色的 `description` 與 `config_file = "agents/<name>.toml"` 合併進 `[agents.<name>]` 作相容性註冊；不要只預先註冊 verifier 三角色而讓安裝狀態分成兩套。
+合併後要在全新 CLI session 檢查當前 surface 實際提供的 named `agent_type`，並另以實際 `agent_type=default` 測試 adapter 需要的 model／effort mapping（例如 Luna/max、Terra/high、Sol/high）。TOML parse 通過、檔案存在或 surface 顯示角色名稱都不等於 runtime 已接受該角色。若工具回覆 `agent type is currently not available`，依 `codex/rules/10-dispatch-codex.md` §0 的 named-first 與 permission gate 選擇 `default` 或 direct CLI；generic child 不得冒充 custom role。只有在 fresh session 實際未探索到某個 standalone role，且目標 CLI 仍支援 `config_file` 註冊時，才把該角色的 `description` 與 `config_file = "agents/<name>.toml"` 合併進 `[agents.<name>]` 作相容性註冊；不要只預先註冊 verifier 三角色而讓安裝狀態分成兩套。
 
-Codex 的三個層次要分開看：standalone `~/.codex/agents/*.toml` 只提供角色設定與註冊來源；named role runtime 只有在當前 surface 明確選中並取得證據時才算套用；named unavailable 時由 runtime adapter 選擇實際 `agent_type=default` 或 direct CLI，並加上 `codex/rules/30-delegation-templates-codex.md` 的 adapter envelope 與完整 logical-role contract，再明確傳入 mapping 的 model／effort。generic spawn 要 override model／effort 時，`fork_turns` 必須是 `none` 或正整數，不能用 full-history fork。permission 分成 logical contract 與 runtime evidence：寫入角色可在父 session 權限涵蓋 approved scope 時用 `default`；read-only 角色只有 runtime 已是 read-only 時可用 `default`，否則改走 `codex exec --sandbox read-only`。generic adapter 是可執行 fallback，不是 custom role；沒有 child metadata 就標記 runtime 未驗證。
+Codex 的三個層次要分開看：standalone `~/.codex/agents/*.toml` 只提供角色設定與註冊來源；named role runtime 只有在當前 surface 明確選中並取得證據時才算套用；named unavailable 時由 runtime adapter 選擇實際 `agent_type=default` 或 direct CLI，並加上 `codex/rules/30-delegation-templates-codex.md` 的 adapter envelope 與完整 logical-role contract，再明確傳入 mapping 的 model／effort。generic spawn 要 override model／effort 時，`fork_turns` 必須是 `none` 或正整數，不能用 full-history fork。permission 分成 logical contract 與 runtime evidence：寫入角色可在父 session 權限涵蓋 approved scope 時用 `default`；read-only 角色只有 runtime 已是 read-only 時可用 `default`，否則改走 `codex exec --sandbox read-only`。generic／direct CLI 是可執行 fallback，不是 custom role；若 model／effort／permission 證據完整，可作獨立驗收，缺證據則標 runtime 未驗證、不能正式結案。
 
 Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用：
 
@@ -258,13 +259,13 @@ memories = true
 
 Codex routing 依 complexity signals，而不是 task 名稱：simple／mechanical 用 Luna low／medium；normal development 用 `worker/Luna max`；higher complexity 可預先用 `planner`／`pro_worker` 的 Terra high，Luna 失敗後才由 `recovery_worker/Terra high` 接手；high-impact judgment 可直接用 `escalation_planner`／`escalation_worker` 的 Sol medium，其他路徑則等 Terra 已確認能力不足才升 Sol medium；exceptional difficulty 才用 Sol high。xhigh／max 沒有固定 route。失敗時先分 execution mistake、reasoning 不足、model／context 理解不足與 evidence／environment 不足，再決定補正、加 effort、升 tier 或補證據。
 
-Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata；named 可用時優先選 named，unavailable 時依 `codex/rules/10-dispatch-codex.md` §0 以實際 `agent_type=default` 套用 logical-role contract。這些值只進 adapter envelope：surface metadata 記「工具宣告值」，工具回傳或 child metadata 另有 runtime 值才升級為「runtime 已驗證」，沒有 metadata 就記「runtime 未驗證」。user-facing commentary 正常只報指定 role 名稱與任務摘要；generic／direct CLI fallback 必須標示，避免把 generic child 冒充 custom role。
+Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata；named 可用時優先選 named，unavailable 時依 `codex/rules/10-dispatch-codex.md` §0 permission gate 選擇 `default` 或 direct CLI 套用 logical-role contract。這些值只進 adapter envelope：surface metadata 記「工具宣告值」，工具回傳或 child metadata 另有 runtime 值才升級為「runtime 已驗證」，沒有 metadata 就記「runtime 未驗證」。user-facing commentary 正常只報指定 role 名稱與任務摘要；generic／direct CLI fallback 必須標示，避免把 generic child 冒充 custom role。
 
 ## 三條鐵律
 
 1. **無證據不得宣稱完成**——回報分級：已驗證（附測試輸出／CI 連結）／待 CI／未驗證
 2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。
-3. **驗證不自驗**——一般文件與驗收優先派 named `verifier/Terra high`；named unavailable 時使用 sandbox 強制 read-only 的 Terra/high direct CLI，只有 runtime 已是 read-only 時才可用 `agent_type=default` + 完整 logical `verifier` contract。安全、不可逆、重大架構與正式高風險產出優先派 named `sol_verifier/Sol high`；generic Sol review 只作補強，仍標記未取得 custom `sol_verifier` 驗收／未驗證。
+3. **驗證不自驗**——一般文件與驗收依原有首次驗收分工優先派 named `verifier/Terra high`；named unavailable 時使用指定 Terra/high、sandbox 強制 read-only、完整 logical `verifier` contract 的 direct CLI，runtime 證據完整即可作獨立驗收，仍標 generic／direct CLI。安全、不可逆、重大架構與正式高風險產出優先派 named `sol_verifier/Sol high`；named unavailable 時以同樣條件使用指定 Sol/high direct CLI。缺 model／effort／permission 證據不得正式結案，也不得冒稱 custom role。
 
 ## 已知退化模式與預防（維護者必讀）
 

@@ -35,7 +35,7 @@
 
 1. **無證據不得宣稱完成**：所有回報分級為已驗證（附指令輸出／CI 連結／read-back 結果）／待 CI／未驗證。
 2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。
-3. **驗證不自驗**：一般文件與驗收優先派 fresh-context 的 named `verifier`；若 named role unavailable，依 Codex runtime adapter 使用 sandbox 強制 read-only 的 Terra/high direct CLI，只有 runtime 已是 read-only 時才可用實際 `agent_type=default` 與完整 logical `verifier` contract 做 generic read-back。安全、不可逆、重大架構與正式高風險產出優先派 named `sol_verifier`；generic Sol/high 只作補強，仍標記「未取得 custom `sol_verifier` 驗收／未驗證」。只有當前 surface 明確提供並選中指定 `agent_type`，或 child metadata 證實指定 role 時，才可視為 custom verifier；禁止把同名 generic child 冒充 custom role。程式碼以實際測試／實跑輸出為證；高風險驗收若兩種證據都沒有，必須標記「未驗證」，不得宣稱完成。
+3. **驗證不自驗**：一般文件／驗收優先派 fresh-context `verifier`，高風險優先 `sol_verifier`。不可用時依 `<REPO>/codex/rules/10-dispatch-codex.md` §0 adapter 取得同 model／effort、強制 read-only、完整合約的獨立 fallback 證據；可供驗收，但如實標 generic／direct CLI，不得冒稱 custom role。必要 runtime 或產物證據不足不得宣稱完成。修正後分流與收斂狀態見 `<REPO>/rules/20-judgment.md` §2。
 
 ## Codex 專用注意
 

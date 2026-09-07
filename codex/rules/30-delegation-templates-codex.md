@@ -31,7 +31,10 @@ runtime permission evidence: 【named metadata／CLI header／繼承父 session�
 authorization boundary: 【controller 已授權的動作；對外或不可逆動作一律交回 controller】
 ```
 
-`actual agent_type=default` 時，完整 logical-role contract 仍照貼；沒有 child metadata 時 runtime evidence 必須保留「runtime 未驗證」。generic spawn surface 沒有 sandbox override 時，runtime permission evidence 寫「繼承父 session」；寫入角色須先證明父權限涵蓋 approved scope，read-only 角色則只有父 runtime 已是 read-only 時可派，否則改走 direct CLI 或停止。不得把 prompt 內的 read-only 自稱或事後 read-back 當作 sandbox 證據。若使用 `codex exec --ephemeral --sandbox read-only` 走 direct CLI review，該 process 是單體 fresh reviewer，直接完成驗收，不在其中 nested spawn；CLI header 只能補 model／effort與 sandbox 證據，不能把 generic child 稱為 custom role。
+`actual agent_type=default` 時，完整 logical-role contract 仍照貼；沒有 child metadata 時 runtime evidence 必須保留「runtime 未驗證」。generic spawn surface 沒有 sandbox override 時，runtime permission evidence 寫「繼承父 session」；寫入角色須先證明父權限涵蓋 approved scope，read-only 角色則只有父 runtime 已是 read-only 時可派，否則改走 direct CLI 或停止。不得把 prompt 內的 read-only 自稱或事後 read-back 當作 sandbox 證據。若使用 `codex exec --ephemeral --sandbox read-only` 走 direct CLI review，該 process 是單體 fresh reviewer，可在指定 model／effort、sandbox 與完整 contract 都有 runtime 證據時完成獨立驗收（包含 Sol/high）；回報標 `direct CLI fallback`，不能把 generic child 或 direct CLI 稱為 custom role。缺任一身份／權限證據只能標「runtime 未驗證」，不能正式結案。
+
+首輪驗收依原有首次驗收分工獨立完成，高風險沒有豁免。若是 finding 後的 delta，prompt 必須填入原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據；只阻擋原 finding 未修好或修正引入的回歸，無關新發現列為後續事項，直接影響本次安全邊界或必要驗收的問題仍須列出。
+verifier 回報狀態使用 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`；必要條件有 `UNSURE` 時為 `INCONCLUSIVE`，`OPEN` 依風險分流而非自動要求 fresh delta。`PROSE-ONLY` 修完並 read-back 後停止；三輪回報點依同一產出計數，換 model／role 不重設。
 
 ## A. 搜尋／掃描（角色：scanner）
 
@@ -177,7 +180,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 3.【條件三】
 額外脈絡：【原始需求、風險、禁止修改範圍、已知驗證證據】。
 找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/rules/20-judgment.md` §2「停止端」。純措辭、語氣與行文品味不算缺陷。
-回報格式：最多 30 行；第一行標 `CONVERGED`／`PROSE-ONLY`／`OPEN`，再列逐條判定、證據位置、缺口與風險，分級為已驗證／待 CI／未驗證。
+回報格式：最多 30 行；第一行標 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`，再列逐條判定、證據位置、缺口與風險，分級為已驗證／待 CI／未驗證。`INCONCLUSIVE` 要列缺少的證據；`OPEN` 要說明是低風險機械結案或需 fresh delta 的哪一種路徑。
 ```
 
 ## K. Recovery 實作（角色：recovery_worker；Terra/high/workspace-write）
@@ -209,7 +212,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 3.【是否存在安全漏洞、不可逆副作用、重大架構假設，或會讓讀者採取錯誤高風險行動的語意缺陷】
 限制：完全 read-only；禁止寫檔、branch、stash、commit、push、發訊息、寄信、merge、發佈或其他對外動作。若證據不足標 UNSURE，不替製作者腦補；每個 FAIL 附 `檔案:行號` 與一行理由。
 找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/rules/20-judgment.md` §2「停止端」。純措辭、語氣與行文品味不算缺陷。
-回報格式：最多 30 行；第一行標 `CONVERGED`／`PROSE-ONLY`／`OPEN`，再列逐條判定、證據、最大風險與分級為已驗證／待 CI／未驗證。
+回報格式：最多 30 行；第一行標 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`，再列逐條判定、證據、最大風險與分級為已驗證／待 CI／未驗證。高風險 delta 必須確認原始 finding、修正 diff、受影響原始驗收條件與既有證據都已提供；缺任一項標 `INCONCLUSIVE`。
 ```
 
 一般文件與一般驗收使用 `verifier/Terra high`；只有安全、不可逆、重大架構或正式高風險驗收才使用 `sol_verifier/Sol high`。Sol 實作／規劃升級先從 medium 開始；high 是 exceptional route，xhigh／max 只在 high 仍無法收斂且有證據時由 controller 顯式決定。

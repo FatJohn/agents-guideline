@@ -17,7 +17,7 @@
 | 了解這個環境的結構性風險、好用的 skill/plugin 清單 | `rules/00-environment.md` | ✅ |
 | 記憶機制四層的分工與邊界（寫或讀記憶時） | `docs/memory-layers.md` | ❌ 要讀 |
 | 派 subagent、選 model/effort、驗收分工、升降級 | `rules/10-dispatch.md` | ✅ |
-| 判斷題：該不該升級模型／算不算完成／要不要問使用者／該不該換路；commit message 怎麼寫 | `rules/20-judgment.md` | ✅ |
+| 判斷題：該不該升級模型／算不算完成／要不要問使用者／該不該換路；驗收狀態分流與 commit message | `rules/20-judgment.md` | ✅ |
 | 還沒有正式判準承接的活躍教訓；踩坑之後在此加一行 | `rules/50-lessons.md`（已升級的歷史條目在 `docs/lessons-archive.md`） | ✅ |
 | 寫驗收條件、或當 verifier 要逐條判品質 | `~/.claude/rubrics/{document-quality,code-change,research-analysis}.md` | ❌ 要讀 |
 | 修改 rules 檔、CLAUDE.md、AGENTS.md、agent 定義或 rubric | `maintain-guideline` skill（先讀，內有權限分級） | ❌ 要讀 |
