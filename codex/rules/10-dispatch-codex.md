@@ -20,7 +20,7 @@
 | `escalation_worker` | Sol／medium／workspace-write | Terra 已確認模型能力不足後的 root-cause 升級實作 |
 | `sol_verifier` | Sol／high／read-only | 安全、不可逆、重大架構與正式高風險驗收 |
 
-`scanner` 使用 Luna 做低風險、可機械驗證的唯讀工作；一般實作使用 `worker/Luna max`。若開工前已有多 subsystem、依賴關係密集、脈絡量大、需求高 ambiguity 或 architecture judgment 等證據，可直接使用 `pro_worker/Terra high`，不必先犧牲一次 Luna 嘗試；失敗後的 Terra 路徑則使用 `recovery_worker/Terra high`。`planner`、`explorer`、`reviewer`、`verifier`、`escalation_planner`、`sol_verifier` 都是 read-only。一般文件與一般驗收使用 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險驗收使用 `sol_verifier/Sol high`。Sol 升級實作與規劃先從 medium 開始，只有 exceptional difficulty 才提高 effort；所有 verifier 只找碴與判定，不製作也不修正產物。
+`scanner` 使用 Luna 做低風險、可機械驗證的唯讀工作；一般實作使用 `worker/Luna max`。若開工前已有多 subsystem、依賴關係密集、脈絡量大、需求高 ambiguity 或 architecture judgment 等證據，可直接使用 `pro_worker/Terra high`，不必先犧牲一次 Luna 嘗試；失敗後的 Terra 路徑則使用 `recovery_worker/Terra high`。`planner`、`explorer`、`reviewer`、`verifier`、`escalation_planner`、`sol_verifier` 都是 read-only。一般文件的驗收使用 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險驗收使用 `sol_verifier/Sol high`。Sol 升級實作與規劃先從 medium 開始，只有 exceptional difficulty 才提高 effort；所有 verifier 只找碴與判定，不製作也不修正產物。
 
 **別名與主對話邊界**：Luna＝`gpt-5.6-luna`、Terra＝`gpt-5.6-terra`、Sol＝`gpt-5.6-sol`。主對話的靜態預設不在本檔寫死，設定預設讀 `~/.codex/config.toml`，當前 model／effort 以 runtime metadata 或 CLI header 為準。這個主 session 事實不改 logical routing table，通常 coding 仍依本表派 `worker/Luna max`，使用者也可在 UI 或 CLI 為特定任務明確選擇其他 model／effort。global instruction 不能在已啟動的主對話中自動切換主 agent，只能指導 delegated agent、direct CLI，或下一個 session 的選擇。當前 runtime 若已是較強主 agent，仍按本表把可獨立工作派給能可靠完成的最低 tier；不要把可能過期的 `~/.codex/models_cache.json` 當 runtime 證據。
 
@@ -63,14 +63,14 @@ unavailable 時，這條 direct CLI 是有效的獨立 fallback，包含指定 S
 快速看六個 complexity signals：scope／檔案與模組廣度、subsystem 數量、dependency 與既有 code 理解量、ambiguity／debug search space、architecture／correctness／security judgment、既有失敗證據。任務名稱只提供背景，不決定 tier。
 
 - **Simple／mechanical**：可明確描述且可機械驗證，使用 Luna low／medium（如 `scanner`）或留在主對話。
-- **Normal development**：需求清楚、scope 有界的一般 feature、bug fix、refactor、test、UI／API 修改，使用 `worker/Luna max`；controller 可自行核定完整 plan，不強制先派 Terra planner。
+- **Normal development**：需求清楚、scope 有界的一般 feature、bug fix、refactor、test、UI／API 修改，以及一般文件／規則段落撰寫，使用 `worker/Luna max`；controller 可自行核定完整 plan，不強制先派 Terra planner；機械驗證由 worker 執行，獨立驗收依 §6 分工。
 - **Higher complexity／large-context reasoning**：上述 signals 有一項很強或多項同時成立，使用 Terra；探索可 medium，規劃、實作 recovery 與重要 review 用 high。已有充分證據時可預先派 `pro_worker/Terra high`。
 - **Very difficult／high judgment**：Terra 已確認模型能力不足，或任務本身是高影響且需要跨 subsystem judgment，使用 Sol medium。
 - **Exceptional difficulty**：Sol medium 仍顯示能力不足、或錯誤代價極高且可說明 high 的邊際價值，才使用 Sol high。xhigh／max 不設固定 route，僅在 high 仍無法收斂且 controller 有證據時顯式使用；Ultra 不是一般 coding route。
 
 Reasoning effort 只回答「同一模型需要思考多深」：問題已理解但推理鏈不夠完整，可提高一級 effort 並 fresh retry 一次；若 root cause、跨模組關係或需求模型本身理解錯誤，應升 model tier，而不是持續加 effort。
 
-- 小型、範圍明確、驗收條件清楚的修改留在主對話；不強制經過額外規劃或 review 階段。
+- 寫入預設派 worker；只有下方 Controller 工作迴圈的小修例外可留在主對話。
 - 一般實作由 controller 核定 approved plan 後派 `worker/Luna max`；只有 complexity signals 支持時才加入 `planner/Terra high`、`pro_worker/Terra high` 或 `reviewer/Terra high`。
 - `planner` 只檢查 repo、列出未決問題與提出 plan；controller 負責和使用者釐清 scope、取得授權、做最後決策。
 - controller 只有在 plan 已列出 affected files、寫入所有權、invariants、implementation phases、validation commands 與 completion criteria，且未決問題均已解決或明確交由 worker 不得碰觸時，才可標為 approved plan 並派 `worker`。缺任一項就留在規劃階段，不得用高 effort 取代清楚 plan。
@@ -78,6 +78,10 @@ Reasoning effort 只回答「同一模型需要思考多深」：問題已理解
 - `reviewer` 做一般實作的 fresh-context review；一般文件與一般驗收改派 `verifier/Terra high`，安全、不可逆、重大架構與正式高風險驗收才改派 `sol_verifier/Sol high`。
 - 若 planner 的 Terra high 已抓對問題但推理仍不足，可 fresh-context 提高 Terra effort 一次；若它誤判核心、遺漏跨模組關係或無法承載必要脈絡，直接進入 `escalation_planner/Sol medium`。
 - retry／escalation 依 §5 的失敗原因處理；兩次失敗是未能判明原因時的硬上限，不是每條路都必須先浪費兩次。
+
+### Controller 工作迴圈（worker 標準流程）
+
+controller 核定完整 plan → worker 產出與機械驗證 → controller read-back → 依 §6 選擇需要的 review／驗收，不額外疊 spec／quality／verifier 儀式；高風險 §6 的 reviewer＋sol_verifier 分工仍保留。修正依共用 `20-judgment.md` §2 停止端分流。同一有界交付批次可由同一 worker 完成。主對話小修只限單點、低風險、可機械驗證、scope 無歧義；授權、安全、架構或主觀文件不適用。所有 child 直接完成收到的任務，不再套此 controller 流程遞迴派工。
 
 優先派 subagent：
 
@@ -88,7 +92,7 @@ Reasoning effort 只回答「同一模型需要思考多深」：問題已理解
 
 留在主對話：
 
-- 工作很小但與當下決策高度耦合。
+- 探索或決策與當下脈絡高度耦合；寫入仍只適用上方小修例外。
 - 需要頻繁讀寫共享可變狀態。
 - 需要即時與使用者互動或取得授權。
 - 平行寫入無法用獨立 worktree 隔離。
