@@ -29,7 +29,12 @@
   **報出任何數字或訂任何門檻之前**（下面這些都在 2026-08-23 踩過；後續踩到的直接加進來，
 不要在這裡記條數——那個數字每次新增都會腐爛一次）：
   - **管線之後的 `$?` 是最後一個指令的離開碼**，不是你在意的那個：`cmd | head` 拿到的是 `head` 的（恆為 0）。
-    要單獨跑那個指令，或用 `${PIPESTATUS[0]}`（bash）／`$pipestatus[1]`（zsh）。
+    要單獨跑那個指令，或用 `${PIPESTATUS[0]}`（bash）／`$pipestatus[1]`（zsh）。`set -e` 同樣不管 pipeline
+    中段（`bash -c 'set -e; false | tail -n1; echo reached'` 會印出 reached），當閘門的指令不要接 `| tail`。
+    另外 push 後立刻 `gh pr checks <n> --watch`，check 尚未註冊時回「no checks reported」且 exit 0，`&&` 接的
+    merge 就在 CI 跑完前按下去了（macroeconomics-report 2026-09-04 事故觀察值，未在乾淨環境重現；gh help 只記載
+    pending 為 exit 8）——先確認 check 已註冊再 watch，或改用 `gh run watch <run-id> --exit-status`。
+    `<REPO>/skills/create-pr/SKILL.md` §2.8 只留一句指向這裡。
   - **拿歷史資料列去推「現行設定會怎麼跑」**：那批列反映的是**寫入當時**的設定。要先查現行設定，
     設定換過的來源必須實打一次現行的那條路徑才算數。
   - **沿用別處量出來的門檻而不重量**：窗、cap、firing rate 都與該 pipeline 的節奏綁死。

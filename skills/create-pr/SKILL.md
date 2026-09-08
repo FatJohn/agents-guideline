@@ -191,6 +191,8 @@ gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
 
 漏掉的後果：合併後的歷史第一行從此是中文、無 type prefix，事後只能重寫共享歷史（flutter-app-template 2026-08-12 為此重寫 36 個 commit）。
 
+**merge 前的 CI 閘門**：先確認 check 已註冊再 `gh pr checks --watch`（或改用 `gh run watch <run-id> --exit-status`），閘門指令不接 `| tail`；陷阱細節與實例見 `<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」那條。
+
 ## 3. 完整輸出範例
 
 > 下面為了排版，段落名用粗體、分區名用斜體。實際 PR body 裡**段落**寫成 `## 標題`，`## 主要變更` 底下的**分區**寫成 `### 標題`——低一階才會落在該段之下，寫成 `##` 會變成與 `## 主要變更` 平行。兩個範例都遵守 2.6 的固定三段。
