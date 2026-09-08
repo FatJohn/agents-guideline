@@ -92,16 +92,16 @@ foreach ($a in 'worker','verifier') {
 
 # Codex
 Link-One "$REPO\AGENTS.md" "$HOME\.codex\AGENTS.md"
-foreach ($a in 'scanner','explorer','planner','worker','pro_worker','recovery_worker','reviewer',
-               'escalation_planner','escalation_worker','verifier','sol_verifier') {
-  Link-One "$REPO\codex\agents\$a.toml" "$HOME\.codex\agents\$a.toml"
-}
 Link-One "$REPO\codex\skills\session-handoff"    "$HOME\.agents\skills\session-handoff"
 Link-One "$REPO\skills\create-pr"                "$HOME\.agents\skills\create-pr"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.agents\skills\maintain-guideline"
+
+# Codex agent TOML：先預覽，再寫入實體 regular files
+python "$REPO\scripts\sync-codex-agents.py" --destination "$HOME\.codex\agents"
+python "$REPO\scripts\sync-codex-agents.py" --destination "$HOME\.codex\agents" --apply
 ```
 
-指令可重跑：連結部分已存在就略過不覆蓋，備份部分已安裝過就整段跳過（見上方兩道保護）。read-back 驗證：
+指令可重跑：連結部分已存在就略過不覆蓋，備份部分已安裝過就整段跳過（見上方兩道保護）。Codex agent TOML 由同步器寫成實體 regular files；read-back 驗證時只確認 Claude／AGENTS／skills 的連結，agent TOML 另看同步器輸出與檔案 bytes：
 
 ```powershell
 Get-ChildItem "$HOME\.claude","$HOME\.claude\agents","$HOME\.claude\skills","$HOME\.codex","$HOME\.codex\agents","$HOME\.agents\skills" -Force |
@@ -131,15 +131,6 @@ for pair in "AGENTS.md:$HOME/.codex/AGENTS.md"; do
   fi
 done
 
-for agent in scanner explorer planner worker pro_worker recovery_worker reviewer escalation_planner escalation_worker verifier sol_verifier; do
-  src="$REPO/codex/agents/$agent.toml"; dst="$HOME/.codex/agents/$agent.toml"
-  if [ -e "$dst" ] || [ -L "$dst" ]; then
-    echo "略過（已存在，需手動處理）：$dst"
-  else
-    ln -s "$src" "$dst"
-  fi
-done
-
 mkdir -p ~/.agents/skills
 for pair in \
   "codex/skills/session-handoff:session-handoff" \
@@ -152,6 +143,10 @@ for pair in \
     ln -s "$src" "$dst"
   fi
 done
+
+# Codex agent TOML：先預覽，再寫入實體 regular files
+python3 "$REPO/scripts/sync-codex-agents.py" --destination "$HOME/.codex/agents"
+python3 "$REPO/scripts/sync-codex-agents.py" --destination "$HOME/.codex/agents" --apply
 ```
 
 不要把本 repo 的 `rules/*.md` symlink 到 `~/.codex/rules/`。Codex 的 `~/.codex/rules/*.rules` 是命令權限規則（Starlark），不是 Markdown 工作守則；Codex 入口 `AGENTS.md` 會直接指向本 repo 的 `rules/` 文件。
@@ -166,7 +161,7 @@ model_reasoning_effort = "max"
 
 特定困難任務可在 UI 或 CLI 當次明確選擇 Terra／Sol 與相應 effort；這不代表要改掉一般預設。global instruction 無法在已啟動的主對話中自動切換主 agent，實際可控點是 delegated agent、direct CLI 與下一個 session。
 
-目前 Codex release 會自動從 `~/.codex/agents/*.toml` 探索 custom agents，所以上面的 symlink 是主要安裝路徑，不必預先替少數角色另寫 `[agents.<name>]`。若檔案已有 `[agents]`，只更新其中的並行設定，不可新增第二個 `[agents]` table；只有原本沒有時才新增整段。官方現行 key 是 `max_concurrent_threads_per_session`；`max_threads` 仍可讀取，但只是 legacy alias（見 [Codex subagents 設定](https://learn.chatgpt.com/docs/agent-configuration/subagents)）。
+目前 Codex release 會從 `~/.codex/agents/*.toml` 探索 custom agents；這些檔案要用上方同步器安裝成實體 regular files，只有 `AGENTS.md` 與 skills 維持 symlink。repo 更新後先 dry-run，再執行 `python3 scripts/sync-codex-agents.py --apply`（Windows 用 `python`）；既有檔案內容不同時加上 `--update`，同步器會先把檔案或 symlink 備份到 `agents` 目錄外的唯一資料夾。不要預先替少數角色另寫 `[agents.<name>]`；若檔案已有 `[agents]`，只更新其中的並行設定，不可新增第二個 `[agents]` table；只有原本沒有時才新增整段。官方現行 key 是 `max_concurrent_threads_per_session`；`max_threads` 仍可讀取，但只是 legacy alias（見 [Codex subagents 設定](https://learn.chatgpt.com/docs/agent-configuration/subagents)）。
 
 Codex subagent 並行與遞迴上限建議固定：
 
@@ -176,7 +171,7 @@ Codex subagent 並行與遞迴上限建議固定：
 
 `max_depth = 1` 的用意是把 subagent 遞迴限制在一層；調高前需重新評估 token、延遲與 working-tree 風險。此 key 在 2026-08-31 以本機 Codex CLI 0.151.0 的 `--strict-config` 驗證可接受，但**本次沒有實跑 nested spawn 驗證其行為**，且目前公開 config reference 沒有列出，因此是本系統的實測相容設定，不是官方 canonical；新 CLI 若拒絕就移除，角色合約本身仍禁止 nested spawn。`codex exec --ephemeral --sandbox read-only` 是單體 fresh reviewer 的 direct CLI 路徑；它直接驗收，不在該 ephemeral process nested spawn。
 
-合併後要在全新 CLI session 檢查當前 surface 實際提供的 named `agent_type`，並另以實際 `agent_type=default` 測試 adapter 需要的 model／effort mapping（例如 Luna/max、Terra/high、Sol/high）。TOML parse 通過、檔案存在或 surface 顯示角色名稱都不等於 runtime 已接受該角色。若工具回覆 `agent type is currently not available`，依 `codex/rules/10-dispatch-codex.md` §0 的 named-first 與 permission gate 選擇 `default` 或 direct CLI；generic child 不得冒充 custom role。只有在 fresh session 實際未探索到某個 standalone role，且目標 CLI 仍支援 `config_file` 註冊時，才把該角色的 `description` 與 `config_file = "agents/<name>.toml"` 合併進 `[agents.<name>]` 作相容性註冊；不要只預先註冊 verifier 三角色而讓安裝狀態分成兩套。
+安裝後實際測一次 named spawn；清單列出角色或 TOML parse 通過不代表能建立。physical TOML 讓目前桌面與 fresh CLI 的 explorer named path 可重跑；named 建立與 model／effort 的 child metadata 仍要以實際工具證據確認。沒有永久 config registration；證據、限制與用法見 `docs/codex-named-agent-registration.md`，不可用時仍依 runtime adapter 的 permission gate 選 fallback。
 
 Codex 的三個層次要分開看：standalone `~/.codex/agents/*.toml` 只提供角色設定與註冊來源；named role runtime 只有在當前 surface 明確選中並取得證據時才算套用；named unavailable 時由 runtime adapter 選擇實際 `agent_type=default` 或 direct CLI，並加上 `codex/rules/30-delegation-templates-codex.md` 的 adapter envelope 與完整 logical-role contract，再明確傳入 mapping 的 model／effort。generic spawn 要 override model／effort 時，`fork_turns` 必須是 `none` 或正整數，不能用 full-history fork。permission 分成 logical contract 與 runtime evidence：寫入角色可在父 session 權限涵蓋 approved scope 時用 `default`；read-only 角色只有 runtime 已是 read-only 時可用 `default`，否則改走 `codex exec --sandbox read-only`。generic／direct CLI 是可執行 fallback，不是 custom role；若 model／effort／permission 證據完整，可作獨立驗收，缺證據則標 runtime 未驗證、不能正式結案。
 
@@ -233,6 +228,7 @@ memories = true
 | `docs/hosts-detail.md` | 各機器工具鏈與版本明細（探測快照，2026-09-06 從 `rules/05-hosts.md` 搬出，非常駐） |
 | `docs/skill-catalog.md` | 各類任務用哪個 skill／plugin，含 Figma 在 MCP 缺席時的 curl fallback（原 `rules/00-environment.md` §好用的 skill／plugin，2026-08-12 移出常駐區） |
 | `docs/harness-facts.md` | 查證過的 harness 事實（2026-08-22 從 00-environment 搬出，非常駐） |
+| `docs/codex-named-agent-registration.md` | Codex named agent 實體 TOML 同步、註冊實測差異與限制，非常駐 |
 | `docs/memory-layers.md` | 記憶機制四層的分工與邊界（2026-08-22 從 00-environment 搬出，非常駐） |
 | `docs/archive/` | 無任何檔案引用的歷史文件（2026-07 的 Codex 分層路由 spec／plan、2026-08-29 的驗收輪次盤點）；只作事故考古用 |
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色 mapping、named-first → `default` runtime adapter、reasoning effort、subagent 使用邊界、驗證不自驗 |

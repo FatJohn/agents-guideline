@@ -6,7 +6,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域
 # 系統維護協議
 
 > 讀者：要維護本 repo、`~/.claude/`、`~/.codex/`、任何專案 CLAUDE.md 或 AGENTS.md 的 session。
-> 本系統以 symlink 安裝：Claude Code 裝到 `~/.claude/`，Codex 裝到 `~/.codex/`，檔案連回本系統 repo，改動會直接反映在 repo，由使用者定期 review 後 commit。
+> 本系統以 symlink 安裝：Claude Code 裝到 `~/.claude/`；Codex 的 `AGENTS.md` 與 skills 仍裝成 symlink，`codex/agents/*.toml` 則依 README 的同步器安裝成 `~/.codex/agents/` 實體檔，由使用者定期 review 後 commit。
 > 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異，canonical 清單在 `<REPO>/rules/05-hosts.md`。不確定時依當前平台讀全域入口的 symlink target：Claude 用 `readlink ~/.claude/CLAUDE.md`，Codex 用 `readlink ~/.codex/AGENTS.md`；PowerShell 分別用 `(Get-Item ~/.claude/CLAUDE.md).Target`、`(Get-Item ~/.codex/AGENTS.md).Target`。target 的目錄部分就是 `<REPO>`。
 > 本檔在 `skills/` 底下而非 `rules/`，所以**不會每 session 自動載入**——這是刻意的：維護協議只在真的要動系統時才需要在 context 裡。
 
@@ -35,7 +35,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域
 3. 驗證：派 fresh-context verifier 做 read-back；兩端都用 `verifier`——**Claude 端不因高風險或動到憲法／判準就升檔**，一律顯式帶 `model: opus`（與 `<REPO>/agents/verifier.md` frontmatter 一致；升 `model: fable` 的訊號與授權要求見 `<REPO>/rules/10-dispatch.md` §5「驗證不自驗」）；Codex 端高風險仍派 `sol_verifier`（刻意分版）。驗收條件至少包含「與其他 rules 檔無矛盾」「引用的路徑/指令實際存在」。
 4. 提醒使用者 repo 有未 commit 的變更（不要自行 commit）。
 
-**新增 skill／agent／rubric 檔時多一步**：在 repo 加檔**不等於**任何機器已安裝——加完當場重跑 README 的安裝段（可重跑，已存在會略過），再 read-back symlink 與當下的 skill／agent 清單確認叫得出名字。漏掉這步，規則會指向一個當下根本叫不出來的名字。
+**新增或修改 skill／agent／rubric 檔時多一步**：在 repo 加檔**不等於**任何機器已安裝——Codex agent TOML 依平台執行 README 的 `sync-codex-agents.py --apply`（既有差異加 `--update`），read-back regular bytes 與 named runtime；AGENTS、skills 與 Claude 其餘 symlink 仍照 README 安裝段落確認。漏掉這步，規則會指向一個當下根本叫不出來的名字。
 
 ### 本機設定安全
 
