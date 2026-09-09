@@ -21,3 +21,7 @@
 - 「工具分工」（Memories／handoff／hooks／Chronicle 四層不合併）→ canonical 在 `docs/memory-layers.md`（2026-08-22 從 `rules/00-environment.md` 搬出）。
 - 「Codex 收尾交接」（`session-handoff` 寫 `.codex/HANDOFF.md`）→ canonical 在 `docs/memory-layers.md` 的「顯式交接檔」條（2026-08-22 從 `rules/00-environment.md` 搬出）。
 - 「Claude 派工」「Codex 派工」「外部第二意見／整包委派」→ 純指標，canonical 在 `rules/10-dispatch.md` 與 `codex/rules/10-dispatch-codex.md`，全域 `CLAUDE.md`／`AGENTS.md` 的索引表也已有路由。
+
+## 停用 plugin
+
+［需使用者動作］長期不用的 plugin 可停用：專案 `.claude/settings.json` 寫 `"enabledPlugins": { "<plugin>@<marketplace>": false }` 可逐專案覆寫全域設定。

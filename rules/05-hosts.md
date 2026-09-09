@@ -21,6 +21,5 @@
 - **`python3` 沒有別名，只有 `python`**——README 探測清單第 3 項的指令直接照抄會誤判 Python 未安裝
 - 專案位置：個人專案放在 `E:\` 根層，不是 Mac 的 `~/Projects/FatJohn/`
 - 本系統 repo：`E:\agents-guideline`（與 Mac 同一個 `git@github.com:FatJohn/agents-guideline.git`），Claude Code symlink 裝進 `~/.claude/`，Codex symlink 裝進 `~/.codex/`
-- **2026-08-05 已驗 symlink 建立可行；Codex agent 現採實體同步**（跨磁碟 C: → E: 的檔案與目錄連結建立成功；Windows named runtime 待實測，指令見 README「安裝（Windows／PowerShell）」）。
-  - **`~/.claude/rules` 用目錄 symlink，Claude Code 在 Windows 確實會自動全文載入**（2026-08-05 實測回傳 00／05／10／20／50 五個標題；驗法見 `20-judgment.md` §2 的 `claude -p --allowed-tools` 正例）。
-- 驗證能力：.NET／Node／Flutter／Docker CLI 都在 PATH，但**本機尚未實跑過任何 build／test**（2026-08-05）；第一次要用來當完成證據前，先跑一次 `dotnet --info`／`flutter doctor` 確認 SDK 完整，不要憑 CLI 存在就宣稱可驗證。iOS build 不可（非 macOS）。
+- symlink 建立可行；`~/.claude/rules` 目錄 symlink 會被自動全文載入（探測細節見 `../docs/hosts-detail.md`）。
+- 驗證能力：.NET／Node／Flutter／Docker CLI 都在 PATH，但**本機尚未實跑過任何 build／test**；第一次要用來當完成證據前，先跑一次 `dotnet --info`／`flutter doctor` 確認 SDK 完整，不要憑 CLI 存在就宣稱可驗證。iOS build 不可（非 macOS）。

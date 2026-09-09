@@ -21,3 +21,4 @@
 - Claude Code 2.1.222；Codex CLI 0.146.0（走 mise shim 會自動更新，同一天內就跳過版——版本號一律現查）
 - Codex 本機 config 的主對話為 `gpt-5.6-sol`／effort `medium`（2026-08-06 00:14 現查 `~/.codex/config.toml`；與 Plus 制度預設一致）
 - 工具：git ✓、gh ✓、node ✓、npm ✓、python ✓、flutter ✓（`D:\flutter\bin\flutter.bat`）、dotnet ✓、rg ✓、jq ✓、docker ✓、uv ✓；fd ✗、yarn ✗
+- **symlink／rules 載入探測**：跨磁碟 C: → E: 的檔案與目錄連結建立成功，Codex agent 現採實體同步；Windows named runtime 待實測，指令見 README「安裝（Windows／PowerShell）」。`~/.claude/rules` 目錄 symlink 實測回傳 00／05／10／20／50 五個標題；驗法見 `rules/20-judgment.md` §2 的 `claude -p --allowed-tools` 正例。

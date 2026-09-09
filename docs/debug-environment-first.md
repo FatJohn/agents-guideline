@@ -56,6 +56,9 @@
     `.github/` 要另外抓（`rg --hidden` 或直接指定路徑）。這與
     `<REPO>/rules/20-judgment.md` §2「補充判準（重構／字串抽取／搬移／更正事實宣稱類任務）」
     是同一件事的兩半：那條說要搜，這條說你的搜可能是假陰性。
+  - **殘留掃描的排除清單只能排內容型目標**（記憶快照之類的資料）；**設定型**檔案（會被執行或讀取的
+    `launch.json`、hook、workflow）即使與快照同目錄也不可排除——整個 `.claude/` 排掉會連指向已刪
+    workspace 的 `launch.json` 一起蓋住。設定型用 `git ls-files <dir> | grep -E '\.(json|sh|toml|ya?ml)$'` 列出。
 
 ✅ **正例**：dev server 一直回 400/503 → 先 `lsof -i :8787`，發現是另一個 clone 殘留的 mock-server 佔著 port，殺掉即復原，程式碼一行不用改。
 ❌ **反例**：反覆修改 API 呼叫端程式碼想解 503，兩小時後才發現打到的根本不是自己起的 server。

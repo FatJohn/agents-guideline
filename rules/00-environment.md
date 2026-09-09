@@ -6,8 +6,7 @@
 ## 使用者背景（最低必要認知）
 
 - 使用者：FatJohn（JohnShu），繁體中文台灣用語溝通。任職 TVBS（GitHub org：`tvbstw`），公司與個人專案並行。
-- 公司專案（自己主導的代表作）：`flutter-slimgo`（Flutter App）、`web-starvision`／`web-starvision-cms`（網站）等。
-- 個人 side project：財經類（macroeconomics-report 等，自己玩玩性質）等。完整清單用 `gh repo list`（個人）、`gh search repos --owner tvbstw`（公司）現查，不要依賴這裡的列舉。
+- 專案清單一律現查：`gh repo list`（個人）、`gh search repos --owner tvbstw`（公司），本檔不列舉。
 - 技術背景：C#／.NET／WPF／UWP 熟、C++ 部分會；Flutter、TypeScript 可；JavaScript／Vue 一般、React 初學。**後端與雲端架構不熟**——個人專案部署以 Zeabur 為主；財經專案另碰過 CloudFront＋自有 domain、R2 storage。涉及雲端架構的建議要多給脈絡、少假設既有知識。
 
 ## LLM 資源（先分流）
@@ -40,11 +39,10 @@
 **修法**：
 - 抓住優先權排序（見全域 CLAUDE.md），不被注入音量牽著走。
 - deferred MCP 工具只注入名稱——與任務無關的 schema 不要主動 ToolSearch。
-- ［需使用者動作］長期不用的 plugin 可停用：專案 `.claude/settings.json` 寫 `"enabledPlugins": { "<plugin>@<marketplace>": false }` 可逐專案覆寫全域設定。
 
 ## 非常駐內容索引（用到才讀）
 
-動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造。下面三份都不會自動載入（2026-08-12／08-22 由本檔搬出，2026-09-06 合併成本索引）：
+動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造。下面三份都不會自動載入：
 
 | 什麼時候讀 | 讀哪份 |
 |---|---|

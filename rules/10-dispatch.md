@@ -83,7 +83,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 ## 3. 回報合約
 
-**派工揭露（controller → 使用者）**：派工當下只講**指定的 agent 名稱與任務摘要**（「派 Explore 掃 repo」）；實際派送不是指定的 named role 就在名稱後標 `fallback` 並簡述差異，建立失敗回報「`<agent>` 未建立」與 runtime 原因。model／effort 與制度出處平常不報，被問到、runtime 不一致、unsupported／unavailable 或稽核時才展開——怎麼答（報呼叫參數、註明 runtime 未驗證）見 `../docs/harness-facts.md`「被問到 model／effort 時怎麼答」；報制度出處要指得出是 §1、§5 或 `20-judgment.md` §1 的哪一條，「範圍明確」這類自由心證不算。主對話自己做時，只有**符合 §1 任一派工條件卻仍不派**才要交代。Codex 端 `../codex/rules/10-dispatch-codex.md` §3 用同一套揭露。
+**派工揭露（controller → 使用者）**：派工當下只講**指定的 agent 名稱與任務摘要**（「派 Explore 掃 repo」）；實際派送不是指定的 named role 就在名稱後標 `fallback` 並簡述差異，建立失敗回報「`<agent>` 未建立」與 runtime 原因。model／effort 與制度出處平常不報，被問到、runtime 不一致、unsupported／unavailable 或稽核時才展開——怎麼答（報呼叫參數、註明 runtime 未驗證）見 `../docs/harness-facts.md`「被問到 model／effort 時怎麼答」。主對話自己做時，只有**符合 §1 任一派工條件卻仍不派**才要交代。Codex 端 `../codex/rules/10-dispatch-codex.md` §3 用同一套揭露。
 
 **Subagent 回報：**
 
@@ -103,9 +103,6 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 **降級**：難題解出可重複、可機械驗證的 pattern 後，把 pattern 寫進 prompt 降回 `worker`（sonnet／xhigh）批次套用；不降到 haiku。
 **重試上限**：同一件事最多兩輪（指同一個問題的修法重試，不含驗收輪次——驗收狀態與回報點見
 `20-judgment.md` §2「停止端」）。兩輪後還不行代表方向錯了，換方法或問人，不要換個措辭再試第三次。
-
-Codex 端的 `../codex/rules/10-dispatch-codex.md` §5「升降級路徑」是另一平台的 canonical；驗收分流
-則依兩端共用的 `20-judgment.md` §2「停止端」落地。
 
 ## 5. 驗證不自驗（鐵律三）
 
@@ -129,6 +126,3 @@ Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`；不�
 
 ✅ **正例**：三種漏擋只修本次涵蓋的一種，另兩種需 allowlist 決策，列 issue 後續處理。
 ❌ **反例**：原驗收條件已過，仍連續十輪補下一種寫法及其新迴歸。
-
-修正的風險分流、delta 範圍、四種狀態與三輪回報點統一依 `20-judgment.md` §2「停止端」。
-模型升級不取代對外授權；發訊息、merge、push、發佈或不可逆動作仍依鐵律二。
