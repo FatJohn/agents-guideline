@@ -22,7 +22,8 @@ for pair in \
   "rules:$HOME/.claude/rules" \
   "rubrics:$HOME/.claude/rubrics" \
   "skills/maintain-guideline:$HOME/.claude/skills/maintain-guideline" \
-  "skills/create-pr:$HOME/.claude/skills/create-pr"; do
+  "skills/create-pr:$HOME/.claude/skills/create-pr" \
+  "skills/parallel-dispatch:$HOME/.claude/skills/parallel-dispatch"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -86,6 +87,7 @@ Link-One "$REPO\rules"                     "$HOME\.claude\rules"
 Link-One "$REPO\rubrics"                   "$HOME\.claude\rubrics"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.claude\skills\maintain-guideline"
 Link-One "$REPO\skills\create-pr"                "$HOME\.claude\skills\create-pr"
+Link-One "$REPO\skills\parallel-dispatch"        "$HOME\.claude\skills\parallel-dispatch"
 foreach ($a in 'worker','verifier') {
   Link-One "$REPO\agents\$a.md" "$HOME\.claude\agents\$a.md"
 }
@@ -248,6 +250,7 @@ memories = true
 | `codex/agents/sol_verifier.toml` | Codex Sol/high/read-only 高風險 fresh-context 驗收 agent |
 | `codex/skills/session-handoff/SKILL.md` | Codex 收尾／交接 skill，產生專案 `.codex/HANDOFF.md` |
 | `skills/create-pr/SKILL.md` | Codex／Claude 共用的 Pull Request 建立 skill |
+| `skills/parallel-dispatch/SKILL.md` | 切分後平行派多個 agent 開發與驗收的流程：切分判準、worktree 派工、合併與整合驗收（Claude 端） |
 
 `agents/*.md` 與 `codex/agents/*.toml` 是 standalone role 定義／設定；它們的正文只在該 named role 被派工時進入 subagent context（name／description 會出現在每 session 的可用 agent 清單裡）。named unavailable 時，generic adapter 仍須在 prompt 帶入 `30-delegation-templates-codex.md` 的完整 logical-role contract；`pro_worker` 明確重用 D 的 worker contract，只替換 Terra/high mapping，並附 higher-complexity route 證據。TOML 安裝或角色名稱不能取代 runtime evidence。
 

@@ -30,6 +30,8 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 探索與決策需即時互動時留在主對話；實際寫入僅適用下方小修例外。無法隔離就序列派工，不改成多個寫入者。
 
+準備讓 ≥2 個各需寫入的切片平行（含 spec 尚未切分、要先判斷能不能切時）→ 先讀 `~/.claude/skills/parallel-dispatch/SKILL.md`，該 skill 承載切分判準、worktree 派工、合併與整合驗收流程。
+
 | 工作 | 派給 | model |
 |------|------|-------|
 | 掃 repo、找出「哪些檔案有 X」 | Explore | sonnet |

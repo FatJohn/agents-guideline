@@ -12,6 +12,7 @@
 - Agent frontmatter 的 `effort` 可填 `low`／`medium`／`high`／`xhigh`／`max`，實際可用值仍受模型與組織限制。
 - Agent frontmatter 的 `model` 可填 `haiku`／`sonnet`／`opus`／`fable`／完整 model ID／`inherit`。
 - Claude Code 2.1.222 的 subagent 可使用 `isolation: worktree`（2026-08-06 由 Agent 工具 schema 現查確認該參數仍存在）；需要 blocking 結果時不得只依賴可能因休眠中斷的背景執行。
+- `isolation: worktree` 的實際行為（2026-09-12 在 Claude Code 2.1.267 實測＋官方 worktrees 文件）：worktree 建在 `<repo>/.claude/worktrees/<name>/`、branch 名 `worktree-<name>`、從 controller 當下 HEAD 開出；subagent 結束時有改動（commit 或 uncommitted）就保留，無改動則 worktree 與 branch 一起自動刪除；harness 不把路徑回報給 controller，要靠 subagent 自己回報或 `git worktree list`。官方不提供多 worktree 的合併方式。Workflow 工具的 `agent()` 查不到 isolation 參數（未確認支援）。使用流程見 `../skills/parallel-dispatch/SKILL.md`。
 - Claude agent **沒有 sandbox 欄位**——唯讀角色（`verifier`）只靠 tools 清單與指令合約約束，可寫角色（`worker`）更只剩合約（禁 branch／stash／覆蓋非自建檔案）在擋，controller 驗收時仍須 read-back `git status` 與 `git stash list` 確認無意外寫入。（為什麼 Claude 端只自建 `worker`／`verifier`、不設 Codex `scanner`／`explorer`／`planner` 等價 agent，見 README「檔案結構」。）（2026-08-23 從 `rules/10-dispatch.md` §0 搬入；原文僅去掉句首的「註：」。）
 
 ## Agent 工具 `model` 參數的 alias 對照
