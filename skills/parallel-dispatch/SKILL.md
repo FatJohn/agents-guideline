@@ -10,7 +10,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Read, Grep, Glob
 
 ## §0 兩個入口與「不值得切」判準
 
-- **入口 A**：tracker 已有切好的項目（GitHub issue／ClickUp sub task）→ 跳過 §1，直接進 §2。
+- **入口 A**：tracker 已有切好的項目（GitHub issue／ClickUp sub task）→ 跳過 §1 的「切分」與「建 tracker 項目」，但**不跳過**每片四項（目標、獨立驗收條件、依賴、預估路徑）與下方的重疊矩陣；tracker 項目裡的數字與事實以現查為準（issue 寫的真值會過期，worker 要自己重量，不抄 issue）。
 - **入口 B**：grilling／spec 產出，尚未切 → 先走 §1。
 
 **不值得切、改序列派一個 `worker`**：以下任一成立就不切：
@@ -19,6 +19,10 @@ allowed-tools: Bash(git:*), Bash(gh:*), Read, Grep, Glob
 2. 切完只有 1 片無依賴（切了也不會平行）。
 3. 每片預估路徑都含同一個檔案（切了也只能序列）。
 4. 整份 spec 派一個 `worker`、走一次 `~/.claude/rules/10-dispatch.md`「Controller 工作迴圈」就能做完（沒有平行收益）。
+
+**單片剔除**（不是不切，是那一片不進批次）：某片需要不在手上的權限或尚未上線的外部依賴（例如要改 runner image、要等別人 deploy）→ 該片不派 worker，回 tracker 補一則說明阻擋點與依賴順序的 comment（對外動作，當次授權），其餘片照常。
+
+**重疊矩陣**（兩個入口都做，派工前）：把每片的預估路徑兩兩比對，列成表；同檔重疊的兩片合成一片或序列，判準 3 就是看這張表。§3 的 `gh pr diff --name-only` 是事後校驗「預估 vs 實際」，不是第一次發現重疊的地方——到那時 PR 都開好了，來不及改批次。
 
 ## §1 切分段（入口 B）
 
