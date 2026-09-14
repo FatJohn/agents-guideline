@@ -13,7 +13,7 @@
 
 先辨識當前 runtime，只展開相符的一條；另一平台的 dispatch 檔留在 context 外：
 
-- **Claude Code** → 只讀 `10-dispatch.md` §0「可用模型與 subagent」；平行寫入另讀 `../skills/parallel-dispatch/references/claude.md`。
+- **Claude Code** → 只讀 `10-dispatch.md` §0「可用模型與 subagent」；平行寫入另讀 `../skills/parallel-dispatch/references/claude-code.md`。
 - **Codex** → 只讀 `../codex/rules/10-dispatch-codex.md` §0–1「角色與 runtime adapter／雙軸派工判斷」；平行寫入另讀 `../skills/parallel-dispatch/references/codex.md`。
 
 ## 三大結構性風險與修法（按嚴重度）
