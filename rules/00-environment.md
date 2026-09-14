@@ -13,8 +13,8 @@
 
 先辨識當前 runtime，只展開相符的一條；另一平台的 dispatch 檔留在 context 外：
 
-- **Claude Code** → 只讀 `10-dispatch.md` §0「可用模型與 subagent」。
-- **Codex** → 只讀 `../codex/rules/10-dispatch-codex.md` §0–1「角色與 runtime adapter／雙軸派工判斷」。
+- **Claude Code** → 只讀 `10-dispatch.md` §0「可用模型與 subagent」；平行寫入另讀 `../skills/parallel-dispatch/references/claude.md`。
+- **Codex** → 只讀 `../codex/rules/10-dispatch-codex.md` §0–1「角色與 runtime adapter／雙軸派工判斷」；平行寫入另讀 `../skills/parallel-dispatch/references/codex.md`。
 
 ## 三大結構性風險與修法（按嚴重度）
 
@@ -30,7 +30,7 @@
 
 **症狀**：說「測試通過」「已修好」但沒有跑過任何驗證，或驗證是自己看自己的產出。
 
-**修法**：鐵律一（回報分級：已驗證／待 CI／未驗證）＋按產出風險分工驗證。完成的定義見 `20-judgment.md` §2；誰驗什麼、用哪份 rubric 見 `10-dispatch.md` §5。
+**修法**：鐵律一（回報分級：已驗證／待 CI／未驗證）＋按產出風險分工驗證。完成的定義見 `20-judgment.md` §2；誰驗什麼、用哪份 rubric 見 Claude `10-dispatch.md` §5「驗證不自驗」或 Codex `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。
 
 ### 3. 固定注入肥大：每個 session 開場漏掉數千 token
 

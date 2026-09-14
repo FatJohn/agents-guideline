@@ -97,7 +97,9 @@ controller 核定完整 plan → worker 產出與機械驗證 → controller rea
 - 需要即時與使用者互動或取得授權。
 - 平行寫入無法用獨立 worktree 隔離。
 
-主對話負責與使用者溝通、整合證據、做決策，並 read-back 實際狀態；subagent 的摘要不能取代這些責任。
+主對話負責與使用者溝通、整合證據、做決策，並 read-back 實際狀態；subagent 的摘要不能取代這些責任。唯讀探索可批次化工具讀取；已提供素材仍在最新且足以回答當前問題時可不重讀，但獨立驗收一律做實際 read-back。
+
+兩個以上可安全平行的寫入切片，讀 `<REPO>/skills/parallel-dispatch/SKILL.md` 與 `<REPO>/skills/parallel-dispatch/references/codex.md`；該 skill 是批次、矩陣、integration gate 與驗收的 canonical。
 
 ## 2. 工作目錄與執行安全
 
@@ -106,7 +108,7 @@ controller 核定完整 plan → worker 產出與機械驗證 → controller rea
 - blocking 任務不得只放在可能因休眠或背景 session 中斷而消失的背景執行；controller 必須保有可持續等待、重接或重跑的前景路徑。
 - Subagent 回報不等於實際狀態。controller 必須 read-back `git status`、`git diff`、commit 狀態與驗證輸出，確認共享工作目錄的真實結果。
 - **唯讀角色也受影響**：`verifier`／`explorer`／`reviewer` 等 read-only 角色與寫入者共用 working tree 時，它的**唯讀結論**（檔案內容、路徑與指令是否存在）仍可信，但**任何跑測試／build 取得的數字**都被污染——工作區在它量測期間被改動過。要嘛等它跑完再動手，要嘛在 prompt 的工作目錄欄指定獨立 worktree 絕對路徑。
-- 寫入型 prompt 必須指定 working tree 絕對路徑與寫入所有權；不同寫入者不得擁有重疊路徑。
+- 寫入型 prompt 必須指定實際 working tree 絕對路徑與寫入所有權；每個實體 worktree 同一時間只有一個寫入者。
 
 ## 3. 派工三件套
 
@@ -153,6 +155,6 @@ Claude 端 `<REPO>/rules/10-dispatch.md` §3 使用同一套 user-facing 揭露�
 - 一般程式碼 review 可由 fresh-context `reviewer` 執行；它發現一般文件問題升級 `verifier`，發現高風險或正式驗收問題升級 `sol_verifier`。
 - 測試、build、lint、實跑與 schema 驗證可由製作者執行，但回報必須附指令與輸出證據。
 - 高風險程式碼除機械驗證外，再做一次 fresh-context `reviewer` 與 `sol_verifier` review；若 named role unavailable，兩者依同一 direct CLI fallback 取得獨立證據，不能因 TOML 或角色名稱存在就視為已選中。
-- **修使用者實際回報的 bug 一律加 fresh-context `reviewer` review**，不必先判定風險等級或改動大小——「高風險」要當場判斷，「使用者回報的 bug」不用。該次驗收一定要問「同一個錯誤還有沒有第二個現場」——那是製作者最不適合回答的問題（他的心智模型正是漏掉那一處的原因），也是機械驗證最驗不到的：測試只覆蓋你改的那條路，改對的那條會全綠。答案是取樣不是清單：範圍分流與後續登記見 `<REPO>/rules/10-dispatch.md` §5；修正後依共用停止端判斷機械結案或 fresh delta。
+- **修使用者實際回報的 bug 一律加 fresh-context `reviewer` review**，不必先判定風險等級或改動大小——「高風險」要當場判斷，「使用者回報的 bug」不用。該次驗收一定要問「同一個錯誤還有沒有第二個現場」——那是製作者最不適合回答的問題（他的心智模型正是漏掉那一處的原因），也是機械驗證最驗不到的：測試只覆蓋你改的那條路，改對的那條會全綠。答案是取樣不是本次必修清單；先判斷共同成因，再決定修哪一層。範圍內依 `<REPO>/rules/20-judgment.md` §2「停止端」分流；範圍外不擴修，由 controller 登記該 repo issue 並附連結，未取得對外授權則保留待登記項目。連續兩輪發現都在範圍外就停止回報，不把下一批工作塞進本次。
 - `verifier` 與 `sol_verifier` 的任務是假設產物有問題並找碴；只驗收與指出缺口，不修正產物。找碴範圍與「行為承載產物」分類的 canonical 在 `<REPO>/rules/20-judgment.md` §2「停止端」；不因檔案是 Markdown 就把會改變 agent／人員行動的語意降成散文。
 - 驗收判定前必讀 `<REPO>/rules/20-judgment.md` §2「修正與驗收輪次」及「停止端」：四種狀態、補證、修正風險分流與三輪回報點只在該處定義；不可把 OPEN 當成必派或把 UNSURE 當成通過。

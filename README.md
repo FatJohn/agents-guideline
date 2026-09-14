@@ -97,6 +97,7 @@ Link-One "$REPO\AGENTS.md" "$HOME\.codex\AGENTS.md"
 Link-One "$REPO\codex\skills\session-handoff"    "$HOME\.agents\skills\session-handoff"
 Link-One "$REPO\skills\create-pr"                "$HOME\.agents\skills\create-pr"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.agents\skills\maintain-guideline"
+Link-One "$REPO\skills\parallel-dispatch"        "$HOME\.agents\skills\parallel-dispatch"
 
 # Codex agent TOML：先預覽，再寫入實體 regular files
 python "$REPO\scripts\sync-codex-agents.py" --destination "$HOME\.codex\agents"
@@ -137,7 +138,8 @@ mkdir -p ~/.agents/skills
 for pair in \
   "codex/skills/session-handoff:session-handoff" \
   "skills/create-pr:create-pr" \
-  "skills/maintain-guideline:maintain-guideline"; do
+  "skills/maintain-guideline:maintain-guideline" \
+  "skills/parallel-dispatch:parallel-dispatch"; do
   src="$REPO/${pair%%:*}"; dst="$HOME/.agents/skills/${pair#*:}"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -184,7 +186,7 @@ Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用�
 memories = true
 ```
 
-本 repo 另外提供三個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`（2026-09-02 降級，理由見該檔檔頭）。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
+本 repo 另外提供四個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議，`parallel-dispatch` 處理多寫入切片的 worktree 與整合驗收。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`（2026-09-02 降級，理由見該檔檔頭）。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
 
 ## 新機器建檔（5 分鐘探測清單）
 
@@ -250,7 +252,7 @@ memories = true
 | `codex/agents/sol_verifier.toml` | Codex Sol/high/read-only 高風險 fresh-context 驗收 agent |
 | `codex/skills/session-handoff/SKILL.md` | Codex 收尾／交接 skill，產生專案 `.codex/HANDOFF.md` |
 | `skills/create-pr/SKILL.md` | Codex／Claude 共用的 Pull Request 建立 skill |
-| `skills/parallel-dispatch/SKILL.md` | 切分後平行派多個 agent 開發與驗收的流程：切分判準、worktree 派工、合併與整合驗收（Claude 端） |
+| `skills/parallel-dispatch/SKILL.md` | Claude／Codex 共用的平行派工核心：切分判準、worktree 路徑矩陣、逐 PR gate 與批次整合驗收；依 runtime 再讀 `references/claude.md` 或 `references/codex.md` |
 
 `agents/*.md` 與 `codex/agents/*.toml` 是 standalone role 定義／設定；它們的正文只在該 named role 被派工時進入 subagent context（name／description 會出現在每 session 的可用 agent 清單裡）。named unavailable 時，generic adapter 仍須在 prompt 帶入 `30-delegation-templates-codex.md` 的完整 logical-role contract；`pro_worker` 明確重用 D 的 worker contract，只替換 Terra/high mapping，並附 higher-complexity route 證據。TOML 安裝或角色名稱不能取代 runtime evidence。
 
