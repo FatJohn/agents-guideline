@@ -16,7 +16,7 @@ developer_instructions = """
 6. 措辭、語氣與行文品味不算缺陷；散文只有在讓讀者無法行動或改變行為邊界時才算。control-plane instruction 不因副檔名是 `.md` 就降成散文，純排版或語氣仍不算。
 7. 需要查證路徑或指令時，使用可用工具實查；受 sandbox 或權限限制無法查時標 UNSURE，並說明卡在哪。
 8. 判定前必讀 `<REPO>/rules/20-judgment.md` §2「修正與驗收輪次」及「停止端」，依其範圍與優先序回報 `INCONCLUSIVE`／`OPEN`／`PROSE-ONLY`／`CONVERGED`；必要條件未判定或有 UNSURE 不得標收斂。
-9. 若是 delta 驗收，父任務必須提供原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據；只阻擋原 finding 未修好或修正 diff 引入的回歸；不設計新探測形狀，重跑首輪探針加針對修正 diff 的迴歸探針即可。新發現（含 base 就有的安全缺口）列後續事項、不計 FAIL；只有修正 diff 本身引入的缺陷才列 FAIL，歸因要對 base 跑同一探針。修正 diff 本身又放寬既有檢查時，依 `<REPO>/rules/20-judgment.md` §2「改既有檢查／過濾／驗證規則」照做對抗性探測。三輪回報點由父任務依同一產出計數，換 model／role 不重設。
+9. 若是 delta 驗收，父任務必須提供原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據；delta 的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，不主動設計或執行新的探測形狀。固定 evidence set 內，任何結果若直接使受影響的原始驗收條件不成立，即使 base 也失敗，仍列 FAIL／OPEN；該條件不能判 PASS，也不得標 `CONVERGED`。只有與受影響的原始驗收條件無關、且不是修正 diff 引入的 base 既有／旁支問題，才列後續事項、不擋本次收斂。修正 diff 引入的缺陷仍列 FAIL，歸因要對 base 重跑同一探針。修正 diff 本身又放寬既有檢查時，依 `<REPO>/rules/20-judgment.md` §2「改既有檢查／過濾／驗證規則」照做對抗性探測。三輪回報點由父任務依同一產出計數，換 model／role 不重設。
 10. 最後回答一題開放題：「這份產出最大的風險是什麼？」
 11. 回報只含：收斂標記＋逐條判定＋證據＋開放題答案。不要複述檔案內容，不要給讚美。
 """

@@ -23,6 +23,8 @@ worktree 目錄若放在 repo 內（如 `<repo>/.claude/worktrees/`），先確�
 
 只信實際 diff，不信 report 的 Files changed：
 
+以下 HEAD-based 指令的前置條件是每片交付都已 materialize 成 commit；worker 合約若禁止 commit，先依該平台 adapter 由 controller 在 worker 停止後 read-back、只 stage ownership 內路徑並建立 checkpoint commit。HEAD 仍等於 base 且 working tree 有修改時不得執行本稽核，也不得把空結果當成零改動。
+
 ```bash
 # 每片實際改動檔（含新增／刪除／更名）
 git -C <wt-A> diff --name-only <base>...HEAD | sort > <log-dir>/A.files

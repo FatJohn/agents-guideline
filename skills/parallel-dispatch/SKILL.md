@@ -86,7 +86,7 @@ parallelize only when: parallel benefit > coordination + merge cost
 
 **每個 worker 都必須拿到**：完整 brief（`references/templates.md`）、唯一寫入者宣告、自己的落地位置（隔離時為 worktree 絕對路徑）、驗證命令、回報格式。brief 開頭明寫「你是被派來的執行者，親自完成，不要再派工」，並告知它不是 codebase 裡唯一在改的人——ownership 外看起來殘缺的東西不要順手修或回退。暫時探針的 plan 必須寫還原指令、探針期間預期會紅的既有檢查，且不得為此順手修 fixture；長輸出落檔使用切片專屬前綴。誰建 worktree、用什麼指令 launch 由 adapter 決定；**worker 可否 commit／rebase 由該 agent 的合約決定**（各平台的合約與宣告句見對應 adapter），adapter 只在 brief 的 Execution environment 欄如實填入，不做授權判斷。
 
-**回報**：worker 完成後必須回 structured report（Status／Summary／Files changed／Validation／Issues／Integration notes／Commit／Location，格式在 `references/templates.md`）。只回「Done」＝未完成，退回補齊。controller **逐欄 read-back**，不採信自述：Commit 用 `git show` 核、Files changed 對 `git diff --name-only <base>...HEAD`（高報與低報都算不符）、Validation 由 §5 的驗收者在該落地位置重跑；實作類任務改動為零＝失敗，不是「沒事可做」。adapter 的 query status 只是線索，**不得憑摘要 merge**。
+**回報**：worker 完成後必須回 structured report（Status／Summary／Files changed／Validation／Issues／Integration notes／Commit／Location，格式在 `references/templates.md`）。只回「Done」＝未完成，退回補齊。controller **逐欄 read-back**，不採信自述：已 commit 的 Commit 用 `git show` 核、Files changed 對 `git diff --name-only <base>...HEAD`；回報 `uncommitted` 時改用 `git status --short`＋`git diff --name-only` 核對，不能拿 HEAD diff 判零。任何 §5／§6 以 HEAD／SHA 綁定證據的平台，進入該階段前須依 adapter 把已停止 worker 的交付 materialize 成 controller-owned checkpoint commit。Validation 由 §5 的驗收者在該落地位置重跑；實作類任務改動為零＝失敗，不是「沒事可做」。adapter 的 query status 只是線索，**不得憑摘要 merge**。
 
 ## §5 VALIDATION：切片驗收
 
@@ -107,7 +107,7 @@ parallelize only when: parallel benefit > coordination + merge cost
 3. 對照原始需求：合起來有沒有涵蓋全部、有沒有多做。計畫裡點名的符號、路徑、訊息逐項 `git grep`，零命中＝被默默丟掉；grep 只證存在不證正確，正確性靠 §5 與第 7 步。
 4. 檢查片與片的介面一致（簽名、schema、事件名、錯誤格式）。
 5. 決定 merge 順序：**通過當前 base gate 的完成順序**，不強求切分時的順序。
-6. 處理 conflict：預檢用唯讀的 `git merge-tree`，不用會動 working tree 的試合。純文字 conflict 由 integrator 在 integration tree 解，或以 follow-up 要 worker 在自己的落地位置 rebase 後重跑驗證——**不在 worker 的落地位置由第三者動手**。git 能自動合但語意互踩的由 controller 判斷，判不出才問使用者，**不以「無 conflict」跳過語意風險判定**。
+6. 處理 conflict：預檢用唯讀的 `git merge-tree`，不用會動 working tree 的試合。純文字 conflict 由 integrator 在 integration tree 解；worker 合約允許 rebase 時，也可 follow-up 要 worker 在自己的落地位置 rebase 後重跑驗證。**worker 還在執行時不由第三者進它的落地位置動手**；合約禁止 worker commit／rebase 的平台，依 adapter 在 worker 停止後由 controller 建 checkpoint，conflict 仍只在 integration tree 解。git 能自動合但語意互踩的由 controller 判斷，判不出才問使用者，**不以「無 conflict」跳過語意風險判定**。
 7. 建暫存 integration tree／branch（`references/worktree.md`），跑完整測試／lint／typecheck／build；記錄 base SHA、每片 HEAD、integration tree／commit 與結果。任何 base、切片 HEAD 或 integration 內容變動都使受影響證據失效，必須重驗。
 8. 逐片 merge（PR 或直接 merge 依專案流程）前，以**當前 base 加該候選片**建 integration gate 跑受影響的完整檢查；base 有 auto deploy 時這個中間狀態不可只由全批最終 tree 代替。不要拿全批最終 tree 比較第一片 merge，否則會把後續合法切片誤判為失效。
 9. §3 語意風險任一成立才派一名 fresh verifier，只驗片與片的互動及合併後的執行環境（fresh checkout、CI job 順序、產物依賴），不重驗已通過的切片條件；驗收者在 integration tree 的乾淨環境執行。無風險時最終證據只需 integration tree 的完整測試。驗收 prompt 裡的測試數、新增條數由 controller 現查（如 `git grep -c`），不抄 worker 自報。
