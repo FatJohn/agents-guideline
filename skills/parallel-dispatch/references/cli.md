@@ -1,14 +1,15 @@
 # Adapter：外部 CLI process（純 shell、tmux、VS Code／Cursor terminal、Herdr、Orca、未來工具）
 
-配合 [../SKILL.md](../SKILL.md) §9 的 adapter 契約使用。這一類環境的共同點：**每個 worker 是一個獨立的 coding agent CLI process**（`claude`、`codex` 或其他），controller 是另一個 session 或人。tmux、VS Code、Herdr、Orca 只是這些 process 的 terminal／session 容器；它們提供的 workspace、分頁、狀態面板都是 UX，不進 SKILL 的任何判斷。未來工具只要能做下表五件事，就照本檔用，不必改 SKILL。
+配合 [../SKILL.md](../SKILL.md) §9 的 adapter 契約使用（launch、follow-up、query status、collect、stop、workspace）。這一類環境的共同點：**每個 worker 是一個獨立的 coding agent CLI process**（`claude`、`codex` 或其他），controller 是另一個 session 或人。tmux、VS Code、Herdr、Orca 只是這些 process 的 terminal／session 容器；它們提供的 workspace、分頁、狀態面板都是 UX，不進 SKILL 的任何判斷。未來工具只要能做下表五件事，就照本檔用，不必改 SKILL。
 
 | 契約項目 | 本 adapter 的做法 |
 |---|---|
-| launch agent | 在該片 worktree 目錄啟動 CLI，brief 從檔案餵入：`cd <wt> && claude -p "$(cat <brief>)"`／`codex exec "$(cat <brief>)"`，或互動模式貼 brief。旗標以當下 `--help` 現查，不憑記憶 |
-| open session | 由容器決定：純 shell 開新 terminal；tmux 一 window 一 worker；VS Code 一 terminal 分頁一 worker；Herdr／Orca 一 workspace 一 worker。**一個 session 對應一個 worker，不對應一個 task**——task 可換 worker、worker 可換 session |
-| create workspace | controller（或人）先以 `worktree.md`「所有權與路徑」的 `git worktree add` 建每片 worktree。Orca 等工具若能自動建 worktree，用它建出來的路徑即可，但仍要 `git worktree list` read-back 並記錄絕對路徑與 branch；不用它的 workspace model 代替 SKILL §3 的 graph |
+| launch | 在該片 worktree 目錄啟動 CLI，brief 從檔案餵入：`cd <wt> && claude -p "$(cat <brief>)"`／`codex exec "$(cat <brief>)"`，或互動模式貼 brief。旗標以當下 `--help` 現查，不憑記憶。session 由容器決定：純 shell 開新 terminal；tmux 一 window 一 worker；VS Code 一 terminal 分頁一 worker；Herdr／Orca 一 workspace 一 worker。**一個 session 對應一個 worker，不對應一個 task**——task 可換 worker、worker 可換 session。記下每個 worker 的 PID 或 session 名，stop 要用 |
+| workspace | controller（或人）先以 `worktree.md`「所有權與路徑」的 `git worktree add` 建每片 worktree。Orca 等工具若能自動建 worktree，用它建出來的路徑即可，但仍要 `git worktree list` read-back 並記錄絕對路徑與 branch；不用它的 workspace model 代替 SKILL §3 的 graph |
 | query status | 兩層：git read-back（`git -C <wt> status --short`、`rev-parse HEAD`、`diff --stat`）＋ worker report 落檔（brief 指定 `<log-dir>/<slice>-report.md`，`<log-dir>` 在 repo 外）。容器的「執行中／完成」指示燈只是線索，不是證據 |
-| send follow-up | 用該 CLI 的 resume／continue 機制續同一 session（現查 `--help`），或在同一 worktree 起新 process 並把原 report、finding、diff 餵入 |
+| follow-up | 用該 CLI 的 resume／continue 機制續同一 session（現查 `--help`），或在同一 worktree 起新 process 並把原 report、finding、diff 餵入——前提是舊 process 已依 stop 確認結束 |
+| collect | worker report 落檔 `<log-dir>/<slice>-report.md`（brief 指定），非互動模式另記 process exit code；沒有 report 檔＝未完成 |
+| stop | 結束該 process 或關閉其 session（`kill <pid>`／容器的關閉指令），再以 `ps -p <pid>` 或 session 清單確認消失，並 `git -C <wt> status --short`＋`rev-parse HEAD` 兩次 read-back（相隔至少 60 秒）無變化。容器顯示「已停止」不算，process 還在就是還在寫 |
 
 ## 派工與 worktree
 

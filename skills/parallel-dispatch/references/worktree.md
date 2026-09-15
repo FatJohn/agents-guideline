@@ -19,6 +19,23 @@ git -C <repo> worktree list          # read-back
 
 worktree 目錄若放在 repo 內（如 `<repo>/.claude/worktrees/`），先確認已被 `.gitignore` 忽略，否則全目錄掃描工具與 `git add -A` 會掃進去。
 
+## Ownership 稽核（SKILL §6 第 2 步）
+
+只信實際 diff，不信 report 的 Files changed：
+
+```bash
+# 每片實際改動檔（含新增／刪除／更名）
+git -C <wt-A> diff --name-only <base>...HEAD | sort > <log-dir>/A.files
+git -C <wt-B> diff --name-only <base>...HEAD | sort > <log-dir>/B.files
+# 對照 brief 允許路徑：不在允許清單內的路徑 → 該片退回
+# 兩兩交集：任一對非空 → 停下先解 ownership（SKILL §8「overlapping changes」）
+comm -12 <log-dir>/A.files <log-dir>/B.files
+# 唯讀 conflict 預檢（git ≥ 2.38）；不要用 checkout＋merge --no-commit 這種會動 working tree 的試合
+git -C <repo> merge-tree --write-tree <base> <slice-branch>
+```
+
+worktree 之間**不要用複製檔案**搬改動——另一邊的 base 可能已前進，複製會覆蓋新 code；一律透過 commit 與 git 合併。
+
 ## Integration tree（SKILL §6 第 7–9 步）
 
 merge 前用一個暫存 worktree／branch 從當前 base 開出，依序合入候選片：
@@ -34,7 +51,7 @@ git -C <integration-path> rev-parse HEAD^{tree}           # 記 tree SHA
 
 ## 清理的證據條件（全部 AND，缺一不清）
 
-1. 該 worktree `git status --short` 為空，且沒有仍在使用它的 agent／session（adapter 的 query status ＋ `ps`／session 清單現查）。
+1. 該 worktree `git status --short` 為空，且沒有仍在使用它的 agent／session（adapter 的 stop 已確認結束 ＋ `ps`／session 清單現查）。逾時的 worker 不等於已停止；確認不了就不清、也不重用該 worktree（SKILL §8「逾時或 stop 之後要重派」）。
 2. 重新取得 `<target-base>` 的 SHA，**等於**最近一次完成整批交付驗收且通過 merge read-back 所記錄的 base SHA。
 3. 目前切片 HEAD **等於**該整合記錄的 slice HEAD。
 4. 交付內容已在目前 base 上：核對**完整交付 diff**（含新增、刪除與更名）都出現在 base；`git merge-base --is-ancestor <slice-head> <target-base>`（一般 merge）或 PR `MERGED` 狀態（squash／rebase）只證明「曾合併」，是來源證據，不能取代內容核對；也不得以整棵 base／slice tree 相等為條件，因為 base 還含其他切片。

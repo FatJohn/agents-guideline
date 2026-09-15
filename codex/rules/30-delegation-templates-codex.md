@@ -33,7 +33,7 @@ authorization boundary: 【controller 已授權的動作；對外或不可逆動
 
 `actual agent_type=default` 時，完整 logical-role contract 仍照貼；沒有 child metadata 時 runtime evidence 必須保留「runtime 未驗證」。generic spawn surface 沒有 sandbox override 時，runtime permission evidence 寫「繼承父 session」；寫入角色須先證明父權限涵蓋 approved scope，read-only 角色則只有父 runtime 已是 read-only 時可派，否則改走 direct CLI 或停止。不得把 prompt 內的 read-only 自稱或事後 read-back 當作 sandbox 證據。若使用 `codex exec --ephemeral --sandbox read-only` 走 direct CLI review，該 process 是單體 fresh reviewer，可在指定 model／effort、sandbox 與完整 contract 都有 runtime 證據時完成獨立驗收（包含 Sol/high）；回報標 `direct CLI fallback`，不能把 generic child 或 direct CLI 稱為 custom role。缺任一身份／權限證據只能標「runtime 未驗證」，不能正式結案。
 
-首輪驗收依原有首次驗收分工獨立完成，高風險沒有豁免。若是 finding 後的 delta，prompt 必須填入原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據；只阻擋原 finding 未修好或修正引入的回歸，無關新發現列為後續事項，直接影響本次安全邊界或必要驗收的問題仍須列出。
+首輪驗收依原有首次驗收分工獨立完成，高風險沒有豁免。若是 finding 後的 delta，prompt 必須填入原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據；只阻擋原 finding 未修好或修正 diff 引入的回歸；不設計新探測形狀，重跑首輪探針加針對修正 diff 的迴歸探針即可。新發現（含 base 就有的安全缺口）列後續事項、不計 FAIL；只有修正 diff 本身引入的缺陷才列 FAIL，歸因要對 base 跑同一探針。修正 diff 本身又放寬既有檢查時，依 `<REPO>/rules/20-judgment.md` §2「改既有檢查／過濾／驗證規則」照做對抗性探測。
 verifier 回報狀態使用 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`；必要條件有 `UNSURE` 時為 `INCONCLUSIVE`，`OPEN` 依風險分流而非自動要求 fresh delta。`PROSE-ONLY` 修完並 read-back 後停止；三輪回報點依同一產出計數，換 model／role 不重設。
 
 ## A. 搜尋／掃描（角色：scanner）

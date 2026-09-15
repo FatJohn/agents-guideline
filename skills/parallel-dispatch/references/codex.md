@@ -1,14 +1,15 @@
 # Adapter：Codex 同 session subagent
 
-配合 [../SKILL.md](../SKILL.md) §9 的 adapter 契約使用；只提供 launch、workspace、query status、follow-up 與角色分流，不改變 SKILL 任何一步。Claude worker 合約的隔離 worktree 例外（`<REPO>/agents/worker.md` 規則 5）不適用於 Codex worker（`<REPO>/codex/agents/worker.toml` 禁止 commit）。
+配合 [../SKILL.md](../SKILL.md) §9 的 adapter 契約使用；只提供 launch、follow-up、query status、collect、stop、workspace 與角色分流，不改變 SKILL 任何一步。Claude worker 合約的隔離 worktree 例外（`<REPO>/agents/worker.md` 規則 5）不適用於 Codex worker（`<REPO>/codex/agents/worker.toml` 禁止 commit）。
 
 | 契約項目 | 本 adapter 的做法 |
 |---|---|
-| launch agent | Codex controller 依 `<REPO>/codex/rules/10-dispatch-codex.md` §3 三件套派 subagent，每片一個；prompt 的工作目錄欄指定該片 worktree 絕對路徑與絕對寫入所有權 |
-| open session | 無（subagent 在 controller session 內跑） |
-| create workspace | **controller 先建**每片獨立 worktree 與 integration worktree（指令見 `worktree.md`「所有權與路徑」），Codex 沒有自動隔離機制 |
+| launch | Codex controller 依 `<REPO>/codex/rules/10-dispatch-codex.md` §3 三件套派 subagent，每片一個；prompt 的工作目錄欄指定該片 worktree 絕對路徑與絕對寫入所有權。subagent 在 controller session 內跑，沒有獨立 terminal |
+| workspace | **controller 先建**每片獨立 worktree 與 integration worktree（指令見 `worktree.md`「所有權與路徑」），Codex 沒有自動隔離機制 |
 | query status | `git worktree list`、`git -C <wt> status --short`、`git -C <wt> diff`、`git -C <wt> rev-parse HEAD`、`git -C <wt> branch --show-current` read-back |
-| send follow-up | 帶原 finding、diff 與受影響驗收條件重派同角色；Codex subagent 不保留跨呼叫 context |
+| follow-up | 帶原 finding、diff 與受影響驗收條件重派同角色；Codex subagent 不保留跨呼叫 context |
+| collect | subagent 回傳的最後訊息就是 worker report（含路徑、HEAD 與驗證輸出關鍵行）；長輸出落檔到 brief 指定的 `<log-dir>` |
+| stop | 同 session subagent 無法中途停止（以當下版本現查為準），只能等回傳；回傳前不得動它的 worktree。回傳後以 `git -C <wt> status --short` 確認無變化才算停 |
 
 ## 派工與 worktree
 

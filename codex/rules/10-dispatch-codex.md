@@ -81,7 +81,7 @@ Reasoning effort 只回答「同一模型需要思考多深」：問題已理解
 
 ### Controller 工作迴圈（worker 標準流程）
 
-controller 核定完整 plan → worker 產出與機械驗證 → controller read-back → 依 §6 選擇需要的 review／驗收，不額外疊 spec／quality／verifier 儀式；高風險 §6 的 reviewer＋sol_verifier 分工仍保留。修正依共用 `20-judgment.md` §2 停止端分流。同一有界交付批次可由同一 worker 完成。主對話小修只限單點、低風險、可機械驗證、scope 無歧義；授權、安全、架構或主觀文件不適用。所有 child 直接完成收到的任務，不再套此 controller 流程遞迴派工。
+controller 核定完整 plan → worker 產出與機械驗證 → controller read-back → 依 §6 選擇需要的 review／驗收，不額外疊 spec／quality／verifier 儀式；高風險 §6 的 reviewer＋sol_verifier 分工仍保留。修正依共用 `<REPO>/rules/20-judgment.md` §2 停止端分流。同一有界交付批次可由同一 worker 完成。主對話小修只限單點、低風險、可機械驗證、scope 無歧義；授權、安全、架構或主觀文件不適用。所有 child 直接完成收到的任務，不再套此 controller 流程遞迴派工。
 
 優先派 subagent：
 
