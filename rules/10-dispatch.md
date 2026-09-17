@@ -52,7 +52,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。
 2. 派 `worker`（single-writer）依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
 3. controller read-back 實際檔案／指令輸出，不採信 worker 自述。
-4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。
+4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。修正輪預設帶 finding＋修正 diff 派 fresh `worker`；`SendMessage` 續用同一 worker 只限其首輪 ≤60 次工具呼叫（完成通知 `<usage>` 的 `tool_uses`）且修正為單點（數字見 `../docs/harness-facts.md`）。
 
 controller 自行小修的例外**只限**單點、低風險、可機械驗證、scope 無歧義的修正（如打字錯誤、單一路徑修正）；涉及授權、安全、架構取捨或主觀品質的文件一律走上面四步，不得用「順手改一下」跳過。`worker` 與 `verifier` 不得對自己收到的任務再套用本節或 §1「雙軸判斷」去派工——它們是執行者／找碴者，不是第二層 controller。
 

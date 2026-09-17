@@ -7,7 +7,7 @@
 | launch | 一個 controller session 在**同一則訊息**發多個 `Agent` 呼叫，每片一個；實作用 `worker`（`model: sonnet`），切片與整合驗收用 fresh `verifier`（`model: opus`）。subagent 在 controller session 內跑，沒有獨立 terminal |
 | workspace | 每個寫入型 Agent 呼叫設 `isolation: worktree`；harness 自動建 worktree，行為事實見 `<REPO>/docs/harness-facts.md` |
 | query status | subagent 完成時回報一次；期間狀態靠 `git worktree list`、`git -C <wt> status --short`、`git -C <wt> log -1 --format=%H` read-back |
-| follow-up | 同一 agent 用 `SendMessage` 續派（保留其 context），或帶原 finding 與 diff 另派 fresh agent |
+| follow-up | 預設帶原 finding 與 diff 另派 fresh agent；同一 agent 用 `SendMessage` 續派（保留其 context）只限 SKILL §6 第 10 步的條件（首輪 ≤60 次工具呼叫且修正為單點，數字取完成通知 `<usage>` 的 `tool_uses`） |
 | collect | subagent 回傳的最後訊息就是 worker report（必含 Location 欄的 worktree 路徑、branch、HEAD）；長輸出由 worker 落檔到 brief 指定的 `<log-dir>` |
 | stop | 背景 subagent 用當下工具清單裡的停止工具（現查有無 `TaskStop`）終止；同步呼叫的 subagent 無法中途停止，只能等回傳。停止後以 `git -C <wt> status --short`＋`rev-parse HEAD` 做兩次 read-back，**相隔至少 60 秒**且期間該 agent 未回傳任何訊息，兩次都無變化才算停；否則依 SKILL §8 換新 worktree 重派 |
 
@@ -30,3 +30,4 @@
 ## 已知成本
 
 2026-09-12 的 3 片 S／M 實跑樣本（每片 2–4 輪、12 次 agent 呼叫、約 1.6M subagent token、約 100 分鐘）記在 `<REPO>/docs/harness-facts.md`；這是成本參考，不是加速宣稱。
+2026-09-17 對 09-07 起 75 個 session 的量測（單輪 vs 續用 worker 的成本、verifier 首輪 OPEN 率、活躍時間分帳）同記在 `<REPO>/docs/harness-facts.md`。
