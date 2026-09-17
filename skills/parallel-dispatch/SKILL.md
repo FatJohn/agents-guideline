@@ -69,7 +69,7 @@ parallelize only when: parallel benefit > coordination + merge cost
 
 **批次上限**：預設一批 **3** 片，最多 4 片且要寫出理由（每片獨立且 review 量可承受）；不滾動補位；下一批須等本批整合完成（§7）。平行是有成本的資源：每多一個 worker 就多一份 context 複製、一個要 review 的 diff、一次整合風險；而驗收與整合本身是序列的，多開 worker 不會讓瓶頸變快。
 
-**單片尺寸上限**：一片的預估工作量以 worker **一輪 ≤60 次工具呼叫**為上限（量法：subagent 完成通知 `<usage>` 的 `tool_uses`；預估時以 brief 的 phase 數×每 phase 檢查數估）；預估超過就再切或序列成兩片，不靠同一個 worker 多輪跑完。理由：worker 每次工具呼叫都重讀整段 context，片越大、輪越多，成本是平方級不是線性（2026-09-17 實測：單輪 worker 中位 58 次；被續用修 finding 的 71 個 worker 占 worker 總成本 82%，最大滾到 500 次／700K context，數字見 `<REPO>/docs/harness-facts.md`）。
+**單片尺寸評估**：依交付內容、依賴關係、驗收邊界與可交接性估量，不用單一 counter 當硬上限或品質門檻。60 次工具呼叫目前只作暫行提醒；若預估或實際明顯超過，重評進度、剩餘工作、context、重讀與 handoff 成本，再決定續用、交接、序列或重切；不得為了湊計數拆開原本有依賴的片。counter 的量法依 adapter；沒有可靠 counter 就標 `unknown`，不可從文字猜，也不阻擋派工。量測限制與後續方法見 `<REPO>/docs/dispatch-cost-review-2026-09-17.md`。
 
 **Ownership**（每份 brief 必填）：objective、scope、允許路徑、禁止路徑或子系統、依賴、預期輸出、驗證命令、完成定義。允許路徑以 repo 相對路徑寫，實際落地位置由 adapter 決定（`references/worktree.md`）。目標是**兩個 worker 不會同時改同一檔**，做不到就序列。三條硬規則：
 - **共用觸點不得有兩個 owner**：lockfile、registry／index 檔、generated artifact、migration 序號、changelog 這類單檔熱點，要嘛指定唯一 owner，要嘛留給 integrator 在 §6 統一改，要嘛改成每片一個 fragment 由整合時合併。沒有 owner 的路徑任何片都不准改。
@@ -113,7 +113,7 @@ parallelize only when: parallel benefit > coordination + merge cost
 7. 建暫存 integration tree／branch（`references/worktree.md`），跑完整測試／lint／typecheck／build；記錄 base SHA、每片 HEAD、integration tree／commit 與結果。任何 base、切片 HEAD 或 integration 內容變動都使受影響證據失效，必須重驗。
 8. 逐片 merge（PR 或直接 merge 依專案流程）前，以**當前 base 加該候選片**建 integration gate 跑受影響的完整檢查；base 有 auto deploy 時這個中間狀態不可只由全批最終 tree 代替。不要拿全批最終 tree 比較第一片 merge，否則會把後續合法切片誤判為失效。
 9. §3 語意風險任一成立才派一名 fresh verifier，只驗片與片的互動及合併後的執行環境（fresh checkout、CI job 順序、產物依賴），不重驗已通過的切片條件；驗收者在 integration tree 的乾淨環境執行。無風險時最終證據只需 integration tree 的完整測試。驗收 prompt 裡的測試數、新增條數由 controller 現查（如 `git grep -c`），不抄 worker 自報。
-10. 必要時要求修正（帶原 finding、diff、受影響驗收條件）：**預設派 fresh worker**；follow-up 續派同一 worker 只限它首輪 ≤60 次工具呼叫（完成通知的 `tool_uses`）且修正為單點——context 已滾大的 worker 每一步都在重讀整段歷史（見 §3「單片尺寸上限」）。修正後依停止端分流機械結案或 fresh delta。
+10. 必要時要求修正，帶原 finding、修正 diff、受影響驗收條件與既有證據。**預設派 fresh worker**，但這是可調預設：若修正小且獨立、原 worker 理解正確，且沒有膨脹或反覆重讀跡象，可依累積現況續用同一 worker，不以首輪 60 次單獨決定；若能力不足，沿用升級路徑，fresh 不取代升級。任何交接都要附原 brief、ownership、invariants、原 finding、current diff、受影響條件與既有證據，以及 slice 絕對路徑、branch、base SHA、candidate／checkpoint SHA、dirty 狀態；先 stop/read-back 再移 ownership。同一 worktree 可序列接手；新 worktree 必須從已核對的 candidate checkpoint 建立並 read-back，不可只從 controller HEAD 假定有候選改動。修正後依停止端分流機械結案或 fresh delta。
 
 **收斂即整合，不等整批**：§3 語意風險判定為無的片，一收斂（`CONVERGED`，或 `PROSE-ONLY` 修完 read-back）就單獨走第 7–8 步 merge 或開 PR，不等同批其他片；只有判定有語意風險的片才等它互動的對象一起做第 9 步。早 merge 前第 2 步的交集稽核改用**其他片 brief 的允許路徑**對本片實際改動檔取交集（非空就停）；其餘片完成後，再以實際改動檔補跑一次完整交集。§7 的全批最終驗證照做。（2026-09-14 實測：兩片批次中先收斂的一片等另一片三輪驗收，白等 55 分鐘，占整批 wall time 一半。）
 
@@ -125,7 +125,7 @@ merge／push 一律由 controller 依當次 session 授權執行；本 skill 不
 
 **已整合才算完成**：accepted 的改動要在目標 base 上看得到（`git log <base-start>..<base-now>` 有它）。併不回去時不得暗示完成——status board 列出每片所在的 branch 與 HEAD、確切 blocker、已跑的驗證與缺口、下一步要跑的指令，交給使用者決定。
 
-最後回報 status board 終版（`references/templates.md`）：拆了什麼、各片狀態、整合證據、量測（elapsed、等待驗收時間、重工次數、可取得時的 tokens、整合或驗收發現的缺陷）。**沒有序列 baseline 不宣稱加速。**
+最後回報 status board 終版（`references/templates.md`）：拆了什麼、各片狀態、整合證據、量測（elapsed、等待驗收時間、重工次數、可取得時的 tokens、整合或驗收發現的缺陷）。**沒有序列 baseline 不宣稱加速。** 成本或 effort 比較時用 `<REPO>/docs/dispatch-cost-review-2026-09-17.md`「後續量測方法」，平常無須做額外重算。
 
 ## §8 失敗處理與 re-plan
 
@@ -140,7 +140,7 @@ plan → execute → new information → re-plan（回 §3）→ execute
 | agent failure（崩潰、逾時、回報不成形） | 以 read-back 判斷落地位置的實際狀態；有可用進度就從該 HEAD 續派，否則重派；不採信中斷前的自述 |
 | 逾時或 stop 之後要重派 | timeout 只是記帳：除非 adapter 的 stop 已確認 process 結束，視為它仍可能在寫。**同一落地位置／ownership 不得出現第二個寫入者**——確認不了就換新 worktree 重派，舊位置的晚到輸出一律忽略 |
 | 已 merge 的片事後發現壞 | revert 該片（§6），其餘片不動；依賴它的下游片證據失效重驗 |
-| 測試失敗 | 屬該片 → 退回修正（依 §6 第 10 步：預設派 fresh worker；重試上限兩輪，依平台 dispatch：Claude `<REPO>/rules/10-dispatch.md` §4、Codex `<REPO>/codex/rules/10-dispatch-codex.md` §5）；屬 base 或其他片 → 回 §3 判斷依賴是否變了 |
+| 測試失敗 | 屬該片 → 退回修正，依 §6 第 10 步判斷 fresh／continue；重試上限兩輪，依平台 dispatch：Claude `<REPO>/rules/10-dispatch.md` §4、Codex `<REPO>/codex/rules/10-dispatch-codex.md` §5；屬 base 或其他片 → 回 §3 判斷依賴是否變了 |
 | 依賴改變（上游片改了簽名） | 下游片凍結，重發 brief；已通過的下游證據失效 |
 | overlapping changes（實際 diff 越界或兩片改同區） | 兩片都停；判斷是 brief 錯還是 worker 越界；前者重切、後者退回 |
 | merge conflict | 純文字依 adapter；語意衝突依 §6 第 6 步；同一衝突兩輪未解就重切 |

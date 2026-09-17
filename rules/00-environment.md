@@ -25,7 +25,7 @@
 **修法**：
 - 判斷基準（context 成本 × 任務獨立性）的 canonical 在 dispatch 文件：Claude `10-dispatch.md` §1「雙軸判斷：context 成本 × 任務耦合」；Codex `../codex/rules/10-dispatch-codex.md` §1「雙軸派工判斷」。
 - session 內優先使用平台提供的 plan／task 狀態，不強制在 repo 建 scratchpad；跨 session 續接才使用 `session-handoff` skill 更新專案 `.codex/HANDOFF.md`——該 skill **只裝在 Codex 端**（`~/.agents/skills/`），Claude 端叫不到，Claude 的跨 session 續接靠 remember plugin 的 `.remember/` 與精選持久記憶。
-- 多波次派工的 session：一波整合結案、下一波與它無關時先 `/compact` 再開下一波——主對話每個 request 都重讀整段 context（2026-09-17 實測主對話 context 中位 337K、占總成本 67%，見 `../docs/harness-facts.md`）。
+- 平台提供 context compact 且無關波次已結案時，先保留目標、授權、未完成項目與產物證據位置，再 compact 後開下一波；無法執行就正常續行或交接，不用任意 counter 推估成本。
 
 ### 2. 假完成：宣稱通過但沒有實際執行
 

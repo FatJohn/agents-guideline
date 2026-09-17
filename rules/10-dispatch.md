@@ -9,8 +9,8 @@
 
 agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用範圍受模型與組織設定限制（見 `../docs/harness-facts.md`）。
 
-**執行者預設**：一般實作與文件產出使用 `worker/Sonnet high`，不因訂閱檔位改用 Opus。
-呼叫時顯式 `model: sonnet`；effort 由 `agents/worker.md` frontmatter 的 `high` 設定，
+**執行者預設**：一般實作與文件產出使用 `worker/Sonnet xhigh`，不因訂閱檔位改用 Opus。
+呼叫時顯式 `model: sonnet`；effort 由 `agents/worker.md` frontmatter 的 `xhigh` 設定，
 不要發明 Agent 工具未提供的 effort 參數。規劃／複雜度升級與驗收另依 §1／§4／§5。
 模型升級鏈為 Sonnet → Opus → Fable，不代表必須依次嘗試；Haiku 不作預設或 fallback。
 
@@ -19,7 +19,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `Plan`——出實作計畫、架構取捨。
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）；worker 升級或需要 opus／fable 時改派這個並顯式指定 model。
 - 本系統自帶 `worker`（一般程式／文件執行）與 `verifier`（獨立驗收）；派工前讀
-  `~/.claude/agents/<角色>.md` 合約。worker 用 Sonnet/high，verifier 顯式 `model: opus`，升 fable 見 §5。
+  `~/.claude/agents/<角色>.md` 合約。worker 用 Sonnet/xhigh，verifier 顯式 `model: opus`，升 fable 見 §5。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill，不是 subagent（`code-simplifier` plugin 2026-08-06 現查未安裝，寫成 `subagent_type` 會叫不出來）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），第二意見或整包委派用。備用車道：2026-09-02 現查近 45 天派工 0 次，不再展開用法。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。**不是每個 session 都有**：2026-08-06 實測 `claude -p` 起的 session 清單裡沒有它（主對話清單裡有），機制未查明。派工前先確認當下清單真的有這個名字。
@@ -37,9 +37,9 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 | 掃 repo、找出「哪些檔案有 X」 | Explore | sonnet |
 | 讀多份長文件並總結 | general-purpose | sonnet |
 | 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用；沒有 firecrawl，2026-08-06 已移除） | sonnet |
-| 批次機械性改檔（同 pattern 套 N 個檔） | worker | sonnet／high |
-| 實作一個功能、修 bug、重構 | worker | sonnet／high（複雜度訊號成立才升 opus，見 §4） |
-| 撰寫或修改一般文件／規則段落 | worker | sonnet／high（僅驗收交 verifier，見 §5） |
+| 批次機械性改檔（同 pattern 套 N 個檔） | worker | sonnet／xhigh |
+| 實作一個功能、修 bug、重構 | worker | sonnet／xhigh（複雜度訊號成立才升 opus，見 §4） |
+| 撰寫或修改一般文件／規則段落 | worker | sonnet／xhigh（僅驗收交 verifier，見 §5） |
 | 設計實作方案、架構取捨 | Plan | opus／high |
 | 跨檔推理、一般高難度 review | general-purpose | opus／high 或以上 |
 
@@ -52,7 +52,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。
 2. 派 `worker`（single-writer）依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
 3. controller read-back 實際檔案／指令輸出，不採信 worker 自述。
-4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。修正輪預設帶 finding＋修正 diff 派 fresh `worker`；`SendMessage` 續用同一 worker 只限其首輪 ≤60 次工具呼叫（完成通知 `<usage>` 的 `tool_uses`）且修正為單點（數字見 `../docs/harness-facts.md`）。
+4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `../skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
 
 controller 自行小修的例外**只限**單點、低風險、可機械驗證、scope 無歧義的修正（如打字錯誤、單一路徑修正）；涉及授權、安全、架構取捨或主觀品質的文件一律走上面四步，不得用「順手改一下」跳過。`worker` 與 `verifier` 不得對自己收到的任務再套用本節或 §1「雙軸判斷」去派工——它們是執行者／找碴者，不是第二層 controller。
 
@@ -103,7 +103,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 2. **換平台取第二意見**——`codex:codex-rescue`，或派兩個 agent 各自獨立解再比對。
 3. **重新定義問題**——見 `20-judgment.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。
 
-**降級**：難題解出可重複、可機械驗證的 pattern 後，把 pattern 寫進 prompt 降回 `worker`（sonnet／high）批次套用；不降到 haiku。
+**降級**：難題解出可重複、可機械驗證的 pattern 後，把 pattern 寫進 prompt 降回 `worker`（sonnet／xhigh）批次套用；不降到 haiku。
 **重試上限**：同一件事最多兩輪（指同一個問題的修法重試，不含驗收輪次——驗收狀態與回報點見
 `20-judgment.md` §2「停止端」）。兩輪後還不行代表方向錯了，換方法或問人，不要換個措辭再試第三次。
 
