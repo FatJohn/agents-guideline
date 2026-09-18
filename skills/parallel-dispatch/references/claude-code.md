@@ -7,7 +7,7 @@
 | launch | 一個 controller session 在**同一則訊息**發多個 `Agent` 呼叫，每片一個；實作用 `worker`（`model: sonnet`），切片與整合驗收用 fresh `verifier`（`model: opus`）。subagent 在 controller session 內跑，沒有獨立 terminal |
 | workspace | 平行寫入型 Agent 呼叫設 `isolation: worktree`；fresh／continue 的同 worktree 序列交接是明確例外，fresh prompt 必須綁定 slice worktree 絕對路徑，不自動建立空 worktree；若另開 worktree，controller 先從已核對的 candidate checkpoint 建立並 read-back。harness 行為事實見 `<REPO>/docs/harness-facts.md` |
 | query status | subagent 完成時回報一次；期間狀態靠 `git worktree list`、`git -C <wt> status --short`、`git -C <wt> log -1 --format=%H` read-back |
-| counter | 完成通知 `<usage>` 有 `tool_uses` 時記為工具呼叫數；它不等於模型 request。沒有可靠 counter 就標 `unknown`，不可猜，也不阻擋派工。 |
+| counter | 完成通知 `<usage>` 帶三個欄位：`subagent_tokens`（≈ 該 agent 交回當下的 context 大小；2026-09-18 逐筆對 subagent jsonl 的 usage 核過）、`tool_uses`（該輪工具呼叫數，不等於模型 request）、`duration_ms`。fresh／continue 看 `subagent_tokens`；續用時它只會再長。通知缺欄位就標 `unknown`，不可猜，也不阻擋派工。 |
 | follow-up | 依 [../SKILL.md](../SKILL.md) §6 第 10 步與 `<REPO>/rules/20-judgment.md`「停止端」判斷；預設帶原 brief、finding、diff、受影響條件與既有證據派 fresh agent。同 worktree 序列接手時明確不設自動 isolation，prompt 綁定絕對路徑；`SendMessage`／續派只能沿用該步的可調判斷，不以文字猜 counter。若另開 worktree，controller 先 materialize candidate checkpoint 並 read-back。 |
 | collect | subagent 回傳的最後訊息就是 worker report（必含 Location 欄的 worktree 路徑、branch、HEAD）；長輸出由 worker 落檔到 brief 指定的 `<log-dir>` |
 | stop | 背景 subagent 用當下工具清單裡的停止工具（現查有無 `TaskStop`）終止；同步呼叫的 subagent 無法中途停止，只能等回傳。停止後以 `git -C <wt> status --short`＋`rev-parse HEAD` 做兩次 read-back，**相隔至少 60 秒**且期間該 agent 未回傳任何訊息，兩次都無變化才算停；否則依 SKILL §8 換新 worktree 重派 |

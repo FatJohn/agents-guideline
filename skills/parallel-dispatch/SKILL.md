@@ -69,7 +69,7 @@ parallelize only when: parallel benefit > coordination + merge cost
 
 **批次上限**：預設一批 **3** 片，最多 4 片且要寫出理由（每片獨立且 review 量可承受）；不滾動補位；下一批須等本批整合完成（§7）。平行是有成本的資源：每多一個 worker 就多一份 context 複製、一個要 review 的 diff、一次整合風險；而驗收與整合本身是序列的，多開 worker 不會讓瓶頸變快。
 
-**單片尺寸評估**：依交付內容、依賴關係、驗收邊界與可交接性估量，不用單一 counter 當硬上限或品質門檻。60 次工具呼叫目前只作暫行提醒；若預估或實際明顯超過，重評進度、剩餘工作、context、重讀與 handoff 成本，再決定續用、交接、序列或重切；不得為了湊計數拆開原本有依賴的片。counter 的量法依 adapter；沒有可靠 counter 就標 `unknown`，不可從文字猜，也不阻擋派工。量測限制與後續方法見 `<REPO>/docs/dispatch-cost-review-2026-09-17.md`。
+**單片尺寸評估**：依交付內容、依賴關係、驗收邊界與可交接性估量，不用單一 counter 當硬上限或品質門檻。60 次工具呼叫目前只作暫行提醒；若預估或實際明顯超過，重評進度、剩餘工作、context、重讀與 handoff 成本，再決定續用、交接、序列或重切；不得為了湊計數拆開原本有依賴的片。counter 的量法依 adapter，**優先用 agent 交回時的 context 大小**（Claude：完成通知 `<usage>` 的 `subagent_tokens`，見 `references/claude-code.md`「counter」列），工具呼叫數只是輔助；沒有可靠 counter 就標 `unknown`，不可從文字猜，也不阻擋派工。量測限制與後續方法見 `<REPO>/docs/dispatch-cost-review-2026-09-17.md`。
 
 **Ownership**（每份 brief 必填）：objective、scope、允許路徑、禁止路徑或子系統、依賴、預期輸出、驗證命令、完成定義。允許路徑以 repo 相對路徑寫，實際落地位置由 adapter 決定（`references/worktree.md`）。目標是**兩個 worker 不會同時改同一檔**，做不到就序列。三條硬規則：
 - **共用觸點不得有兩個 owner**：lockfile、registry／index 檔、generated artifact、migration 序號、changelog 這類單檔熱點，要嘛指定唯一 owner，要嘛留給 integrator 在 §6 統一改，要嘛改成每片一個 fragment 由整合時合併。沒有 owner 的路徑任何片都不准改。
@@ -113,7 +113,7 @@ parallelize only when: parallel benefit > coordination + merge cost
 7. 建暫存 integration tree／branch（`references/worktree.md`），跑完整測試／lint／typecheck／build；記錄 base SHA、每片 HEAD、integration tree／commit 與結果。任何 base、切片 HEAD 或 integration 內容變動都使受影響證據失效，必須重驗。
 8. 逐片 merge（PR 或直接 merge 依專案流程）前，以**當前 base 加該候選片**建 integration gate 跑受影響的完整檢查；base 有 auto deploy 時這個中間狀態不可只由全批最終 tree 代替。不要拿全批最終 tree 比較第一片 merge，否則會把後續合法切片誤判為失效。
 9. §3 語意風險任一成立才派一名 fresh verifier，只驗片與片的互動及合併後的執行環境（fresh checkout、CI job 順序、產物依賴），不重驗已通過的切片條件；驗收者在 integration tree 的乾淨環境執行。無風險時最終證據只需 integration tree 的完整測試。驗收 prompt 裡的測試數、新增條數由 controller 現查（如 `git grep -c`），不抄 worker 自報。
-10. 必要時要求修正，帶原 finding、修正 diff、受影響驗收條件與既有證據。**預設派 fresh worker**，但這是可調預設：若修正小且獨立、原 worker 理解正確，且沒有膨脹或反覆重讀跡象，可依累積現況續用同一 worker，不以首輪 60 次單獨決定；若能力不足，沿用升級路徑，fresh 不取代升級。任何交接都要附原 brief、ownership、invariants、原 finding、current diff、受影響條件與既有證據，以及 slice 絕對路徑、branch、base SHA、candidate／checkpoint SHA、dirty 狀態；先 stop/read-back 再移 ownership。同一 worktree 可序列接手；新 worktree 必須從已核對的 candidate checkpoint 建立並 read-back，不可只從 controller HEAD 假定有候選改動。修正後依停止端分流機械結案或 fresh delta。
+10. 必要時要求修正，帶原 finding、修正 diff、受影響驗收條件與既有證據。**預設派 fresh worker**，但這是可調預設：若修正小且獨立、原 worker 理解正確，且沒有膨脹或反覆重讀跡象，可依累積現況續用同一 worker，不以首輪 60 次單獨決定；膨脹以 adapter 的 context 大小訊號判斷（Claude：`subagent_tokens`），context 已大就派 fresh——實測續用輪每 request 成本約首輪 1.9 倍、一輪續用修正約一個 fresh 修正 worker 的 1.7 倍（方向證據，兩組任務難度未受控），且半數 follow-up 送出時 context 已 >200K（`<REPO>/docs/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」）；若能力不足，沿用升級路徑，fresh 不取代升級。任何交接都要附原 brief、ownership、invariants、原 finding、current diff、受影響條件與既有證據，以及 slice 絕對路徑、branch、base SHA、candidate／checkpoint SHA、dirty 狀態；先 stop/read-back 再移 ownership。同一 worktree 可序列接手；新 worktree 必須從已核對的 candidate checkpoint 建立並 read-back，不可只從 controller HEAD 假定有候選改動。修正後依停止端分流機械結案或 fresh delta。
 
 **收斂即整合，不等整批**：§3 語意風險判定為無的片，一收斂（`CONVERGED`，或 `PROSE-ONLY` 修完 read-back）就單獨走第 7–8 步 merge 或開 PR，不等同批其他片；只有判定有語意風險的片才等它互動的對象一起做第 9 步。早 merge 前第 2 步的交集稽核改用**其他片 brief 的允許路徑**對本片實際改動檔取交集（非空就停）；其餘片完成後，再以實際改動檔補跑一次完整交集。§7 的全批最終驗證照做。（2026-09-14 實測：兩片批次中先收斂的一片等另一片三輪驗收，白等 55 分鐘，占整批 wall time 一半。）
 

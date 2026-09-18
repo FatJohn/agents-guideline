@@ -40,3 +40,16 @@
 3. 記錄實際 model／effort 與證據等級；input、cache write、cache read、output 分開。記錄每階段執行區間及人工／CI 等待，重疊區間先取 union；若無法消除閒置或等待，保留限制而不命名為 critical path。
 4. 同類任務比較「到收斂／完成的總成本、時間、返工與逃逸缺陷」；output 數或 `OPEN` 單一指標不能支持因果。
 5. fresh 策略與 60 次提醒是待評估假設；沒有序列 baseline 不稱加速。effort 對照須固定其他策略，runtime 未知的樣本不併組。
+
+## 2026-09-18 更正（重算全部 09-07 起資料）
+
+範圍：09-07 起 178 個 `worker`、270 個 `verifier`、44 個有 ≥3 subagent 的主對話 session；權重同上（in 1／cache write 1.25／cache read 0.1／output 5）；usage 以 requestId 去重。
+
+- **上節「29 個 multi 全是 system-reminder」的成因**：Claude Code 從 2.1.272 起在每個 subagent 第一次 request **之前**注入一則 `SubagentHandback` system-reminder（2.1.270 已見 2 例；92 個 worker 全在首個 request 前，0 個在後），舊腳本把它算成第二個 user turn。剝掉 `<system-reminder>` 後：真的收到 `SendMessage` 的 worker 45/178，占 worker 成本 68%（不是 71/82%）；follow-up 93 則，其中 rate-limit 恢復 2 則。
+- **續用 vs fresh**：這 45 個 worker 首輪 3,821 request／91M，後續輪 4,364 request／196M；每 request 成本首輪 23.9K、後續輪 44.9K。單一續用修正輪（n=87）中位 41 request／1,364K；prompt 帶 finding 的 fresh 修正 worker（n=47，regex 辨識、任務難度未受控）中位 48 request／816K。93 次 follow-up 有 48 次送出時 worker context 已 >200K；鏈長 1／2／3 以上分別 17／16／12 個 worker。
+- **verifier**（輪次改由 prompt regex 判，不用 description）：09-15 前首輪 OPEN 69%（n=75）、delta 62%（n=101）；09-15 後首輪 55%（n=44）、delta 49%（n=35）。delta 占 verifier 145/270、成本 80/145M。09-15 後 17 個 delta OPEN 的 FAIL 以文件可證偽宣稱與「修一半」居多。
+- **主對話**：8,397 request／383M，其中 cache read 74%、cache write 13%、output 13%；每 session request 中位 189、context 中位 320K；Bash 5,791 次，約 1,000 次首字是 `sed`／`cat`／`grep`／`rg`／`ls`（其中 `cat` 含 72 次 `cat >` 寫入；另有 1,129 次 `cd … &&` 開頭的複合指令未分類）、約 480 次是 inline `python3`／`node` 腳本。
+- **`<usage>` 欄位**：`subagent_tokens` ≈ 交回當下 context 大小（逐筆核過），是 controller 現成的 fresh／continue 訊號；上節未提。
+- **effort**：single-turn worker `high` n=99 中位 44 request／628K，`xhigh` n=34 中位 52 request／851K；時間窗與任務混合不同，仍不作政策依據。
+
+限制不變：fresh 修正 worker 的辨識靠 prompt regex、任務難度未受控，倍率是方向證據；主對話「每次工具呼叫重讀 context」是機制事實，74% 是該批 session 的實測份額。
