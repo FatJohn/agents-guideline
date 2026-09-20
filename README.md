@@ -137,7 +137,7 @@ python scripts/sync-profile.py --prune --apply            # 寫入
 python scripts/sync-codex-agents.py --apply               # Codex agent TOML 另一支
 ```
 
-`--apply` 結束前會**逐檔開起來比對 bytes** 才算成功——在這類機器上「連結存在」不是證據，只有真的讀得到才是。既有檔案被取代前會先搬進 `~/.claude.backup-*`／`~/.codex/agents.backup-*`；內容被手改過要覆蓋得再加 `--update`；`--prune` 只清掉「指向本 repo 但清單裡已經沒有」的舊連結，別人的連結與你自己建的檔不動。
+`--apply` 結束前會**逐檔開起來比對 bytes** 才算成功——在這類機器上「連結存在」不是證據，只有真的讀得到才是。既有檔案被取代前會先搬進同步器輸出的 `~/.claude.backup-*`；內容被手改過要覆蓋得再加 `--update`；`--prune` 只清掉「指向本 repo 但清單裡已經沒有」的舊連結，別人的連結與你自己建的檔不動。同步器遇到本次可捕捉的 move、write 或 read-back 失敗時會回復已搬開的項目與本次新建的檔案；若回復本身失敗，錯誤會保留可復原的 backup 目錄路徑。它不保證處理程序遭強制中止時的復原。
 
 ⚠️ **代價：改了 repo 不會自動生效**。symlink 版改完即時生效，複本版要重跑 `python scripts/sync-profile.py --apply --update`。這條寫在 `hosts/windows.md`。
 
@@ -231,18 +231,19 @@ memories = true
 
 ## 檔案結構
 
-**每 session 自動載入**（固定 context 成本，只放每次都要的）：
+**Claude Code 每 session 自動載入**（固定 context 成本，只放每次都要的）：
 
 | 檔案 | 用途 |
 |------|------|
 | `CLAUDE.md` | 路由表＋三鐵律＋優先權排序（裝在 `~/.claude/`） |
-| `AGENTS.md` | Codex 路由表＋三鐵律＋Codex 專用注意（裝在 `~/.codex/`） |
 | `rules/00-environment.md` | 跨機器事實、三大結構性風險與修法 |
 | `hosts/<key>.md` | 單機事實（身分、repo 位置、驗證能力、陷阱）；經全域 `CLAUDE.md` 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**（2026-09-20 從 `rules/05-hosts.md` 拆出，理由見 `maintain-guideline` §5）；新機器由 AI 照本檔「新機器建檔」建檔 |
 | `rules/05-hosts.md` | 跨機器規則、`<REPO>` 對照表、缺檔哨兵（context 裡沒有「# 本機事實」段時怎麼辦） |
 | `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |
 | `rules/20-judgment.md` | 判斷準則：升級／完成／問使用者／換路／環境先驗，各附正反例 |
 | `rules/50-lessons.md` | **還沒有正式判準承接的**活躍教訓＋交接欄 |
+
+Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需讀本 repo 的 `rules/`、`codex/rules/`、`rubrics/` 與 skills，不能把 Claude Code 的 resident imports 當成 Codex 的常駐內容。
 
 **用到才讀**（不在 `rules/`，故不自動載入）：
 

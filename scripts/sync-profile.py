@@ -77,6 +77,16 @@ class Operation:
     content: bytes | None = None
 
 
+@dataclass
+class Transaction:
+    """The entries this invocation may safely undo after a caught failure."""
+
+    backup_root: Path
+    backups: dict[Path, Path]
+    written: list[Path]
+    created_directories: list[Path]
+
+
 def default_mappings(
     *,
     repo: Path,
@@ -125,7 +135,8 @@ def _lkind(path: Path) -> str | None:
     """
 
     try:
-        mode = path.lstat().st_mode
+        entry_stat = path.lstat()
+        mode = entry_stat.st_mode
     except (FileNotFoundError, NotADirectoryError):
         return None
     except OSError:
@@ -133,6 +144,12 @@ def _lkind(path: Path) -> str | None:
         return "unreadable"
     if stat.S_ISLNK(mode):
         return "symlink"
+    # On Windows, a junction is reported as a directory by ``stat``.  Treat
+    # every reparse point as a redirect unless it was already identified as a
+    # symlink; ownership cannot be established by following its target.
+    attributes = getattr(entry_stat, "st_file_attributes", 0)
+    if attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0):
+        return "redirect"
     if stat.S_ISREG(mode):
         return "regular file"
     if stat.S_ISDIR(mode):
@@ -168,6 +185,51 @@ def _link_target(path: Path) -> Path | None:
     return Path(os.path.normpath(target))
 
 
+def _comparison_path(path: Path) -> Path:
+    """Normalize host aliases only while comparing known link endpoints.
+
+    macOS exposes the same filesystem through ``/var`` and ``/private/var``.
+    ``realpath`` makes those spellings compare equal; preflight separately
+    rejects every redirect below a profile root, so this comparison never
+    authorizes an external profile redirect.  Windows reparse points are not
+    resolved: an untrusted junction may fail to open and must never become
+    trusted merely because its eventual target looks right.
+    """
+
+    raw = os.path.normpath(os.path.abspath(str(_plain(path))))
+    if platform.system() == "Darwin":
+        raw = os.path.realpath(raw)
+    return Path(os.path.normcase(raw))
+
+
+def _same_path(left: Path, right: Path) -> bool:
+    return _comparison_path(left) == _comparison_path(right)
+
+
+def _lexical_path(path: Path) -> Path:
+    """Normalize spelling without resolving profile redirects."""
+
+    return Path(os.path.normcase(os.path.normpath(os.path.abspath(str(_plain(path))))))
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    try:
+        return os.path.commonpath((str(_lexical_path(path)), str(_lexical_path(root)))) == str(
+            _lexical_path(root)
+        )
+    except ValueError:
+        return False
+
+
+def _comparison_is_within(path: Path, root: Path) -> bool:
+    try:
+        return os.path.commonpath((str(_comparison_path(path)), str(_comparison_path(root)))) == str(
+            _comparison_path(root)
+        )
+    except ValueError:
+        return False
+
+
 def _is_repo_link(path: Path, repo: Path) -> bool:
     """True when this entry is a link this repository's installer created."""
 
@@ -176,10 +238,16 @@ def _is_repo_link(path: Path, repo: Path) -> bool:
     target = _link_target(path)
     if target is None:
         return False
-    try:
-        return target == repo or target.is_relative_to(repo)
-    except (OSError, ValueError):
-        return False
+    # The target is only classified for pruning; comparison preserves a broken
+    # repo-owned link and accepts /var versus /private/var source spellings.
+    return _comparison_is_within(target, repo)
+
+
+def _is_owned_link(path: Path, source: Path) -> bool:
+    """Accept only the precise source mapping, including macOS's /var alias."""
+
+    target = _link_target(path)
+    return target is not None and _same_path(target, source)
 
 
 def load_sources(mappings: list[Mapping]) -> list[SourceFile]:
@@ -231,6 +299,87 @@ def _managed_roots(mappings: list[Mapping]) -> list[Path]:
     return [mapping.destination for mapping in mappings if mapping.kind == "tree"]
 
 
+def _parts_under(path: Path, root: Path) -> list[Path]:
+    """Return lexical ancestors from ``root`` through ``path`` without links."""
+
+    if not _is_within(path, root):
+        raise SyncError(f"destination escapes its profile root: {path}")
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        relative = _lexical_path(path).relative_to(_lexical_path(root))
+        root = _lexical_path(root)
+    result = [root]
+    current = root
+    for part in relative.parts:
+        current = current / part
+        result.append(current)
+    return result
+
+
+def preflight_destinations(
+    mappings: list[Mapping],
+    profile_roots: list[Path],
+    files: list[SourceFile],
+) -> set[Path]:
+    """Reject redirects before planning can traverse or write through them.
+
+    A tree root may be a link only when it is the exact repository mapping we
+    are replacing.  Its children are then planned as fresh installs, without
+    reading the old linked directory.  All other redirect ancestors are a
+    foreign boundary, including Windows junctions and unreadable reparse
+    points.
+    """
+
+    migrated: set[Path] = set()
+    for home in profile_roots:
+        kind = _lkind(home)
+        if kind in {"symlink", "redirect", "unreadable"}:
+            raise SyncError(f"profile root is a redirect or unreadable: {home} ({kind})")
+        if kind in {"regular file", "special file"}:
+            raise SyncError(f"profile root is not a directory: {home} ({kind})")
+
+    for mapping in mappings:
+        if mapping.kind != "tree":
+            continue
+        kind = _lkind(mapping.destination)
+        if kind == "symlink":
+            if not _is_owned_link(mapping.destination, mapping.source):
+                raise SyncError(
+                    f"foreign tree redirect at {mapping.destination} -> "
+                    f"{_link_target(mapping.destination)}; move it aside by hand and re-run"
+                )
+            migrated.add(mapping.destination)
+        elif kind in {"redirect", "unreadable"}:
+            raise SyncError(f"destination tree root is a redirect: {mapping.destination} ({kind})")
+        elif kind in {"regular file", "special file"}:
+            raise SyncError(f"destination tree root is not a directory: {mapping.destination} ({kind})")
+
+    def check_ancestors(destination: Path) -> None:
+        home = next((root for root in profile_roots if _is_within(destination, root)), None)
+        if home is None:
+            raise SyncError(f"destination is outside the intended profiles: {destination}")
+        # Stop at an owned tree link that this transaction will replace.  Its
+        # old descendants must never be listed or trusted during planning.
+        for ancestor in _parts_under(destination.parent, home):
+            if ancestor in migrated:
+                break
+            kind = _lkind(ancestor)
+            if kind in {"symlink", "redirect", "unreadable"}:
+                raise SyncError(f"destination ancestor is a redirect: {ancestor} ({kind})")
+            if kind in {"regular file", "special file"}:
+                raise SyncError(f"destination ancestor is not a directory: {ancestor} ({kind})")
+
+    for mapping in mappings:
+        check_ancestors(mapping.destination)
+    # Tree mappings expand to several SourceFiles.  Check each final parent,
+    # not merely the tree root, so a nested skill or references redirect cannot
+    # turn a later write into an external one.
+    for entry in files:
+        check_ancestors(entry.destination)
+    return migrated
+
+
 def plan_prunes(
     mappings: list[Mapping],
     planned: set[Path],
@@ -277,25 +426,28 @@ def plan_operations(
     apply: bool,
     update: bool,
     prune: bool,
+    migrated_roots: set[Path] | None = None,
 ) -> list[Operation]:
     """Inspect every destination entry before any operation can mutate it."""
 
     operations: list[Operation] = []
 
+    migrated_roots = migrated_roots or set()
     for root in _managed_roots(mappings):
         kind = _lkind(root)
-        if kind == "symlink":
+        if root in migrated_roots:
             operations.append(Operation(destination=root, action="migrate-tree"))
-        elif kind in {"regular file", "special file"}:
+        elif kind in {"regular file", "special file", "redirect", "unreadable"}:
             raise SyncError(f"destination tree root is not a directory: {root} ({kind})")
 
     for entry in files:
         destination = entry.destination
-        kind = _lkind(destination)
+        under_migrated_root = any(_is_within(destination, root) for root in migrated_roots)
+        kind = None if under_migrated_root else _lkind(destination)
         if kind is None:
             action = "install"
         elif kind == "symlink":
-            if not _is_repo_link(destination, repo):
+            if not _is_owned_link(destination, entry.source):
                 raise SyncError(
                     f"foreign symlink at {destination} -> {_link_target(destination)}; "
                     "move it aside by hand and re-run"
@@ -313,9 +465,6 @@ def plan_operations(
                 action = "update-required"
             else:
                 action = "update"
-        elif kind == "unreadable":
-            # Its parent is a reparse point that will be migrated first.
-            action = "install"
         else:
             raise SyncError(f"unsupported destination entry at {destination}: {kind}")
 
@@ -355,8 +504,23 @@ def _move_aside(path: Path, backup_root: Path, label: str) -> Path:
     return backup
 
 
-def _replace_with_bytes(destination: Path, content: bytes) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
+def _ensure_parent_directories(destination: Path, created_directories: list[Path]) -> None:
+    missing: list[Path] = []
+    current = destination.parent
+    while _lkind(current) is None:
+        missing.append(current)
+        current = current.parent
+    if _lkind(current) != "directory":
+        raise SyncError(f"destination parent is not a directory: {current} ({_lkind(current)})")
+    for directory in reversed(missing):
+        directory.mkdir()
+        created_directories.append(directory)
+
+
+def _replace_with_bytes(
+    destination: Path, content: bytes, created_directories: list[Path]
+) -> None:
+    _ensure_parent_directories(destination, created_directories)
     temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
@@ -383,11 +547,10 @@ def _replace_with_bytes(destination: Path, content: bytes) -> None:
 def apply_operations(
     operations: list[Operation],
     *,
-    backup_root: Path,
-) -> dict[Path, Path]:
+    transaction: Transaction,
+) -> None:
     """Move every replaced entry aside, then write the validated plan."""
 
-    backups: dict[Path, Path] = {}
     counter = 0
 
     # Tree roots first: a directory symlink must stop being a symlink before
@@ -396,10 +559,11 @@ def apply_operations(
         if operation.action != "migrate-tree":
             continue
         counter += 1
-        backups[operation.destination] = _move_aside(
-            operation.destination, backup_root, f"{counter:02d}-{operation.destination.name}"
+        transaction.backups[operation.destination] = _move_aside(
+            operation.destination, transaction.backup_root, f"{counter:02d}-{operation.destination.name}"
         )
         operation.destination.mkdir(parents=True, exist_ok=True)
+        transaction.created_directories.append(operation.destination)
 
     for operation in operations:
         if operation.action not in {"migrate-symlink", "update", "prune"}:
@@ -407,16 +571,52 @@ def apply_operations(
         if _lkind(operation.destination) is None:
             continue
         counter += 1
-        backups[operation.destination] = _move_aside(
-            operation.destination, backup_root, f"{counter:02d}-{operation.destination.name}"
+        transaction.backups[operation.destination] = _move_aside(
+            operation.destination, transaction.backup_root, f"{counter:02d}-{operation.destination.name}"
         )
 
     for operation in operations:
         if operation.action in {"install", "migrate-symlink", "update"}:
             assert operation.content is not None
-            _replace_with_bytes(operation.destination, operation.content)
+            _replace_with_bytes(
+                operation.destination, operation.content, transaction.created_directories
+            )
+            transaction.written.append(operation.destination)
 
-    return backups
+
+
+def rollback(transaction: Transaction) -> None:
+    """Undo only paths created or moved by this invocation, in reverse order."""
+
+    errors: list[str] = []
+    for path in reversed(transaction.written):
+        try:
+            if _lkind(path) == "regular file":
+                path.unlink()
+            elif _lkind(path) is not None:
+                raise SyncError(f"refusing to remove changed transaction path: {path}")
+        except (OSError, SyncError) as exc:
+            errors.append(f"cannot remove {path}: {exc}")
+    for directory in reversed(transaction.created_directories):
+        try:
+            if _lkind(directory) == "directory":
+                directory.rmdir()
+            elif _lkind(directory) is not None:
+                raise SyncError(f"refusing to remove changed transaction directory: {directory}")
+        except (OSError, SyncError) as exc:
+            errors.append(f"cannot remove directory {directory}: {exc}")
+    for destination, backup in reversed(list(transaction.backups.items())):
+        try:
+            if _lkind(destination) is not None:
+                raise SyncError(f"destination remains occupied: {destination}")
+            os.replace(backup, destination)
+        except (OSError, SyncError) as exc:
+            errors.append(f"cannot restore {destination}: {exc}")
+    if errors:
+        detail = "; ".join(errors)
+        raise SyncError(
+            f"rollback failed ({detail}); recover originals from {transaction.backup_root}"
+        )
 
 
 def verify(operations: list[Operation]) -> list[str]:
@@ -487,16 +687,28 @@ def sync(
     repo = _plain(repo.expanduser().resolve())
     if host_key is None:
         host_key = detect_host_key()
+    claude_home = claude_home.expanduser()
+    codex_home = codex_home.expanduser()
+    agents_home = agents_home.expanduser()
     mappings = default_mappings(
         repo=repo,
-        claude_home=claude_home.expanduser(),
-        codex_home=codex_home.expanduser(),
-        agents_home=agents_home.expanduser(),
+        claude_home=claude_home,
+        codex_home=codex_home,
+        agents_home=agents_home,
         host_key=host_key,
     )
     files = load_sources(mappings)
+    migrated_roots = preflight_destinations(
+        mappings, [claude_home, codex_home, agents_home], files
+    )
     operations = plan_operations(
-        files, mappings, repo, apply=apply, update=update, prune=prune
+        files,
+        mappings,
+        repo,
+        apply=apply,
+        update=update,
+        prune=prune,
+        migrated_roots=migrated_roots,
     )
 
     if not apply:
@@ -508,20 +720,33 @@ def sync(
         for operation in operations
         if operation.action in {"install", "migrate-symlink", "migrate-tree", "update", "prune"}
     ]
-    backups: dict[Path, Path] = {}
+    transaction: Transaction | None = None
     if changes:
-        backup_root = _make_backup_root(claude_home.expanduser())
-        backups = apply_operations(operations, backup_root=backup_root)
+        backup_root = _make_backup_root(claude_home)
+        transaction = Transaction(backup_root, {}, [], [])
+        try:
+            apply_operations(operations, transaction=transaction)
+            failures = verify(operations)
+            if failures:
+                for failure in failures:
+                    print(f"read-back FAILED: {failure}", file=sys.stderr)
+                raise SyncError(f"{len(failures)} destination file(s) failed read-back")
+        except Exception as exc:
+            try:
+                rollback(transaction)
+            except SyncError as rollback_error:
+                raise rollback_error from exc
+            raise
+    else:
+        failures = verify(operations)
+        if failures:
+            for failure in failures:
+                print(f"read-back FAILED: {failure}", file=sys.stderr)
+            raise SyncError(f"{len(failures)} destination file(s) failed read-back")
 
     print_preview(operations, apply=True)
-    if backups:
-        print(f"backup directory: {next(iter(backups.values())).parent}")
-
-    failures = verify(operations)
-    if failures:
-        for failure in failures:
-            print(f"read-back FAILED: {failure}", file=sys.stderr)
-        raise SyncError(f"{len(failures)} destination file(s) failed read-back")
+    if transaction and transaction.backups:
+        print(f"backup directory: {transaction.backup_root}")
     print(f"read-back: {len([o for o in operations if o.action != 'prune' and o.action != 'migrate-tree'])} file(s) opened and byte-identical")
     return operations
 

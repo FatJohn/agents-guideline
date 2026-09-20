@@ -13,7 +13,7 @@
 
 ## 工作系統（`rules/` 每 session 常駐；下表＝內容索引）
 
-`~/.claude/rules/` 是這個環境的工作系統。**`~/.claude/rules` 是目錄 symlink，其中無 `paths` frontmatter 的 `*.md` 會被 Claude Code 每 session 全文載入、與 CLAUDE.md 同級常駐（非按需）**——故下表標 ✅ 的那幾列內容其實已在 context，是「主題 → 檔案」索引而非待讀清單。**只有每個 session 都需要的內容才放 `rules/`**；用到才讀的長內容放 `skills/`、`rubrics/` 或 `docs/`（那些目錄不會自動載入），即下表標 ❌ 的列。
+`~/.claude/rules/` 是這個環境的工作系統。**`~/.claude/rules` 是目錄 symlink 或實體檔複本；其中無 `paths` frontmatter 的 `*.md` 會被 Claude Code 每 session 全文載入、與 CLAUDE.md 同級常駐（非按需）**——故下表標 ✅ 的那幾列內容其實已在 context，是「主題 → 檔案」索引而非待讀清單。**只有每個 session 都需要的內容才放 `rules/`**；用到才讀的長內容放 `skills/`、`rubrics/` 或 `docs/`（那些目錄不會自動載入），即下表標 ❌ 的列。
 
 > ⚠️ **裝法依機器而異**：Windows 上**非提權建立**的 symlink 開檔會回 `os error 448`（連結查起來全綠，只有真的讀才會爆）——**用 admin 重建連結就好**，不是那台機器不能用 symlink。複本安裝的機器（哪台、怎麼裝見上方「本機事實」段）**改完 repo 要重跑 `scripts/sync-profile.py --apply --update` 才會生效**。
 

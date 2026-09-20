@@ -162,6 +162,65 @@ class SyncProfileTests(unittest.TestCase):
             (self.claude / "rules" / "00-environment.md").read_text(encoding="utf-8"), "# env\n"
         )
 
+    def test_owned_tree_link_migrates_every_child_without_following_old_root(self) -> None:
+        self.require_symlinks()
+        (self.claude).mkdir(parents=True)
+        os.symlink(self.repo / "rules", self.claude / "rules", target_is_directory=True)
+
+        operations = self.run_sync(apply=True)
+
+        self.assertEqual(
+            [operation.action for operation in operations if operation.destination.parent == self.claude / "rules"],
+            ["install", "install"],
+        )
+        self.assertFalse((self.claude / "rules").is_symlink())
+        self.assertEqual((self.claude / "rules" / "05-hosts.md").read_text(encoding="utf-8"), "# hosts\n")
+
+    def test_foreign_tree_redirect_is_refused_before_any_write(self) -> None:
+        self.require_symlinks()
+        elsewhere = self.root / "elsewhere-rules"
+        elsewhere.mkdir()
+        (elsewhere / "keep.md").write_text("keep\n", encoding="utf-8")
+        self.claude.mkdir(parents=True)
+        os.symlink(elsewhere, self.claude / "rules", target_is_directory=True)
+
+        with self.assertRaises(sync_profile.SyncError) as caught:
+            self.run_sync(apply=True)
+        self.assertIn("foreign tree redirect", str(caught.exception))
+        self.assertTrue((self.claude / "rules").is_symlink())
+        self.assertFalse((self.claude / "CLAUDE.md").exists())
+        self.assertEqual((elsewhere / "keep.md").read_text(encoding="utf-8"), "keep\n")
+
+    def test_foreign_ancestor_redirect_is_refused_before_any_write(self) -> None:
+        self.require_symlinks()
+        elsewhere = self.root / "elsewhere-skills"
+        elsewhere.mkdir()
+        self.claude.mkdir(parents=True)
+        os.symlink(elsewhere, self.claude / "skills", target_is_directory=True)
+
+        with self.assertRaises(sync_profile.SyncError) as caught:
+            self.run_sync(apply=True)
+        self.assertIn("destination ancestor is a redirect", str(caught.exception))
+        self.assertTrue((self.claude / "skills").is_symlink())
+        self.assertFalse((elsewhere / "maintain-guideline" / "SKILL.md").exists())
+
+    def test_nested_tree_redirect_is_refused_before_any_write(self) -> None:
+        self.require_symlinks()
+        source = self.repo / "skills" / "create-pr" / "references"
+        source.mkdir()
+        (source / "guide.md").write_text("guide\n", encoding="utf-8")
+        destination = self.claude / "skills" / "create-pr" / "references"
+        destination.parent.mkdir(parents=True)
+        elsewhere = self.root / "elsewhere-references"
+        elsewhere.mkdir()
+        os.symlink(elsewhere, destination, target_is_directory=True)
+
+        with self.assertRaises(sync_profile.SyncError) as caught:
+            self.run_sync(apply=True)
+        self.assertIn("destination ancestor is a redirect", str(caught.exception))
+        self.assertTrue(destination.is_symlink())
+        self.assertFalse((elsewhere / "guide.md").exists())
+
     def test_repo_file_symlink_is_replaced_and_backed_up(self) -> None:
         self.require_symlinks()
         (self.claude).mkdir(parents=True)
@@ -186,6 +245,30 @@ class SyncProfileTests(unittest.TestCase):
         self.assertIn("foreign symlink", str(caught.exception))
         # Nothing was touched.
         self.assertTrue((self.claude / "CLAUDE.md").is_symlink())
+
+    def test_foreign_source_alias_is_not_accepted_as_owned(self) -> None:
+        self.require_symlinks()
+        outside = self.root / "outside.md"
+        outside.write_text("outside\n", encoding="utf-8")
+        alias = self.root / "outside-alias.md"
+        os.symlink(outside, alias)
+        self.claude.mkdir(parents=True)
+        os.symlink(alias, self.claude / "CLAUDE.md")
+
+        with self.assertRaises(sync_profile.SyncError):
+            self.run_sync(apply=True)
+        self.assertTrue((self.claude / "CLAUDE.md").is_symlink())
+
+    def test_mac_var_alias_accepts_the_exact_repo_source(self) -> None:
+        self.require_symlinks()
+        self.claude.mkdir(parents=True)
+        # ``resolve`` is /private/var on macOS while this stored target retains
+        # the /var spelling used by temporary test paths.
+        os.symlink(self.repo / "CLAUDE.md", self.claude / "CLAUDE.md")
+
+        self.run_sync(apply=True)
+
+        self.assertFalse((self.claude / "CLAUDE.md").is_symlink())
 
     def test_differing_regular_file_requires_update(self) -> None:
         self.run_sync(apply=True)
@@ -235,6 +318,77 @@ class SyncProfileTests(unittest.TestCase):
         with self.assertRaises(sync_profile.SyncError):
             self.run_sync(apply=True)
         self.assertFalse(self.claude.exists())
+
+    def _mixed_transaction_fixture(self) -> Path:
+        self.require_symlinks()
+        self.run_sync(apply=True)
+        (self.claude / "CLAUDE.md").write_text("# personal\n", encoding="utf-8")
+        rules = self.claude / "rules"
+        rules.rmdir() if not any(rules.iterdir()) else None
+        for child in rules.iterdir():
+            child.unlink()
+        rules.rmdir()
+        os.symlink(self.repo / "rules", rules, target_is_directory=True)
+        retired = self.claude / "agents" / "retired.md"
+        os.symlink(self.repo / "agents" / "retired.md", retired)
+        return retired
+
+    def _assert_mixed_transaction_restored(self, retired: Path) -> None:
+        self.assertEqual((self.claude / "CLAUDE.md").read_text(encoding="utf-8"), "# personal\n")
+        self.assertTrue((self.claude / "rules").is_symlink())
+        self.assertEqual(os.readlink(self.claude / "rules"), str(self.repo / "rules"))
+        self.assertTrue(retired.is_symlink())
+
+    def test_rollback_restores_mixed_changes_after_later_write_failure(self) -> None:
+        retired = self._mixed_transaction_fixture()
+        original = sync_profile._replace_with_bytes
+        calls = 0
+
+        def fail_later(destination, content, created_directories):
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                raise OSError("injected write failure")
+            return original(destination, content, created_directories)
+
+        sync_profile._replace_with_bytes = fail_later
+        try:
+            with self.assertRaises(OSError):
+                self.run_sync(apply=True, update=True, prune=True)
+        finally:
+            sync_profile._replace_with_bytes = original
+        self._assert_mixed_transaction_restored(retired)
+
+    def test_rollback_restores_mixed_changes_after_move_failure(self) -> None:
+        retired = self._mixed_transaction_fixture()
+        original = sync_profile._move_aside
+        calls = 0
+
+        def fail_second_move(path, backup_root, label):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("injected move failure")
+            return original(path, backup_root, label)
+
+        sync_profile._move_aside = fail_second_move
+        try:
+            with self.assertRaises(OSError):
+                self.run_sync(apply=True, update=True, prune=True)
+        finally:
+            sync_profile._move_aside = original
+        self._assert_mixed_transaction_restored(retired)
+
+    def test_rollback_restores_mixed_changes_after_readback_failure(self) -> None:
+        retired = self._mixed_transaction_fixture()
+        original = sync_profile.verify
+        sync_profile.verify = lambda operations: ["injected read-back failure"]
+        try:
+            with self.assertRaises(sync_profile.SyncError):
+                self.run_sync(apply=True, update=True, prune=True)
+        finally:
+            sync_profile.verify = original
+        self._assert_mixed_transaction_restored(retired)
 
 
 if __name__ == "__main__":
