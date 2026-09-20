@@ -1,14 +1,14 @@
 # AGENTS.md（Codex 全域）
 
-> 本檔以 symlink 安裝於 `~/.codex/AGENTS.md`。
+> 本檔安裝於 `~/.codex/AGENTS.md`（symlink 或實體檔複本，依機器而異）。
 > 只放路由與鐵律；長內容放在本 repo 的 `rules/`，按需載入。
 >
-> **下表的 `<REPO>` 是本系統 repo 的絕對路徑，依機器而異——讀檔前先認機器再展開**：
-> - macOS（hostname `xushengzhedeMacBook-Pro.local`，2026-08-06 現查；hostname 會隨設定改名而變，對不上就走下面第三條的 `readlink`）：`/Users/fatjohn/Projects/FatJohn/agents-guideline`；本機事實 `<REPO>/hosts/macos.md`
-> - Windows（hostname `FatJohn-PC`）：`E:\agents-guideline`；本機事實 `<REPO>/hosts/windows.md`
-> - 不確定或新機器：`readlink ~/.codex/AGENTS.md`（PowerShell：`(Get-Item ~/.codex/AGENTS.md).Target`）的目錄部分就是 `<REPO>`——**但只在 symlink 安裝的機器上有效；實體檔複本安裝的機器會回空**（見 `<REPO>/hosts/windows.md`），那種情況只能靠上面的對照表或問使用者。機器事實照 `<REPO>/README.md`「新機器建檔」的探測清單自己建 `<REPO>/hosts/<key>.md`，並把對照補進 `<REPO>/rules/05-hosts.md` 與本檔。
+> **下表的 `<REPO>` 是本系統 repo 的絕對路徑，依機器而異——讀檔前先用 `hostname` 認機器再展開**：
+> - macOS（`xushengzhedeMacBook-Pro.local`）：`/Users/fatjohn/Projects/FatJohn/agents-guideline`；本機事實 `<REPO>/hosts/macos.md`
+> - Windows（`FatJohn-PC`）：`E:\agents-guideline`；本機事實 `<REPO>/hosts/windows.md`
+> - hostname 對不上或新機器：symlink 安裝的機器取 `readlink ~/.codex/AGENTS.md`（PowerShell：`(Get-Item ~/.codex/AGENTS.md).Target`）的目錄部分；**複本安裝的機器會回空**（見 `<REPO>/hosts/windows.md`），只能問使用者。新機器照 `<REPO>/README.md`「新機器建檔」建 `<REPO>/hosts/<key>.md`，對照補進 `<REPO>/rules/05-hosts.md` 與本檔。
 >
-> （這份對照表的 canonical 位置是 `<REPO>/rules/05-hosts.md`。這裡刻意重複一份是 bootstrap 需要——Codex 得先解出 `<REPO>` 才讀得到 05-hosts，不是可以合併掉的冗餘。新增機器時兩處都要加。）
+> （對照表 canonical 在 `<REPO>/rules/05-hosts.md`；這裡重複一份是 bootstrap 需要——先解出 `<REPO>` 才讀得到 05-hosts。新增機器時兩處都要加。）
 
 ## 語言
 
@@ -20,7 +20,7 @@
 
 | 情境 | 讀這份 |
 |------|--------|
-| 開工前：確認這台機器能跑哪些驗證、有哪些已知陷阱 | `<REPO>/hosts/<key>.md`（key 見上方對照表；機器沒列 → 照 `<REPO>/README.md`「新機器建檔」的探測清單自己建檔）；跨機器規則在 `<REPO>/rules/05-hosts.md`；工具鏈與版本明細在 `<REPO>/docs/hosts-detail.md`，不常駐 |
+| 開工前：確認這台機器能跑哪些驗證、有哪些已知陷阱 | `<REPO>/hosts/<key>.md`（key 見上方對照表）；跨機器規則在 `<REPO>/rules/05-hosts.md`；工具鏈與版本明細在 `<REPO>/docs/hosts-detail.md` |
 | 了解環境的結構性風險、好用的 skill/plugin 清單 | `<REPO>/rules/00-environment.md` |
 | 記憶機制四層的分工與邊界（寫或讀記憶時） | `<REPO>/docs/memory-layers.md` |
 | Codex 派 subagent、依 complexity signals 選 model/reasoning effort、判斷 retry／escalation、驗收產出 | `<REPO>/codex/rules/10-dispatch-codex.md` |

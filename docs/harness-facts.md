@@ -39,7 +39,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 
 ## 常駐內容對 subagent 的可見性、`paths` frontmatter、hook 注入（2026-09-20 實測）
 
-> 實測環境：Claude Code 2.1.278、Windows `FatJohn-PC`，在 scratchpad 臨時專案跑 `claude -p --output-format json`，用帶編號的哨兵字串問模型「context 裡有沒有」。用途：拆 `rules/05-hosts.md` 成 `hosts/<key>.md` 的依據（`skills/maintain-guideline/SKILL.md` §5「單機專屬事實不進 rules/」）。Mac 端未實測。
+> 實測環境：Claude Code 2.1.278、Windows `FatJohn-PC`，在 scratchpad 臨時專案跑 `claude -p --output-format json`，用帶編號的哨兵字串問模型「context 裡有沒有」。用途：拆 `rules/05-hosts.md` 成 `hosts/<key>.md` 的依據（`skills/maintain-guideline/SKILL.md` §5「單機專屬事實不進 rules/」）。Mac 端只補測了匯入與 token 校準（見下方「Mac 補測」），其餘未在 Mac 實測。
 
 | 內容 | 主對話 | `general-purpose`／`worker`（`~/.claude/agents/` 自訂 agent） | `Explore`／`Plan` |
 |---|---|---|---|
@@ -53,5 +53,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 - `claude -p` 會跑 SessionStart hook；Windows 上 shell-form hook 用 Git Bash 執行（hook 內 `uname -s` 回 `MINGW64_NT`）。
 - token 校準：`rules/05-hosts.md`（拆之前）4,317 bytes 實測 2,083 tokens，**2.07 bytes/token**（中英混排；`claude -p` 預設模型 claude-opus-5）。這台機器空目錄 session 的固定 prompt 是 54,359 tokens，同一批內重跑數字相同。
 - 拆分前後的實測（`CLAUDE_CONFIG_DIR` 指到兩個只含 CLAUDE.md＋rules 的隔離設定目錄，背靠背跑）：舊形狀 61,198 → 新形狀 60,895，**Windows 端每 session 省 303 tokens**（丟掉 Mac 段、加回哨兵與對照表後的淨值）；Mac 端丟的是 Windows 段（≈1,265 tokens），估計淨省 ≈870，**未在 Mac 實測**。同一設定隔幾分鐘重跑會漂 7–8k tokens（fresh config dir 自己長出 plugins 目錄），跨時段的絕對數字不能拿來比，只能比背靠背那組。
+- **Mac 補測（2026-09-20，`xushengzhedeMacBook-Pro.local`，`claude -p --model sonnet --output-format json`，scratchpad 空目錄背靠背）**：`@~/.claude/host-facts.md` 匯入在 Mac 成立——symlink 建立前問「有沒有『# 本機事實：』標題」回「無」、建立後引出標題；prompt 56,284 → 56,894，`hosts/macos.md` 1,185 bytes＝610 tokens（**1.94 bytes/token**）。拆分那個 commit 合進來時 Mac 端沒有裝 `host-facts.md`，當天 14:17 之後的 Mac session 都沒有本機事實，是事後 review 才發現的——**改安裝清單的 commit，另一台機器要等人去裝才生效**。
+- 同日常駐 bytes 帳（`CLAUDE.md`＋`rules/00`＋`rules/05`＋host-facts；`git show <rev>:<file> | wc -c`）：當天第一個 commit 之前 11,631 → 拆分前 13,982（同日 `1673f4d` 把 05-hosts 從 2,615 加到 4,317）→ 拆分後 Mac 12,324／Windows 13,389 → 同日再精簡 CLAUDE.md（刪掉與 `hosts/windows.md` 重複的 Windows 專屬 ⚠️ 段、縮檔頭與段標題，4,792 → 3,959）後 Mac 11,491／Windows 12,599 → 第二輪（CLAUDE.md 常駐檔索引列併成一句、只留「用到才讀」表，3,959 → 3,104；`hosts/macos.md` 1,185 → 1,106）後 Mac 10,557／Windows 11,744。**上面「省 303／≈870 tokens」是對拆分前那個當天才長大的基準算的**；對當天開頭算，Mac −1,074 bytes、Windows +113 bytes（Windows 多的是新增的 448／複本安裝事實）。
 - `claude -p --allowed-tools "" '<prompt>'` 會把 prompt 吃進 `--allowed-tools`（可變長參數）而報 `Input must be provided`；prompt 用 stdin（`echo … | claude -p …`）或 `<<<`，或把 `--allowed-tools ""` 放在 prompt 之後。
-- 附帶：`rules/10-dispatch.md` §2「subagent 也會讀到全域 rules」只對 general-purpose／worker 成立，Explore／Plan 不成立——登記為候選，未動判準。
+- 附帶：`rules/10-dispatch.md` §2「subagent 也會讀到全域 rules」只對 general-purpose／worker 成立，Explore／Plan 不成立——登記為候選（`FatJohn/agents-guideline` issue #3），未動判準。

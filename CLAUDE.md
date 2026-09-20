@@ -1,32 +1,26 @@
 # CLAUDE.md（全域）
 
-> 本檔安裝於 `~/.claude/CLAUDE.md`（symlink 或實體檔複本，依機器而異——見下方 ⚠️）。來源 repo 的本機絕對路徑也依機器而異；`rules/`、`rubrics/`、`skills/` 內寫的 `<REPO>` 就是指這個路徑。**取得方法：先看下方「本機事實」段（由 `hosts/<key>.md` 匯入，含 repo 路徑）；沒有那段就查 `rules/05-hosts.md` 的 `<REPO>` 對照表**；都沒有才退而用 `readlink ~/.claude/CLAUDE.md` 取目錄部分——**複本安裝的機器上 `readlink` 會回空**，不能當唯一做法。
+> 本檔安裝於 `~/.claude/CLAUDE.md`（symlink 或實體檔複本，依機器而異）。`rules/`、`rubrics/`、`skills/` 內寫的 `<REPO>`＝來源 repo 的本機絕對路徑：**看下方「本機事實」段；沒有那段就查 `rules/05-hosts.md` 的 `<REPO>` 對照表**。
 > 只放路由與鐵律；長內容放 `rules/`（其載入行為見下方「工作系統」）。
 
 ## 語言
 
 所有溝通一律使用繁體中文台灣用語；技術名詞與程式碼保持原文。
 
-## 本機事實（`hosts/<key>.md` 之一，每台機器只裝自己那份；下面沒有這段、或 hostname 對不上 → 看 `rules/05-hosts.md`）
+## 本機事實（下面沒內容＝沒裝 → `rules/05-hosts.md`）
 
 @~/.claude/host-facts.md
 
-## 工作系統（`rules/` 每 session 常駐；下表＝內容索引）
+## 工作系統
 
-`~/.claude/rules/` 是這個環境的工作系統。**`~/.claude/rules` 是目錄 symlink 或實體檔複本；其中無 `paths` frontmatter 的 `*.md` 會被 Claude Code 每 session 全文載入、與 CLAUDE.md 同級常駐（非按需）**——故下表標 ✅ 的那幾列內容其實已在 context，是「主題 → 檔案」索引而非待讀清單。**只有每個 session 都需要的內容才放 `rules/`**；用到才讀的長內容放 `skills/`、`rubrics/` 或 `docs/`（那些目錄不會自動載入），即下表標 ❌ 的列。
+`~/.claude/rules/*.md`（無 `paths` frontmatter）每 session 全文常駐、與本檔同級，不必再讀：`00-environment`（環境風險、非常駐內容索引）、`05-hosts`（`<REPO>` 對照、缺本機事實時怎麼辦）、`10-dispatch`（派工、選 model、驗收分工、升降級）、`20-judgment`（升級／完成／問使用者／換路、驗收狀態分流、commit message、文件與註解取捨）、`50-lessons`（活躍教訓；踩坑後在此加一行）。**只有每個 session 都需要的內容才放 `rules/`**；用到才讀的放 `skills/`、`rubrics/`、`docs/`（不自動載入）：
 
-> ⚠️ **裝法依機器而異**：Windows 上**非提權建立**的 symlink 開檔會回 `os error 448`（連結查起來全綠，只有真的讀才會爆）——**用 admin 重建連結就好**，不是那台機器不能用 symlink。複本安裝的機器（哪台、怎麼裝見上方「本機事實」段）**改完 repo 要重跑 `scripts/sync-profile.py --apply --update` 才會生效**。
-
-| 情境 | 讀這份 | 已在 context？ |
-|------|--------|----|
-| 開工前：確認這台機器能跑哪些驗證、有哪些已知陷阱 | 上方「本機事實」段（`hosts/<key>.md`）；缺段或 hostname 對不上 → `rules/05-hosts.md`（`<REPO>` 對照表＋新機器建檔指引）；**工具鏈與版本明細在 `docs/hosts-detail.md`，不常駐** | ✅（hosts-detail ❌ 要讀） |
-| 了解這個環境的結構性風險、好用的 skill/plugin 清單 | `rules/00-environment.md` | ✅ |
-| 記憶機制四層的分工與邊界（寫或讀記憶時） | `docs/memory-layers.md` | ❌ 要讀 |
-| 派 subagent、選 model/effort、驗收分工、升降級 | `rules/10-dispatch.md` | ✅ |
-| 判斷題：該不該升級模型／算不算完成／要不要問使用者／該不該換路；驗收狀態分流與 commit message；寫程式時文件與註解怎麼取捨（現況證據與規格權威分工） | `rules/20-judgment.md` | ✅ |
-| 還沒有正式判準承接的活躍教訓；踩坑之後在此加一行 | `rules/50-lessons.md`（已升級的歷史條目在 `docs/lessons-archive.md`） | ✅ |
-| 寫驗收條件、或當 verifier 要逐條判品質 | `~/.claude/rubrics/{document-quality,code-change,research-analysis}.md` | ❌ 要讀 |
-| 修改 rules 檔、CLAUDE.md、AGENTS.md、agent 定義或 rubric | `maintain-guideline` skill（先讀，內有權限分級） | ❌ 要讀 |
+| 情境 | 用到才讀 |
+|------|--------|
+| 這台機器的工具鏈與版本明細 | `docs/hosts-detail.md` |
+| 記憶機制四層的分工與邊界（寫或讀記憶時） | `docs/memory-layers.md` |
+| 寫驗收條件、或當 verifier 要逐條判品質 | `~/.claude/rubrics/{document-quality,code-change,research-analysis}.md` |
+| 修改 rules 檔、CLAUDE.md、AGENTS.md、agent 定義或 rubric | `maintain-guideline` skill（先讀，內有權限分級） |
 
 ## 三條鐵律（隨時生效）
 
