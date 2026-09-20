@@ -6,7 +6,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域
 # 系統維護協議
 
 > 讀者：要維護本 repo、`~/.claude/`、`~/.codex/`、任何專案 CLAUDE.md 或 AGENTS.md 的 session。
-> 本系統的安裝形狀**依機器而異**：多數機器是 symlink（Claude Code 裝到 `~/.claude/`；Codex 的 `AGENTS.md` 與 skills 也是 symlink），`codex/agents/*.toml` 一律依 README 的同步器安裝成 `~/.codex/agents/` 實體檔；**symlink 讀不到的機器（見 `<REPO>/rules/05-hosts.md`）整套都是實體檔複本**。兩種都由使用者定期 review 後 commit。
+> 本系統的安裝形狀**依機器而異**：多數機器是 symlink（Claude Code 裝到 `~/.claude/`；Codex 的 `AGENTS.md` 與 skills 也是 symlink），`codex/agents/*.toml` 一律依 README 的同步器安裝成 `~/.codex/agents/` 實體檔；**不能提權的機器（見 `<REPO>/rules/05-hosts.md`）整套都是實體檔複本**——Windows 上非提權建立的 symlink 開檔會回 `os error 448`，用 admin 重建即可，不是那台機器不能用 symlink。兩種都由使用者定期 review 後 commit。
 > 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異，canonical 清單在 `<REPO>/rules/05-hosts.md`，**先查那裡對應機器的段落**。那裡沒有才退而讀全域入口的 symlink target：Claude 用 `readlink ~/.claude/CLAUDE.md`，Codex 用 `readlink ~/.codex/AGENTS.md`（PowerShell 用 `(Get-Item …).Target`），target 的目錄部分就是 `<REPO>`——**但這招只在 symlink 安裝的機器有效，複本安裝的機器會回空**。
 > 本檔在 `skills/` 底下而非 `rules/`，所以**不會每 session 自動載入**——這是刻意的：維護協議只在真的要動系統時才需要在 context 裡。
 
