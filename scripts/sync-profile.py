@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import os
 import platform
+import re
 import stat
 import sys
 import tempfile
@@ -51,6 +52,33 @@ def detect_host_key() -> str:
             f"no hosts/<key>.md mapping for platform {system!r}; pass --host-key "
             f"(known: {', '.join(sorted(HOST_KEYS.values()))})"
         ) from None
+
+
+_HOST_KEY_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+
+def _validate_host_key(host_key: str, repo: Path) -> None:
+    """Reject a key that cannot safely become a ``hosts/<key>.md`` filename.
+
+    ``host_key`` is interpolated into ``repo / "hosts" / f"{host_key}.md"`` and
+    the result is installed as ``~/.claude/host-facts.md``.  Without this check
+    a value like ``"../CLAUDE"`` or an absolute path is accepted unmodified and
+    quietly resolves outside ``hosts/``, installing an arbitrary repo file (or
+    nothing at all) as the machine's facts.
+    """
+
+    if not _HOST_KEY_PATTERN.match(host_key):
+        raise SyncError(
+            f"invalid --host-key {host_key!r}: must match "
+            f"{_HOST_KEY_PATTERN.pattern!r} (lowercase letters, digits, '-', '_'; "
+            "must start with a letter or digit)"
+        )
+    facts_file = repo / "hosts" / f"{host_key}.md"
+    if not facts_file.is_file():
+        raise SyncError(
+            f"missing {facts_file}; create hosts/{host_key}.md or pass a "
+            "different --host-key"
+        )
 
 
 @dataclass(frozen=True)
@@ -495,6 +523,20 @@ def _make_backup_root(anchor: Path) -> Path:
     return Path(tempfile.mkdtemp(prefix=f"{anchor.name}.backup-", dir=parent))
 
 
+def _remove_backup_root_if_empty(backup_root: Path) -> None:
+    """Best-effort cleanup: a run that moved nothing aside leaves no directory.
+
+    A non-empty backup (the ordinary successful-replace case, or a rollback
+    that itself failed) must never be removed; ``rmdir`` already refuses a
+    non-empty directory, so any ``OSError`` here is simply left alone.
+    """
+
+    try:
+        backup_root.rmdir()
+    except OSError:
+        pass
+
+
 def _move_aside(path: Path, backup_root: Path, label: str) -> Path:
     backup = backup_root / label
     backup.parent.mkdir(parents=True, exist_ok=True)
@@ -657,6 +699,20 @@ _VERBS = {
 }
 
 
+def _symlink_migration_message(migrating: list[Operation], limit: int = 5) -> str:
+    """Explain what ``--apply`` would silently convert to regular file copies."""
+
+    paths = [str(operation.destination) for operation in migrating]
+    shown = ", ".join(paths[:limit])
+    if len(paths) > limit:
+        shown += f", and {len(paths) - limit} more"
+    return (
+        "this profile is currently installed as symlinks; --apply would replace "
+        f"{len(paths)} symlink(s) with regular file copies: {shown}; "
+        "re-run with --replace-symlinks to continue"
+    )
+
+
 def print_preview(operations: list[Operation], *, apply: bool) -> None:
     print(f"mode: {'apply' if apply else 'dry-run'}")
     for operation in operations:
@@ -680,6 +736,7 @@ def sync(
     apply: bool = False,
     update: bool = False,
     prune: bool = False,
+    replace_symlinks: bool = False,
     host_key: str | None = None,
 ) -> list[Operation]:
     """Validate, preview, or apply a synchronization plan."""
@@ -687,6 +744,7 @@ def sync(
     repo = _plain(repo.expanduser().resolve())
     if host_key is None:
         host_key = detect_host_key()
+    _validate_host_key(host_key, repo)
     claude_home = claude_home.expanduser()
     codex_home = codex_home.expanduser()
     agents_home = agents_home.expanduser()
@@ -711,9 +769,22 @@ def sync(
         migrated_roots=migrated_roots,
     )
 
+    migrating = [
+        operation for operation in operations if operation.action in {"migrate-symlink", "migrate-tree"}
+    ]
+
     if not apply:
         print_preview(operations, apply=False)
+        if migrating:
+            print("note: --apply of this plan requires --replace-symlinks")
         return operations
+
+    if migrating and not replace_symlinks:
+        raise SyncError(_symlink_migration_message(migrating))
+
+    # Print the plan before any write, so a mid-apply failure still leaves a
+    # record of what was intended, not just what got interrupted.
+    print_preview(operations, apply=True)
 
     changes = [
         operation
@@ -735,8 +806,13 @@ def sync(
             try:
                 rollback(transaction)
             except SyncError as rollback_error:
-                raise rollback_error from exc
+                raise SyncError(f"apply failed: {exc}; {rollback_error}") from exc
+            # Rollback succeeded: every backed-up entry moved back out, so an
+            # anchor-only backup directory is now empty and safe to remove.
+            _remove_backup_root_if_empty(transaction.backup_root)
             raise
+        else:
+            _remove_backup_root_if_empty(transaction.backup_root)
     else:
         failures = verify(operations)
         if failures:
@@ -744,7 +820,6 @@ def sync(
                 print(f"read-back FAILED: {failure}", file=sys.stderr)
             raise SyncError(f"{len(failures)} destination file(s) failed read-back")
 
-    print_preview(operations, apply=True)
     if transaction and transaction.backups:
         print(f"backup directory: {transaction.backup_root}")
     print(f"read-back: {len([o for o in operations if o.action != 'prune' and o.action != 'migrate-tree'])} file(s) opened and byte-identical")
@@ -780,6 +855,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="also remove stale links into this repo that the plan no longer installs",
     )
+    parser.add_argument(
+        "--replace-symlinks",
+        action="store_true",
+        help=(
+            "required together with --apply when the plan would replace this "
+            "profile's existing symlink install with regular file copies"
+        ),
+    )
     return parser
 
 
@@ -788,6 +871,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.update and not args.apply:
         parser.error("--update requires --apply")
+    if args.replace_symlinks and not args.apply:
+        parser.error("--replace-symlinks requires --apply")
     try:
         sync(
             claude_home=args.claude_home,
@@ -796,6 +881,7 @@ def main(argv: list[str] | None = None) -> int:
             apply=args.apply,
             update=args.update,
             prune=args.prune,
+            replace_symlinks=args.replace_symlinks,
             host_key=args.host_key,
         )
     except (OSError, SyncError) as exc:

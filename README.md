@@ -132,12 +132,14 @@ Windows 專屬注意：
 **不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rubrics/`、`agents/worker.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`）：
 
 ```bash
-python scripts/sync-profile.py --prune                    # 先預覽
-python scripts/sync-profile.py --prune --apply            # 寫入
-python scripts/sync-codex-agents.py --apply               # Codex agent TOML 另一支
+python scripts/sync-profile.py --prune                                  # 先預覽
+python scripts/sync-profile.py --prune --apply --replace-symlinks       # 首次遷移：寫入
+python scripts/sync-codex-agents.py --apply                             # Codex agent TOML 另一支
 ```
 
 `--apply` 結束前會**逐檔開起來比對 bytes** 才算成功——在這類機器上「連結存在」不是證據，只有真的讀得到才是。既有檔案被取代前會先搬進同步器輸出的 `~/.claude.backup-*`；內容被手改過要覆蓋得再加 `--update`；`--prune` 只清掉「指向本 repo 但清單裡已經沒有」的舊連結，別人的連結與你自己建的檔不動。同步器遇到本次可捕捉的 move、write 或 read-back 失敗時會回復已搬開的項目與本次新建的檔案；若回復本身失敗，錯誤會保留可復原的 backup 目錄路徑。它不保證處理程序遭強制中止時的復原。
+
+`--replace-symlinks` 是防呆閘門：只要計畫要把既有 symlink（或整棵 symlink 目錄）換成實體檔複本，`--apply` 沒帶這個旗標就會被 `SyncError` 擋下、不寫入任何東西——避免在其實是 symlink 安裝的機器（例如主力 Mac）上誤跑這支腳本，把整套 symlink 靜默換成複本。日常重跑（計畫裡已經沒有 migrate 動作）用 `python scripts/sync-profile.py --apply --update` 即可，不必再帶它。
 
 ⚠️ **代價：改了 repo 不會自動生效**。symlink 版改完即時生效，複本版要重跑 `python scripts/sync-profile.py --apply --update`。這條寫在 `hosts/windows.md`。
 
