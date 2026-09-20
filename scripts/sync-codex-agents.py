@@ -132,7 +132,7 @@ def _link_target(path: Path) -> Path | None:
     """Read a link's stored target without following it.
 
     Resolving instead would open the target, which fails outright on a host
-    where reparse points cannot be traversed (see ``rules/05-hosts.md``), and
+    where reparse points cannot be traversed (see ``hosts/windows.md``), and
     would also reject a link whose target has since been deleted -- exactly the
     stale entries this command needs to migrate.
     """

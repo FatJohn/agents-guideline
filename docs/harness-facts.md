@@ -36,3 +36,22 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 > 2026-08-30 從 `rules/10-dispatch.md` §3 搬入。理由：這段服務的是「使用者問起時怎麼答」這個罕見場景，不是每個 session 都要的；§3 的判準（報呼叫參數、註明 runtime 未驗證）留在常駐區，本節只是細節。內容原文未改寫。
 
 被問到 model／effort 時報**呼叫時指定的參數**——那是你自述得出的。**本制度不稽核 subagent 實際跑在哪個 model**：runtime model ID 只能在派工 prompt 裡事前要求 subagent 自報，事後補問不到，而每次派工都加那段話的成本高過它的價值。所以被問時答「呼叫參數是 X，runtime 未驗證」，不要改口說已驗證。effort 另有硬限制：Agent 工具沒有 effort 參數、也無法 runtime 自報，有 `agents/<角色>.md` 的角色引其 frontmatter 標「宣告值」，其餘寫「未指定，繼承主對話」；外部模型（`codex:codex-rescue`）model／effort 都寫「不適用」。報制度出處要指得出是 §1、§5 或 `20-judgment.md` §1 的哪一條，「範圍明確」這類自由心證不算。
+
+## 常駐內容對 subagent 的可見性、`paths` frontmatter、hook 注入（2026-09-20 實測）
+
+> 實測環境：Claude Code 2.1.278、Windows `FatJohn-PC`，在 scratchpad 臨時專案跑 `claude -p --output-format json`，用帶編號的哨兵字串問模型「context 裡有沒有」。用途：拆 `rules/05-hosts.md` 成 `hosts/<key>.md` 的依據（`skills/maintain-guideline/SKILL.md` §5「單機專屬事實不進 rules/」）。Mac 端未實測。
+
+| 內容 | 主對話 | `general-purpose`／`worker`（`~/.claude/agents/` 自訂 agent） | `Explore`／`Plan` |
+|---|---|---|---|
+| 全域 `CLAUDE.md`、`~/.claude/rules/*.md`、專案 `CLAUDE.md`、專案 `.claude/rules/*.md` | ✅ | ✅（同一個 `<system-reminder>` 區塊；**每派一個就再付一次**） | ❌ 完全沒有（連三條鐵律都沒有） |
+| `CLAUDE.md` 的 `@./x.md`、`@~/…/x.md` 匯入 | ✅ launch 時展開 | ✅ | ❌ |
+| SessionStart hook 的 stdout／JSON `additionalContext` | ✅（獨立 system 訊息，排在 rules 那批之後、第一則 user message 之前） | ❌ | ❌ |
+| SubagentStart hook 的 JSON `additionalContext` | — | ✅ | ✅（文件未列此事件支援 `additionalContext`，實測可用） |
+
+- `@import` **缺檔靜默略過**，沒有任何錯誤或提示——靠匯入撐的內容要配哨兵句（`rules/05-hosts.md` 那段就是）。`@~/` 家目錄路徑在 Windows 也能展開。
+- `.claude/rules/*.md` 的 `paths` frontmatter：glob 只相對專案根目錄比對（`paths: ["C:/Users/**"]` 在 Read 了 `C:\Users\…\src\a.ts` 之後仍不載入）；觸發時機是 **Read 工具讀到符合檔之後**（以「Contents of …\cond.md」訊息附在 Read 結果後），不是 session 開頭，Bash `cat` 不算；`paths: ["**"]` 反而 launch 就載入（等同無條件，原因未查）。**做不了機器分流。**
+- `claude -p` 會跑 SessionStart hook；Windows 上 shell-form hook 用 Git Bash 執行（hook 內 `uname -s` 回 `MINGW64_NT`）。
+- token 校準：`rules/05-hosts.md`（拆之前）4,317 bytes 實測 2,083 tokens，**2.07 bytes/token**（中英混排；`claude -p` 預設模型 claude-opus-5）。這台機器空目錄 session 的固定 prompt 是 54,359 tokens，同一批內重跑數字相同。
+- 拆分前後的實測（`CLAUDE_CONFIG_DIR` 指到兩個只含 CLAUDE.md＋rules 的隔離設定目錄，背靠背跑）：舊形狀 61,198 → 新形狀 60,895，**Windows 端每 session 省 303 tokens**（丟掉 Mac 段、加回哨兵與對照表後的淨值）；Mac 端丟的是 Windows 段（≈1,265 tokens），估計淨省 ≈870，**未在 Mac 實測**。同一設定隔幾分鐘重跑會漂 7–8k tokens（fresh config dir 自己長出 plugins 目錄），跨時段的絕對數字不能拿來比，只能比背靠背那組。
+- `claude -p --allowed-tools "" '<prompt>'` 會把 prompt 吃進 `--allowed-tools`（可變長參數）而報 `Input must be provided`；prompt 用 stdin（`echo … | claude -p …`）或 `<<<`，或把 `--allowed-tools ""` 放在 prompt 之後。
+- 附帶：`rules/10-dispatch.md` §2「subagent 也會讀到全域 rules」只對 general-purpose／worker 成立，Explore／Plan 不成立——登記為候選，未動判準。

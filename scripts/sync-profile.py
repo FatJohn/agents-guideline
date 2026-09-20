@@ -4,7 +4,7 @@
 The repository is the source of truth.  ``README.md`` installs the same set as
 symlinks, which is the preferred layout because a repo edit takes effect with no
 further step.  This script exists for hosts where a symlinked profile silently
-fails to load: ``rules/05-hosts.md`` records ``FatJohn-PC``, where opening any
+fails to load: ``hosts/windows.md`` records ``FatJohn-PC``, where opening any
 path behind a reparse point returns ``ERROR_UNTRUSTED_MOUNT_POINT`` (os error
 448) while ``LinkType``/``Target`` still read back green.
 
@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import platform
 import stat
 import sys
 import tempfile
@@ -31,6 +32,25 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 class SyncError(ValueError):
     """A safe, user-actionable synchronization error."""
+
+
+# ``platform.system()`` -> the ``hosts/<key>.md`` that machine class installs as
+# ``~/.claude/host-facts.md``.  Only the current machine's file is installed;
+# the global CLAUDE.md imports it with ``@~/.claude/host-facts.md``.
+HOST_KEYS = {"Darwin": "macos", "Windows": "windows"}
+
+
+def detect_host_key() -> str:
+    """Pick ``hosts/<key>.md`` for this platform, or explain what to pass."""
+
+    system = platform.system()
+    try:
+        return HOST_KEYS[system]
+    except KeyError:
+        raise SyncError(
+            f"no hosts/<key>.md mapping for platform {system!r}; pass --host-key "
+            f"(known: {', '.join(sorted(HOST_KEYS.values()))})"
+        ) from None
 
 
 @dataclass(frozen=True)
@@ -63,9 +83,12 @@ def default_mappings(
     claude_home: Path,
     codex_home: Path,
     agents_home: Path,
+    host_key: str,
 ) -> list[Mapping]:
     """The same set README.md installs as symlinks, as regular files.
 
+    ``hosts/<host_key>.md`` is the one per-machine file; the other machines'
+    files stay in the repository and never reach the profile.
     ``codex/agents/*.toml`` is deliberately absent: ``sync-codex-agents.py``
     already owns that directory and validates the TOML before writing.
     """
@@ -76,6 +99,7 @@ def default_mappings(
 
     mappings = [
         Mapping(repo / "CLAUDE.md", claude_home / "CLAUDE.md", "file"),
+        Mapping(repo / "hosts" / f"{host_key}.md", claude_home / "host-facts.md", "file"),
         Mapping(repo / "rules", claude_home / "rules", "tree"),
         Mapping(repo / "rubrics", claude_home / "rubrics", "tree"),
         Mapping(repo / "agents" / "worker.md", claude_home / "agents" / "worker.md", "file"),
@@ -456,15 +480,19 @@ def sync(
     apply: bool = False,
     update: bool = False,
     prune: bool = False,
+    host_key: str | None = None,
 ) -> list[Operation]:
     """Validate, preview, or apply a synchronization plan."""
 
     repo = _plain(repo.expanduser().resolve())
+    if host_key is None:
+        host_key = detect_host_key()
     mappings = default_mappings(
         repo=repo,
         claude_home=claude_home.expanduser(),
         codex_home=codex_home.expanduser(),
         agents_home=agents_home.expanduser(),
+        host_key=host_key,
     )
     files = load_sources(mappings)
     operations = plan_operations(
@@ -506,6 +534,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--codex-home", type=Path, default=Path.home() / ".codex")
     parser.add_argument("--agents-home", type=Path, default=Path.home() / ".agents")
     parser.add_argument(
+        "--host-key",
+        help=(
+            "which hosts/<key>.md to install as ~/.claude/host-facts.md; "
+            "default: detected from the platform (Darwin=macos, Windows=windows)"
+        ),
+    )
+    parser.add_argument(
         "--apply",
         action="store_true",
         help="write the validated plan; without this flag the command is dry-run",
@@ -536,6 +571,7 @@ def main(argv: list[str] | None = None) -> int:
             apply=args.apply,
             update=args.update,
             prune=args.prune,
+            host_key=args.host_key,
         )
     except (OSError, SyncError) as exc:
         print(f"sync-profile: error: {exc}", file=sys.stderr)

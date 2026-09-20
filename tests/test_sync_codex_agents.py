@@ -22,7 +22,7 @@ def link_target(path: Path) -> Path:
     """Where a link points, without opening it.
 
     ``Path.resolve`` opens the target, which fails outright on a host where
-    reparse points cannot be traversed (see ``rules/05-hosts.md``).
+    reparse points cannot be traversed (see ``hosts/windows.md``).
     """
 
     return sync_codex_agents._link_target(path)

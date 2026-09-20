@@ -47,6 +47,9 @@ def build_repo(root: Path) -> Path:
     (repo / "AGENTS.md").write_text("# AGENTS\n", encoding="utf-8")
     (repo / "rules" / "00-environment.md").write_text("# env\n", encoding="utf-8")
     (repo / "rules" / "05-hosts.md").write_text("# hosts\n", encoding="utf-8")
+    (repo / "hosts").mkdir(parents=True)
+    (repo / "hosts" / "macos.md").write_text("# mac\n", encoding="utf-8")
+    (repo / "hosts" / "windows.md").write_text("# win\n", encoding="utf-8")
     (repo / "rubrics" / "code-change.md").write_text("# code change\n", encoding="utf-8")
     (repo / "agents" / "worker.md").write_text("# worker\n", encoding="utf-8")
     (repo / "agents" / "verifier.md").write_text("# verifier\n", encoding="utf-8")
@@ -67,6 +70,8 @@ class SyncProfileTests(unittest.TestCase):
         self.agents = self.root / "profile" / ".agents"
 
     def run_sync(self, **kwargs):
+        # Pin the host key so the suite does not depend on the platform it runs on.
+        kwargs.setdefault("host_key", "macos")
         return sync_profile.sync(
             repo=self.repo,
             claude_home=self.claude,
@@ -109,6 +114,32 @@ class SyncProfileTests(unittest.TestCase):
 
         # worker.md is the entry README's symlink install has been missing.
         self.assertEqual((self.claude / "agents" / "worker.md").read_text(encoding="utf-8"), "# worker\n")
+
+    def test_host_facts_installs_only_this_machines_file(self) -> None:
+        self.run_sync(apply=True, host_key="windows")
+
+        facts = self.claude / "host-facts.md"
+        self.assertTrue(facts.is_file())
+        self.assertEqual(facts.read_text(encoding="utf-8"), "# win\n")
+        # The other machine's file must not reach the profile in any shape.
+        self.assertFalse((self.claude / "hosts").exists())
+        self.assertFalse((self.claude / "rules" / "hosts").exists())
+        self.assertNotIn("# mac", facts.read_text(encoding="utf-8"))
+
+    def test_unknown_host_key_is_refused_before_writing(self) -> None:
+        with self.assertRaises(sync_profile.SyncError):
+            self.run_sync(apply=True, host_key="amiga")
+        self.assertFalse(self.claude.exists())
+
+    def test_detect_host_key_follows_platform(self) -> None:
+        import platform
+
+        system = platform.system()
+        if system in sync_profile.HOST_KEYS:
+            self.assertEqual(sync_profile.detect_host_key(), sync_profile.HOST_KEYS[system])
+        else:
+            with self.assertRaises(sync_profile.SyncError):
+                sync_profile.detect_host_key()
 
     def test_rerun_reports_everything_unchanged(self) -> None:
         self.run_sync(apply=True)

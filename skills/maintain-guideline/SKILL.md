@@ -6,8 +6,8 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域
 # 系統維護協議
 
 > 讀者：要維護本 repo、`~/.claude/`、`~/.codex/`、任何專案 CLAUDE.md 或 AGENTS.md 的 session。
-> 本系統的安裝形狀**依機器而異**：多數機器是 symlink（Claude Code 裝到 `~/.claude/`；Codex 的 `AGENTS.md` 與 skills 也是 symlink），`codex/agents/*.toml` 一律依 README 的同步器安裝成 `~/.codex/agents/` 實體檔；**不能提權的機器（見 `<REPO>/rules/05-hosts.md`）整套都是實體檔複本**——Windows 上非提權建立的 symlink 開檔會回 `os error 448`，用 admin 重建即可，不是那台機器不能用 symlink。兩種都由使用者定期 review 後 commit。
-> 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異，canonical 清單在 `<REPO>/rules/05-hosts.md`，**先查那裡對應機器的段落**。那裡沒有才退而讀全域入口的 symlink target：Claude 用 `readlink ~/.claude/CLAUDE.md`，Codex 用 `readlink ~/.codex/AGENTS.md`（PowerShell 用 `(Get-Item …).Target`），target 的目錄部分就是 `<REPO>`——**但這招只在 symlink 安裝的機器有效，複本安裝的機器會回空**。
+> 本系統的安裝形狀**依機器而異**：多數機器是 symlink（Claude Code 裝到 `~/.claude/`；Codex 的 `AGENTS.md` 與 skills 也是 symlink），`codex/agents/*.toml` 一律依 README 的同步器安裝成 `~/.codex/agents/` 實體檔；**不能提權的機器（見 `<REPO>/hosts/windows.md`）整套都是實體檔複本**——Windows 上非提權建立的 symlink 開檔會回 `os error 448`，用 admin 重建即可，不是那台機器不能用 symlink。兩種都由使用者定期 review 後 commit。
+> 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異。**先看 context 裡的「# 本機事實」段（Claude 端由全域 CLAUDE.md 匯入 `hosts/<key>.md`）或直接讀 `<REPO>/hosts/<key>.md`（Codex 端）；沒有就查 `<REPO>/rules/05-hosts.md` 的 `<REPO>` 對照表**。都沒有才退而讀全域入口的 symlink target：Claude 用 `readlink ~/.claude/CLAUDE.md`，Codex 用 `readlink ~/.codex/AGENTS.md`（PowerShell 用 `(Get-Item …).Target`），target 的目錄部分就是 `<REPO>`——**但這招只在 symlink 安裝的機器有效，複本安裝的機器會回空**。
 > 本檔在 `skills/` 底下而非 `rules/`，所以**不會每 session 自動載入**——這是刻意的：維護協議只在真的要動系統時才需要在 context 裡。
 
 ## 1. 檔案清單與權限分級
@@ -15,7 +15,8 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域
 | 檔案 | 性質 | 可以自行改嗎 |
 |------|------|-------------|
 | `rules/00-environment.md` | 跨機器事實與風險 | ✅ 更新過時事實（附當場驗證與查證日期）；「三大結構性風險」框架不可移除 |
-| `rules/05-hosts.md` | 各機器事實 | ✅ 新機器段落可自行加；過時事實可更新（附探測日） |
+| `rules/05-hosts.md` | 跨機器規則＋`<REPO>` 對照表＋缺檔哨兵 | ✅ 新機器對照行可自行加；哨兵句不可刪（`@import` 缺檔靜默略過，哨兵是唯一偵測） |
+| `hosts/<key>.md` | 單機事實（每台只裝自己那份） | ✅ 新機器可自行建檔；過時事實可更新（附探測日）；標題必須以「# 本機事實：」開頭並含 hostname |
 | `rules/10-dispatch.md`／`rules/20-judgment.md`／`codex/rules/10-dispatch-codex.md`／`codex/rules/30-delegation-templates-codex.md` | 系統核心 | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |
 | `skills/maintain-guideline/SKILL.md`（本檔） | 憲法 | ❌ 動之前先問使用者 |
 | `rules/50-lessons.md` | 活躍教訓日誌 | ✅ 隨時可加；升級成判準後移到 `<REPO>/docs/lessons-archive.md` |
@@ -36,7 +37,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域
 4. 提醒使用者 repo 有未 commit 的變更（不要自行 commit）。
 
 **新增或修改 skill／agent／rubric 檔時多一步**：在 repo 加檔**不等於**任何機器已安裝——Codex agent TOML 依平台執行 README 的 `sync-codex-agents.py --apply`（既有差異加 `--update`），read-back regular bytes 與 named runtime；AGENTS、skills 與 Claude 其餘 symlink 仍照 README 安裝段落確認。漏掉這步，規則會指向一個當下根本叫不出來的名字。
-**複本安裝的機器還要多一步**：連 `rules/`、`rubrics/`、`CLAUDE.md`、`AGENTS.md` 這些平常改完即時生效的檔，也要跑 `python <REPO>/scripts/sync-profile.py --apply --update`，否則 repo 改了但跑起來的還是舊的——而且兩邊都讀得到、都不報錯，`git status` 也乾淨。
+**複本安裝的機器還要多一步**：連 `rules/`、`hosts/`、`rubrics/`、`CLAUDE.md`、`AGENTS.md` 這些平常改完即時生效的檔，也要跑 `python <REPO>/scripts/sync-profile.py --apply --update`，否則 repo 改了但跑起來的還是舊的——而且兩邊都讀得到、都不報錯，`git status` 也乾淨。
 
 ### 本機設定安全
 
@@ -85,6 +86,8 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域
 - **驗證方法類判準：判準留常駐、細節進 docs**——「怎麼驗才算驗到」這類判準（各工具的檢查指令、觸發詞清單、失敗現場）一律寫進 `<REPO>/docs/debug-environment-first.md`，`<REPO>/rules/20-judgment.md` §2 只留一句判準、一組正反例與指向。
   訂這條的理由（2026-08-23）：同一天升級的兩條判準，一條照這個模式落地、另一條整段含例塞進常駐區，§2 因此一次長了 32 行——膨脹主因是落地模式不一致，不是判準太多。
 - **只在特定情境才用得到的內容不該放 `rules/`**：`rules/` 是無條件常駐區，付的是每個 session 的固定成本。維護協議、驗收 rubric、封存教訓、派工範例都屬於「用到才讀」，放 `skills/`／`rubrics/`／`docs/`。
+- **單機專屬事實不進 `rules/`，放 `<REPO>/hosts/<key>.md`**（2026-09-20）：由全域 CLAUDE.md 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**（README 安裝段各連一個；`sync-profile.py` 依平台選檔，`--host-key` 可覆寫）；`rules/05-hosts.md` 只留跨機器規則、`<REPO>` 對照與缺檔哨兵。匯入內容與 rules 同一快取層、`worker`／`general-purpose` 都看得到（`Explore`／`Plan` 本來就看不到 rules），缺檔**靜默略過**——所以 05-hosts 的哨兵句不能拿掉。實測事實見 `<REPO>/docs/harness-facts.md`「常駐內容對 subagent 的可見性」。
+  訂這條的理由：拆之前 05-hosts 4,317 bytes 實測 2,083 tokens，任一 session 只用得到一段，另一段（Mac 段 509／Windows 段 1,265 tokens）純浪費，且每派一個 worker／verifier 再付一次；`paths` frontmatter 實測只在 Read 到相符檔之後才載入、絕對路徑 glob 不匹配，做不了機器分流。
 - **新增、改寫或刪除 `rules/10-dispatch.md`／`rules/20-judgment.md` 的判準內容，觸發條件只有兩種**（2026-09-02）：(1) 使用者直接要求**修改判準**——只要求 review 不算，review 結果列給使用者，使用者對其中某項說「改」才算該項觸發；(2) `<REPO>/rules/50-lessons.md` 出現新條目，且該條目寫明情境發生在**本 repo 以外的專案 session**（條目標專案名，或標 `[global]` 但情境句寫出是哪個專案的工作）；本 repo 自身工作產生的教訓，要依 §3「踩第二次」才算觸發。**主動對 rules 做 review、瘦身掃描**這類沒有事故在前的「可以更好」不算觸發，登記為候選、等下一次觸發時一併處理。候選（含使用者要求 review 後未表態要改的項目）登記在本 repo 的 GitHub issue，標題前綴 `candidate:`；開之前先 `gh -R FatJohn/agents-guideline issue list --search 'candidate:'` 查重，已有就補在該 issue 下，不進 `rules/`。
   **不受本條限制**（照原有流程直接做）：(a) 已觸發的修改，其驗收輪次中 verifier 的發現——不論 `OPEN`、`INCONCLUSIVE` 或 `PROSE-ONLY`——照 `<REPO>/rules/20-judgment.md` §2 停止端處理（`OPEN` 依風險分流低風險機械結案或 fresh delta、`INCONCLUSIVE` 先補證、`PROSE-ONLY` 修完 read-back 後停止）；(b) 搬移或改名後的路徑更新與斷鏈修正（本檔 §6）；(c) `00`／`05` 的事實更新。本條只管**要不要開一輪修改**，不管已開的那一輪怎麼收。
   訂這條的理由：2026-07-18～09-01 的 755 個 session 檔有 69 個（9%）在改本 repo、兩個月 54 個 commit，制度自審成了最大的維護成本來源，而制度的目的是服務真實專案。

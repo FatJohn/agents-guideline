@@ -2,7 +2,7 @@
 
 一套裝進 `~/.claude/` 或 `~/.codex/` 就生效的工作系統：模型調度規則、判斷準則、驗收 rubric、驗收 agent、維護協議。目標：讓不同 coding agent 在這個環境都能穩定產出可驗證的工作品質。
 
-設計背景：2026-07-06 由高階模型（Fable 5）一次性建立，供之後所有 session 長期沿用。結構借鏡自 `goad-dot-claude`；機器差異隔離在 `rules/05-hosts.md`（macOS 主力機＋Windows 桌機，新機器由 AI 探測建檔）。
+設計背景：2026-07-06 由高階模型（Fable 5）一次性建立，供之後所有 session 長期沿用。結構借鏡自 `goad-dot-claude`；機器差異隔離在 `hosts/<key>.md`（每台機器只裝自己那份；macOS 主力機＋Windows 桌機，新機器由 AI 探測建檔，`<REPO>` 對照表在 `rules/05-hosts.md`）。
 
 寫作原則（2026-07-25 依 [Claude 5 世代的 context engineering 指南](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models) 修正）：**寫這個環境的 gotcha 與授權邊界，不寫通用做事方法**。模型自己就會的判斷不寫成決策樹；自我文件化的介面（agent 定義）不附填空範例；同一條規則只留一個 canonical 位置；只有每次開工都需要的內容放進常駐的 `rules/`。原則是「規則越少代表模型越強」，不是「規則越多越安全」。
 
@@ -17,8 +17,10 @@ cp -r ~/.claude ~/.claude.backup-$(date +%F) 2>/dev/null
 
 REPO=~/Projects/FatJohn/agents-guideline   # macOS 主力機；其他機器見 rules/05-hosts.md
 mkdir -p ~/.claude/agents ~/.claude/skills
+# hosts/<key>.md 只裝本機那份（主力 Mac 是 macos.md；其他機器換成自己的 key），CLAUDE.md 用 @~/.claude/host-facts.md 匯入
 for pair in \
   "CLAUDE.md:$HOME/.claude/CLAUDE.md" \
+  "hosts/macos.md:$HOME/.claude/host-facts.md" \
   "rules:$HOME/.claude/rules" \
   "rubrics:$HOME/.claude/rubrics" \
   "skills/maintain-guideline:$HOME/.claude/skills/maintain-guideline" \
@@ -43,6 +45,8 @@ done
 ```
 
 指令可重跑（已存在就略過不覆蓋）。若「已存在」的是你自己的舊全域 CLAUDE.md，手動把本 repo 的路由表與鐵律段落合併進去，不要直接覆蓋。
+
+裝完驗證本機事實真的被匯入（`@import` 缺檔是**靜默略過**，不會報錯）：`claude -p --allowed-tools "" <<< '不准用工具，引用 context 裡「# 本機事實」那段的標題與 hostname'`——回不出標題就是 `~/.claude/host-facts.md` 沒連上，或 CLAUDE.md 少了 `@~/.claude/host-facts.md` 那行。
 
 symlink 的好處：session 依規則附加教訓、更新事實時直接改到 repo，git diff 一目了然，由使用者 review 後 commit。若遇到不跟隨 symlink 的工具，改用 `cp` 安裝並在每次改 repo 後重新複製。
 
@@ -88,6 +92,7 @@ function Link-One($src, $dst) {
 
 # Claude Code
 Link-One "$REPO\CLAUDE.md"                 "$HOME\.claude\CLAUDE.md"
+Link-One "$REPO\hosts\windows.md"          "$HOME\.claude\host-facts.md"   # 本機那份；其他機器換 hosts\<key>.md
 Link-One "$REPO\rules"                     "$HOME\.claude\rules"
 Link-One "$REPO\rubrics"                   "$HOME\.claude\rubrics"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.claude\skills\maintain-guideline"
@@ -124,7 +129,7 @@ Windows 專屬注意：
 
 ## 安裝（實體檔同步版——不能提權的機器用這個）
 
-**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告與 `rules/05-hosts.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`rules/`、`rubrics/`、`agents/worker.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`）：
+**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rubrics/`、`agents/worker.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`）：
 
 ```bash
 python scripts/sync-profile.py --prune                    # 先預覽
@@ -134,7 +139,7 @@ python scripts/sync-codex-agents.py --apply               # Codex agent TOML 另
 
 `--apply` 結束前會**逐檔開起來比對 bytes** 才算成功——在這類機器上「連結存在」不是證據，只有真的讀得到才是。既有檔案被取代前會先搬進 `~/.claude.backup-*`／`~/.codex/agents.backup-*`；內容被手改過要覆蓋得再加 `--update`；`--prune` 只清掉「指向本 repo 但清單裡已經沒有」的舊連結，別人的連結與你自己建的檔不動。
 
-⚠️ **代價：改了 repo 不會自動生效**。symlink 版改完即時生效，複本版要重跑 `python scripts/sync-profile.py --apply --update`。這條寫在 `rules/05-hosts.md` 對應機器的段落裡。
+⚠️ **代價：改了 repo 不會自動生效**。symlink 版改完即時生效，複本版要重跑 `python scripts/sync-profile.py --apply --update`。這條寫在 `hosts/windows.md`。
 
 ## 安裝 Codex（macOS／Linux，symlink 版）
 
@@ -211,9 +216,10 @@ memories = true
 
 > 2026-08-30 從 `rules/05-hosts.md` 搬出。理由：這份清單只在裝新機器當下用得到，而 `rules/` 是每個 session 全文載入的常駐區（`maintain-guideline` §5「只在特定情境才用得到的內容不該放 rules/」）。原文僅把相對路徑補成 repo 根目錄視角；2026-09-06 另加了「探測結果分兩邊寫」的分流（工具鏈明細改進 `docs/hosts-detail.md`），探測清單 1–5 項本身未改寫。
 
-`rules/05-hosts.md` 沒有這台機器的段落時，照這份跑一輪，然後**自己把新段落補進去**（兩個檔都可直接寫入，不用問）——**探測結果分兩邊寫**：
+`hosts/` 沒有這台機器的檔時，照這份跑一輪，然後**自己建檔**（下列檔都可直接寫入，不用問）——**探測結果分三處寫**：
 
-- `rules/05-hosts.md`（常駐）：機器身分、專案位置、本系統 repo 位置、**驗證能力**、以及**陷阱**（不知道就會踩的那種，例如某 port 被系統佔用、`python3` 沒有別名）。
+- `hosts/<key>.md`（常駐，但**每台機器只裝自己那份**，2026-09-20 從 `rules/05-hosts.md` 拆出）：標題以「# 本機事實：」開頭並寫 hostname；內容是機器身分、專案位置、本系統 repo 位置、**驗證能力**、以及**陷阱**（不知道就會踩的那種，例如某 port 被系統佔用、`python3` 沒有別名）。然後照上方安裝段把它連／複製到 `~/.claude/host-facts.md`（`sync-profile.py` 要認得新 key 就在 `HOST_KEYS` 加一行）。
+- `rules/05-hosts.md`（常駐）與 `AGENTS.md`：`<REPO>` 對照表各加一行「hostname → repo 路徑 → `hosts/<key>.md`」。
 - `docs/hosts-detail.md`（非常駐）：OS／shell／套件管理器版本、CLI 版本、工具盤點清單——這些是加速用快照，不佔每 session 的固定成本。
 
 1. 身分：`hostname`＋OS（macOS 用 `sw_vers`；Windows 看 shell 環境是 PowerShell / Git Bash / WSL）
@@ -232,7 +238,8 @@ memories = true
 | `CLAUDE.md` | 路由表＋三鐵律＋優先權排序（裝在 `~/.claude/`） |
 | `AGENTS.md` | Codex 路由表＋三鐵律＋Codex 專用注意（裝在 `~/.codex/`） |
 | `rules/00-environment.md` | 跨機器事實、三大結構性風險與修法 |
-| `rules/05-hosts.md` | 各機器事實（按機器分段；新機器由 AI 照本檔「新機器建檔」的探測清單自行建檔） |
+| `hosts/<key>.md` | 單機事實（身分、repo 位置、驗證能力、陷阱）；經全域 `CLAUDE.md` 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**（2026-09-20 從 `rules/05-hosts.md` 拆出，理由見 `maintain-guideline` §5）；新機器由 AI 照本檔「新機器建檔」建檔 |
+| `rules/05-hosts.md` | 跨機器規則、`<REPO>` 對照表、缺檔哨兵（context 裡沒有「# 本機事實」段時怎麼辦） |
 | `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |
 | `rules/20-judgment.md` | 判斷準則：升級／完成／問使用者／換路／環境先驗，各附正反例 |
 | `rules/50-lessons.md` | **還沒有正式判準承接的**活躍教訓＋交接欄 |
