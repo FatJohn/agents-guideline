@@ -46,7 +46,7 @@ done
 
 symlink 的好處：session 依規則附加教訓、更新事實時直接改到 repo，git diff 一目了然，由使用者 review 後 commit。若遇到不跟隨 symlink 的工具，改用 `cp` 安裝並在每次改 repo 後重新複製。
 
-⚠️ **`~/.claude/rules/` 是無條件常駐區**：Claude Code 會把該目錄下無 `paths` frontmatter 的 `*.md` 每 session 全文載入，付的是每個 session 的固定 context 成本。所以只有「每次開工都需要」的內容放 `rules/`；只在特定情境才用得到的長內容放 `skills/`（維護協議）、`rubrics/`（驗收判準）或 `docs/`（封存與情境化參考），這三個目錄不會自動載入。`~/.claude/rubrics` 雖然也是目錄 symlink，但 `rules/` 才是 Claude Code 的 memory 目錄，`rubrics/` 不會被自動載入。
+⚠️ **`~/.claude/rules/` 是無條件常駐區**：Claude Code 會把該目錄下無 `paths` frontmatter 的 `*.md` 每 session 全文載入，付的是每個 session 的固定 context 成本。所以只有「每次開工都需要」的內容放 `rules/`；只在特定情境才用得到的長內容放 `skills/`（維護協議）、`rubrics/`（驗收判準）或 `docs/`（封存與情境化參考），這三個目錄不會自動載入。`~/.claude/rubrics` 雖然裝法與 `rules/` 相同（symlink 或實體檔複本），但 `rules/` 才是 Claude Code 的 memory 目錄，`rubrics/` 不會被自動載入。
 
 ### Claude Code permissions 要和鐵律二對齊
 
@@ -54,7 +54,12 @@ symlink 的好處：session 依規則附加教訓、更新事實時直接改到 
 
 ## 安裝（Windows／PowerShell）
 
-一次裝好 Claude Code 與 Codex 兩側。**前置條件：開啟 Developer Mode**（設定 → 系統 → 開發人員專用），否則建 symlink 需要 admin 權限。已開的話 `(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock').AllowDevelopmentWithoutDevLicense` 會回 1。實測 `FatJohn-PC` 上 Developer Mode 已開，非 admin 的 PowerShell 7 即可 `New-Item -ItemType SymbolicLink` 建立跨磁碟（C: → E:）的檔案與目錄連結。
+> ⚠️ **這一段要用系統管理員的 PowerShell 跑。**
+> Windows 在**建立** reparse point 的當下就依建立者的 token 蓋信任等級：非提權建的是 Level 1，啟用 RedirectionTrust 的行程一律拒絕走訪，回 `ERROR_UNTRUSTED_MOUNT_POINT`（os error 448）；admin 建的是 Level 2，誰都讀得到。非提權裝的話連結會全部建得起來、`LinkType`／`Target` read-back 也全綠，但 Claude Code 與 Codex 讀不到任何全域設定——「安裝全綠＋完全失效」。
+> 2026-09-20 在 `FatJohn-PC` 上實測確認（同一個目標檔，admin 建的讀得到、非 admin 建的 448）。Developer Mode 只決定「能不能建」，不決定「建出來能不能用」。
+> **裝完一定要實際讀一個檔驗證**（`Get-Content "$HOME\.claude\CLAUDE.md" -TotalCount 1`），不要只查 `LinkType`。不能提權的機器改用下一節的實體檔同步。
+
+一次裝好 Claude Code 與 Codex 兩側。**用系統管理員的 PowerShell 跑**（理由見上方警告）。Developer Mode 只是讓非提權也「建得起來」，建出來的是不受信任的 Level 1 連結，所以開不開 Developer Mode 都不影響這裡——提權才是關鍵。
 
 ```powershell
 $REPO = 'E:\agents-guideline'   # 本機 repo 位置；其他機器見 rules/05-hosts.md
@@ -116,6 +121,20 @@ Windows 專屬注意：
 - **目錄可用 symlink 或 junction，檔案只能用 symlink**——`~/.claude/CLAUDE.md` 這種跨磁碟的檔案不能用 hardlink（hardlink 不可跨磁碟區）。
 - **Windows 檔名不分大小寫**：既有的 `~/.claude/claude.md` 與本 repo 的 `CLAUDE.md` 是同一個檔，所以上面腳本一定會動到它。跑完務必打開 `.bak-<日期>` 檔看一次——舊的全域 CLAUDE.md 若有值得保留的個人偏好，照 macOS 安裝段落「指令可重跑」後的說明手動併進 repo 的 `CLAUDE.md`（腳本只負責搬開，不負責合併）。
 - 底下 Codex 的 `~/.codex/config.toml` 合併說明（model／`[agents]`／`[features] memories`）**兩個平台都適用**，Windows 也要照做。
+
+## 安裝（實體檔同步版——symlink 讀不到的機器用這個）
+
+**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告與 `rules/05-hosts.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`rules/`、`rubrics/`、`agents/worker.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`）：
+
+```bash
+python scripts/sync-profile.py --prune                    # 先預覽
+python scripts/sync-profile.py --prune --apply            # 寫入
+python scripts/sync-codex-agents.py --apply               # Codex agent TOML 另一支
+```
+
+`--apply` 結束前會**逐檔開起來比對 bytes** 才算成功——在這類機器上「連結存在」不是證據，只有真的讀得到才是。既有檔案被取代前會先搬進 `~/.claude.backup-*`／`~/.codex/agents.backup-*`；內容被手改過要覆蓋得再加 `--update`；`--prune` 只清掉「指向本 repo 但清單裡已經沒有」的舊連結，別人的連結與你自己建的檔不動。
+
+⚠️ **代價：改了 repo 不會自動生效**。symlink 版改完即時生效，複本版要重跑 `python scripts/sync-profile.py --apply --update`。這條寫在 `rules/05-hosts.md` 對應機器的段落裡。
 
 ## 安裝 Codex（macOS／Linux，symlink 版）
 

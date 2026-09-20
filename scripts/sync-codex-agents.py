@@ -117,6 +117,35 @@ def validate_destination_root(source: Path, destination: Path) -> Path:
     return destination
 
 
+def _plain(path: Path) -> Path:
+    """Drop the Windows extended-length prefix ``os.readlink`` adds."""
+
+    text = str(path)
+    if text.startswith("\\\\?\\UNC\\"):
+        return Path("\\\\" + text[len("\\\\?\\UNC\\"):])
+    if text.startswith("\\\\?\\"):
+        return Path(text[len("\\\\?\\"):])
+    return path
+
+
+def _link_target(path: Path) -> Path | None:
+    """Read a link's stored target without following it.
+
+    Resolving instead would open the target, which fails outright on a host
+    where reparse points cannot be traversed (see ``rules/05-hosts.md``), and
+    would also reject a link whose target has since been deleted -- exactly the
+    stale entries this command needs to migrate.
+    """
+
+    try:
+        target = _plain(Path(os.readlink(path)))
+    except OSError:
+        return None
+    if not target.is_absolute():
+        target = path.parent / target
+    return Path(os.path.normpath(target))
+
+
 def _entry_kind(path: Path) -> str:
     mode = path.lstat().st_mode
     if stat.S_ISLNK(mode):
@@ -149,14 +178,13 @@ def plan_operations(
 
         kind = _entry_kind(target)
         if kind == "symlink":
-            try:
-                target_source = target.resolve(strict=True)
-            except OSError as exc:
-                raise SyncError(f"cannot resolve destination symlink {target}: {exc}") from exc
-            if target_source != role.source.resolve(strict=True):
+            target_source = _link_target(target)
+            if target_source is None:
+                raise SyncError(f"cannot read destination symlink {target}")
+            if target_source != _plain(role.source.absolute()):
                 raise SyncError(
-                    f"foreign symlink at {target} resolves to {target_source}; "
-                    f"expected {_path_text(role.source.resolve(strict=True))}"
+                    f"foreign symlink at {target} points to {target_source}; "
+                    f"expected {_path_text(_plain(role.source.absolute()))}"
                 )
             operations.append(Operation(role, target, "migrate-symlink"))
             continue

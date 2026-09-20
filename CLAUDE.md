@@ -1,6 +1,6 @@
 # CLAUDE.md（全域）
 
-> 本檔以 symlink 安裝於 `~/.claude/CLAUDE.md`。來源 repo 的本機絕對路徑依機器而異，canonical 清單在 `rules/05-hosts.md`（每 session 常駐，已在 context）；`rules/`、`rubrics/`、`skills/` 內寫的 `<REPO>` 就是指這個路徑（不確定就 `readlink ~/.claude/CLAUDE.md` 取目錄部分）。
+> 本檔安裝於 `~/.claude/CLAUDE.md`（symlink 或實體檔複本，依機器而異——見下方 ⚠️）。來源 repo 的本機絕對路徑也依機器而異，canonical 清單在 `rules/05-hosts.md`（每 session 常駐，已在 context）；`rules/`、`rubrics/`、`skills/` 內寫的 `<REPO>` 就是指這個路徑。**取得方法：先查 `rules/05-hosts.md` 對應機器的段落**；那裡沒有才退而用 `readlink ~/.claude/CLAUDE.md` 取目錄部分——**複本安裝的機器上 `readlink` 會回空**，不能當唯一做法。
 > 只放路由與鐵律；長內容放 `rules/`（其載入行為見下方「工作系統」）。
 
 ## 語言
@@ -10,6 +10,8 @@
 ## 工作系統（`rules/` 每 session 常駐；下表＝內容索引）
 
 `~/.claude/rules/` 是這個環境的工作系統。**`~/.claude/rules` 是目錄 symlink，其中無 `paths` frontmatter 的 `*.md` 會被 Claude Code 每 session 全文載入、與 CLAUDE.md 同級常駐（非按需）**——故下表標 ✅ 的那幾列內容其實已在 context，是「主題 → 檔案」索引而非待讀清單。**只有每個 session 都需要的內容才放 `rules/`**；用到才讀的長內容放 `skills/`、`rubrics/` 或 `docs/`（那些目錄不會自動載入），即下表標 ❌ 的列。
+
+> ⚠️ **裝法依機器而異**：有的機器不能用 symlink 安裝（`FatJohn-PC` 經 symlink 開檔會回 `os error 448`），全域設定是同步過去的**實體檔複本**——那種機器上**改完 repo 要重跑同步才會生效**。開工前看 `rules/05-hosts.md` 該機器的段落。
 
 | 情境 | 讀這份 | 已在 context？ |
 |------|--------|----|

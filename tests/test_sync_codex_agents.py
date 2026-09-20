@@ -18,6 +18,16 @@ sys.modules[SPEC.name] = sync_codex_agents
 SPEC.loader.exec_module(sync_codex_agents)
 
 
+def link_target(path: Path) -> Path:
+    """Where a link points, without opening it.
+
+    ``Path.resolve`` opens the target, which fails outright on a host where
+    reparse points cannot be traversed (see ``rules/05-hosts.md``).
+    """
+
+    return sync_codex_agents._link_target(path)
+
+
 def write_role(directory: Path, name: str, *, description: str = "role") -> Path:
     path = directory / f"{name}.toml"
     path.write_text(
@@ -88,7 +98,7 @@ class SyncTests(unittest.TestCase):
             backups = list(destination.parent.glob("agents.backup-*/worker.toml"))
             self.assertEqual(len(backups), 1)
             self.assertTrue(backups[0].is_symlink())
-            self.assertEqual(backups[0].resolve(), source_file.resolve())
+            self.assertEqual(link_target(backups[0]), source_file.absolute())
 
     def test_differing_regular_requires_update_then_is_backed_up(self) -> None:
         temporary, source, destination = self.make_dirs()
@@ -129,7 +139,7 @@ class SyncTests(unittest.TestCase):
 
             self.assertIn("foreign symlink", str(raised.exception))
             self.assertTrue(installed.is_symlink())
-            self.assertEqual(installed.resolve(), other.resolve())
+            self.assertEqual(link_target(installed), other.absolute())
             self.assertEqual(source_file.read_bytes(), (source / "worker.toml").read_bytes())
             self.assertEqual(list(destination.parent.glob("agents.backup-*")), [])
 

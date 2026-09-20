@@ -2,7 +2,7 @@
 
 > 讀者：Codex 主對話（controller）。每次要派工、選模型或驗收之前照著做。
 > 本檔是 `<REPO>/rules/10-dispatch.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
-> 下文的 `<REPO>` 同 `~/.codex/AGENTS.md` 檔頭定義（依機器而異；不確定就取 `readlink ~/.codex/AGENTS.md` 的目錄部分）。本檔位在 `<REPO>/codex/rules/`，寫成裸 `rules/…` 從這裡解析不到。
+> 下文的 `<REPO>` 同 `~/.codex/AGENTS.md` 檔頭定義（依機器而異；該檔頭有對照表，`readlink ~/.codex/AGENTS.md` 只在 symlink 安裝的機器上有效）。本檔位在 `<REPO>/codex/rules/`，寫成裸 `rules/…` 從這裡解析不到。
 
 ## 0. Codex 角色與 runtime adapter（以當前 session 實際工具為準）
 

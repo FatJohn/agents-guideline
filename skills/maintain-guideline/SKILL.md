@@ -6,8 +6,8 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域
 # 系統維護協議
 
 > 讀者：要維護本 repo、`~/.claude/`、`~/.codex/`、任何專案 CLAUDE.md 或 AGENTS.md 的 session。
-> 本系統以 symlink 安裝：Claude Code 裝到 `~/.claude/`；Codex 的 `AGENTS.md` 與 skills 仍裝成 symlink，`codex/agents/*.toml` 則依 README 的同步器安裝成 `~/.codex/agents/` 實體檔，由使用者定期 review 後 commit。
-> 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異，canonical 清單在 `<REPO>/rules/05-hosts.md`。不確定時依當前平台讀全域入口的 symlink target：Claude 用 `readlink ~/.claude/CLAUDE.md`，Codex 用 `readlink ~/.codex/AGENTS.md`；PowerShell 分別用 `(Get-Item ~/.claude/CLAUDE.md).Target`、`(Get-Item ~/.codex/AGENTS.md).Target`。target 的目錄部分就是 `<REPO>`。
+> 本系統的安裝形狀**依機器而異**：多數機器是 symlink（Claude Code 裝到 `~/.claude/`；Codex 的 `AGENTS.md` 與 skills 也是 symlink），`codex/agents/*.toml` 一律依 README 的同步器安裝成 `~/.codex/agents/` 實體檔；**symlink 讀不到的機器（見 `<REPO>/rules/05-hosts.md`）整套都是實體檔複本**。兩種都由使用者定期 review 後 commit。
+> 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異，canonical 清單在 `<REPO>/rules/05-hosts.md`，**先查那裡對應機器的段落**。那裡沒有才退而讀全域入口的 symlink target：Claude 用 `readlink ~/.claude/CLAUDE.md`，Codex 用 `readlink ~/.codex/AGENTS.md`（PowerShell 用 `(Get-Item …).Target`），target 的目錄部分就是 `<REPO>`——**但這招只在 symlink 安裝的機器有效，複本安裝的機器會回空**。
 > 本檔在 `skills/` 底下而非 `rules/`，所以**不會每 session 自動載入**——這是刻意的：維護協議只在真的要動系統時才需要在 context 裡。
 
 ## 1. 檔案清單與權限分級
@@ -36,6 +36,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、全域
 4. 提醒使用者 repo 有未 commit 的變更（不要自行 commit）。
 
 **新增或修改 skill／agent／rubric 檔時多一步**：在 repo 加檔**不等於**任何機器已安裝——Codex agent TOML 依平台執行 README 的 `sync-codex-agents.py --apply`（既有差異加 `--update`），read-back regular bytes 與 named runtime；AGENTS、skills 與 Claude 其餘 symlink 仍照 README 安裝段落確認。漏掉這步，規則會指向一個當下根本叫不出來的名字。
+**複本安裝的機器還要多一步**：連 `rules/`、`rubrics/`、`CLAUDE.md`、`AGENTS.md` 這些平常改完即時生效的檔，也要跑 `python <REPO>/scripts/sync-profile.py --apply --update`，否則 repo 改了但跑起來的還是舊的——而且兩邊都讀得到、都不報錯，`git status` 也乾淨。
 
 ### 本機設定安全
 
