@@ -122,7 +122,7 @@ Windows 專屬注意：
 - **Windows 檔名不分大小寫**：既有的 `~/.claude/claude.md` 與本 repo 的 `CLAUDE.md` 是同一個檔，所以上面腳本一定會動到它。跑完務必打開 `.bak-<日期>` 檔看一次——舊的全域 CLAUDE.md 若有值得保留的個人偏好，照 macOS 安裝段落「指令可重跑」後的說明手動併進 repo 的 `CLAUDE.md`（腳本只負責搬開，不負責合併）。
 - 底下 Codex 的 `~/.codex/config.toml` 合併說明（model／`[agents]`／`[features] memories`）**兩個平台都適用**，Windows 也要照做。
 
-## 安裝（實體檔同步版——symlink 讀不到的機器用這個）
+## 安裝（實體檔同步版——不能提權的機器用這個）
 
 **不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告與 `rules/05-hosts.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`rules/`、`rubrics/`、`agents/worker.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`）：
 
