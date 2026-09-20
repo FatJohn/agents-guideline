@@ -11,13 +11,15 @@
 - macOS 26.5.2（Build 25F84）、zsh（`/bin/zsh`）、Homebrew ✓（`/opt/homebrew/bin/brew`）
 - Claude Code 2.1.258；Codex 0.152.0（2026-09-02 現查；版本會隨自動更新跳動，一律現查）
 - 工具：git ✓、gh ✓、node ✓、python3 ✓、flutter ✓、dotnet ✓、rg ✓、jq ✓；fd ✗（找檔用 `rg --files` 或安裝 fd）
+- **安裝來源原則（2026-09-20 現查）：只有 node／npm 走 mise**（`~/.config/mise/config.toml` 只列 `node`，全域預設 26；已開 `idiomatic_version_file_enable_tools = ["node"]`，專案的 `.nvmrc`／`.node-version` 會自動生效——不開的話 mise 會靜默忽略這些檔、一律用全域版本），其餘一律官方安裝——go（`/usr/local/go/bin/go`，官方 pkg）、python3（python.org framework，`/Library/Frameworks/Python.framework`）、bun（`~/.bun/bin`）、pnpm（standalone，`~/Library/pnpm/bin`）、dotnet、flutter。Homebrew 不裝語言 runtime；uv／corepack 未安裝。要新增語言工具時照此原則，不要順手 `mise use` 或 `brew install`。
 
 ## Windows 桌機（hostname：`FatJohn-PC`，AMD64）
 
 > 探測日：2026-08-05
 
 - Windows 11 專業版（Build 26200）、PowerShell 7.6.4（`pwsh`，主要 shell）；Git Bash 與 WSL 皆可用（`bash`／`wsl` 都在 PATH）
-- 套件管理器：winget ✓、mise ✓（node／npm／python／codex 都走 mise shim）；scoop ✗、Homebrew ✗
+- 套件管理器：winget ✓、mise ✓（node／npm／python／codex 都走 mise shim——**2026-08-05 快照**）；scoop ✗、Homebrew ✗
+- **安裝來源原則與 Mac 相同**（2026-09-20 使用者口述，本機尚未複查）：只有 node 走 mise，其餘官方安裝。上一行的 python／codex 走 mise 與此原則不符，下次在這台開工時 `mise ls`＋`Get-Command python,codex` 現查，再依實況改寫上一行。
 - Claude Code 2.1.222；Codex CLI 0.146.0（走 mise shim 會自動更新，同一天內就跳過版——版本號一律現查）
 - Codex 本機 config 的主對話為 `gpt-5.6-sol`／effort `medium`（2026-08-06 00:14 現查 `~/.codex/config.toml`；與 Plus 制度預設一致）
 - 工具：git ✓、gh ✓、node ✓、npm ✓、python ✓、flutter ✓（`D:\flutter\bin\flutter.bat`）、dotnet ✓、rg ✓、jq ✓、docker ✓、uv ✓；fd ✗、yarn ✗
