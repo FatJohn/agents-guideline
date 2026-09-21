@@ -83,6 +83,8 @@ Reasoning effort 只回答「同一模型需要思考多深」：問題已理解
 
 controller 核定完整 plan → worker 產出與機械驗證 → controller read-back → 依 §6 選擇需要的 review／驗收，不額外疊 spec／quality／verifier 儀式；高風險 §6 的 reviewer＋sol_verifier 分工仍保留。修正依共用 `<REPO>/rules/20-judgment.md` §2 停止端分流。同一有界交付批次可由同一 worker 完成。主對話小修只限單點、低風險、可機械驗證、scope 無歧義；授權、安全、架構或主觀文件不適用。所有 child 直接完成收到的任務，不再套此 controller 流程遞迴派工。
 
+核定 plan 時，若本波有多個 issue，或單一 issue 跨模組／涵蓋完整功能，先依 `<REPO>/skills/parallel-dispatch/SKILL.md` §2「值不值得」與同檔「單片尺寸評估」評估可獨立交付的切片，不預設序列；切不出來或不值得平行就維持單片或序列交接，不以工具呼叫數或預估分鐘數強制切分。worktree 建立、checkpoint 與 worker 禁 commit 依 `<REPO>/skills/parallel-dispatch/references/codex.md`，不在此重抄。
+
 優先派 subagent：
 
 - 任務可獨立，且主對話只需要結論與證據。
