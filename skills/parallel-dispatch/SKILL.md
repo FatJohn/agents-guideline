@@ -88,7 +88,7 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 
 ## §5 VALIDATION：切片驗收
 
-每片完成即進行獨立 fresh-context 驗收與必要 CI，不等同批其他片。驗收者依平台 dispatch 的角色分流（adapter 寫明）。首輪自行設計探針、不抄 brief 的 Validation commands；delta 輪依 `<REPO>/rules/20-judgment.md` §2「修正與驗收輪次」重跑原探針加修正 diff 的迴歸探針，不換形狀。驗收並確認「移除或固定該交付的輸出／訊息／綁定時有檢查會紅」（`<REPO>/rubrics/code-change.md`「交付的價值要被測試守住」）。修正後依 `<REPO>/rules/20-judgment.md` §2「停止端」處理，三輪回報點照計。
+每片完成即進行獨立 fresh-context 驗收與必要 CI，不等同批其他片。驗收者依平台 dispatch 的角色分流（adapter 寫明）。首輪自行設計探針、不抄 brief 的 Validation commands（例：brief 寫 `dotnet test`，verifier 另做「把新格式的 MAC 表改壞一個 byte，讀取要拒絕」這種 brief 沒列的突變）；delta 輪依 `<REPO>/rules/20-judgment.md` §2「修正與驗收輪次」重跑原探針加修正 diff 的迴歸探針，不換形狀。驗收並確認「移除或固定該交付的輸出／訊息／綁定時有檢查會紅」（`<REPO>/rubrics/code-change.md`「交付的價值要被測試守住」）。修正後依 `<REPO>/rules/20-judgment.md` §2「停止端」處理，三輪回報點照計。
 
 - CI `skipping` 不算通過；endpoint／timeout 類錯誤僅在同一 SHA 重跑一次轉綠時記為 flake，否則當真失敗；CI 重跑次數與原因記在 PR。
 - 改既有檢查、過濾或驗證規則的片，動手前依 `<REPO>/rules/20-judgment.md` §2「改既有檢查／過濾／驗證規則」凍結行為基線。
