@@ -9,7 +9,7 @@
 | query status | 兩層：git read-back（`git -C <wt> status --short`、`rev-parse HEAD`、`diff --stat`）＋ worker report 落檔（brief 指定 `<log-dir>/<slice>-report.md`，`<log-dir>` 在 repo 外）。容器的「執行中／完成」指示燈只是線索，不是證據 |
 | follow-up | 用該 CLI 的 resume／continue 機制續同一 session（現查 `--help`），或在同一 worktree 起新 process 並把原 report、finding、diff 餵入——前提是舊 process 已依 stop 確認結束 |
 | collect | worker report 落檔 `<log-dir>/<slice>-report.md`（brief 指定），非互動模式另記 process exit code；沒有 report 檔＝未完成 |
-| stop | 結束該 process 或關閉其 session（`kill <pid>`／容器的關閉指令），再以 `ps -p <pid>` 或 session 清單確認消失，並 `git -C <wt> status --short`＋`rev-parse HEAD` 兩次 read-back（相隔至少 60 秒）無變化。容器顯示「已停止」不算，process 還在就是還在寫 |
+| stop | 結束該 process 或關閉其 session（`kill <pid>`／容器的關閉指令）；主判準是以 `ps -p <pid>` 或 session 清單確認 process 真的消失，容器顯示「已停止」不算，process 還在就是還在寫。`git -C <wt> status --short`＋`rev-parse HEAD` 兩次 read-back（相隔至少 60 秒，未實測的保守值）只作佐證，須無變化 |
 
 ## 派工與 worktree
 
@@ -24,7 +24,7 @@ worker 是哪個 CLI 就依該平台的角色表：Claude 側 `worker`／`verifi
 
 ## 沒有 controller（人手多開 session）
 
-使用者自己當 controller 時，開工前列出：每片 worktree 絕對路徑、branch、ownership、驗證命令；`git worktree list` 核對。仍受 SKILL 的一批 3 片、每片 fresh 驗收、§6 integration tree 與完整測試約束——**「幾個 session 各自跑完了」不等於已整合**。建議把 SKILL §3 的 graph 與 `templates.md` 的 status board 寫成一個檔放在 `<log-dir>`，每個 worker 完成就更新，整合時照 integration record 記錄。
+使用者自己當 controller 時，開工前列出：每片 worktree 絕對路徑、branch、ownership、驗證命令；`git worktree list` 核對。仍受 SKILL §3 批次上限、每片 fresh 驗收、§6 integration tree 與完整測試約束——**「幾個 session 各自跑完了」不等於已整合**。建議把 SKILL §3 的 graph 與 `templates.md` 的 status board 寫成一個檔放在 `<log-dir>`，每個 worker 完成就更新，整合時照 integration record 記錄。
 
 ## 清理
 

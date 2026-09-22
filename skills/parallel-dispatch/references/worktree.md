@@ -10,14 +10,7 @@
 
 brief 的 ownership 以 repo 相對路徑寫；每個 worker 的實際寫入範圍 ＝ **它的 worktree 絕對路徑 × 允許的相對路徑**。不同 worktree 的同名相對路徑不是衝突；同一 worktree 永遠單一寫入者。controller 記錄每片的絕對路徑、branch、base SHA。
 
-通用建法（adapter 沒有自動機制時）：
-
-```bash
-git -C <repo> worktree add <abs-path> -b <branch> <base-ref>
-git -C <repo> worktree list          # read-back
-```
-
-worktree 目錄若放在 repo 內（如 `<repo>/.claude/worktrees/`），先確認已被 `.gitignore` 忽略，否則全目錄掃描工具與 `git add -A` 會掃進去。
+`git worktree add` 建立後務必 `git worktree list` read-back 記錄絕對路徑與 branch；worktree 目錄若放在 repo 內（如 `<repo>/.claude/worktrees/`），先確認已被 `.gitignore` 忽略，否則全目錄掃描工具與 `git add -A` 會掃進去。
 
 ## Ownership 稽核（SKILL §6 第 2 步）
 
