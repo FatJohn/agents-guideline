@@ -141,6 +141,7 @@ def default_mappings(
         Mapping(repo / "rules", claude_home / "rules", "tree"),
         Mapping(repo / "rubrics", claude_home / "rubrics", "tree"),
         Mapping(repo / "agents" / "worker.md", claude_home / "agents" / "worker.md", "file"),
+        Mapping(repo / "agents" / "worker-opus.md", claude_home / "agents" / "worker-opus.md", "file"),
         Mapping(repo / "agents" / "verifier.md", claude_home / "agents" / "verifier.md", "file"),
         Mapping(repo / "AGENTS.md", codex_home / "AGENTS.md", "file"),
         Mapping(

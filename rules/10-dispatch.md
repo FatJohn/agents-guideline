@@ -20,6 +20,9 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）；worker 升級或需要 opus／fable 時改派這個並顯式指定 model。
 - 本系統自帶 `worker`（一般程式／文件執行）與 `verifier`（獨立驗收）；派工前讀
   `~/.claude/agents/<角色>.md` 合約。worker 用 Sonnet/xhigh，verifier 顯式 `model: opus`，升 fable 見 §5。
+- `worker-opus`——實驗車道（2026-09-23 起），Opus 5.5/medium，合約同 worker，只用於與 worker 的
+  A/B 對照；派工不帶 `model` 參數（由 frontmatter 決定）。預設路由仍是 worker；對照設計與紀錄見
+  `../docs/worker-ab-2026-09.md`。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill，不是 subagent（`code-simplifier` plugin 2026-08-06 現查未安裝，寫成 `subagent_type` 會叫不出來）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），第二意見或整包委派用。備用車道：2026-09-02 現查近 45 天派工 0 次，不再展開用法。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。**不是每個 session 都有**：2026-08-06 實測 `claude -p` 起的 session 清單裡沒有它（主對話清單裡有），機制未查明。派工前先確認當下清單真的有這個名字。
