@@ -118,7 +118,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 - **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。
 - **高風險判斷**（對外文件、不可逆、架構決策）：加獨立第二意見，可用 codex-rescue 或兩個 agent，分歧交使用者。
 
-Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`；不指定會繼承主對話。
+Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`；frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑。
 改用 `model: fable` 前，說明訊號與證據並取得當次同意：
 (a) 同一條件連續兩輪 UNSURE；(b) 與實跑或獨立結論矛盾且 controller 無法裁決；
 (c) 後來實測抓到它漏掉的安全、授權或不可逆缺陷。使用者當次直接指定 fable 不必再問；
