@@ -10,7 +10,7 @@
 | counter | 完成通知 `<usage>` 帶三個欄位：`subagent_tokens`（≈ 該 agent 交回當下的 context 大小；2026-09-18 逐筆對 subagent jsonl 的 usage 核過）、`tool_uses`（該輪工具呼叫數，不等於模型 request）、`duration_ms`。fresh／continue 看 `subagent_tokens`；續用時它只會再長。通知缺欄位就標 `unknown`，不可猜，也不阻擋派工。 |
 | follow-up | 依 [../SKILL.md](../SKILL.md) §6 第 10 步與 `<REPO>/rules/20-judgment.md`「停止端」判斷；預設帶原 brief、finding、diff、受影響條件與既有證據派 fresh agent。同 worktree 序列接手時明確不設自動 isolation，prompt 綁定絕對路徑；`SendMessage`／續派只能沿用該步的可調判斷，不以文字猜 counter。若另開 worktree，controller 先 materialize candidate checkpoint 並 read-back。 |
 | collect | subagent 回傳的最後訊息就是 worker report（必含 Location 欄的 worktree 路徑、branch、HEAD）；長輸出由 worker 落檔到 brief 指定的 `<log-dir>` |
-| stop | 背景 subagent 用當下工具清單裡的停止工具（現查有無 `TaskStop`）終止；同步呼叫的 subagent 無法中途停止，只能等回傳。停止後以 `git -C <wt> status --short`＋`rev-parse HEAD` 做兩次 read-back，**相隔至少 60 秒**且期間該 agent 未回傳任何訊息，兩次都無變化才算停；否則依 SKILL §8 換新 worktree 重派 |
+| stop | 背景 subagent 用當下工具清單裡的停止工具（現查有無 `TaskStop`）終止；同步呼叫的 subagent 無法中途停止，只能等回傳。主判準是 adapter 已確認 process／turn 結束（`TaskStop` 回報，或同步呼叫已回傳）；`git -C <wt> status --short`＋`rev-parse HEAD` 兩次 read-back 只作佐證，相隔至少 60 秒（未實測的保守值）且期間該 agent 未回傳任何訊息，兩次都無變化才算停；否則依 SKILL §8 換新 worktree 重派 |
 
 ## 派工與 worktree
 

@@ -101,3 +101,21 @@
 **`CLAUDE.md`「## 語言」英文任務仍用繁中回覆**：760 則 controller 回覆有 37 則（5%）實質非中文，使用者糾正三次（e9e64834 09-19 07:10、07:36；a2a3ad15 09-19 01:25），都發生在任務內容是英文的 session。
 
 **2026-09-21 更正（同日 Codex review 後）**：(1) `agents/worker.md` 規則 9 的「工具呼叫次數」回報欄位撤回——與上方「worker 也無法精確自計」及 parallel-dispatch「單片尺寸評估」的「不可從文字猜」矛盾；呼叫數由 controller 從 session jsonl 取得（本次量測即取自 jsonl），沒有可靠來源就標 `unknown`。(2) 「約 40 分鐘」從 `rules/10-dispatch.md` 常駐句移除：窗內 8 個超過 40 分鐘的 worker 都是整功能任務，推不出整功能任務多半超過 40 分鐘。(3) 「只有平行才賺得回來」撤回：序列交接可能減少 context 膨脹與重讀成本，改為比較冷啟動、context、重讀與交接成本，與「單片尺寸評估」一致。(4) 以上數據全來自 Claude 端；`codex/rules/10-dispatch-codex.md` 同日補的是同一流程原則，效能改善尚待 Codex 自身量測。
+
+## 2026-09-22 KKBOX-Slim session review：Explore 前置與單片 context 提醒的理由
+
+量測對象：KKBOX-Slim session `fecd2381`（2026-09-21 20:14～22:38 實際工作 2h24m；其後 6 小時是使用者空檔）。使用者開工 prompt 指定「單一片、實作用 opus」，controller 派 general-purpose opus 單片實作 #26 第 19 項（KKSL v2）。
+
+**`rules/10-dispatch.md`「Controller 工作迴圈」第 1 步「核定前先派 Explore」**：implementer 開工前 8 分鐘用了 76 個 turn 讀碼（第 77 turn 才第一次 Edit；context 57k→292k，tool 執行只 0.3 分鐘），派工 prompt 已有 8.6k 字仍不夠讓它免讀——但那 8.6k 字是任務描述，不含檔案內容與既有測試結構，所以這條的假設是「附的是素材而不是描述」才省得掉摸索段；這是尚未實證的假設，檢驗方式：下次同類派工比「第一次 Edit 前的 turn 數」，沒降就撤回，不重演 worker 規則 8 的路徑。與 2026-09-21 review 量到的「第一次 Edit 前的摸索中位 24 次、占總呼叫 29%」是同一件事。Explore 只回結論、成本落在 sonnet 且不進主對話 context；「Explore／Plan 看不到 rules」目前是 `docs/harness-facts.md` 的候選觀察（issue #3），不是已核定事實，本段成本論據不倚賴它；素材附進 brief 後執行者的探索段可省，controller 也才有依據估單片 context。不另設 planner 角色：內建 `Plan` 已能出計畫，缺的是 controller 有沒有派，不是角色缺席。
+
+**`skills/parallel-dispatch/SKILL.md`「單片尺寸評估」加 context 約 300k 提醒**：該單片首輪 4 commit（含兩輪修正共 7 commit、33 檔 +4781 行；首輪 4 commit 為 30 檔 +4119 行），首輪實作 50 分鐘（tool 執行 12 分、模型產出 38 分、含讀碼段共 268 turn／266k output tokens），時間面合理；問題在 context 一路漲到 655k（1M 視窗），336 turn 平均每輪重讀 426k、累計 143M cache-read tokens（同 session 主對話 24M、兩個 verifier 合計 24M）。commit 1–2（格式核心）與 3–4（saver／play 整合）之間有清楚的交接點且 3–4 依賴 2，平行切不了但序列交接可以，每段 context 可壓在 300k 內。300k 取「200k 以上進長 context 計費」與「交接冷啟動再付一次摸索」之間的折衷，只作提醒不作硬上限，與同段「不用單一 counter 當硬上限」一致。檢驗方式：之後 N 個單片交回時 `subagent_tokens` 的中位若 >300k，代表提醒值落在健康派工之下（與 60 次同形），即撤回。驗收兩輪 38 分鐘裡約一半是 .NET build+test 的 mutation 迴圈，屬「驗證不自驗」的必要成本，不列為問題。
+
+**`skills/parallel-dispatch/SKILL.md`「單片尺寸評估」撤回 60 次工具呼叫提醒**：60 是 2026-09-17 訂的、當日 `<REPO>/docs/dispatch-cost-review-2026-09-17.md` 已標為待評估假設；2026-09-21 review 實測 worker 工具呼叫中位 90 次、13/89 超過 150 次且逐一檢視無鬼打牆（見上方「規則 8」段）。提醒值落在中位數以下，超過半數健康派工都會觸發，等於沒有訊號；同段已規定 counter 優先用 context 大小、呼叫數只是輔助，worker 也算不準自己的呼叫數。§6 第 10 步「不以首輪 60 次單獨決定」同步改為「不以工具呼叫數單獨決定」。
+
+## 2026-09-22 parallel-dispatch skill fable review 落地
+
+使用者核准套用一份 fresh review（`skills/parallel-dispatch/SKILL.md` 與 `references/{claude-code,cli,worktree}.md`）的全部 24 條建議。以下記錄需要保留理由、事故數字或撤回史的項目；常駐區只留判準與邊界。
+
+**`SKILL.md` §8 worker 停滯規則加「探索段不計」**：原句「兩次相隔至少 10 分鐘或該片預估工時的一半，取小者」把 ≤20 分的片門檻壓到 ≤10 分，容易在健康探索段誤殺。證據：第一次 Edit 前摸索中位 24 次、占 29%（中位 16.1 分 → 約 4–5 分鐘 git 零改動，2026-09-21 review）；KKBOX-Slim 單片第 77 turn／開工 8 分鐘才第一次 Edit（2026-09-22 review）；來源 commit `4368dd5`（09-15）無任何實測引用。改為「第一次 Edit 前的探索段不計」，能查詢狀態的 adapter 以活動訊號為主，git read-back 只作佐證；同步、無法中途查詢的 adapter（Claude subagent，見 `claude-code.md`）仍以 git 兩次 read-back 為準，門檻降級為未實測的參考值。探索段（第一個 git 改動之前）刻意不設上限：2026-09-21 review 逐一檢視 13/89 長尾 worker 無一鬼打牆，之前的 60 次與 10 分鐘門檻誤殺的正是這段；全程零改動的 worker 由 §4「實作類任務改動為零＝失敗」事後抓，代價是那一次空轉全額付掉。
+
+**`SKILL.md` §6 第 10 步續用成本數字移出常駐句**：實測續用輪每 request 成本約首輪 1.9 倍、一輪續用修正約一個 fresh 修正 worker 的 1.7 倍（方向證據，兩組任務難度未受控），且半數 follow-up 送出時 context 已 >200K（`<REPO>/docs/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」）。常駐句改留一句「續用成本高於 fresh，數字見 rationale」。
