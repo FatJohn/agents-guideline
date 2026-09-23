@@ -27,8 +27,3 @@
 ## 清理
 
 採 `worktree.md`「清理的證據條件」；確認後 controller 在主 repo 執行 `git worktree remove <絕對路徑>` 與 `git branch -D worktree-<name>`。不可用 commit 數判定 squash 後是否落地。
-
-## 已知成本
-
-2026-09-12 的 3 片 S／M 實跑樣本（每片 2–4 輪、12 次 agent 呼叫、約 1.6M subagent token、約 100 分鐘）記在 `<REPO>/docs/harness-facts.md`；這是成本參考，不是加速宣稱。
-2026-09-17 的成本／輪次 audit 與後續量測方法記在 `<REPO>/docs/dispatch-cost-review-2026-09-17.md`；它是 proxy 與方法限制的紀錄，不是節省或加速宣稱。

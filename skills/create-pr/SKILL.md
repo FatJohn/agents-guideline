@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: Use when the user wants to create a Pull Request from the current branch. Triggers include Chinese phrases like 「建立 PR」「產生 PR」「開 PR」「幫我開一個 PR」「發 PR」「送 review」 and English equivalents like "create a PR", "open a pull request", "make a pull request". Also trigger on implicit ship-it cues like 「可以開了」「差不多可以送出」「ship it」 when the current branch is clearly diverged from its base branch.
+description: Use when the user wants to create a Pull Request from the current branch, in any wording or language that asks to open a PR or send the branch for review (e.g. 「開 PR」, "open a pull request"). Also trigger on implicit ship-it cues (e.g. 「可以開了」, "ship it") when the current branch is clearly diverged from its base branch.
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(find:*), Bash(ls:*), Bash(test:*), Bash(grep:*), Bash(sed:*), Bash(wc:*), Bash(cd:*), Bash(echo:*), Bash(mktemp:*), Bash(cat:*), Bash(rm:*), Read
 ---
 
@@ -37,7 +37,7 @@ Good -- 同一概念的變更聚合描述：
 
 只有當變更彼此並列、沒有共同主軸（例如雜項修補 PR）時，才以分類區段（Features / Bugfixes / Refactoring / Breaking Changes）呈現。分類以「目的」為準：為了新功能 → Features；為了修 bug → Bugfixes；純品質改善、行為不變 → Refactoring；其他模組需要改 code 才能運作 → Breaking Changes。
 
-**篇幅隨變更規模縮放**：小 PR（幾十行內）只需 Summary＋兩三個條目；大 PR 才展開完整段落。判準：拿掉某段不會讓 reviewer 變慢，就拿掉。
+**篇幅隨變更規模縮放**：小 PR 只需 Summary＋少數條目；大 PR 才展開完整段落。判準：拿掉某段不會讓 reviewer 變慢，就拿掉。
 
 **明寫 trade-off 與刻意不做的事**：如果實作中做了取捨（「考慮過 X 但決定不做，因為 Y」）或刻意 deferred 某範圍，在 body 中明說，避免 reviewer 誤以為是遺漏。
 
@@ -113,7 +113,7 @@ git diff --name-only "origin/$BASE"...HEAD
 
 ### 2.5 生成 Summary 與 Title
 
-- **Summary**：2-3 句概述。有 PR 目的時以目的為主軸；重要功能移除必須在 Summary 說明。
+- **Summary**：幾句話讓 reviewer 讀完就知道這個 PR 做了什麼、為什麼。有 PR 目的時以目的為主軸；重要功能移除必須在 Summary 說明。
 - **Title**：一句簡潔摘要主題，直接描述這個 PR 做了什麼，不用 Conventional Commits（`feat:`／`fix:` 等）或 ticket prefix；語言用繁體中文台灣用語，技術名詞保留原文。
 
 ### 2.6 組裝 PR Body
@@ -125,7 +125,7 @@ git diff --name-only "origin/$BASE"...HEAD
 
   ```markdown
   ## Summary
-  （2-3 句概述）
+  （幾句話概述做了什麼、為什麼）
 
   ## 主要變更
   （條列，每條 what + why）
@@ -149,11 +149,11 @@ git diff --name-only "origin/$BASE"...HEAD
   | `## 注意事項` | 有 migration、feature flag、新環境變數，或需手動執行的部署步驟 | 用 alert 語法標示，讓它在 GitHub 上跳出來 |
   | `## Related` | 有關聯 issue、跨 repo 配套 PR，或 deploy preview | issue 寫 `Closes #123`——**僅在 base 是該 repo 的預設分支時生效**，base 是其他分支（stacked PR、release 分支）時 GitHub 會忽略這個關鍵字——不會建立 linked issue 關聯、merge 也不會自動關閉 issue（`#123` 本身仍會渲染成超連結，所以「看起來有效」，這正是容易漏掉的地方）；那種情況改寫成 `Ref #123`；跨 repo PR 附連結與建議合併順序 |
 
-  選配段的取捨：沒觸發就整段不要出現，不要留空標題或填「N/A」——那是照 repo 現成 template 填寫時才需要的禮貌。**選配段上限三段**：觸發超過三段時，依上表由上到下取前三段，其餘資訊併進 `## 主要變更` 的條目敘述裡。段落一多，reviewer 反而找不到重點。
+  選配段的取捨：沒觸發就整段不要出現，不要留空標題或填「N/A」——那是照 repo 現成 template 填寫時才需要的禮貌。觸發的選配段很多時，只保留 reviewer 必須單獨看到的段落（部署前必做的 `## 注意事項` 一律保留），其餘資訊併進 `## 主要變更` 的條目敘述裡。段落一多，reviewer 反而找不到重點。
 
 **GitHub 渲染慣例**（讓 body 好讀，不是裝飾）：
 
-- alert 語法 `> [!NOTE]`／`> [!WARNING]`／`> [!CAUTION]` 會渲染成帶圖示的色塊，用來標 breaking change 或部署前必須做的事。一個 PR 最多用一兩次，濫用就失去對比。
+- alert 語法 `> [!NOTE]`／`> [!WARNING]`／`> [!CAUTION]` 會渲染成帶圖示的色塊，用來標 breaking change 或部署前必須做的事。只用在 reviewer 絕不能錯過的事上，濫用就失去對比。
 - 長輸出（完整 test log、大量檔案清單）用 `<details><summary>完整測試輸出</summary>` 摺疊：證據留著，但不佔版面。
 - 截圖並排用 markdown table（`| Before | After |`），不要上下堆疊——上下堆會逼 reviewer 捲動來回比對。
 - **不要自己加 checklist**（`- [ ] 已加測試`、`- [ ] 已閱讀 CONTRIBUTING`）：會被無腦全勾，訊號量為零還撐長 body。repo 自己的 template 有 checklist 則照填，那是該 repo 的規矩。
@@ -189,7 +189,7 @@ rm -f "$PR_BODY_FILE"
 gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
 ```
 
-漏掉的後果：合併後的歷史第一行從此是中文、無 type prefix，事後只能重寫共享歷史（flutter-app-template 2026-08-12 為此重寫 36 個 commit）。
+漏掉的後果：合併後的歷史第一行從此是中文、無 type prefix，事後只能重寫共享歷史。
 
 **merge 前的 CI 閘門**：先確認 check 已註冊再 `gh pr checks --watch`（或改用 `gh run watch <run-id> --exit-status`），閘門指令不接 `| tail`；陷阱細節與實例見 `<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」那條。
 

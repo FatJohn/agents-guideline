@@ -1,6 +1,6 @@
 ---
 name: parallel-dispatch
-description: 一個開發任務可能拆給 ≥2 個 coding agent 平行做（divide & conquer），或讓多個 agent 各解一版再選優（agent race）時使用；spec 尚未切分、要先判斷值不值得平行時也用。觸發句：「平行做」「同時派」「這幾個 issue 一起處理」「切成幾個 task 同時開發」「能不能切」「讓幾個 agent 各做一版比較」，及英文 "in parallel"、"split this into tasks"、"race two agents"。已有切好的 tracker 項目要直接平行派工與整合驗收時同樣觸發。
+description: 一個開發任務可能拆給 ≥2 個 coding agent 平行做（divide & conquer），或讓多個 agent 各解一版再選優（agent race）時使用；spec 尚未切分、要先判斷值不值得平行或能不能切時也用。已有切好的 tracker 項目要直接平行派工與整合驗收時同樣觸發。不論中英文措辭（如「這幾個 issue 一起處理」、"split this into tasks"）。
 allowed-tools: Bash(git:*), Bash(gh:*), Read, Grep, Glob
 ---
 
@@ -111,7 +111,7 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 9. §3 語意風險任一成立才派一名 fresh verifier，只驗片與片的互動及合併後的執行環境（fresh checkout、CI job 順序、產物依賴），不重驗已通過的切片條件；驗收者在 integration tree 的乾淨環境執行。無風險時最終證據只需 integration tree 的完整測試。驗收 prompt 裡的測試數、新增條數由 controller 現查（如 `git grep -c`），不抄 worker 自報。
 10. 必要時要求修正。**判準**：預設派 fresh worker，但這是可調預設——若修正小且獨立、原 worker 理解正確，且沒有膨脹或反覆重讀跡象，可依累積現況續用同一 worker，不以工具呼叫數單獨決定；膨脹以 adapter 的 context 大小訊號判斷（Claude：`subagent_tokens`），context 已大就派 fresh，續用成本高於 fresh，數字見 `<REPO>/docs/judgment-rationale.md`「2026-09-22 parallel-dispatch skill fable review 落地」段；若能力不足，沿用升級路徑，fresh 不取代升級。**交接必附**：原 finding、修正 diff、受影響驗收條件與既有證據、原 brief、ownership、invariants、slice 絕對路徑、branch、base SHA、candidate／checkpoint SHA、dirty 狀態；先 stop/read-back 再移 ownership。同一 worktree 可序列接手；新 worktree 必須從已核對的 candidate checkpoint 建立並 read-back，不可只從 controller HEAD 假定有候選改動。修正後依停止端分流機械結案或 fresh delta。
 
-**收斂即整合，不等整批**：§3 語意風險判定為無的片，一收斂（`CONVERGED`，或 `PROSE-ONLY` 修完 read-back）就單獨走第 7–8 步 merge 或開 PR，不等同批其他片；只有判定有語意風險的片才等它互動的對象一起做第 9 步。早 merge 前第 2 步的交集稽核改用**其他片 brief 的允許路徑**對本片實際改動檔取交集（非空就停）；其餘片完成後，再以實際改動檔補跑一次完整交集。§7 的全批最終驗證照做。（2026-09-14 實測：兩片批次中先收斂的一片等另一片三輪驗收，白等 55 分鐘，占整批 wall time 一半。）
+**收斂即整合，不等整批**：§3 語意風險判定為無的片，一收斂（`CONVERGED`，或 `PROSE-ONLY` 修完 read-back）就單獨走第 7–8 步 merge 或開 PR，不等同批其他片；只有判定有語意風險的片才等它互動的對象一起做第 9 步。早 merge 前第 2 步的交集稽核改用**其他片 brief 的允許路徑**對本片實際改動檔取交集（非空就停）；其餘片完成後，再以實際改動檔補跑一次完整交集。§7 的全批最終驗證照做。
 
 merge／push 一律由 controller 依當次 session 授權執行；本 skill 不授權任何對外或不可逆動作。每次 merge 後比對實際 merge 結果的 tree 與該次候選 integration tree，記錄 merge SHA 並確認 required CI；不一致就停下一次 merge，先查明並重驗。某片 merge 後才發現壞：revert **該片**的 merge（或其 squash commit），其餘片不動，不整批回退；受影響證據依第 7 步作廢重驗。
 

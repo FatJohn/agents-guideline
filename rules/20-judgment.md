@@ -169,7 +169,7 @@ React 實跑渲染出 `<meta http-equiv="refresh">`。
 
 **判準**：commit message（subject 與 body）全英文，subject 符合 Conventional Commits——`type: 小寫祈使句`，scope 可省略（`type(scope):` 同樣合格），type 限 `build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test`。對話、PR title 與 body、程式註解、issue 仍是繁體中文。
 
-PR title 依 `create-pr` skill 用中文不加 prefix，而 `gh pr merge --squash` 預設拿 PR title 當 commit 標題，所以 squash merge 一律用 `-t` 覆寫成本節格式；指令與事故見 `<REPO>/skills/create-pr/SKILL.md` §2.8。
+PR title 依 `create-pr` skill 用中文不加 prefix，而 `gh pr merge --squash` 預設拿 PR title 當 commit 標題，所以 squash merge 一律用 `-t` 覆寫成本節格式；指令與後果見 `<REPO>/skills/create-pr/SKILL.md` §2.8。
 
 ✅ **正例**：`build(ios): move to SPM-only and drop CocoaPods (#25)`
 ❌ **反例**：PR title 是中文就直接 `gh pr merge --squash`——歷史第一行從此中文無 prefix，事後只能重寫共享歷史。

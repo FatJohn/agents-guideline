@@ -5,7 +5,7 @@
 
 ## 0. 可用模型與 subagent（查證過，不要憑印象改）
 
-**Agent 工具的 `model` 參數**可逐次指定常用 alias（`haiku`／`sonnet`／`opus`／`fable`；harness 每 session 已注入同一份 enum，2026-08-30 由 Agent 工具 schema 現查確認），也可使用完整 model ID 或 `inherit`。alias→實際型號的對照 2026-08-30 搬到 `../docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」——alias 會隨平台改版重新指向新一代同層模型，要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準。
+**Agent 工具的 `model` 參數**可逐次指定常用 alias（`haiku`／`sonnet`／`opus`／`fable`；harness 每 session 已注入同一份 enum，2026-08-30 由 Agent 工具 schema 現查確認），也可使用完整 model ID 或 `inherit`。alias→實際型號的對照在 `../docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」——alias 會隨平台改版重新指向新一代同層模型，要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準。
 
 agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用範圍受模型與組織設定限制（見 `../docs/harness-facts.md`）。
 
@@ -23,8 +23,8 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `worker-opus`——實驗車道（2026-09-23 起），Opus 5.5/medium，合約同 worker，只用於與 worker 的
   A/B 對照；派工不帶 `model` 參數（由 frontmatter 決定）。預設路由仍是 worker；對照設計與紀錄見
   `../docs/worker-ab-2026-09.md`。
-- 簡化整理剛改過的程式碼——用內建 `simplify` skill，不是 subagent（`code-simplifier` plugin 2026-08-06 現查未安裝，寫成 `subagent_type` 會叫不出來）。
-- `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），第二意見或整包委派用。備用車道：2026-09-02 現查近 45 天派工 0 次，不再展開用法。
+- 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
+- `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。**不是每個 session 都有**：2026-08-06 實測 `claude -p` 起的 session 清單裡沒有它（主對話清單裡有），機制未查明。派工前先確認當下清單真的有這個名字。
 
 ## 1. 雙軸判斷：context 成本 × 任務耦合
@@ -39,12 +39,12 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 |------|------|-------|
 | 掃 repo、找出「哪些檔案有 X」 | Explore | sonnet |
 | 讀多份長文件並總結 | general-purpose | sonnet |
-| 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用；沒有 firecrawl，2026-08-06 已移除） | sonnet |
+| 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用） | sonnet |
 | 批次機械性改檔（同 pattern 套 N 個檔） | worker | sonnet／xhigh |
 | 實作一個功能、修 bug、重構 | worker | sonnet／xhigh（複雜度訊號成立才升 opus，見 §4） |
 | 撰寫或修改一般文件／規則段落 | worker | sonnet／xhigh（僅驗收交 verifier，見 §5） |
-| 設計實作方案、架構取捨 | Plan | opus／high |
-| 跨檔推理、一般高難度 review | general-purpose | opus／high 或以上 |
+| 設計實作方案、架構取捨 | Plan | opus |
+| 跨檔推理、一般高難度 review | general-purpose | opus |
 
 這張表只列日常派工。升級怎麼做見 §4，驗收要派給誰見 §5。
 
@@ -77,7 +77,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 2. **驗收條件**——可機械判定的完成定義；判準：另一個 agent 能只憑這句話判定過或不過。填不出驗收條件代表你還沒想清楚要什麼，先想再派。
 3. **回報格式**——規定回什麼、多長（預設合約見 §3）。
 
-兩個非顯然的必要條件（漏掉會出事，不是風格建議）：
+三個非顯然的必要條件（漏掉會出事，不是風格建議）：
 
 - **把已讀過的素材附進 prompt，並要求指令批次化**——diff、行號、關鍵段落、你已跑過的指令輸出直接貼進去並明寫「不要重讀 X」；subagent 是冷啟動，每個它自己去讀的檔與每次串行的小步工具呼叫都是一輪完整推理（2026-09-09 實測：一次 41 次工具呼叫的 worker 跑了 20 分鐘）。
 - **路徑一律寫絕對路徑**——subagent 的工作目錄認知可能跟你不同，相對路徑會找錯地方。
@@ -95,7 +95,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 - Subagent 只回**結論與證據**（檔案:行號、指令輸出關鍵行），不回原始內容傾倒。
 - 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接才寫 `.codex/HANDOFF.md`。
-- 回報上限預設 30 行；需要更多就落檔。
+- 回報長度以 controller 下一步決策需要的資訊為準；大 diff、完整清單、全文等長產物落檔，回報附路徑與摘要（驗收的逐條判定屬決策資訊，留在回報內）。
 - 回報必須分級：**已驗證（附證據）／待 CI／未驗證**（鐵律一）。
 
 ## 4. 升降級路徑

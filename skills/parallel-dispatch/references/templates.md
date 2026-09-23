@@ -69,7 +69,7 @@ Validation commands:
 Done when:
 - <逐條可機械判定>
 
-Report format: 依「Worker report」，上限 30 行；長輸出落檔 <log-dir>/<slice>-<name>.log
+Report format: 依「Worker report」；長輸出落檔 <log-dir>/<slice>-<name>.log
 ```
 
 ## Worker report（SKILL §4；worker → controller）
