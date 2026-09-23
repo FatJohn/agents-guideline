@@ -5,7 +5,7 @@
 >
 > **下表的 `<REPO>` 是本系統 repo 的絕對路徑，依機器而異——讀檔前先用 `hostname` 認機器再展開**：
 > - macOS（`xushengzhedeMacBook-Pro.local`）：`/Users/fatjohn/Projects/FatJohn/agents-guideline`；本機事實 `<REPO>/hosts/macos.md`
-> - Windows（`FatJohn-PC`）：`E:\agents-guideline`；本機事實 `<REPO>/hosts/windows.md`
+> - Windows（`FatJohn-PC`）：`D:\Projects\FatJohn\agents-guideline`；本機事實 `<REPO>/hosts/windows.md`
 > - hostname 對不上或新機器：symlink 安裝的機器取 `readlink ~/.codex/AGENTS.md`（PowerShell：`(Get-Item ~/.codex/AGENTS.md).Target`）的目錄部分；**複本安裝的機器會回空**（見 `<REPO>/hosts/windows.md`），只能問使用者。新機器照 `<REPO>/README.md`「新機器建檔」建 `<REPO>/hosts/<key>.md`，對照補進 `<REPO>/rules/05-hosts.md` 與本檔。
 >
 > （對照表 canonical 在 `<REPO>/rules/05-hosts.md`；這裡重複一份是 bootstrap 需要——先解出 `<REPO>` 才讀得到 05-hosts。新增機器時兩處都要加。）

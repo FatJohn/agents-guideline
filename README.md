@@ -66,7 +66,7 @@ symlink 的好處：session 依規則附加教訓、更新事實時直接改到 
 一次裝好 Claude Code 與 Codex 兩側。**用系統管理員的 PowerShell 跑**（理由見上方警告）。Developer Mode 只是讓非提權也「建得起來」，建出來的是不受信任的 Level 1 連結，所以開不開 Developer Mode 都不影響這裡——提權才是關鍵。
 
 ```powershell
-$REPO = 'E:\agents-guideline'   # 本機 repo 位置；其他機器見 rules/05-hosts.md
+$REPO = 'D:\Projects\FatJohn\agents-guideline'   # 本機 repo 位置；其他機器見 rules/05-hosts.md
 
 # 備份會被取代的既有設定（只備份實際衝突的檔案，不整包複製 ~/.claude——裡面有大量 cache/sessions）
 # 兩道保護缺一不可，否則同日重跑會用 symlink 蓋掉第一次跑時保存的那份真備份（$stamp 同一天相同），
