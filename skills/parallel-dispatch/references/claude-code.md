@@ -4,7 +4,7 @@
 
 | 契約項目 | 本 adapter 的做法 |
 |---|---|
-| launch | 一個 controller session 在**同一則訊息**發多個 `Agent` 呼叫，每片一個；實作用 `worker`（`model: sonnet`），切片與整合驗收用 fresh `verifier`（`model: opus`）。subagent 在 controller session 內跑，沒有獨立 terminal |
+| launch | 一個 controller session 在**同一則訊息**發多個 `Agent` 呼叫，每片一個；實作用 `worker`（`model: sonnet`；A/B 對照片改派 `worker-opus`，不帶 `model`，見 `~/.claude/rules/10-dispatch.md` §0），切片與整合驗收用 fresh `verifier`（`model: opus`）。subagent 在 controller session 內跑，沒有獨立 terminal |
 | workspace | 平行寫入型 Agent 呼叫設 `isolation: worktree`；fresh／continue 的同 worktree 序列交接是明確例外，fresh prompt 必須綁定 slice worktree 絕對路徑，不自動建立空 worktree；若另開 worktree，controller 先從已核對的 candidate checkpoint 建立並 read-back。harness 行為事實見 `<REPO>/docs/harness-facts.md` |
 | query status | subagent 完成時回報一次；期間狀態靠 `git worktree list`、`git -C <wt> status --short`、`git -C <wt> log -1 --format=%H` read-back |
 | counter | 完成通知 `<usage>` 帶三個欄位：`subagent_tokens`（≈ 該 agent 交回當下的 context 大小；2026-09-18 逐筆對 subagent jsonl 的 usage 核過）、`tool_uses`（該輪工具呼叫數，不等於模型 request）、`duration_ms`。fresh／continue 看 `subagent_tokens`；續用時它只會再長。通知缺欄位就標 `unknown`，不可猜，也不阻擋派工。 |

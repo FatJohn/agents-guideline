@@ -21,7 +21,9 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - 本系統自帶 `worker`（一般程式／文件執行）與 `verifier`（獨立驗收）；派工前讀
   `~/.claude/agents/<角色>.md` 合約。worker 用 Sonnet/xhigh，verifier 顯式 `model: opus`，升 fable 見 §5。
 - `worker-opus`——實驗車道（2026-09-23 起），Opus 5.5/medium，合約同 worker，只用於與 worker 的
-  A/B 對照；派工不帶 `model` 參數（由 frontmatter 決定）。預設路由仍是 worker；對照設計與紀錄見
+  A/B 對照：同一波有 ≥2 個規模相近的切片時交替派 `worker` 與 `worker-opus`（較難或較模糊的切片不刻意
+  分給 worker-opus），沒有可比切片就只派 worker；每筆四項量測填進對照文件的「紀錄表格」。
+  派工不帶 `model` 參數（由 frontmatter 決定）。預設路由仍是 worker；對照設計與紀錄表見
   `../docs/worker-ab-2026-09.md`。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
@@ -53,7 +55,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 一般實作與一般文件的標準路徑，四步、不預設疊多輪 review：
 
 1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。核定時若本波有 ≥2 個 ownership 不相交的 issue／切片，先依 §1「雙軸判斷」的平行入口判斷能不能切，不預設序列。單一 issue 的 plan 預估要動 ≥2 個模組，或 phases 涵蓋整個功能一片到底時，同樣先評估 ownership 不相交、可獨立交付的切法，值不值得切仍依 `~/.claude/skills/parallel-dispatch/SKILL.md` §2「值不值得」；切不出來或不值得平行就維持單片，或依同檔「單片尺寸評估」比較冷啟動、context、重讀與交接成本後選序列交接，不以工具呼叫數或預估分鐘數強制切分。**核定前先派 `Explore` 拿要動的檔案清單、關鍵段落與既有測試結構**，把結果依 §2「把已讀過的素材附進 prompt」附進 brief，不讓執行者自己從零探索；同時用這份清單估單片 context（觸發序列交接的參考值見「單片尺寸評估」）。**不算違規**：改動範圍已知且 controller 手上就有素材（單檔修正、延續同一 session 剛讀過的檔）時直接核定。
-2. 派 `worker`（single-writer）依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
+2. 派 `worker`（single-writer；≥2 個可比切片時依 §0 交替派 `worker-opus`）依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
 3. controller read-back 實際檔案／指令輸出，不採信 worker 自述。
 4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `../skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
 

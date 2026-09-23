@@ -6,6 +6,7 @@
 > 一旦升級成正式判準（改到 10／20 或 agent 定義），把該條移到 `docs/lessons-archive.md`，別讓同一件事在 context 裡佔兩份位置。
 
 - [2026-09-23][web-member-login] `filter-branch`／`commit-tree` 改寫的 commit 掉簽章，推上去變 unverified → 改訊息用 `rebase`／`commit --amend`（會照 `commit.gpgsign` 重簽），`commit-tree` 加 `-S`，`filter-branch`／`filter-repo` 後跑 `git rebase --rebase-merges --exec 'git commit --amend --no-edit -S' <base>` 補簽（漏 `--rebase-merges` 會壓平 merge；整段歷史被改寫時 `<base>` 換 `--root`），推前 `git log --format='%h %G?'` 確認無 `N` → 已套用到：尚未
+- [2026-09-23][KKBOX-Slim、web-member-login] controller 自改或自建 CI workflow 後直接 push，未派 worker／verifier → CI workflow 等會被執行的設定不算「單點小修」，走 worker＋驗收 → 已套用到：尚未
 
 ## 交接欄
 
