@@ -7,8 +7,6 @@
 
 - [2026-09-23][web-member-login] `filter-branch`／`commit-tree` 改寫的 commit 掉簽章，推上去變 unverified → 改訊息用 `rebase`／`commit --amend`（會照 `commit.gpgsign` 重簽），`commit-tree` 加 `-S`，`filter-branch`／`filter-repo` 後跑 `git rebase --rebase-merges --exec 'git commit --amend --no-edit -S' <base>` 補簽（漏 `--rebase-merges` 會壓平 merge；整段歷史被改寫時 `<base>` 換 `--root`），推前 `git log --format='%h %G?'` 確認無 `N` → 已套用到：尚未
 
-（2026-09-09 封存 7 條，見 `docs/lessons-archive.md`。2026-08-23 另有兩條已升級為 `rules/20-judgment.md` §2 的補充判準並封存至 `docs/lessons-archive.md`；同日另加的兩條判準是直接從事故寫成的，未經本檔，封存檔查不到對應條目。）
-
 ## 交接欄
 
 > 只放「因 session 中斷而未完成的任務」；教訓寫上面，不要兩邊重複。

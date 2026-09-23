@@ -62,6 +62,8 @@ worker／worker-opus 執行者本身不得自行決定切換預設。
 
 ## 紀錄表格
 
+> 2026-09-23：prompt audit 同一個 commit 同步修改 `worker.md`／`worker-opus.md` 的合約（刪「不要再呼叫 Agent 工具轉包」、回報上限改為以 controller 下一步所需為準），兩車道合約仍只差 model／effort；此前無樣本。
+
 | 日期 | 專案 | 切片 | 車道 | 起點（從零/接續） | tool_uses | duration | 首輪 verifier 狀態 | 備註 |
 |---|---|---|---|---|---|---|---|---|
 | | | | | | | | | |
