@@ -66,4 +66,8 @@ worker／worker-opus 執行者本身不得自行決定切換預設。
 
 | 日期 | 專案 | 切片 | 車道 | 起點（從零/接續） | tool_uses | duration | subagent_tokens | 首輪 verifier 狀態 | 備註 |
 |---|---|---|---|---|---|---|---|---|---|
-| | | | | | | | | | |
+| 2026-09-24 | KKBOX-Slim | #26-39 補測試（2 個新測試檔，生產碼 0） | worker-opus | 從零 | 45 | 472556 | 127487 | PROSE-ONLY | 規模較 110／74 小（純測試），可比性有限；第 2 輪同 worker 續用：29 次／256083 ms／149366 |
+| 2026-09-24 | KKBOX-Slim | #26-110 lint-check.sh 兩個死角＋接縫 | worker | 從零 | 74 | 1241690 | 181179 | PROSE-ONLY | 基線凍結順序違規（先改後凍結，verifier 重建基線）；第 2 輪 fresh worker：24 次／309s／79190 |
+| 2026-09-24 | KKBOX-Slim | #26-74 淘汰 pin 競態（2 個 src＋測試＋docs） | worker | 從零 | 98 | 1595210 | 282914 | OPEN | 3 個測試破口；第 2 輪 fresh worker：35 次／385823 ms／134293 |
+| 2026-09-24 | KKBOX-Slim | #26-118 saver rename Windows 重試（1 個 src＋新測試檔＋docs） | worker | 從零 | 69 | 841274 | 202093 | OPEN | 2 個測試破口＋1 句註解失準；第 2 輪 fresh worker（同 worktree 接手）：33 次／341837 ms／106140；controller 另自修 3 處 Task.Run 與錯字 |
+| 2026-09-24 | KKBOX-Slim | #26-119 11 個測試檔 Task.Run→專屬執行緒（生產碼 0） | worker-opus | 從零 | 52 | 1023622 | 123918 | CONVERGED | 機械改寫，較 118 簡單，可比性有限；duration 含 base／修正版各 10 輪全套重現對照（約 9 分鐘） |
