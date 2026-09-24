@@ -9,8 +9,9 @@
 
 agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用範圍受模型與組織設定限制（見 `../docs/harness-facts.md`）。
 
-**執行者預設**：一般實作與文件產出使用 `worker/Sonnet xhigh`，不因訂閱檔位改用 Opus。
-呼叫時顯式 `model: sonnet`；effort 由 `agents/worker.md` frontmatter 的 `xhigh` 設定，
+**執行者預設**：一般實作與文件產出使用 `worker`（Opus 5.5/medium，2026-09-24 使用者決策，試用中）。
+呼叫時不帶 `model`，model 與 effort 由 `agents/worker.md` frontmatter 決定；Sonnet 備用車道為
+`worker-sonnet`（顯式 `model: sonnet`，effort 由其 frontmatter 的 `xhigh` 設定）。
 不要發明 Agent 工具未提供的 effort 參數。規劃／複雜度升級與驗收另依 §1／§4／§5。
 模型升級鏈為 Sonnet → Opus → Fable，不代表必須依次嘗試；Haiku 不作預設或 fallback。
 
@@ -19,12 +20,9 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `Plan`——出實作計畫、架構取捨。
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）；worker 升級或需要 opus／fable 時改派這個並顯式指定 model。
 - 本系統自帶 `worker`（一般程式／文件執行）與 `verifier`（獨立驗收）；派工前讀
-  `~/.claude/agents/<角色>.md` 合約。worker 用 Sonnet/xhigh，verifier 顯式 `model: opus`，升 fable 見 §5。
-- `worker-opus`——實驗車道（2026-09-23 起），Opus 5.5/medium，合約同 worker，只用於與 worker 的
-  A/B 對照：同一波有 ≥2 個規模相近的切片時交替派 `worker` 與 `worker-opus`（較難或較模糊的切片不刻意
-  分給 worker-opus），沒有可比切片就只派 worker；每筆四項量測填進對照文件的「紀錄表格」。
-  派工不帶 `model` 參數（由 frontmatter 決定）。預設路由仍是 worker；對照設計與紀錄表見
-  `../docs/worker-ab-2026-09.md`。
+  `~/.claude/agents/<角色>.md` 合約。worker 用 Opus 5.5/medium（不帶 `model`），verifier 顯式 `model: opus`，升 fable 見 §5。
+- `worker-sonnet`——備用車道（2026-09-24 起），Sonnet/xhigh，合約同 worker；額度吃緊或使用者指定時才用，
+  派工顯式 `model: sonnet`。預設路由仍是 worker。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。**不是每個 session 都有**：2026-08-06 實測 `claude -p` 起的 session 清單裡沒有它（主對話清單裡有），機制未查明。派工前先確認當下清單真的有這個名字。
@@ -42,9 +40,9 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 | 掃 repo、找出「哪些檔案有 X」 | Explore | sonnet |
 | 讀多份長文件並總結 | general-purpose | sonnet |
 | 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用） | sonnet |
-| 批次機械性改檔（同 pattern 套 N 個檔） | worker | sonnet／xhigh |
-| 實作一個功能、修 bug、重構 | worker | sonnet／xhigh（複雜度訊號成立才升 opus，見 §4） |
-| 撰寫或修改一般文件／規則段落 | worker | sonnet／xhigh（僅驗收交 verifier，見 §5） |
+| 批次機械性改檔（同 pattern 套 N 個檔） | worker | opus 5.5／medium（frontmatter，不帶 model） |
+| 實作一個功能、修 bug、重構 | worker | opus 5.5／medium（不帶 model；複雜度訊號成立才升級，見 §4） |
+| 撰寫或修改一般文件／規則段落 | worker | opus 5.5／medium（不帶 model；僅驗收交 verifier，見 §5） |
 | 設計實作方案、架構取捨 | Plan | opus |
 | 跨檔推理、一般高難度 review | general-purpose | opus |
 
@@ -55,7 +53,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 一般實作與一般文件的標準路徑，四步、不預設疊多輪 review：
 
 1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。核定時若本波有 ≥2 個 ownership 不相交的 issue／切片，先依 §1「雙軸判斷」的平行入口判斷能不能切，不預設序列。單一 issue 的 plan 預估要動 ≥2 個模組，或 phases 涵蓋整個功能一片到底時，同樣先評估 ownership 不相交、可獨立交付的切法，值不值得切仍依 `~/.claude/skills/parallel-dispatch/SKILL.md` §2「值不值得」；切不出來或不值得平行就維持單片，或依同檔「單片尺寸評估」比較冷啟動、context、重讀與交接成本後選序列交接，不以工具呼叫數或預估分鐘數強制切分。**核定前先派 `Explore` 拿要動的檔案清單、關鍵段落與既有測試結構**，把結果依 §2「把已讀過的素材附進 prompt」附進 brief，不讓執行者自己從零探索；同時用這份清單估單片 context（觸發序列交接的參考值見「單片尺寸評估」）。**不算違規**：改動範圍已知且 controller 手上就有素材（單檔修正、延續同一 session 剛讀過的檔）時直接核定。
-2. 派 `worker`（single-writer；≥2 個可比切片時依 §0 交替派 `worker-opus`）依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
+2. 派 `worker`（single-writer）依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
 3. controller read-back 實際檔案／指令輸出，不採信 worker 自述。
 4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `../skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
 
@@ -104,11 +102,11 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 升級**門檻**（幾次失敗、什麼算高風險）的 canonical 在 `20-judgment.md` §1。門檻成立後怎麼做，只有三條路，一律附上完整失敗軌跡（改了什麼／跑了什麼指令／輸出關鍵行／為什麼判定失敗，每次嘗試各一段）：
 
-1. **換 fresh context 重做**——`worker` 失敗時改派新的 general-purpose（`model: opus`，高風險用 `fable`），把失敗軌跡當輸入，要求它先建立 root cause 再動手，不要沿用失敗者的假設。
+1. **換 fresh context 重做**——`worker` 失敗時改派新的 general-purpose（`model: opus`，高風險用 `fable`），把失敗軌跡當輸入，要求它先建立 root cause 再動手，不要沿用失敗者的假設。`worker` 已是 Opus，這一步對它主要是 fresh context＋較高 effort，不是換更強的型號；失敗訊號屬能力不足（`20-judgment.md` §1）時直接改派 `fable`。
 2. **換平台取第二意見**——`codex:codex-rescue`，或派兩個 agent 各自獨立解再比對。
 3. **重新定義問題**——見 `20-judgment.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。
 
-**降級**：難題解出可重複、可機械驗證的 pattern 後，把 pattern 寫進 prompt 降回 `worker`（sonnet／xhigh）批次套用；不降到 haiku。
+**降級**：難題解出可重複、可機械驗證的 pattern 後，把 pattern 寫進 prompt 降回 `worker` 批次套用；不降到 haiku。
 **重試上限**：同一件事最多兩輪（指同一個問題的修法重試，不含驗收輪次——驗收狀態與回報點見
 `20-judgment.md` §2「停止端」）。兩輪後還不行代表方向錯了，換方法或問人，不要換個措辭再試第三次。
 

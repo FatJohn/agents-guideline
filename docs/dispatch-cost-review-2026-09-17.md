@@ -31,6 +31,7 @@
 - controller read-back 顯示 repo 與已安裝的 Codex `worker.toml` 都是 `gpt-5.6-luna`／`max`。
 - Claude worker 在 `1bcb5a2`（2026-09-09）由 `xhigh` 改為 `high`，同一變更也批次化工具呼叫；沒有前後隔離的 effort 對照，不能歸因於 effort。
 - 2026-09-17 使用者決策：Claude `worker` default 改為 `Sonnet/xhigh`；Codex `worker` 的 `gpt-5.6-luna`／`max` 不變。這是路由設定決策，不是成本或 verifier 輪數的效益結論。
+- 2026-09-24 使用者決策：Claude `worker` default 改為 Opus 5.5/medium（試用），Sonnet/xhigh 改為 `worker-sonnet` 備用；worker A/B 對照實驗移除。
 - [Claude Code model configuration](https://code.claude.com/docs/en/model-config) 說明 effort 可用級別依 model 而異，不支援的級別會回落，較高級別通常增加 token spend，且設定／環境／組織 cap 會影響有效值。若要比較 `high`／`xhigh`，須固定同一 model、同類任務、verifier 與 fresh 策略，記錄 runtime 實值、總成本、時間與行為缺陷；現有資料沒有證明 effort 一定降低 verifier 輪數。
 
 ## 後續量測方法（需要時重算）
