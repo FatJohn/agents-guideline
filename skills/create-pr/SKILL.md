@@ -114,7 +114,7 @@ git diff --name-only "origin/$BASE"...HEAD
 ### 2.5 生成 Summary 與 Title
 
 - **Summary**：幾句話讓 reviewer 讀完就知道這個 PR 做了什麼、為什麼。有 PR 目的時以目的為主軸；重要功能移除必須在 Summary 說明。
-- **Title**：一句簡潔摘要主題，直接描述這個 PR 做了什麼，不用 Conventional Commits（`feat:`／`fix:` 等）或 ticket prefix；語言用繁體中文台灣用語，技術名詞保留原文。
+- **Title**：照 2.2 的 title 風格與語言規則。
 
 ### 2.6 組裝 PR Body
 

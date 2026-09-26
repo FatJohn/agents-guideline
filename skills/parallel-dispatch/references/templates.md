@@ -76,7 +76,7 @@ Report format: 依「Worker report」；長輸出落檔 <log-dir>/<slice>-<name>
 
 ```text
 Status: completed | blocked | failed
-Summary: <做了什麼，三句內>
+Summary: <做了什麼；只寫 controller 決定下一步需要的>
 Files changed: <路徑清單；越出 ownership 的另標>
 Validation: <跑了哪些 test / lint / build，關鍵輸出行>
 Issues: <發現的問題、未完成項、建議升級或重切的理由>

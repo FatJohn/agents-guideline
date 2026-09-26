@@ -5,11 +5,11 @@
 
 ## 0. 可用模型與 subagent（查證過，不要憑印象改）
 
-**Agent 工具的 `model` 參數**可逐次指定常用 alias（`haiku`／`sonnet`／`opus`／`fable`；harness 每 session 已注入同一份 enum，2026-08-30 由 Agent 工具 schema 現查確認），也可使用完整 model ID 或 `inherit`。alias→實際型號的對照在 `../docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」——alias 會隨平台改版重新指向新一代同層模型，要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準。
+**Agent 工具的 `model` 參數**只接受 harness 每 session 注入的 alias enum（`haiku`／`sonnet`／`opus`／`fable`；2026-09-26 由 Agent 工具 schema 現查確認只有這四值，2026-08-30 首次記錄）；完整 model ID 與 `inherit` 只能寫在 agent frontmatter 的 `model` 欄。alias→實際型號的對照在 `../docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」——alias 會隨平台改版重新指向新一代同層模型，要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準。
 
 agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用範圍受模型與組織設定限制（見 `../docs/harness-facts.md`）。
 
-**執行者預設**：一般實作與文件產出使用 `worker`（Opus 5.5/medium，2026-09-24 使用者決策，試用中）。
+**執行者預設**：一般實作與文件產出使用 `worker`（Opus 層）。
 呼叫時不帶 `model`，model 與 effort 由 `agents/worker.md` frontmatter 決定；Sonnet 備用車道為
 `worker-sonnet`（顯式 `model: sonnet`，effort 由其 frontmatter 的 `xhigh` 設定）。
 不要發明 Agent 工具未提供的 effort 參數。規劃／複雜度升級與驗收另依 §1／§4／§5。
@@ -20,12 +20,12 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `Plan`——出實作計畫、架構取捨。
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）；worker 升級或需要 opus／fable 時改派這個並顯式指定 model。
 - 本系統自帶 `worker`（一般程式／文件執行）與 `verifier`（獨立驗收）；派工前讀
-  `~/.claude/agents/<角色>.md` 合約。worker 用 Opus 5.5/medium（不帶 `model`），verifier 顯式 `model: opus`，升 fable 見 §5。
-- `worker-sonnet`——備用車道（2026-09-24 起），Sonnet/xhigh，合約同 worker；額度吃緊或使用者指定時才用，
+  `~/.claude/agents/<角色>.md` 合約。worker 不帶 `model`（Opus 層，model 與 effort 由 frontmatter 決定），verifier 顯式 `model: opus`，升 fable 見 §5。
+- `worker-sonnet`——備用車道，Sonnet/xhigh，合約同 worker；額度吃緊或使用者指定時才用，
   派工顯式 `model: sonnet`。預設路由仍是 worker。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
-- `claude-code-guide`——回答 Claude Code / API 本身的問題。**不是每個 session 都有**：2026-08-06 實測 `claude -p` 起的 session 清單裡沒有它（主對話清單裡有），機制未查明。派工前先確認當下清單真的有這個名字。
+- `claude-code-guide`——回答 Claude Code / API 本身的問題。不是每個 session 都有（`claude -p` 起的 session 曾缺它，機制未查明），以當下 Agent 工具列出的類型為準。
 
 ## 1. 雙軸判斷：context 成本 × 任務耦合
 
@@ -40,9 +40,9 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 | 掃 repo、找出「哪些檔案有 X」 | Explore | sonnet |
 | 讀多份長文件並總結 | general-purpose | sonnet |
 | 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用） | sonnet |
-| 批次機械性改檔（同 pattern 套 N 個檔） | worker | opus 5.5／medium（frontmatter，不帶 model） |
-| 實作一個功能、修 bug、重構 | worker | opus 5.5／medium（不帶 model；複雜度訊號成立才升級，見 §4） |
-| 撰寫或修改一般文件／規則段落 | worker | opus 5.5／medium（不帶 model；僅驗收交 verifier，見 §5） |
+| 批次機械性改檔（同 pattern 套 N 個檔） | worker | frontmatter（不帶 model） |
+| 實作一個功能、修 bug、重構 | worker | frontmatter（不帶 model；複雜度訊號成立才升級，見 §4） |
+| 撰寫或修改一般文件／規則段落 | worker | frontmatter（不帶 model；僅驗收交 verifier，見 §5） |
 | 設計實作方案、架構取捨 | Plan | opus |
 | 跨檔推理、一般高難度 review | general-purpose | opus |
 
@@ -79,11 +79,11 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 三個非顯然的必要條件（漏掉會出事，不是風格建議）：
 
-- **把已讀過的素材附進 prompt，並要求指令批次化**——diff、行號、關鍵段落、你已跑過的指令輸出直接貼進去並明寫「不要重讀 X」；subagent 是冷啟動，每個它自己去讀的檔與每次串行的小步工具呼叫都是一輪完整推理（2026-09-09 實測：一次 41 次工具呼叫的 worker 跑了 20 分鐘）。
+- **把已讀過的素材附進 prompt，並要求指令批次化**——diff、行號、關鍵段落、你已跑過的指令輸出直接貼進去並明寫「不要重讀 X」；subagent 是冷啟動，每個它自己去讀的檔與每次串行的小步工具呼叫都是一輪完整推理（實測量級：一次 41 次工具呼叫的 worker 跑了 20 分鐘）。
 - **路徑一律寫絕對路徑**——subagent 的工作目錄認知可能跟你不同，相對路徑會找錯地方。
-- **prompt 開頭明寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」**——subagent 也會讀到全域 rules，不加這句會把「指揮官不下場」套在自己身上、逐層轉包（2026-07-07 實測發生過 5 層遞迴）。收到「我已再派背景工作」類回報＝未完成，立即糾正。
+- **prompt 開頭明寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」**——subagent 也會讀到全域 rules，不加這句會把「指揮官不下場」套在自己身上、逐層轉包，可遞迴多層。收到「我已再派背景工作」類回報＝未完成，立即糾正。
 
-要求 subagent **補齊某個格式欄位**（例如每條規則的「不算違規」邊界）時，同時規定「查無來源就留空」——強制欄位一定會被填滿，原檔沒有的邊界會被當場發明（2026-08-26 實例）。
+要求 subagent **補齊某個格式欄位**（例如每條規則的「不算違規」邊界）時，同時規定「查無來源就留空」——強制欄位一定會被填滿，原檔沒有的邊界會被當場發明。
 
 `verifier` 已把「需要哪些輸入、找碴範圍到哪、什麼時候標收斂」寫進 `~/.claude/agents/verifier.md`——派工時只需提供該檔要求的素材，不必重述其職責。
 
@@ -94,7 +94,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 **Subagent 回報：**
 
 - Subagent 只回**結論與證據**（檔案:行號、指令輸出關鍵行），不回原始內容傾倒。
-- 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接才寫 `.codex/HANDOFF.md`。
+- 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接依 `00-environment.md` 風險 1「修法」。
 - 回報長度以 controller 下一步決策需要的資訊為準；大 diff、完整清單、全文等長產物落檔，回報附路徑與摘要（驗收的逐條判定屬決策資訊，留在回報內）。
 - 回報必須分級：**已驗證（附證據）／待 CI／未驗證**（鐵律一）。
 

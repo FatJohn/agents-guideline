@@ -7,6 +7,7 @@
 
 - [2026-09-23][web-member-login] `filter-branch`／`commit-tree` 改寫的 commit 掉簽章，推上去變 unverified → 改訊息用 `rebase`／`commit --amend`（會照 `commit.gpgsign` 重簽），`commit-tree` 加 `-S`，`filter-branch`／`filter-repo` 後跑 `git rebase --rebase-merges --exec 'git commit --amend --no-edit -S' <base>` 補簽（漏 `--rebase-merges` 會壓平 merge；整段歷史被改寫時 `<base>` 換 `--root`），推前 `git log --format='%h %G?'` 確認無 `N` → 已套用到：尚未
 - [2026-09-23][KKBOX-Slim、web-member-login] controller 自改或自建 CI workflow 後直接 push，未派 worker／verifier → CI workflow 等會被執行的設定不算「單點小修」，走 worker＋驗收 → 已套用到：尚未
+- [2026-09-24][clean-dev-machine-cache] 量 `find -mtime` 門檻，Claude Code 的 `find` 是包 bfs 的 function，整點取樣把「>48h」量成「>49h」 → 量系統工具行為用絕對路徑（`/usr/bin/find`，先 `type <cmd>` 確認），時間門檻樣本取到邊界兩側的分鐘級 → 已套用到：尚未
 
 ## 交接欄
 
