@@ -2,13 +2,13 @@
 
 > 2026-08-22 從 `rules/00-environment.md` 搬出。理由：這些是**派工當下**才用得到的 Agent 工具事實，
 > 而 `rules/` 是每個 session 全文載入的常駐區（`maintain-guideline` §5「只在特定情境才用得到的
-> 內容不該放 rules/」）。`rules/10-dispatch.md` §0 已經指向這裡。內容原文未改寫。
+> 內容不該放 rules/」）。`rules/10-dispatch.md` §0 已經指向這裡。搬入時原文未改寫，之後的更正見各條內文。
 >
 > **查證日：2026-08-06。版本更新後重新核對**——這些值會隨 Claude Code／Codex 改版漂移，
 > 要宣稱某個參數存在時以當場現查的工具 schema 為準，不引用本檔。
 
 - Agent 呼叫可逐次指定 model；effort 仍由 agent 定義 frontmatter 或 session/workflow 設定控制。
-- 主對話（controller）的 model 由 UI 選擇，effort 由 `~/.claude/settings.json` 的 `effortLevel` 設定（2026-07-25 核對為 `xhigh`；2026-09-07 複查仍為 `xhigh`，另有 `modelSettings.claude-fable-5-1.effortLevel: high` 的逐型號覆寫）。**subagent 不指定 `model`、且 agent 定義 frontmatter 也沒寫 `model` 時，繼承主對話的模型**，所以 `../rules/10-dispatch.md` 各表的 model 欄是顯式 routing 指示，派 `worker`／`verifier` 一律要寫 `model:`（worker 已改，見本條末句）。**更正（2026-09-23 實測）**：agent 定義 frontmatter 有寫 `model` 時，不帶參數用的是 frontmatter 的型號、不繼承主對話——`claude -p --model sonnet` 主對話（claude-sonnet-5）不帶 `model` 派 `worker-opus`，subagent transcript 記錄 `claude-opus-5-5`；「繼承主對話」只適用於 frontmatter 沒寫 `model` 的 agent。派 `verifier` 仍照舊顯式寫 `model:`；`worker`（2026-09-24 起 Opus 5.5/medium）與 `worker-sonnet` 見 `../rules/10-dispatch.md` §0。（2026-09-07 從 `rules/10-dispatch.md` §0 搬入；原「Max 檔位實作預設 opus、Pro 檔位降回 sonnet」的分檔位規則已由 `worker/Sonnet xhigh` 不分檔位取代，刻意放棄。）
+- 主對話（controller）的 model 由 UI 選擇，effort 由 `~/.claude/settings.json` 的 `effortLevel` 設定（2026-07-25 核對為 `xhigh`；2026-09-07 複查仍為 `xhigh`，另有 `modelSettings.claude-fable-5-1.effortLevel: high` 的逐型號覆寫）。**subagent 不指定 `model`、且 agent 定義 frontmatter 也沒寫 `model` 時，繼承主對話的模型**，所以 `../rules/10-dispatch.md` 各表的 model 欄是顯式 routing 指示，派 `worker`／`verifier` 一律要寫 `model:`（worker 已改，見本條末句）。**更正（2026-09-23 實測）**：agent 定義 frontmatter 有寫 `model` 時，不帶參數用的是 frontmatter 的型號、不繼承主對話——`claude -p --model sonnet` 主對話（claude-sonnet-5）不帶 `model` 派 `worker-opus`，subagent transcript 記錄 `claude-opus-5-5`；「繼承主對話」只適用於 frontmatter 沒寫 `model` 的 agent。派 `verifier` 仍照舊顯式寫 `model:`；`worker`（型號與 effort 由其 frontmatter 決定）與 `worker-sonnet` 見 `../rules/10-dispatch.md` §0。（2026-09-07 從 `rules/10-dispatch.md` §0 搬入；原「Max 檔位實作預設 opus、Pro 檔位降回 sonnet」的分檔位規則已由不分檔位的 `worker`（型號由其 frontmatter 決定）取代，刻意放棄。）
 - Agent frontmatter 的 `effort` 可填 `low`／`medium`／`high`／`xhigh`／`max`，實際可用值仍受模型與組織限制。
 - 新增 `~/.claude/agents/*.md` 後，已在執行中的 session 不必重開：新增當輪派該名字會回 `Agent type ... not found`，下一個使用者輪次 harness 注入「New agent types are now available」後即可派（2026-09-23 實測，`worker-opus`，n=1）。
 - Agent frontmatter 的 `model` 可填 `haiku`／`sonnet`／`opus`／`fable`／完整 model ID／`inherit`。
@@ -22,12 +22,12 @@
 
 ## Agent 工具 `model` 參數的 alias 對照
 
-> 2026-08-30 從 `rules/10-dispatch.md` §0 搬入。理由：harness 每 session 已注入同一份 model enum，常駐區再放一次是重複；但 alias→實際型號的對照全 repo 僅此一處，依 `maintain-guideline` §5 零命中規則不可刪、只能搬。內容原文未改寫。
+> 2026-08-30 從 `rules/10-dispatch.md` §0 搬入。理由：harness 每 session 已注入同一份 model enum，常駐區再放一次是重複；但 alias→實際型號的對照全 repo 僅此一處，依 `maintain-guideline` §5 零命中規則不可刪、只能搬。搬入時原文未改寫；用途定位欄之後隨路由決策更新。
 
 | 參數值 | 實際型號 | 用途定位 |
 |--------|----------|----------|
 | `haiku` | claude-haiku-4-5 | 平台可用模型；不列入本制度 active routing |
-| `sonnet` | claude-sonnet-5 | 掃描、總結、批次機械車道主力；`worker` 一般實作與文件產出的預設，不分訂閱檔位 |
+| `sonnet` | claude-sonnet-5 | 掃描、總結、查網頁的讀取車道主力；`worker-sonnet` 備用實作車道 |
 | `opus` | claude-opus-5-5（2026-09-23 由 verifier transcript 的 `"model":"claude-opus-5-5"` 現查；2026-08-30 原為 claude-opus-5） | 難題升級、高風險判斷 |
 | `fable` | claude-fable-5 | 最高階；高風險實作／規劃與最終升級（驗收不自動走這條，見 `../rules/10-dispatch.md` §5） |
 
