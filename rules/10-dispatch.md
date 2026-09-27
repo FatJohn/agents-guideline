@@ -63,6 +63,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 - 同一 working tree 同時只能有一個寫入者。
 - 平行寫入的 subagent 必須設定 `isolation: worktree`；若仍共用 working tree，即使檔案不重疊也只能序列寫入。
+- controller 自建的 worktree 預設放 `<repo>/.worktrees/<片名>`；位置、忽略方式與例外見 `~/.claude/skills/parallel-dispatch/references/worktree.md`「所有權與路徑」。
 - 需要其結果才能繼續的 blocking 任務不得只依賴可能因休眠中斷的背景執行。
 - Subagent 回報不等於實際狀態；controller 必須 read-back `git status`、`git stash list`、diff、commit 與驗證輸出。
 - **唯讀角色也受影響**：verifier／Explore 與寫入者共用 working tree 時，它的**唯讀結論**

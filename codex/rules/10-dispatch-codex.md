@@ -107,6 +107,7 @@ controller 核定完整 plan → worker 產出與機械驗證 → controller rea
 
 - 同一 working tree 同一時間只能有一個寫入者（single-writer）。
 - 平行寫入必須各用獨立 worktree；只要共用 working tree，即使修改檔案不重疊也必須序列執行。
+- controller 自建的獨立 worktree 預設放 `<repo>/.worktrees/<片名>`；位置、忽略方式與例外見 `<REPO>/skills/parallel-dispatch/references/worktree.md`「所有權與路徑」。
 - blocking 任務不得只放在可能因休眠或背景 session 中斷而消失的背景執行；controller 必須保有可持續等待、重接或重跑的前景路徑。
 - Subagent 回報不等於實際狀態。controller 必須 read-back `git status`、`git diff`、commit 狀態與驗證輸出，確認共享工作目錄的真實結果。
 - **唯讀角色也受影響**：`verifier`／`explorer`／`reviewer` 等 read-only 角色與寫入者共用 working tree 時，它的**唯讀結論**（檔案內容、路徑與指令是否存在）仍可信，但**任何跑測試／build 取得的數字**都被污染——工作區在它量測期間被改動過。要嘛等它跑完再動手，要嘛在 prompt 的工作目錄欄指定獨立 worktree 絕對路徑。

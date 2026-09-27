@@ -231,6 +231,8 @@ memories = true
 4. 這台機器能做哪些驗證：能不能跑 Flutter build？.NET build？（決定 `rules/20-judgment.md` §2 在這台機器怎麼落地）
 5. 記憶注意：內建持久記憶與 `.remember/` 都是本機的——機器綁定的事實要註明是哪台機器的
 
+另外確認（2026-09-27 加，不屬上面的探測清單）：全域 gitignore（`git config --global core.excludesFile` 指向的檔）含 `.worktrees/`（不帶開頭 `/`）與 `**/.claude/worktrees/` 兩條；驗證 `git -C <任一 repo> check-ignore -v .worktrees/x` 與 `git -C <任一 repo> check-ignore -v .claude/worktrees/x` 都要印出命中規則。理由見 `skills/parallel-dispatch/references/worktree.md`「所有權與路徑」。
+
 ## 檔案結構
 
 **Claude Code 每 session 自動載入**（固定 context 成本，只放每次都要的）：
