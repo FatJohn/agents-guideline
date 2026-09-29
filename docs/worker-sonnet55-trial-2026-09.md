@@ -2,7 +2,7 @@
 
 ## 目的
 
-2026-09-29 使用者決定把 Claude 端標準執行者 `worker` 從 Opus 5.5/medium **直接切換**為 Sonnet 5.5/xhigh（`claude-sonnet-5-5`，試用），不是 A/B 交替；Opus 5.5/medium 改為備用車道 `worker-opus`。本檔只做兩件事：留下切換前（窗口 A）的量化基線，以及訂出試用期怎麼量、何時回退。路由本身的規則在 `../rules/10-dispatch.md` §0 與 `../agents/worker.md`，本檔不重複。2026-09-29 規則改良（worker 突變自證、CI 設定排除小修例外、平行 fan-out 與切片相對尺寸、CI 等待做法）與 worker 切換同日生效，窗口 B 的量測起點以該批規則 commit 時間為準（commit 由使用者執行後補上 SHA；commit 待補）。
+2026-09-29 使用者決定把 Claude 端標準執行者 `worker` 從 Opus 5.5/medium **直接切換**為 Sonnet 5.5/xhigh（`claude-sonnet-5-5`，試用），不是 A/B 交替；Opus 5.5/medium 改為備用車道 `worker-opus`。本檔只做兩件事：留下切換前（窗口 A）的量化基線，以及訂出試用期怎麼量、何時回退。路由本身的規則在 `../rules/10-dispatch.md` §0 與 `../agents/worker.md`，本檔不重複。2026-09-29 規則改良（worker 突變自證、CI 設定排除小修例外、平行 fan-out 與切片相對尺寸、CI 等待做法）與 worker 切換同日生效，窗口 B 的量測起點以該批規則 commit 時間為準：`958804a`（2026-09-29 10:39:17 +0800）。
 
 - 決策日：2026-09-29。
 - 窗口 A（基線）＝Opus 5.5/medium：2026-09-24 11:49～09-29 09:39，約 4.9 天。主報告各節（1–7）資料截至 09:36，advisor 補充段截至 09:39。
