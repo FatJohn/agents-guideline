@@ -57,7 +57,7 @@ Dependencies:
 Execution environment（由 adapter 填）:
 - 落地位置: <絕對路徑；隔離時為 worktree>
 - 你是此位置唯一寫入者
-- 可否 commit / rebase: <依 worker 合約：適用隔離例外時原樣貼上該合約的宣告句（Claude 為「本任務在隔離 worktree（isolation: worktree）」），否則寫「禁止」；adapter 只填事實，不做授權判斷>
+- 可否 commit / rebase: <依 worker 合約：適用隔離例外時原樣貼上該合約的宣告句（Claude 為「本任務在隔離 worktree（isolation: worktree 或 controller 自建 worktree）」），否則寫「禁止」；adapter 只填事實，不做授權判斷>
 - 禁止: push、開 PR、開 issue、merge、tracker、刪除非自建檔案
 
 Expected output:
@@ -65,6 +65,7 @@ Expected output:
 
 Validation commands:
 <逐條可執行指令；含探針的還原指令與預期會紅的既有檢查>
+<新增或修改測試斷言／守門檢查者，另列各自的突變指令、突變會暫時碰觸的路徑與還原指令，要求 worker 回報紅→綠>
 
 Done when:
 - <逐條可機械判定>
@@ -79,6 +80,7 @@ Status: completed | blocked | failed
 Summary: <做了什麼；只寫 controller 決定下一步需要的>
 Files changed: <路徑清單；越出 ownership 的另標>
 Validation: <跑了哪些 test / lint / build，關鍵輸出行>
+突變證據: <斷言→突變→紅／綠，或 N/A＋原因>
 Issues: <發現的問題、未完成項、建議升級或重切的理由>
 Integration notes: <merge 時要注意的介面、順序、共用狀態>
 Commit: <SHA；沒有 commit 寫「uncommitted」>

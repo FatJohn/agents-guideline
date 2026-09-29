@@ -9,9 +9,9 @@
 
 agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用範圍受模型與組織設定限制（見 `../docs/harness-facts.md`）。
 
-**執行者預設**：一般實作與文件產出使用 `worker`（Opus 層）。
-呼叫時不帶 `model`，model 與 effort 由 `agents/worker.md` frontmatter 決定；Sonnet 備用車道為
-`worker-sonnet`（顯式 `model: sonnet`，effort 由其 frontmatter 的 `xhigh` 設定）。
+**執行者預設**：一般實作與文件產出使用 `worker`（Sonnet 5.5 層，2026-09-29 使用者決策，試用中）。
+呼叫時不帶 `model`，model 與 effort 由 `agents/worker.md` frontmatter 決定；Opus 備用車道為
+`worker-opus`（不帶 `model`，model 與 effort 由其 frontmatter 決定）。
 不要發明 Agent 工具未提供的 effort 參數。規劃／複雜度升級與驗收另依 §1／§4／§5。
 模型升級鏈為 Sonnet → Opus → Fable，不代表必須依次嘗試；Haiku 不作預設或 fallback。
 
@@ -20,9 +20,9 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `Plan`——出實作計畫、架構取捨。
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）；worker 升級或需要 opus／fable 時改派這個並顯式指定 model。
 - 本系統自帶 `worker`（一般程式／文件執行）與 `verifier`（獨立驗收）；派工前讀
-  `~/.claude/agents/<角色>.md` 合約。worker 不帶 `model`（Opus 層，model 與 effort 由 frontmatter 決定），verifier 顯式 `model: opus`，升 fable 見 §5。
-- `worker-sonnet`——備用車道，Sonnet/xhigh，合約同 worker；額度吃緊或使用者指定時才用，
-  派工顯式 `model: sonnet`。預設路由仍是 worker。
+  `~/.claude/agents/<角色>.md` 合約。worker 不帶 `model`（Sonnet 5.5 層，model 與 effort 由 frontmatter 決定），verifier 顯式 `model: opus`，升 fable 見 §5。
+- `worker-opus`——備用車道，Opus 5.5/medium，合約同 worker；試用期回退或使用者指定時才用，
+  派工不帶 `model`。預設路由仍是 worker。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。不是每個 session 都有（`claude -p` 起的 session 曾缺它，機制未查明），以當下 Agent 工具列出的類型為準。
@@ -57,7 +57,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 3. controller read-back 實際檔案／指令輸出，不採信 worker 自述。
 4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `../skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
 
-controller 自行小修的例外**只限**單點、低風險、可機械驗證、scope 無歧義的修正（如打字錯誤、單一路徑修正）；涉及授權、安全、架構取捨或主觀品質的文件一律走上面四步，不得用「順手改一下」跳過。`worker` 與 `verifier` 不得對自己收到的任務再套用本節或 §1「雙軸判斷」去派工——它們是執行者／找碴者，不是第二層 controller。
+controller 自行小修的例外**只限**單點、低風險、可機械驗證、scope 無歧義的修正（如打字錯誤、單一路徑修正）；涉及授權、安全、架構取捨或主觀品質的文件一律走上面四步，不得用「順手改一下」跳過。會被執行的 CI／release 設定（`.github/workflows`、`.github/actions` 等）不屬小修例外，一律走上面四步。`worker` 與 `verifier` 不得對自己收到的任務再套用本節或 §1「雙軸判斷」去派工——它們是執行者／找碴者，不是第二層 controller。
 
 ## 工作目錄與背景任務安全
 
@@ -103,7 +103,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 升級**門檻**（幾次失敗、什麼算高風險）的 canonical 在 `20-judgment.md` §1。門檻成立後怎麼做，只有三條路，一律附上完整失敗軌跡（改了什麼／跑了什麼指令／輸出關鍵行／為什麼判定失敗，每次嘗試各一段）：
 
-1. **換 fresh context 重做**——`worker` 失敗時改派新的 general-purpose（`model: opus`，高風險用 `fable`），把失敗軌跡當輸入，要求它先建立 root cause 再動手，不要沿用失敗者的假設。`worker` 已是 Opus，這一步對它主要是 fresh context＋較高 effort，不是換更強的型號；失敗訊號屬能力不足（`20-judgment.md` §1）時直接改派 `fable`。
+1. **換 fresh context 重做**——`worker` 失敗時改派新的 general-purpose（`model: opus`，高風險用 `fable`），把失敗軌跡當輸入，要求它先建立 root cause 再動手，不要沿用失敗者的假設。
 2. **換平台取第二意見**——`codex:codex-rescue`，或派兩個 agent 各自獨立解再比對。
 3. **重新定義問題**——見 `20-judgment.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。
 

@@ -25,6 +25,7 @@
   - **破壞性檢驗（竄改後確認測試會紅）必須先證明自己真的改到了東西**：`assert 搜尋字串 in 內容`，或改完 read-back diff。
     引號層一多，shell 與目標檔案對 backslash 的認知就會錯開，replace 靜默 no-op 時**輸出完全沒有異狀**，
     於是竄改沒發生、測試照樣綠，被讀成「守衛有效」——這是本節前一條的觸發條件（亂碼／截斷）涵蓋不到的失敗模式。
+  - **突變與還原要繞過建置快取**：Python 的 `__pycache__` 以原始檔 mtime（秒）＋大小判斷是否重編，同一秒內改成同樣長度的內容會沿用舊 `.pyc`——突變後照樣綠、還原後照樣紅（2026-09-29 Python 3.14.6 實測：`return 1`→`return 2` 在已有 `.pyc` 時照樣綠，清掉 `__pycache__` 後才紅；「還原後仍紅」是同日 verifier 重現的反方向）。突變與還原前後的重跑一律先 `rm -rf __pycache__`（或對應的快取目錄）——`python3 -B`／`PYTHONDONTWRITEBYTECODE=1` 只擋寫入、不擋讀取既有 `.pyc`，已有舊快取時是假修法（verifier 5/5 重現仍綠）。其他有增量建置快取的工具鏈同理，先確認它真的重編了。
 
   - **squash merge 之後不要用 commit 數判「內容已進 main」**：`git log main..<branch> | wc -l` 對 squash 永遠非 0（原始 commit 不在 main 歷史裡）。要量的是 PR 的 MERGED 狀態或 `git diff main..<branch> -- <檔>` 為空。附帶：印出「全為 0 才刪」而下一行無條件 `git branch -D`，那個檢查沒有擋住任何東西——gate 要寫成 `&&` 或 `assert`（2026-09-12 踩過）。
 

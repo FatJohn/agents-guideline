@@ -150,7 +150,7 @@ React 實跑渲染出 `<meta http-equiv="refresh">`。
 
 ## 4. 品質底線怎麼驗
 
-逐條判準寫在 rubric 檔裡（不常駐，要用時再讀；派工驗收時直接把路徑給 verifier）：
+逐條判準寫在 rubric 檔裡（不常駐，要用時再讀；verifier 依 `~/.claude/agents/verifier.md` 規則 3 自選，派工者可指定）：
 
 - 文件、規則、說明 → `<REPO>/rubrics/document-quality.md`
 - 實作、修 bug、重構 → `<REPO>/rubrics/code-change.md`

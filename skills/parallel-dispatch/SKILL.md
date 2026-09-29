@@ -61,11 +61,11 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 
 **依賴**：有依賴的片序列做，只有互不依賴者同批。「先凍介面再平行」只在簽名可先固定、下游驗收只依賴簽名時成立；stub 由 controller 建。缺權限或外部依賴未落地的單片不入批，其餘可繼續。
 
-**Foundation 先落地**：多片共用的地基（套件清單、共用型別／schema、router／DI／export 的 registry、測試設定、migration 序號）先由 controller 或一個序列片做完並 **commit 到 base**，graph 記下 foundation SHA，之後才 fan out；不得讓兩片各自補同一份地基——這已知會造成 merge conflict。
+**Foundation 先落地**：多片共用的地基（套件清單、共用型別／schema、router／DI／export 的 registry、測試設定、migration 序號）先由 controller 或一個序列片做完並 **commit 到 base 或 integration branch**，graph 記下 foundation SHA，之後才 fan out；不得讓兩片各自補同一份地基——這已知會造成 merge conflict。記下 foundation SHA 後即可 fan out，不必等該 commit 的 PR、CI 或 merge。
 
 **批次上限**：預設一批 **3** 片（假設；已知樣本只有 2026-09-12 一批 3 片，見 `<REPO>/docs/harness-facts.md` `isolation: worktree` 條的「成本量級」句，4 片無樣本），最多 4 片且要寫出理由（每片獨立且 review 量可承受）；不滾動補位；下一批須等本批整合完成（§7）。平行是有成本的資源：每多一個 worker 就多一份 context 複製、一個要 review 的 diff、一次整合風險；而驗收與整合本身是序列的，多開 worker 不會讓瓶頸變快（`<REPO>/docs/judgment-rationale.md`「§2 補充判準（修正與驗收輪次）」：實作占 wall time 10–16%、驗收＋修正 85%）。
 
-**單片尺寸評估**：依交付內容、依賴關係、驗收邊界與可交接性估量，不用單一 counter 當硬上限或品質門檻。**單片 context 約 300k** 目前只作**折衷提醒值（非實測，n=1）**（理由見 `<REPO>/docs/judgment-rationale.md`「2026-09-22 project-a session review」段）；若預估或實際明顯超過，重評進度、剩餘工作、context、重讀與 handoff 成本，再決定續用、交接、序列或重切；多 commit 的單片以 commit 邊界作交接點優先；不得為了湊計數拆開原本有依賴的片。counter 的量法依 adapter，**優先用 agent 交回時的 context 大小**（Claude：完成通知 `<usage>` 的 `subagent_tokens`，見 `references/claude-code.md`「counter」列），工具呼叫數只是輔助；沒有可靠 counter 就標 `unknown`，不可從文字猜，也不阻擋派工。量測限制與後續方法見 `<REPO>/docs/dispatch-cost-review-2026-09-17.md`。
+**單片尺寸評估**：依交付內容、依賴關係、驗收邊界與可交接性估量，不用單一 counter 當硬上限或品質門檻。**單片 context 約 300k** 目前只作**折衷提醒值（非實測，n=1）**（理由見 `<REPO>/docs/judgment-rationale.md`「2026-09-22 project-a session review」段）；若預估或實際明顯超過，重評進度、剩餘工作、context、重讀與 handoff 成本，再決定續用、交接、序列或重切；多 commit 的單片以 commit 邊界作交接點優先；不得為了湊計數拆開原本有依賴的片。counter 的量法依 adapter，**優先用 agent 交回時的 context 大小**（Claude：完成通知 `<usage>` 的 `subagent_tokens`，見 `references/claude-code.md`「counter」列），工具呼叫數只是輔助；沒有可靠 counter 就標 `unknown`，不可從文字猜，也不阻擋派工。量測限制與後續方法見 `<REPO>/docs/dispatch-cost-review-2026-09-17.md`。同一批切片中預估最大片超過中位片約 2 倍時，先評估能否再切大片或合併小片，因為並行波次牆鐘由最長片決定（2026-09-29 review：最長／中位 1.71×，P75 2.27×）；切不開就維持並在 graph 註明。
 
 **Ownership**（每份 brief 必填）：objective、scope、允許路徑、禁止路徑或子系統、依賴、預期輸出、驗證命令、完成定義。允許路徑以 repo 相對路徑寫，實際落地位置由 adapter 決定（`references/worktree.md`）。目標是**兩個 worker 不會同時改同一檔**，做不到就序列。三條硬規則：
 - **共用觸點不得有兩個 owner**：lockfile、registry／index 檔、generated artifact、migration 序號、changelog 這類單檔熱點，要嘛指定唯一 owner，要嘛留給 integrator 在 §6 統一改，要嘛改成每片一個 fragment 由整合時合併。沒有 owner 的路徑任何片都不准改。
@@ -84,7 +84,7 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 
 **每個 worker 都必須拿到**：完整 brief（`references/templates.md`）、唯一寫入者宣告、自己的落地位置（隔離時為 worktree 絕對路徑）、驗證命令、回報格式。brief 開頭明寫「你是被派來的執行者，親自完成，不要再派工」，並告知它不是 codebase 裡唯一在改的人——ownership 外看起來殘缺的東西不要順手修或回退。暫時探針的 plan 必須寫還原指令、探針期間預期會紅的既有檢查，且不得為此順手修 fixture；長輸出落檔使用切片專屬前綴。誰建 worktree、用什麼指令 launch 由 adapter 決定；**worker 可否 commit／rebase 由該 agent 的合約決定**（各平台的合約與宣告句見對應 adapter），adapter 只在 brief 的 Execution environment 欄如實填入，不做授權判斷。
 
-**回報**：worker 完成後必須回 structured report（Status／Summary／Files changed／Validation／Issues／Integration notes／Commit／Location，格式在 `references/templates.md`）。只回「Done」＝未完成，退回補齊。controller **逐欄 read-back**，不採信自述：已 commit 的 Commit 用 `git show` 核、Files changed 對 `git diff --name-only <base>...HEAD`；回報 `uncommitted` 時改用 `git status --short`＋`git diff --name-only` 核對，不能拿 HEAD diff 判零。合約禁止 worker commit 的平台，進入該階段前須依 adapter 把已停止 worker 的交付 materialize 成 controller-owned checkpoint commit。Validation 由 §5 的驗收者在該落地位置重跑；實作類任務改動為零＝失敗，不是「沒事可做」。adapter 的 query status 只是線索，**不得憑摘要 merge**。
+**回報**：worker 完成後必須回 structured report（Status／Summary／Files changed／Validation／突變證據／Issues／Integration notes／Commit／Location，格式在 `references/templates.md`）。只回「Done」＝未完成，退回補齊。controller **逐欄 read-back**，不採信自述：已 commit 的 Commit 用 `git show` 核、Files changed 對 `git diff --name-only <base>...HEAD`；回報 `uncommitted` 時改用 `git status --short`＋`git diff --name-only` 核對，不能拿 HEAD diff 判零。合約禁止 worker commit 的平台，進入該階段前須依 adapter 把已停止 worker 的交付 materialize 成 controller-owned checkpoint commit。Validation 由 §5 的驗收者在該落地位置重跑；實作類任務改動為零＝失敗，不是「沒事可做」。adapter 的 query status 只是線索，**不得憑摘要 merge**。
 
 ## §5 VALIDATION：切片驗收
 

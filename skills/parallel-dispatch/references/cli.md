@@ -13,7 +13,7 @@
 
 ## 派工與 worktree
 
-- worker **預設禁止** commit／rebase（同 `<REPO>/agents/worker.md` 規則 5）。要開放，brief 的 Execution environment 欄必須明寫「本任務在隔離 worktree（`isolation: worktree`）」這句——它是對 worker 合約的宣告，不是 CLI 旗標，外部 CLI 沒有這個參數——寫了才適用 worker 合約的隔離例外（可在自己 branch commit、完成前 rebase 一次、解純文字 conflict；push／PR／merge 仍禁止）；沒寫就是禁止。worker 若是 Codex，一律依 `codex.md`（不得 commit／rebase）。
+- worker **預設禁止** commit／rebase（同 `<REPO>/agents/worker.md` 規則 5）。要開放，brief 的 Execution environment 欄必須明寫「本任務在隔離 worktree（`isolation: worktree` 或 controller 自建 worktree）」這句——它是對 worker 合約的宣告，不是 CLI 旗標，外部 CLI 沒有這個參數——寫了才適用 worker 合約的隔離例外（可在自己 branch commit、完成前 rebase 一次、解純文字 conflict；push／PR／merge 仍禁止）；沒寫就是禁止。worker 若是 Codex，一律依 `codex.md`（不得 commit／rebase）。
 - brief 開頭仍寫「你是被派來的執行者，親自完成本任務，不要再派工」——外部 CLI 一樣會讀到全域 rules，一樣會轉包。
 - 同一 worktree 永遠只有一個 process 在寫；controller 自己不在 worker 的 worktree 動手，要改就送 follow-up。
 - `claude -p`／`codex exec` 本身就是 fresh session，可直接當切片驗收的執行方式：在 integration tree 或該片 worktree 的乾淨狀態起 `claude -p` 帶 verifier 合約（`<REPO>/agents/verifier.md`）與驗收條件。

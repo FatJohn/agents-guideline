@@ -8,9 +8,10 @@
 > 要宣稱某個參數存在時以當場現查的工具 schema 為準，不引用本檔。
 
 - Agent 呼叫可逐次指定 model；effort 仍由 agent 定義 frontmatter 或 session/workflow 設定控制。
-- 主對話（controller）的 model 由 UI 選擇，effort 由 `~/.claude/settings.json` 的 `effortLevel` 設定（2026-07-25 核對為 `xhigh`；2026-09-07 複查仍為 `xhigh`，另有 `modelSettings.claude-fable-5-1.effortLevel: high` 的逐型號覆寫）。**subagent 不指定 `model`、且 agent 定義 frontmatter 也沒寫 `model` 時，繼承主對話的模型**，所以 `../rules/10-dispatch.md` 各表的 model 欄是顯式 routing 指示，派 `worker`／`verifier` 一律要寫 `model:`（worker 已改，見本條末句）。**更正（2026-09-23 實測）**：agent 定義 frontmatter 有寫 `model` 時，不帶參數用的是 frontmatter 的型號、不繼承主對話——`claude -p --model sonnet` 主對話（claude-sonnet-5）不帶 `model` 派 `worker-opus`，subagent transcript 記錄 `claude-opus-5-5`；「繼承主對話」只適用於 frontmatter 沒寫 `model` 的 agent。派 `verifier` 仍照舊顯式寫 `model:`；`worker`（型號與 effort 由其 frontmatter 決定）與 `worker-sonnet` 見 `../rules/10-dispatch.md` §0。（2026-09-07 從 `rules/10-dispatch.md` §0 搬入；原「Max 檔位實作預設 opus、Pro 檔位降回 sonnet」的分檔位規則已由不分檔位的 `worker`（型號由其 frontmatter 決定）取代，刻意放棄。）
+- 主對話（controller）的 model 由 UI 選擇，effort 由 `~/.claude/settings.json` 的 `effortLevel` 設定（2026-07-25 核對為 `xhigh`；2026-09-07 複查仍為 `xhigh`，另有 `modelSettings.claude-fable-5-1.effortLevel: high` 的逐型號覆寫）。**subagent 不指定 `model`、且 agent 定義 frontmatter 也沒寫 `model` 時，繼承主對話的模型**，所以 `../rules/10-dispatch.md` 各表的 model 欄是顯式 routing 指示，派 `worker`／`verifier` 一律要寫 `model:`（worker 已改，見本條末句）。**更正（2026-09-23 實測）**：agent 定義 frontmatter 有寫 `model` 時，不帶參數用的是 frontmatter 的型號、不繼承主對話——`claude -p --model sonnet` 主對話（claude-sonnet-5）不帶 `model` 派 `worker-opus`，subagent transcript 記錄 `claude-opus-5-5`；「繼承主對話」只適用於 frontmatter 沒寫 `model` 的 agent。派 `verifier` 仍照舊顯式寫 `model:`；`worker`（型號與 effort 由其 frontmatter 決定）與 `worker-opus` 見 `../rules/10-dispatch.md` §0。（2026-09-07 從 `rules/10-dispatch.md` §0 搬入；原「Max 檔位實作預設 opus、Pro 檔位降回 sonnet」的分檔位規則已由不分檔位的 `worker`（型號由其 frontmatter 決定）取代，刻意放棄。）
 - Agent frontmatter 的 `effort` 可填 `low`／`medium`／`high`／`xhigh`／`max`，實際可用值仍受模型與組織限制。
 - 新增 `~/.claude/agents/*.md` 後，已在執行中的 session 不必重開：新增當輪派該名字會回 `Agent type ... not found`，下一個使用者輪次 harness 注入「New agent types are now available」後即可派（2026-09-23 實測，`worker-opus`，n=1）。
+- `Monitor` 工具（2026-09-29 在 Claude Code 2.1.284 由工具 schema 現查）：預設是 deferred tool，要先 `ToolSearch` 載入 schema 才能呼叫；背景跑一支 script，**stdout 每一行是一則通知**，script 結束即停止；`timeout_ms` 預設 5 分鐘，上限依 session 而異（同日互動 session 的 schema 寫 cap 1800000ms＝30 分，`claude -p` session 的 schema 寫 cap 600000ms＝10 分，JSON `maximum` 皆為 3600000），以當場 schema 為準；到期要重新掛。只需要一次通知（「CI 跑完告訴我」）時，schema 建議改用 Bash `run_in_background` 加會自己結束的 `until` 迴圈；過濾條件要涵蓋失敗與所有終止狀態，否則當掉和還在跑一樣安靜。用在 CI 等待的做法見 `../skills/parallel-dispatch/references/claude-code.md`「CI 等待與 PR」。
 - Agent frontmatter 的 `model` 可填 `haiku`／`sonnet`／`opus`／`fable`／完整 model ID／`inherit`。
 - Claude Code 2.1.222 的 subagent 可使用 `isolation: worktree`（2026-08-06 由 Agent 工具 schema 現查確認該參數仍存在）；需要 blocking 結果時不得只依賴可能因休眠中斷的背景執行。
 - `isolation: worktree` 的實際行為（2026-09-12 在 Claude Code 2.1.267 實測＋官方 worktrees 文件）：worktree 建在 `<repo>/.claude/worktrees/<name>/`、branch 名 `worktree-<name>`、從 controller 當下 HEAD 開出；subagent 結束時有改動（commit 或 uncommitted）就保留，無改動則 worktree 與 branch 一起自動刪除；harness 不把路徑回報給 controller，要靠 subagent 自己回報或 `git worktree list`。官方不提供多 worktree 的合併方式。`.claude/worktrees/` 不會自動進 `.gitignore`，全目錄掃描工具會掃進去；本系統以使用者全域 gitignore 的 `**/.claude/worktrees/` 排除內建 isolation 的位置；controller 自建 worktree 另依 `../skills/parallel-dispatch/references/worktree.md`「所有權與路徑」放 `<repo>/.worktrees/`（2026-09-27 起）。Workflow 工具的 `agent()` 查不到 isolation 參數（未確認支援）。成本量級（2026-09-12，3 片 S／M 平行）：每片 2–4 輪修正＋驗收、共 12 次 agent 呼叫、約 1.6M subagent token、約 100 分鐘。使用流程見 `../skills/parallel-dispatch/SKILL.md`。
@@ -27,9 +28,9 @@
 | 參數值 | 實際型號 | 用途定位 |
 |--------|----------|----------|
 | `haiku` | claude-haiku-4-5 | 平台可用模型；不列入本制度 active routing |
-| `sonnet` | claude-sonnet-5 | 掃描、總結、查網頁的讀取車道主力；`worker-sonnet` 備用實作車道 |
+| `sonnet` | claude-sonnet-5-5（2026-09-29 由 `claude -p --model sonnet --output-format json` 的 `modelUsage` 現查；原為 claude-sonnet-5） | 掃描、總結、查網頁的讀取車道主力；`worker` 標準實作車道（frontmatter 鎖完整 ID） |
 | `opus` | claude-opus-5-5（2026-09-23 由 verifier transcript 的 `"model":"claude-opus-5-5"` 現查；2026-08-30 原為 claude-opus-5） | 難題升級、高風險判斷 |
-| `fable` | claude-fable-5 | 最高階；高風險實作／規劃與最終升級（驗收不自動走這條，見 `../rules/10-dispatch.md` §5） |
+| `fable` | claude-fable-5-1（2026-09-29 由 09-26 subagent transcript 的 assistant message.model 現查，n=25 request；原為 claude-fable-5） | 最高階；高風險實作／規劃與最終升級（驗收不自動走這條，見 `../rules/10-dispatch.md` §5） |
 
 alias 會隨平台改版重新指向新一代同層模型——要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準，不引用本表。
 
