@@ -2,7 +2,7 @@
 
 ## 目的
 
-2026-09-29 使用者決定把 Claude 端標準執行者 `worker` 從 Opus 5.5/medium **直接切換**為 Sonnet 5.5/xhigh（`claude-sonnet-5-5`，試用），不是 A/B 交替；Opus 5.5/medium 改為備用車道 `worker-opus`。本檔只做兩件事：留下切換前（窗口 A）的量化基線，以及訂出試用期怎麼量、何時回退。路由本身的規則在 `../rules/10-dispatch.md` §0 與 `../agents/worker.md`，本檔不重複。2026-09-29 規則改良（worker 突變自證、CI 設定排除小修例外、平行 fan-out 與切片相對尺寸、CI 等待做法）與 worker 切換同日生效，窗口 B 的量測起點以該批規則 commit 時間為準：`958804a`（2026-09-29 10:39:17 +0800）。
+2026-09-29 使用者決定把 Claude 端標準執行者 `worker` 從 Opus 5.5/medium **直接切換**為 Sonnet 5.5/xhigh（`claude-sonnet-5-5`，試用），不是 A/B 交替；Opus 5.5/medium 改為備用車道 `worker-opus`。本檔只做兩件事：留下切換前（窗口 A）的量化基線，以及訂出試用期怎麼量、何時回退。路由本身的規則在 `../rules/10-dispatch.md` §0 與 `../agents/worker.md`，本檔不重複。2026-09-29 規則改良（worker 突變自證、CI 設定排除小修例外、平行 fan-out 與切片相對尺寸、CI 等待做法）與 worker 切換同日生效，窗口 B 的量測起點以該批規則 commit 時間為準：`29be425`（2026-09-29 10:39:17 +0800）。原 SHA `958804a` 於 2026-09-29 11:01 因去除專案名改寫歷史後變為 `29be425`（author date 仍為 10:39:17 +0800；證據：`git log -1 --format='%ai %ci' 29be425` 輸出 `2026-09-29 10:39:17 +0800 2026-09-29 11:01:48 +0800`）。
 
 - 決策日：2026-09-29。
 - 窗口 A（基線）＝Opus 5.5/medium：2026-09-24 11:49～09-29 09:39，約 4.9 天。主報告各節（1–7）資料截至 09:36，advisor 補充段截至 09:39。
@@ -17,7 +17,7 @@
 
 **窗口內沒有 Sonnet 5.5 worker 資料，本節只當 Opus 5.5 medium 基線。**
 
-**全窗口混淆**：主對話同樣在 09-23 22:31 起改為 `claude-opus-5-5`，與 worker 換型同期，無法拆開；任務內容也與更早基線期不同。窗口 B 同理：任務內容會變，`sonnet` alias 自 09-29 09:36 起解析為 `claude-sonnet-5-5`（窗口 A 內的 sonnet 車道是 `claude-sonnet-5`，最近一次 09-29 00:52），所以 Explore／general-purpose 的 sonnet 車道也同時換型。
+**全窗口混淆**：主對話同樣在 09-23 22:31 起改為 `claude-opus-5-5`，與 worker 換型同期，無法拆開；任務內容也與更早基線期不同。窗口 B 同理：任務內容會變，`sonnet` alias 自 09-29 09:36 起在 CLI 2.1.284 的 session 解析為 `claude-sonnet-5-5`（窗口 A 內的 sonnet 車道是 `claude-sonnet-5`，最近一次 09-29 00:52；2.1.283 的 session 在窗口 B 仍解析為 `claude-sonnet-5`，見「量法」節），所以 Explore／general-purpose 的 sonnet 車道在窗口 B 新舊型號混用。
 
 ### 1. worker（agentType `worker`）
 
@@ -28,13 +28,13 @@
 | 續用（收到 SendMessage 或有第二個非空 user turn） | 49 | 39／66 | 20.0／34.4 | 46.1 | 2.63／186（占 Opus worker 成本 35%） | 49/49 |
 | **project-a（主比較）** | 78 | **36.5**／63.5 | **13.5**／26.9 | 26.5 | **2.30**／287 | 10/78（13%） |
 | project-a 未續用／續用 | 68／10 | 34.5／55.5 | 13.3／24.5 | 25.7／30.9 | 2.26／4.48 | — |
-| flutter-app-template | 59 | 27／43.5 | 11.9／22.0 | 44.4 | 1.75／153 | 26/59 |
-| flutter-slimgo | 11 | 52／81.5 | 23.2／32.2 | 25.9 | 3.37／37 | 6/11 |
+| project-b | 59 | 27／43.5 | 11.9／22.0 | 44.4 | 1.75／153 | 26/59 |
+| project-c | 11 | 52／81.5 | 23.2／32.2 | 25.9 | 3.37／37 | 6/11 |
 
 - project-a 依 prompt 含「finding／修正／delta／第 N 輪」分：fresh n=36 工具 58／23.2 分／$4.27；fix n=42 工具 27.5／10.1 分／$1.74（首次實作約為修正的 2.4 倍成本）。
 - 對照更早基線（project-a Opus 09-25，n=84）：工具 37.5→36.5、牆鐘 13.6→13.5 分、$2.4→2.30、每 req 秒 25.3→26.5，與初期幾乎不變。窗口 A 內分段：09-26 中午前 n=56：36.5 次／13.4 分／$2.30；之後 n=22：47 次／17.0 分／$3.27（後半任務較重：#17 P5、#58 Refit）。
 - 對照 09-21 Sonnet 5 全體（90 次／16.1 分）：Opus 全體 28 次／10.5 分。任務混合不同，只當上下界。
-- 同專案 Sonnet 對照（n 很小，僅參考、不可當結論）：web-member-login 09-24 12:04–15:49 有 7 個 `worker` 被顯式帶 `model: sonnet`（`claude-sonnet-5`）：工具 55／6.7 分／10.4 秒每 req／$1.26；同專案 Opus n=6：21.5／4.9 分／16.1 秒／$1.42。
+- 同專案 Sonnet 對照（n 很小，僅參考、不可當結論）：project-d 09-24 12:04–15:49 有 7 個 `worker` 被顯式帶 `model: sonnet`（`claude-sonnet-5`）：工具 55／6.7 分／10.4 秒每 req／$1.26；同專案 Opus n=6：21.5／4.9 分／16.1 秒／$1.42。
 - 其他 lane（窗口 A）：`worker-sonnet` agentType 0 個；general-purpose/opus n=12（31 次／8.6 分／$2.57）、/sonnet n=17（33／7.2／$1.35）、/fable n=1（60 次／17.5 分／$8.98）；Explore/sonnet n=34（45／5.9／$0.92）；Plan/opus n=10（40／10.3／$2.56）；codex-rescue n=4（約 $1）。
 
 ### 2. verifier（n=168：167 Opus 5.5、1 Fable）
@@ -48,7 +48,7 @@
 | 成本／時間 | $310（占窗口 API 等價 20%）；單一 verifier 工具中位 25 次、牆鐘中位 8.3 分 | 報告未給 |
 
 - ≥3 輪的鏈 5 條：`5db74ff6-6275-4094-b5d1-ea25334fc622`（3 條）、`1738276b-6dc2-4b12-b848-af6399158ba3`（疑似掛錯）、`1a30eb86-0517-42db-af75-d6a883d9ea45`。
-- 混淆：delta 以 regex 判，未標示者會漏判為首輪；worker 品質提升與 verifier 同為 Opus 5.5 都可能造成 OPEN 率下降，無法拆。窗口 B 的 verifier 仍是 `model: opus` alias（2026-09-29 `../agents/verifier.md` 未改；alias 現解析為 `claude-opus-5-5`，見 `harness-facts.md`），所以窗口 B 首輪 OPEN 率變化較能歸因到 worker 換型（推論），但任務內容不同的混淆仍在。另有兩項混淆：窗口 B 的 Explore／general-purpose sonnet 車道同時換型（見「窗口 A 基線」節開頭的「全窗口混淆」），且 2026-09-29 同日規則改良（worker 突變自證、CI 設定排除小修例外、平行 fan-out 與切片尺寸檢查）也會影響首輪 OPEN。
+- 混淆：delta 以 regex 判，未標示者會漏判為首輪；worker 品質提升與 verifier 同為 Opus 5.5 都可能造成 OPEN 率下降，無法拆。窗口 B 的 verifier 仍是 `model: opus` alias（2026-09-29 `../agents/verifier.md` 未改；alias 現解析為 `claude-opus-5-5`，見 `harness-facts.md`），所以窗口 B 首輪 OPEN 率變化較能歸因到 worker 換型（推論），但任務內容不同的混淆仍在。另有兩項混淆：窗口 B 的 Explore／general-purpose sonnet 車道新舊型號混用（見「窗口 A 基線」節開頭的「全窗口混淆」），且 2026-09-29 同日規則改良（worker 突變自證、CI 設定排除小修例外、平行 fan-out 與切片尺寸檢查）也會影響首輪 OPEN。
 
 ### 3. parallel-dispatch
 
@@ -110,7 +110,7 @@
 
 ### 7. alias 解析現況（2026-09-29）
 
-- `claude-sonnet-5`：最近一次 09-29 00:52（Explore/sonnet）；`claude-sonnet-5-5`：09-29 09:36 起。
+- `claude-sonnet-5`：最近一次 09-29 00:52（Explore/sonnet）；`claude-sonnet-5-5`：09-29 09:36 起（限 CLI 2.1.284 的 session，見「量法」節）。
 - `claude-fable-5-1`：實際 request n=25（general-purpose 17、verifier 8），09-26 09:36～23:26。jsonl 中另有大量 `advisorModel`／advisor attachment 的 fable-5-1 字串，是設定紀錄非 request。
 - `opus` alias 自 09-23 22:31 起皆為 `claude-opus-5-5`。
 
@@ -123,9 +123,10 @@
 
 - **去重**：以 requestId 去重，再算 request 數與成本。
 - **續用判定**：先剝 `<system-reminder>` 再判是否有第二個非空 user turn 或 SendMessage；不剝會把注入誤判成續用。
-- **verifier 輪次**：用 prompt regex（含「finding／修正／delta／第 N 輪」）分首輪與 delta；漏標的會被當首輪，結果只當上下界。
+- **verifier 輪次**：用 prompt regex（含「finding／修正／delta／第 N 輪」）分首輪與 delta；漏標的會被當首輪，結果只當上下界。regex 要同時認中文數字（「第二輪」「第三輪」），窗口 B 曾因此漏判 1 個；手動改判要在報告揭露並與 regex 口徑並列。
 - **fresh vs fix**：同樣用 worker prompt 是否含「finding／修正／delta／第 N 輪」分。
-- **output_tokens 補估**：Opus 5.5 的 jsonl 只記串流開頭，窗口 A 每 request 補 +680。**Sonnet 5.5 是否有同樣少記，窗口 B 先核對**：比每 request 可見輸出字元數與 `output_tokens`，兩者比例明顯偏離才套補估；沒核對前 Sonnet 成本標「output 可能低估」，不直接沿用 +680。
+- **output_tokens 補估**：Opus 5.5 的 jsonl 只記串流開頭，窗口 A 每 request 補 +680。Sonnet 5.5 不直接沿用 +680，核對結果見下條。
+- **Sonnet 5.5 output_tokens 也少記（窗口 B 已核對）**：jsonl 中位 7 token 對可見 575 字元（Opus 5.5 為 121 對 458）；補估用 max(記錄值, 0.9×可見字元) 當上界，係數未校準；Sonnet 5.5 牌價沿用 sonnet 價為假設。**`sonnet` alias 解析綁 CLI 版本**：2.1.283 仍為 `claude-sonnet-5`、2.1.284 為 `claude-sonnet-5-5`，量 Explore／general-purpose sonnet 車道時逐 request 讀 `message.model`，不假設同一型號；worker 鎖完整 ID 不受影響。
 - **型號判定**：只看 `type:"assistant"` 的 `message.model`；advisor attachment、`advisorModel` 設定字串不算 request。
 - **advisor**：只有 `usage.iterations[]` 的 `advisor_message` 有 usage，subagent 多數沒記，只能報下限。
 - **主比較口徑**：用同專案（project-a，或窗口 B 的主專案）worker 的中位數；全體只當上下界。任務較重的分段（如窗口 A 09-26 午後的 #17 P5、#58 Refit）要另分開看。
@@ -139,6 +140,7 @@
 | 日期時間 | Settings > Usage 週 % | 距上次重置時數 | 備註 |
 |---|---|---|---|
 | 2026-09-29 10:47 | 9% | 約 15.8h | 試用起點（上次重置 09-28 19:00；這段主要是 Opus 5.5 worker＋本次 review 的 Fable 5.1） |
+| 2026-09-29 22:49 | 21% | 約 27.8h | 窗口 B 第一次量測點；10:47→22:49 共 12 個百分點，同期 API 等價 $297（不含 advisor）→ 1% ≈ $24.7 |
 
 ## 評估門檻（事先訂定，2026-09-29 使用者採用 Fable 建議）
 
@@ -151,6 +153,29 @@
 - 主對話直接 Edit/Write 程式／設定檔的速率達窗口 A 基線（12 次／4.9 天）的 2 倍。
 
 週額度 % 只記錄不設門檻（見「額度追蹤」）。使用者決定回退時走「回退方式」；轉為正式預設同樣要使用者明確同意。
+
+## 窗口 B 第一次量測（2026-09-29 10:39～22:51，約 12.2h）
+
+- 樣本：主對話 11 session、subagent 105 個；worker（`claude-sonnet-5-5`）44 個：project-b 30、project-a 10、其他 4；`worker-opus` 1；verifier 39 全為 `claude-opus-5-5`。
+
+| 門檻 | 窗口 B | 窗口 A | 觸發？ | 樣本 |
+|---|---|---|---|---|
+| 首輪 OPEN >62% | regex 口徑 11/31＝35%；手動改判後 10/30＝33% | 52%（n=124） | 否 | n≈30 剛達 |
+| delta OPEN >25% | regex 口徑 2/8＝25%；手動改判後 3/9＝33% | 17%（n=41） | regex 口徑否（25% 未 >25%）；手動改判後觸發 | 不足（n=8–9） |
+| project-a worker 工具中位 >55 | 31.5 | 36.5 | 否 | 不足（n=10）；參考 project-b 34.5（A 27，n=30 對 59） |
+| 每片牆鐘 +30% | 全體中位 18.8 分（−30%，n=20）、project-b 19.1（−29%，n=16） | 全體 26.9／project-b 27.0 | 否 | project-a n=1 不足 |
+| 主對話 Edit/Write 程式檔 2 倍 | 13 次／12.2h（約 10 倍） | 12 次／4.9 天 | **觸發** | 13 次、6 個叢集 |
+
+- 首輪／delta 的手動改判：21:47「Verify L38 round 2 plus weight」的 prompt 寫「第二輪」，regex 只認阿拉伯數字而漏判為首輪；改判為 delta 後得 10/30 與 3/9。門檻以「量法」節的 regex 口徑判定，手動改判值並列。
+- 門檻只寫「任一成立就回報」，不因歸因排除；以下歸因只供使用者判斷：delta 的 3 個 OPEN 中 2 個（L38 round 2／3）驗的是升級 `worker-opus` 後的 Opus 產出，Sonnet 產出為 1/7。主對話 13 次 Edit/Write 依時間線（fresh verifier 對工具時間戳實查）：4 次是 16:00 一段未派 worker 的 hotfix；**6 次落在 worker 交回之後、首輪 verifier 派出之前**（controller 直接補 worker 產出，正是本門檻要抓的訊號）；3 次在驗收之後。**本條觸發，已回報使用者。**
+- worker：project-b 工具中位 27→34.5（+28%）、牆鐘 11.9→9.1 分、$ 中位 1.75→1.51；續用 37%（A 44%）。全體 44：34 次／10.8 分／$1.57。
+- verifier（手動改判口徑；regex 口徑並列於括號）：一輪定案 18/30＝60%（regex 18/31；A 41%）；≥3 輪鏈 1 條（L38，已升級 Opus＋第二意見；regex 口徑 0 條）。首輪 OPEN 全量 10 個分類（regex 口徑首輪 OPEN 11 個，多出的是 L38 round 2）：A1 1、A2 2、B 4、C 2、D 1、E 0；A1＋B＝5/10（A 15/26）；自述低嚴重 3/10，扣除後實質 OPEN 7/30＝23%。
+- 新規則落地：回報「提及突變」38/44（86%），同一 regex 重跑窗口 A 為 102/182（56%）；嚴格分類「有突變證據」35/44（fresh 20/26），3 個是明說未做突變。窗口 B 的 regex 比窗口 A 的 STRONG regex 寬（多「變紅／反向驗證／sabotag」），嚴格口徑沒有窗口 A 同口徑值。
+- parallel-dispatch：並行波次 5/8，並行度平均 2.38（A 1.93），最大 6；同批最長／中位 1.88×（P75 2.10，n=5），有 2 波超過 2× 線。帶 `isolation: worktree` 0/8，全為 controller 自建 worktree。
+- 成本：10:47～22:49 API 等價 $297（Opus 5.5 $190、Sonnet $107；主對話 39%、worker 33%、verifier 20%、其他 8%），$24.6/h 高於 A 是活動量造成；每 worker 任務 $1.57 對 A $1.84（全體）。1% ≈ $24.7（raw 口徑 $20.1），與 Opus 期估計 $20–24 同量級，**分不出額度差異**；主對話 Opus 占 39%，worker 即使省 30%，總額最多降約 10%。advisor 72 次呼叫，已量到下限 $23.2。
+- 量法新陷阱（已補進「量法」節）：Sonnet 5.5 jsonl `output_tokens` 少記約一個數量級（中位 7 token 對可見 575 字元，Opus 5.5 為 121 對 458），補估用 max(記錄值, 0.9×可見字元) 當上界，係數未校準；Sonnet 5.5 牌價沿用 sonnet 價為假設。`sonnet` alias 解析綁 CLI 版本：2.1.283 仍為 `claude-sonnet-5`、2.1.284 為 `claude-sonnet-5-5`，窗口 B 的 Explore／general-purpose sonnet 車道新舊混用；worker 鎖完整 ID 不受影響。
+- 混淆：任務混合（B 多為 project-b CI／守門小片，A 為 project-a 大片）、規則改良同日生效、僅一個密集白天、尾端驗收鏈截尾、質性分類僅 10 個且單人判讀。
+- 決定：2026-09-29 23:03 使用者回覆繼續試用、主觀感受比 Opus medium 快且品質 OK——當時 controller 回報的 Edit/Write 歸因是已撤回的「5 次 hotfix、其餘多為驗收後小修」；23:12 controller 以上方更正後的 4／6／3 時間線重新回報門檻觸發，**23:14 使用者確認仍繼續試用、多跑一些再評估**。下次在 project-a（或當期主專案）累積約 30 個 worker 後重判；（controller 建議）續盯主對話在 worker 交回後、驗收前的直接改檔，與 Sonnet 在難題（如 L38）是否需要升級。
 
 ## 回退方式
 
@@ -181,7 +206,7 @@
 - 主對話 2,530 Bash 中 gh pr checks/run 290、pr create 145、pr merge 139、worktree add/remove 169、git commit 200，全在 308K context 跑；worker 合約禁 push/PR/merge，這塊結構上落在主對話。
 
 **死重與缺口**
-- 教訓重演（已驗證）：`50-lessons.md` 2026-09-23 CI workflow 條仍是「尚未」，`1fd0fa6d` 09-25 12:09 controller 直接 Write PureFlac `.github/workflows/release.yml`、commit、PR，12:13 merge，無 worker 無 verifier。
+- 教訓重演（已驗證）：`50-lessons.md` 2026-09-23 CI workflow 條仍是「尚未」，`1fd0fa6d` 09-25 12:09 controller 直接 Write 某音訊專案的 `.github/workflows/release.yml`、commit、PR，12:13 merge，無 worker 無 verifier。
 - 缺口：worker 自證（A1）——`worker.md` 規則 2／10 與 `parallel-dispatch/references/templates.md` Validation 欄都沒要求新斷言／守門附會變紅的突變；另使用者核准的提案文字仍要實查（n=1，`137115b9:ad72f56a`）。
 - 死重（0 觸發）：`10-dispatch.md` §5 fable 升檔訊號 (a)(b)(c)（窗口內 fable 兩次皆使用者直接指定）；`20-judgment.md` §4「把 rubric 路徑給 verifier」只 74/168 照做，而 `verifier.md` 規則 3 本來就自選；`50-lessons.md` filter-branch 條視為 0 觸發。
 - 文字漂移：`worker.md` 規則 5 把 commit 權綁在 `isolation: worktree` 字面，實際 93/121 有 commit 的 worker 在 controller 自建 worktree（isolation 未設）——行為對、文字不對。
