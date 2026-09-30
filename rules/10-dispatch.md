@@ -52,7 +52,7 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 
 一般實作與一般文件的標準路徑，四步、不預設疊多輪 review：
 
-1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。核定時若本波有 ≥2 個 ownership 不相交的 issue／切片，先依 §1「雙軸判斷」的平行入口判斷能不能切，不預設序列。單一 issue 的 plan 預估要動 ≥2 個模組，或 phases 涵蓋整個功能一片到底時，同樣先評估 ownership 不相交、可獨立交付的切法，值不值得切仍依 `~/.claude/skills/parallel-dispatch/SKILL.md` §2「值不值得」；切不出來或不值得平行就維持單片，或依同檔「單片尺寸評估」比較冷啟動、context、重讀與交接成本後選序列交接，不以工具呼叫數或預估分鐘數強制切分。**核定前先派 `Explore` 拿要動的檔案清單、關鍵段落與既有測試結構**，把結果依 §2「把已讀過的素材附進 prompt」附進 brief，不讓執行者自己從零探索；同時用這份清單估單片 context（觸發序列交接的參考值見「單片尺寸評估」）。**不算違規**：改動範圍已知且 controller 手上就有素材（單檔修正、延續同一 session 剛讀過的檔）時直接核定。
+1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。核定時若本波有 ≥2 個 ownership 不相交的 issue／切片，先依 §1「雙軸判斷」的平行入口判斷能不能切，不預設序列。單一 issue 的 plan 預估要動 ≥2 個模組，或 phases 涵蓋整個功能一片到底時，同樣先評估 ownership 不相交、可獨立交付的切法，值不值得切仍依 `~/.claude/skills/parallel-dispatch/SKILL.md` §2「值不值得」；切不出來或不值得平行就維持單片，或依同檔「單片尺寸評估」比較冷啟動、context、重讀與交接成本後選序列交接，不以工具呼叫數或預估分鐘數強制切分。**核定前先派 `Explore` 拿要動的檔案清單、關鍵段落與既有測試結構**，把結果依 §2「把已讀過的素材附進 prompt」附進 brief，不讓執行者自己從零探索；同時用這份清單估單片 context（觸發序列交接的參考值見「單片尺寸評估」）。**不算違規**：改動範圍已知且 controller 手上就有素材（單檔修正、延續同一 session 剛讀過的檔）時免派 Explore、直接核定；下述不變量前置仍適用。**任務涉及狀態歸屬、生命週期／race，或以新增檢查閘門作為修補手段時**，plan 先寫出不變量（修完後要由結構保證成立的條件），再派 `Plan`（opus）與 `codex:codex-rescue`（不可用時改派第二個獨立 agent）各自獨立出方案並互相比對；只靠事後檢查補洞的方案不核定。**不算違規**：範圍明確、不改狀態流向的單點修正。
 2. 派 `worker`（single-writer）依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
 3. controller read-back 實際檔案／指令輸出，不採信 worker 自述。
 4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `../skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
@@ -103,9 +103,9 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 升級**門檻**（幾次失敗、什麼算高風險）的 canonical 在 `20-judgment.md` §1。門檻成立後怎麼做，只有三條路，一律附上完整失敗軌跡（改了什麼／跑了什麼指令／輸出關鍵行／為什麼判定失敗，每次嘗試各一段）：
 
-1. **換 fresh context 重做**——`worker` 失敗時改派新的 general-purpose（`model: opus`，高風險用 `fable`），把失敗軌跡當輸入，要求它先建立 root cause 再動手，不要沿用失敗者的假設。
+1. **換 fresh context 重做**——`worker` 失敗時改派新的 general-purpose（`model: opus`，高風險用 `fable`），把失敗軌跡當輸入，要求它先建立 root cause 再動手，不要沿用失敗者的假設。適用能力或脈絡理解不足（execution mistake 依 `20-judgment.md` §1 同層補正）；plan 缺陷（`20-judgment.md` §1「換路的質性訊號」）走第 3 條，換模型無效。
 2. **換平台取第二意見**——`codex:codex-rescue`，或派兩個 agent 各自獨立解再比對。
-3. **重新定義問題**——見 `20-judgment.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。
+3. **重新定義問題**——見 `20-judgment.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。設計審查 brief 必含：開頭寫不變量並要求由結構保證、不靠事後檢查；附全部失敗紀錄與其共同形狀並明寫「不要列補丁」；每個候選方案逐一對照已知失敗形狀，判「結構上不可能／仍需檢查」。派 `Plan`（opus）與 `codex:codex-rescue` 各自獨立判斷，分歧交使用者。累計輪數沿用原任務，換 model／role 不重設（`20-judgment.md` §2「停止端」）。
 
 **降級**：難題解出可重複、可機械驗證的 pattern 後，把 pattern 寫進 prompt 降回 `worker` 批次套用；不降到 haiku。
 **重試上限**：同一件事最多兩輪（指同一個問題的修法重試，不含驗收輪次——驗收狀態與回報點見
