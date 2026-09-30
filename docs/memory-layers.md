@@ -8,4 +8,5 @@
 - **精選持久記憶**：Claude 端是 `~/.claude/projects/<專案slug>/memory/`；Codex 端是 `~/.codex/memories/`（`~/.codex/config.toml` 的 `[features] memories = true`）。放使用者偏好、被糾正的教訓、進行中工作的穩定狀態。不要把必守規則只放記憶；規則要進 `AGENTS.md`／`CLAUDE.md` 或 repo 文件。
   - **Chronicle（可選的螢幕脈絡）**：opt-in research preview，是精選持久記憶的可選補充，用螢幕活動脈絡補充 Codex Memories，不新增或取代自動事件史、精選持久記憶、顯式交接檔、repo 文件這四層。它有 rate limit、可能擷取或處理含敏感資訊的畫面，以及畫面內 prompt injection 等風險，因此不預設開啟；啟用前先確認資料邊界與風險承受度。
 - **顯式交接檔**：Codex 收尾用 `session-handoff` skill，預設寫專案 `.codex/HANDOFF.md`。用途是讓下個 session 不靠自動記憶也能接上；若需要 Claude/remember 相容，使用者明說時再同步 `.remember/now.md`。
+  - session 內優先使用平台提供的 plan／task 狀態，不強制在 repo 建 scratchpad；跨 session 續接才使用 `session-handoff` skill 更新專案 `.codex/HANDOFF.md`——該 skill **只裝在 Codex 端**（`~/.agents/skills/`），Claude 端叫不到，Claude 的跨 session 續接靠 remember plugin 的 `.remember/` 與精選持久記憶。（2026-09-30 從 `rules/00-environment.md` 風險 1「修法」搬入；原文未改寫。）
 - **repo 文件＝制度層**：跨裝置、可 review，git 是同步機制（本系統即是）。自動事件史與精選記憶多半只在本機；長期制度、判準與可審查流程寫進本 repo。

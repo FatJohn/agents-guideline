@@ -14,6 +14,10 @@
 
 > 缺 log、repo 事實或環境量測時先補證據，不靠升級模型猜。（常駐區保留的判準已簡化為「缺證據先補證據」，此處保留原本列舉的三種證據類型：log、repo 事實、環境量測。）
 
+以下原句因 2026-09-30 依 `maintain-guideline` §5「合併重複」從 §1 移出（Codex 端 `sol_verifier` 在 `../codex/rules/10-dispatch-codex.md`、Claude 端顯式 `model: opus` 與升級要先問使用者在 `10-dispatch.md` §5 各有 canonical），原句保留：
+
+> **高風險驗收依平台而定**——Codex 用 `sol_verifier`／Sol high（`../codex/rules/10-dispatch-codex.md` §6「驗證語意」）；Claude 端驗收一律顯式 `model: opus`，升級要先問使用者（`10-dispatch.md` §5「驗證不自驗」）。
+
 ### 2026-09-30：同形重現訊號與設計審查入口
 
 事故形狀：兩個任務（一個寫入 await 期間切日期寫錯 state 的 race；一個 fromJson 例外未接住並加原始碼守門）的 worker＋verifier 跑到第三輪以上不收斂。

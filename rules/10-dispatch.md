@@ -7,8 +7,6 @@
 
 **Agent 工具的 `model` 參數**只接受 harness 每 session 注入的 alias enum（`haiku`／`sonnet`／`opus`／`fable`；2026-09-26 由 Agent 工具 schema 現查確認只有這四值，2026-08-30 首次記錄）；完整 model ID 與 `inherit` 只能寫在 agent frontmatter 的 `model` 欄。alias→實際型號的對照在 `../docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」——alias 會隨平台改版重新指向新一代同層模型，要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準。
 
-agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用範圍受模型與組織設定限制（見 `../docs/harness-facts.md`）。
-
 **執行者預設**：一般實作與文件產出使用 `worker`（Sonnet 5.5 層，2026-09-29 使用者決策，試用中）。
 呼叫時不帶 `model`，model 與 effort 由 `agents/worker.md` frontmatter 決定；Opus 備用車道為
 `worker-opus`（不帶 `model`，model 與 effort 由其 frontmatter 決定）。
@@ -19,13 +17,10 @@ agent frontmatter 的 effort 可設 `low`／`medium`／`high`／`xhigh`／`max`�
 - `Explore`——唯讀搜索，掃 repo、找檔案、答「哪裡有 X」。不能改檔。
 - `Plan`——出實作計畫、架構取捨。
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）；worker 升級或需要 opus／fable 時改派這個並顯式指定 model。
-- 本系統自帶 `worker`（一般程式／文件執行）與 `verifier`（獨立驗收）；派工前讀
-  `~/.claude/agents/<角色>.md` 合約。worker 不帶 `model`（Sonnet 5.5 層，model 與 effort 由 frontmatter 決定），verifier 顯式 `model: opus`，升 fable 見 §5。
-- `worker-opus`——備用車道，Opus 5.5/medium，合約同 worker；試用期回退或使用者指定時才用，
-  派工不帶 `model`。預設路由仍是 worker。
+- 本系統自帶 `worker`／`worker-opus`（呼叫方式見上方「執行者預設」）與 `verifier`（獨立驗收）；派工前讀
+  `~/.claude/agents/<角色>.md` 合約。verifier 顯式 `model: opus`，升 fable 見 §5。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
-- `claude-code-guide`——回答 Claude Code / API 本身的問題。不是每個 session 都有（`claude -p` 起的 session 曾缺它，機制未查明），以當下 Agent 工具列出的類型為準。
 
 ## 1. 雙軸判斷：context 成本 × 任務耦合
 
@@ -95,7 +90,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 **Subagent 回報：**
 
 - Subagent 只回**結論與證據**（檔案:行號、指令輸出關鍵行），不回原始內容傾倒。
-- 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接依 `00-environment.md` 風險 1「修法」。
+- 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接依 `../docs/memory-layers.md`「顯式交接檔」條。
 - 回報長度以 controller 下一步決策需要的資訊為準；大 diff、完整清單、全文等長產物落檔，回報附路徑與摘要（驗收的逐條判定屬決策資訊，留在回報內）。
 - 回報必須分級：**已驗證（附證據）／待 CI／未驗證**（鐵律一）。
 
