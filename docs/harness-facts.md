@@ -48,7 +48,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 - **主對話成本拆解**：69% 是 cache_read；context 中位 344K、P90 770K，>400K 的 request 占 62% 成本；最貴 3 個 session 占 82%；前兩名 context 中位 571K／674K、窗口內未 compact，第三名中位 293K、最大 494K、compact 1 次。連續唯讀工具 request（每段第一個以外）369 個、$84.45＝23.8%。subagent 回報中位 5.2K 字，全文留在主對話 context、每輪重讀，占位估 $72.19（20.4%，估算值）。
 - **compact 模擬**：「context 超過 T 就 compact 到約 90K」，T=200K 上界省 37%、T=300K 上界省 34%（上界：未計 compact 後重建 context 的成本與在途工作風險）。
 - **未驗證**：compact 時有在途背景 subagent，其回報是否仍正常送達主對話。
-- **subagent 寫報告檔會被擋**（2026-10-01，n=2，general-purpose）：用 Write 把報告寫到 scratchpad 時 harness 回「Subagents should return findings as text, not write report files」。觸發條件（[anthropics/claude-code#44657](https://github.com/anthropics/claude-code/issues/44657)，2026-10-01 查證、本機 2.1.286）：Agent 工具派出的 subagent 寫 `.md` 且檔名以 `report`／`summary`／`findings`／`analysis` 開頭（不分大小寫），與路徑、agent 類型無關；server 端開關，無 settings／環境變數可關。worker 改 repo 內其他檔名不受影響。要長產物落檔時，由 controller 從回報文字存檔，或讓 worker 寫進 repo 內有實際用途的路徑。
+- **subagent 寫報告檔會被擋**（2026-10-01，n=2，general-purpose）：用 Write 把報告寫到 scratchpad 時 harness 回「Subagents should return findings as text, not write report files」。觸發條件（[anthropics/claude-code#44657](https://github.com/anthropics/claude-code/issues/44657)，2026-10-01 查證、本機 2.1.286）：Agent 工具派出的 subagent 寫 `.md` 且檔名以 `report`／`summary`／`findings`／`analysis` 開頭（不分大小寫），與路徑、agent 類型無關；server 端開關，無 settings／環境變數可關。worker 改 repo 內其他檔名不受影響。要長產物落檔時，檔名改用不以這四字開頭的名稱（如 `out-<主題>.md`；2026-10-01 使用者同意此做法），或由 controller 從回報文字存檔。
 
 ## 被問到 model／effort 時怎麼答
 
