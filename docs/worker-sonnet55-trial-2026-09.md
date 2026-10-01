@@ -123,7 +123,8 @@
 
 - **去重**：以 requestId 去重，再算 request 數與成本。
 - **續用判定**：先剝 `<system-reminder>` 再判是否有第二個非空 user turn 或 SendMessage；不剝會把注入誤判成續用。
-- **verifier 輪次**：用 prompt regex（含「finding／修正／delta／第 N 輪」）分首輪與 delta；漏標的會被當首輪，結果只當上下界。regex 要同時認中文數字（「第二輪」「第三輪」），窗口 B 曾因此漏判 1 個；手動改判要在報告揭露並與 regex 口徑並列。
+- **verifier 輪次**：用 prompt regex（含「finding／修正／delta／第 N 輪」）分首輪與 delta；漏標的會被當首輪，結果只當上下界。regex 要同時認中文數字（「第二輪」「第三輪」），窗口 B 曾因此漏判 1 個；手動改判要在報告揭露並與 regex 口徑並列。**窗口 C 起門檻以手動口徑判定**：regex 含「修正／finding」會把首輪 brief（常寫「commit xxx（修正）」）誤判成 delta，窗口 C 腳本的 `common.manual_delta` 可重現窗口 B 的手動值（首輪 10/30、delta 3/9），regex 只當上下界。
+- **主對話直接改檔不只 Edit/Write**：還有 Bash（python heredoc、`sed -i`、`cat >`）。門檻口徑只數 Edit/Write；Bash 直接改程式檔另列揭露（下限，不計入門檻）。
 - **fresh vs fix**：同樣用 worker prompt 是否含「finding／修正／delta／第 N 輪」分。
 - **output_tokens 補估**：Opus 5.5 的 jsonl 只記串流開頭，窗口 A 每 request 補 +680。Sonnet 5.5 不直接沿用 +680，核對結果見下條。
 - **Sonnet 5.5 output_tokens 也少記（窗口 B 已核對）**：jsonl 中位 7 token 對可見 575 字元（Opus 5.5 為 121 對 458）；補估用 max(記錄值, 0.9×可見字元) 當上界，係數未校準；Sonnet 5.5 牌價沿用 sonnet 價為假設。**`sonnet` alias 解析綁 CLI 版本**：2.1.283 仍為 `claude-sonnet-5`、2.1.284 為 `claude-sonnet-5-5`，量 Explore／general-purpose sonnet 車道時逐 request 讀 `message.model`，不假設同一型號；worker 鎖完整 ID 不受影響。
@@ -131,7 +132,7 @@
 - **advisor**：只有 `usage.iterations[]` 的 `advisor_message` 有 usage，subagent 多數沒記，只能報下限。
 - **主比較口徑**：用同專案（project-a，或窗口 B 的主專案）worker 的中位數；全體只當上下界。任務較重的分段（如窗口 A 09-26 午後的 #17 P5、#58 Refit）要另分開看。
 - **計價**：同窗口 A 口徑（cache_write=2×in、相對價 in 1／cw 1.25／cr 0.1／out 5），Sonnet 5.5 牌價現查再套，不沿用 Opus 價。額度 % 才是實際負擔的量尺，API 牌價只當相對權重。
-- **腳本**：`parse.py`、`common.py`（價格、`OUTFIX=680`）、`an_worker.py`、`an_ver.py`＋`an_chain.py`、`an_wave.py`＋`an_agg.py`、`an_main.py`、`an_time.py`、`an_cost.py`、`an_advisor.py`、`an_slice.py`（從零切片牆鐘＝worker 牆鐘＋首輪 verifier 牆鐘；從零＝prompt 前 1500 字不含 finding／修正／delta／第 N 輪／OPEN／FAIL；掛接＝同 session、verifier 起點在 worker 起點到結束後 90 分內、路徑／PR 號／description 相似度最高，一對一貪婪配對）。腳本在 session scratchpad 暫存區，可能消失；消失時依本節口徑重寫，不必找原檔。
+- **腳本**：`parse.py`、`common.py`（價格、`OUTFIX=680`）、`an_worker.py`、`an_ver.py`＋`an_chain.py`、`an_wave.py`＋`an_agg.py`、`an_main.py`、`an_time.py`、`an_cost.py`、`an_advisor.py`、`an_slice.py`（從零切片牆鐘＝worker 牆鐘＋首輪 verifier 牆鐘；從零＝prompt 前 1500 字不含 finding／修正／delta／第 N 輪／OPEN／FAIL；掛接＝同 session、verifier 起點在 worker 起點到結束後 90 分內、路徑／PR 號／description 相似度最高，一對一貪婪配對）。腳本在 session scratchpad 暫存區，可能消失；消失時依本節口徑重寫，不必找原檔。窗口 C 的腳本：`extract.py`、`common.py`、`agents_lib.py`、`sec_agents.py`、`sec_edits.py`、`sec_design.py`、`s5_labels.py`、`run_all.sh`（同樣在 scratchpad 暫存，可能消失）。
 
 ## 額度追蹤
 
@@ -141,6 +142,7 @@
 |---|---|---|---|
 | 2026-09-29 10:47 | 9% | 約 15.8h | 試用起點（上次重置 09-28 19:00；這段主要是 Opus 5.5 worker＋本次 review 的 Fable 5.1） |
 | 2026-09-29 22:49 | 21% | 約 27.8h | 窗口 B 第一次量測點；10:47→22:49 共 12 個百分點，同期 API 等價 $297（不含 advisor）→ 1% ≈ $24.7 |
+| 2026-10-01 09:07 | 43% | 約 62.1h | 窗口 C 量測點；09-29 22:49→10-01 09:07 共 22 個百分點，同期 API 等價 $737（raw，不含 advisor）→ 1% ≈ $33.5；本腳本重跑窗口 B 為 $31.4，與上列 $24.7 口徑不同 |
 
 ## 評估門檻（事先訂定，2026-09-29 使用者採用 Fable 建議）
 
@@ -177,9 +179,55 @@
 - 混淆：任務混合（B 多為 project-b CI／守門小片，A 為 project-a 大片）、規則改良同日生效、僅一個密集白天、尾端驗收鏈截尾、質性分類僅 10 個且單人判讀。
 - 決定：2026-09-29 23:03 使用者回覆繼續試用、主觀感受比 Opus medium 快且品質 OK——當時 controller 回報的 Edit/Write 歸因是已撤回的「5 次 hotfix、其餘多為驗收後小修」；23:12 controller 以上方更正後的 4／6／3 時間線重新回報門檻觸發，**23:14 使用者確認仍繼續試用、多跑一些再評估**。下次在 project-a（或當期主專案）累積約 30 個 worker 後重判；（controller 建議）續盯主對話在 worker 交回後、驗收前的直接改檔，與 Sonnet 在難題（如 L38）是否需要升級。
 
+## 窗口 C 量測（2026-09-29 22:51～10-01 09:07，約 34.3h）
+
+- 樣本：窗口 C 34.27h，週額度 21%→43%（22 個百分點，無重置）；累積（B 起點 09-29 10:39～10-01 09:07）46.47h。主對話 10 session（project-c 3、project-a 2、project-d 2、project-b 1、project-e 1、project-f 1；累積 17 個）。subagent：worker（`claude-sonnet-5-5`）60、worker-opus（`claude-opus-5-5`）8、verifier 56（全 `claude-opus-5-5`）；Explore sonnet-5-5 13／sonnet-5 1、Plan opus-5-5 7／fable-5-1 1、codex-rescue 7（sonnet-5-5 外包殼）、general-purpose opus-5-5 6／sonnet-5-5 1。累積 worker 104、worker-opus 9（多的 1 個是 09-29 21:10 的 L38 round 2）、verifier 95。
+- **專案代號沿用上文，但窗口 C 的 project-b session（ee3b79b6）實際操作 project-c 的 codebase，與窗口 A 的 project-b 不是同一 codebase**；窗口 A 表裡也有 project-c，是否同一專案未核對。窗口 B 節的 project-b 也含同一個 session（L38），其餘 project-b session 的 codebase 未核對。
+- 口徑校準（本窗口的腳本重跑窗口 B）：首輪 OPEN 10/30、delta OPEN 3/9、主對話 Edit/Write 13、worker 44 與 B 節相同；每片牆鐘 18.1（n=21）對 B 節 18.8（n=20），接近；regex 口徑重現不出（重跑為首輪 2/17、delta 11/22，B 節為 11/31、2/8）。原因見「量法」節：regex 含「修正／finding」會把首輪 brief 判成 delta，所以窗口 C 起門檻以手動口徑判定，regex 並列當上下界。
+
+| 門檻 | A | B | C | 累積（B＋C） | 觸發？ | 樣本 |
+|---|---|---|---|---|---|---|
+| 首輪 OPEN >62% | 52%（n=124） | 手動 10/30＝33% | 手動 19/41＝46%（regex 8/14） | 手動 29/71＝41%（OPEN＋INCONCLUSIVE 31/71＝44%；regex 10/31＝32%） | 否 | C n=41、累積 n=71（已超過 n≥30） |
+| delta OPEN >25% | 17%（n=41） | 手動 3/9＝33% | 手動 7/15＝47%（regex 18/42＝43%） | 手動 10/24＝42%（regex 29/64＝45%） | **觸發**（手動、regex 兩個口徑都 >25%）；C 的 7 個 OPEN 有 4 個來自 L40 同一條 ≥3 輪鏈，扣除後 3/11＝27% | C n=15、累積 n=24 |
+| 主專案 worker 工具中位 >55 | project-a 36.5 | project-a 31.5 | project-c 27（n=31）；project-a 38.5（n=14）；project-b 49（n=3） | project-a 37（n=24）；project-b 33；project-c 28 | 否 | project-a C n=14、累積 n=24；project-b 在 C 實際是 project-c 的 codebase（見上） |
+| 每片牆鐘 +30%（門檻：全體 >35.0） | 全體 26.9 | 全體 18.8 | 全體 41.0（n=23）；去 3 個零相似錯配後 41.7（n=20）；只看 Sonnet 片 27.1（n=18）／去錯配 41.0（n=15） | 全體 20.7（n=44） | **C 全體觸發，Sonnet 子集邊界**（27.1 未達、去錯配後 41.0 超過）；累積否 | 配對受錯配影響大（見「混淆」）；定義同窗口 A 的從零切片，兩段直接相加屬下限 |
+| 主對話 Edit/Write 速率 ≥2×A | 12 次／4.9 天 | 13 次／12.2h | 6 次／34.3h（本窗口門檻 6.99） | 19 次／46.5h（門檻 9.48） | C 否（差 1 次）；**累積觸發** | C 6 次（另 1 筆在 scratchpad 不計）、累積 19 次 |
+
+- 主對話直接改程式／設定檔（C）：Edit/Write 7 筆（1 筆 scratchpad 不計）＝驗收後小修 5、worker 交回後→首輪前 1（project-b 09-29 23:46，L38 v2 測試檔頭註解，39 秒後派首輪 verifier）、hotfix 0。**另有 Bash 直接改程式檔 16 次（下限，不計入門檻）**：驗收後小修 7、rebase／合併衝突 5、hotfix 2、worker 交回後→首輪前 2；探針（突變後還原）11 次與誤判 5 次已排除。其中 project-b 09-30 14:58 一次改的是 `.github/actions/...` 的註解——CI 設定依 `../rules/10-dispatch.md`「Controller 工作迴圈」不屬小修例外。Edit/Write＋Bash 合計約 22 次。
+- 「worker 交回後→首輪前」：C 共 3 次（Edit/Write 1＋Bash 2），B 為 6 次（B 節 fresh verifier 實查，僅 Edit/Write；本窗口腳本分桶重算 B 為 4 次，兩者差異的原因未核對，只能當量級參考）。
+- worker／worker-opus（工具與牆鐘取第一段；$ 為 API 牌價等價，raw＝jsonl 記錄值、cor＝補估 output_tokens 後；兩者任務難度不同，**不可直比**）：
+
+| 群組 | n | 工具 中位／P75 | 牆鐘中位（分） | $ 中位 raw／cor | 續用 |
+|---|---|---|---|---|---|
+| C worker 全體 | 60 | 27／54.5 | 12.0 | 1.2／1.6 | 8/60 |
+| C worker project-c | 31 | 27／68 | 12.0 | 1.3／1.6 | 3/31 |
+| C worker project-a | 14 | 38.5／55.5 | 19.6 | 2.0／2.5 | 1/14 |
+| C worker-opus | 8 | 64.5／75.8 | 29.4 | 8.6／10.0 | 5/8 |
+| 累積 worker | 104 | 29／49.2 | 10.7 | 1.3／1.9 | 17/104 |
+| 累積 worker-opus | 9 | 58 | — | 8.0 | — |
+
+- 成本（C，API 牌價等價；advisor 不在內，量得到的下限 11 次 $19.65）：
+
+| 角色 | req | $ raw | $ cor |
+|---|---|---|---|
+| 主對話（opus-5-5） | 1262 | 354.64 | 376.10 |
+| worker（sonnet-5-5） | 2312 | 154.79 | 200.79 |
+| verifier | 1365 | 104.89 | 128.09 |
+| worker-opus | 624 | 73.91 | 84.52 |
+| 其他 | 688 | 48.84 | 60.68 |
+| 合計 | 6251 | 737.07 | 850.18 |
+
+- 額度換算：22 個百分點，1% ≈ $33.50（raw）／$38.64（cor）；腳本另算的 doc 牌價口徑為 $18.98／$22.78，兩組口徑差異未展開。**本腳本重跑窗口 B 為 $31.4／$37.4，與 C 相近；B 節的 $24.7 是舊腳本口徑，重現不出。** 窗口 A 沒有額度 %，無法用同口徑重算 Opus 期，所以**額度每 % 換算看不出 Sonnet 期與 Opus 期差異**。主對話占 48%（raw 口徑 354.64／737.07），仍是最大宗。
+- 設計審查（`../rules/10-dispatch.md`「Controller 工作迴圈」第 1 步的不變量前置、Plan＋codex 雙方案；09-30 10:03 起）：成對 6 組（5 題）。4 題是真案例（L41、L43／44／46、L41C 兩組〔第一組被使用者中斷〕、PR625），1 題擴大到 project-a 新功能設計（brief 有不變量，不算誤觸發）；批次機械改檔誤觸發 0。L41 系列的雙審查是使用者交接文明確要求，不是 controller 自行判斷觸發。
+- worker-opus 派工原因（另一 agent 判讀 9 筆，累積）：Sonnet 失敗後換車 2（L38 round 2、L38 v2）、使用者提問 1（L40）、預判難題直接派 3（L42 F「需要推理的基礎工作」、L42 B「狀態流向最複雜」、T10「都需要判斷」）、無理由 3（L40 v2、PR625 兩筆）。**0 筆走 `../rules/10-dispatch.md` §4 的 general-purpose／opus，0 筆要求先建立 root cause。** 誘因文字三處：`../agents/worker.md` description「需要 Opus 時改派 `worker-opus`」、`../rules/10-dispatch.md` §0「Opus 備用車道」、本檔「回退方式」節「臨時單次改派」。`worker.md` effort 為 xhigh、`worker-opus.md` 為 medium，已核對。
+- 首輪 OPEN 的 FAIL 類型（C，19 件；**人工判讀，未經 fresh 驗收**）：主類 A1 測試沒守住交付 6、A2 漏改／修一半／迴歸 8、B 可證偽宣稱失準 3、C 範圍／契約 2、D 環境／流程 0、E 其他 0；含次類計：A1 7、A2 8、B 8、C 3、D 1。A1 多為 verifier 突變存活；A2 集中在生命週期／時序類票。本段 A2、C 的定義是窗口 C 腳本的標籤，與「質性 review」節同名類別（A2 為對抗性形狀或守門檢查器有洞、C 為真 bug）不同，不可與窗口 A／B 的同名類別直比。
+- ≥3 輪鏈：L38 4 輪（第 4 輪由 worker-opus v2 新設計後 CONVERGED）；L40 7 輪（第 3 輪後使用者同意續驗，輪數重計；第 7 輪 Plan（fable）＋Codex 重設計後 v2 首驗仍 OPEN）。
+- 混淆：題目組成換成生命週期／時序硬題；每片牆鐘的配對受錯配影響大；delta OPEN 集中在 L40；主對話改檔有一大塊走 Bash（上方已揭露）；project-d（本 repo 的 meta 工作）混在樣本，扣除後首輪 17/37＝46%，比例不變；Sonnet output 少記、advisor 只有下限、Codex 本體成本不在 jsonl；C 有活動的時數約 21h／34.27h。
+- 決定：2026-10-01 09:35 使用者看完窗口 C 決定繼續試用；同日 worker-opus 定位改為「設計已核定、但實作須同時推理多條執行路徑或時序時可直接用，不作為失敗升級路徑」（`../agents/worker.md`、`../agents/worker-opus.md` description 與 README）。
+
 ## 回退方式
 
-- **臨時單次改派**：派 `worker-opus`（不帶 `model`，model 與 effort 由其 frontmatter 決定）。適用於某個任務明顯需要較強推理，不必動制度檔。
+- **臨時單次改派**：派 `worker-opus`（不帶 `model`，model 與 effort 由其 frontmatter 決定）。適用條件依 `../agents/worker-opus.md` description（2026-10-01 起：設計已核定、但實作須同時推理多條執行路徑或時序時，或使用者指定）；失敗後升級不走這條，依 `../rules/10-dispatch.md` §4。不必動制度檔。
 - **整體回退**：要改 `../agents/worker.md` frontmatter 與 `../rules/10-dispatch.md` §0。這屬於修改既有判準，**要使用者明確同意**才能動手，worker 與 controller 都不得自行決定。
 
 ## 質性 review（Fable 5.1）

@@ -1,6 +1,6 @@
 ---
 name: worker-opus
-description: "備用執行者（Opus 5.5，effort 由本檔 frontmatter 設為 medium），合約同 `worker`；Sonnet 5.5 試用期的回退車道或使用者指定時才用，預設路由是 `worker`。前提是 controller 已核定完整 plan。派工時不帶 `model` 參數（由本檔 frontmatter 決定）。"
+description: "備用執行者（Opus 5.5，effort 由本檔 frontmatter 設為 medium），合約同 `worker`；預設路由仍是 `worker`；只在設計已核定、但實作須同時推理多條執行路徑或時序時，或使用者指定時才用；不作為失敗升級路徑（失敗依 `rules/10-dispatch.md` §4）。前提是 controller 已核定完整 plan。派工時不帶 `model` 參數（由本檔 frontmatter 決定）。"
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: claude-opus-5-5
 effort: medium
