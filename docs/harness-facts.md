@@ -35,6 +35,21 @@
 
 alias 會隨平台改版重新指向新一代同層模型——要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準，不引用本表。
 
+## 主對話 context 大小怎麼量、cache 何時過期（2026-10-01 實測）
+
+> 窗口 C（2026-09-29 22:51～10-01 09:07）主對話 Opus 5.5 的 session jsonl 量測：1,262 request、$354.64（API 等價）。用途：`../rules/00-environment.md` §1「修法」的 compact 時機，與 `../rules/10-dispatch.md` §3「Subagent 回報」的字數預設。
+
+- **量主對話自己的 context**（2026-10-01 實測可跑，回 175154）：session-id 取 system prompt 裡 scratchpad 路徑倒數第二段的 UUID（末段是 `scratchpad`），再跑下列指令；三項相加與本檔前段 `subagent_tokens` 那條同一算法，取最後一筆 assistant usage。macOS 沒有 `tac`，用 `tail -r`。
+
+  ```
+  tail -r ~/.claude/projects/*/<session-id>.jsonl | jq -c 'select(.type=="assistant" and .message.usage!=null) | .message.usage | (.input_tokens+.cache_read_input_tokens+.cache_creation_input_tokens)' | head -1
+  ```
+- **prompt cache 為 1h TTL**：窗口 C 的 cache_write 全為 1h、5m 為 0。request 間隔 5–60 分的 137 次全部未過期；間隔 >60 分（71–501 分）的 9 次全部整段重寫，cache_write $40.68（含 cache_read 的 request 總額約 $41）。cache 完整重寫合計 11 次、$45.53；ToolSearch 載入 deferred tool 會改 prefix 而觸發重寫，2 次、$4.52（$45.53 與 $4.52 都是 request 總額口徑）。
+- **主對話成本拆解**：69% 是 cache_read；context 中位 344K、P90 770K，>400K 的 request 占 62% 成本；最貴 3 個 session 占 82%；前兩名 context 中位 571K／674K、窗口內未 compact，第三名中位 293K、最大 494K、compact 1 次。連續唯讀工具 request（每段第一個以外）369 個、$84.45＝23.8%。subagent 回報中位 5.2K 字，全文留在主對話 context、每輪重讀，占位估 $72.19（20.4%，估算值）。
+- **compact 模擬**：「context 超過 T 就 compact 到約 90K」，T=200K 上界省 37%、T=300K 上界省 34%（上界：未計 compact 後重建 context 的成本與在途工作風險）。
+- **未驗證**：compact 時有在途背景 subagent，其回報是否仍正常送達主對話。
+- **subagent 寫報告檔會被擋**（2026-10-01，n=2，general-purpose）：用 Write 把報告寫到 scratchpad 時 harness 回「Subagents should return findings as text, not write report files」；觸發條件（路徑、檔名或角色）未查明。要長產物落檔時，由 controller 從回報文字存檔，或讓 worker 寫進 repo 內有實際用途的路徑。
+
 ## 被問到 model／effort 時怎麼答
 
 > 2026-08-30 從 `rules/10-dispatch.md` §3 搬入。理由：這段服務的是「使用者問起時怎麼答」這個罕見場景，不是每個 session 都要的；§3 的判準（報呼叫參數、註明 runtime 未驗證）留在常駐區，本節只是細節。內容原文未改寫。
