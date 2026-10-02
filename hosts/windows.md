@@ -2,7 +2,7 @@
 
 > 探測日：2026-08-05；2026-09-20 複查工具鏈與 symlink。跨機器規則與 `<REPO>` 對照在 `../rules/05-hosts.md`，工具鏈明細與 os error 448 的根因、實驗、修法在 `../docs/hosts-detail.md`。
 
-- **`python3` 沒有別名，只有 `python`**——README 探測清單第 3 項的指令直接照抄會誤判 Python 未安裝
+- **`python3` 沒有別名，只有 `python`**——`../docs/new-host.md` 探測清單第 3 項的指令直接照抄會誤判 Python 未安裝
 - 專案位置：個人專案放在 `D:\Projects\FatJohn\`（2026-09-23 起；原本在 `E:\` 根層，E: 槽已不存在）
 - 本系統 repo：`D:\Projects\FatJohn\agents-guideline`。**全域設定是 `../scripts/sync-profile.py` 同步過去的實體檔複本**（2026-09-20 起，`~/.claude`／`~/.codex`／`~/.agents` 三處；Codex agent TOML 另由 `sync-codex-agents.py` 管）；正解是用 admin 建 symlink，下次重建時改回去。
   - **改了 repo 不會自動生效**——動完 `rules/`、`hosts/`、`rubrics/`、`skills/`、`agents/`、`CLAUDE.md`、`AGENTS.md` 要跑 `python "D:/Projects/FatJohn/agents-guideline/scripts/sync-profile.py" --apply --update`（加 `--prune` 清掉已 sunset 的舊項），否則你讀到的規則和跑起來的規則會不一樣。

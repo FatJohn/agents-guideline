@@ -6,7 +6,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 # 系統維護協議
 
 > 讀者：要維護本 repo、`~/.claude/`、`~/.codex/`、任何專案 CLAUDE.md 或 AGENTS.md 的 session。
-> 本系統的安裝形狀**依機器而異**：多數機器是 symlink（Claude Code 裝到 `~/.claude/`；Codex 的 `AGENTS.md` 與 skills 也是 symlink），`codex/agents/*.toml` 一律依 README 的同步器安裝成 `~/.codex/agents/` 實體檔；**不能提權的機器（見 `<REPO>/hosts/windows.md`）整套都是實體檔複本**——Windows 上非提權建立的 symlink 開檔會回 `os error 448`，用 admin 重建即可，不是那台機器不能用 symlink。兩種都由使用者定期 review 後 commit。
+> 本系統的安裝形狀**依機器而異**：多數機器是 symlink（Claude Code 裝到 `~/.claude/`；Codex 的 `AGENTS.md` 與 skills 也是 symlink），`codex/agents/*.toml` 一律依 `<REPO>/docs/install.md` 的同步器安裝成 `~/.codex/agents/` 實體檔；**不能提權的機器（見 `<REPO>/hosts/windows.md`）整套都是實體檔複本**——Windows 上非提權建立的 symlink 開檔會回 `os error 448`，用 admin 重建即可，不是那台機器不能用 symlink。兩種都由使用者定期 review 後 commit。
 > 下文以 `<REPO>` 代稱 repo 的本機絕對路徑——它依機器而異。**先看 context 裡的「# 本機事實」段（Claude 端由全域 CLAUDE.md 匯入 `hosts/<key>.md`）或直接讀 `<REPO>/hosts/<key>.md`（Codex 端）；沒有就查 `<REPO>/rules/05-hosts.md` 的 `<REPO>` 對照表**。都沒有才退而讀全域入口的 symlink target：Claude 用 `readlink ~/.claude/CLAUDE.md`，Codex 用 `readlink ~/.codex/AGENTS.md`（PowerShell 用 `(Get-Item …).Target`），target 的目錄部分就是 `<REPO>`——**但這招只在 symlink 安裝的機器有效，複本安裝的機器會回空**。
 > 本檔在 `skills/` 底下而非 `rules/`，所以**不會每 session 自動載入**——這是刻意的：維護協議只在真的要動系統時才需要在 context 裡。
 
@@ -36,7 +36,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 3. 驗證：派 fresh-context verifier 做 read-back；兩端都用 `verifier`——**Claude 端不因高風險或動到憲法／判準就升檔**，一律顯式帶 `model: opus`（與 `<REPO>/agents/verifier.md` frontmatter 一致；升 `model: fable` 的訊號與授權要求見 `<REPO>/rules/10-dispatch.md` §5「驗證不自驗」）；Codex 端高風險仍派 `sol_verifier`（刻意分版）。驗收條件至少包含「與其他 rules 檔無矛盾」「引用的路徑/指令實際存在」。
 4. 提醒使用者 repo 有未 commit 的變更（不要自行 commit）。
 
-**新增或修改 skill／agent／rubric 檔時多一步**：在 repo 加檔**不等於**任何機器已安裝——Codex agent TOML 依平台執行 README 的 `sync-codex-agents.py --apply`（既有差異加 `--update`），read-back regular bytes 與 named runtime；AGENTS、skills 與 Claude 其餘 symlink 仍照 README 安裝段落確認。漏掉這步，規則會指向一個當下根本叫不出來的名字。
+**新增或修改 skill／agent／rubric 檔時多一步**：在 repo 加檔**不等於**任何機器已安裝——Codex agent TOML 依平台執行 `<REPO>/docs/install.md` 的 `sync-codex-agents.py --apply`（既有差異加 `--update`），read-back regular bytes 與 named runtime；AGENTS、skills 與 Claude 其餘 symlink 仍照 `<REPO>/docs/install.md` 安裝段落確認。漏掉這步，規則會指向一個當下根本叫不出來的名字。
 **複本安裝的機器還要多一步**：連 `rules/`、`hosts/`、`rubrics/`、`CLAUDE.md`、`AGENTS.md` 這些平常改完即時生效的檔，也要跑 `python <REPO>/scripts/sync-profile.py --apply --update`，否則 repo 改了但跑起來的還是舊的——而且兩邊都讀得到、都不報錯，`git status` 也乾淨。
 
 ### 本機設定安全
@@ -83,7 +83,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 - **驗證方法類判準：判準留常駐、細節進 docs**——「怎麼驗才算驗到」這類判準（各工具的檢查指令、觸發詞清單、失敗現場）一律寫進 `<REPO>/docs/debug-environment-first.md`，`<REPO>/rules/20-judgment.md` §2 只留一句判準、一組正反例與指向。
   理由：常駐區膨脹的主因常是落地模式不一致（把細節含例整段塞進常駐區），不是判準太多。
 - **只在特定情境才用得到的內容不該放 `rules/`**：`rules/` 是無條件常駐區，付的是每個 session 的固定成本。維護協議、驗收 rubric、封存教訓、派工範例都屬於「用到才讀」，放 `skills/`／`rubrics/`／`docs/`。
-- **單機專屬事實不進 `rules/`，放 `<REPO>/hosts/<key>.md`**：由全域 CLAUDE.md 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**（README 安裝段各連一個；`sync-profile.py` 依平台選檔，`--host-key` 可覆寫）；`rules/05-hosts.md` 只留跨機器規則、`<REPO>` 對照與缺檔哨兵。匯入內容與 rules 同一快取層、`worker`／`general-purpose` 都看得到（`Explore`／`Plan` 本來就看不到 rules），缺檔**靜默略過**——所以 05-hosts 的哨兵句不能拿掉。實測事實見 `<REPO>/docs/harness-facts.md`「常駐內容對 subagent 的可見性」。
+- **單機專屬事實不進 `rules/`，放 `<REPO>/hosts/<key>.md`**：由全域 CLAUDE.md 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**（`<REPO>/docs/install.md` 安裝段各連一個；`sync-profile.py` 依平台選檔，`--host-key` 可覆寫）；`rules/05-hosts.md` 只留跨機器規則、`<REPO>` 對照與缺檔哨兵。匯入內容與 rules 同一快取層、`worker`／`general-purpose` 都看得到（`Explore`／`Plan` 本來就看不到 rules），缺檔**靜默略過**——所以 05-hosts 的哨兵句不能拿掉。實測事實見 `<REPO>/docs/harness-facts.md`「常駐內容對 subagent 的可見性」。
   理由：任一 session 只用得到本機那段，另一台機器的段落純浪費，且每派一個 worker／verifier 再付一次；`paths` frontmatter 實測只在 Read 到相符檔之後才載入、絕對路徑 glob 不匹配，做不了機器分流。
 - **新增、改寫或刪除 `rules/10-dispatch.md`／`rules/20-judgment.md` 的判準內容，觸發條件只有兩種**：(1) 使用者直接要求**修改判準**——只要求 review 不算，review 結果列給使用者，使用者對其中某項說「改」才算該項觸發；(2) `<REPO>/rules/50-lessons.md` 出現新條目，且該條目寫明情境發生在**本 repo 以外的專案 session**（條目標專案名，或標 `[global]` 但情境句寫出是哪個專案的工作）；本 repo 自身工作產生的教訓，要依 §3「踩第二次」才算觸發。**主動對 rules 做 review、瘦身掃描**這類沒有事故在前的「可以更好」不算觸發，登記為候選、等下一次觸發時一併處理。候選（含使用者要求 review 後未表態要改的項目）登記在本 repo 的 GitHub issue，標題前綴 `candidate:`；開之前先 `gh -R FatJohn/agents-guideline issue list --search 'candidate:'` 查重，已有就補在該 issue 下，不進 `rules/`。
   **不受本條限制**（照原有流程直接做）：(a) 已觸發的修改，其驗收輪次中 verifier 的發現——不論 `OPEN`、`INCONCLUSIVE` 或 `PROSE-ONLY`——照 `<REPO>/rules/20-judgment.md` §2 停止端處理（`OPEN` 依風險分流低風險機械結案或 fresh delta、`INCONCLUSIVE` 先補證、`PROSE-ONLY` 修完 read-back 後停止）；(b) 搬移或改名後的路徑更新與斷鏈修正（本檔 §6）；(c) `00`／`05` 的事實更新。本條只管**要不要開一輪修改**，不管已開的那一輪怎麼收。

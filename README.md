@@ -1,317 +1,66 @@
-# agents-guideline — 給 AI coding agent 的長期工作制度
-
-一套裝進 `~/.claude/` 或 `~/.codex/` 就生效的工作系統：模型調度規則、判斷準則、驗收 rubric、驗收 agent、維護協議。目標：讓不同 coding agent 在這個環境都能穩定產出可驗證的工作品質。
-
-設計背景：2026-07-06 由高階模型（Fable 5）一次性建立，供之後所有 session 長期沿用。結構借鏡自 `goad-dot-claude`；機器差異隔離在 `hosts/<key>.md`（每台機器只裝自己那份；macOS 主力機＋Windows 桌機，新機器由 AI 探測建檔，`<REPO>` 對照表在 `rules/05-hosts.md`）。
-
-寫作原則（2026-07-25 依 [Claude 5 世代的 context engineering 指南](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models) 修正）：**寫這個環境的 gotcha 與授權邊界，不寫通用做事方法**。模型自己就會的判斷不寫成決策樹；自我文件化的介面（agent 定義）不附填空範例；同一條規則只留一個 canonical 位置；只有每次開工都需要的內容放進常駐的 `rules/`。原則是「規則越少代表模型越強」，不是「規則越多越安全」。
-
-## 安裝 Claude Code（macOS／Linux，symlink 版，repo 即唯一事實來源）
-
-> Windows 用 PowerShell 版，見下方「安裝（Windows／PowerShell）」。
-> `REPO` 依機器而異，各機器的實際位置見 `rules/05-hosts.md`。
-
-```bash
-# 備份既有設定
-cp -r ~/.claude ~/.claude.backup-$(date +%F) 2>/dev/null
-
-REPO=~/Projects/FatJohn/agents-guideline   # macOS 主力機；其他機器見 rules/05-hosts.md
-mkdir -p ~/.claude/agents ~/.claude/skills
-# hosts/<key>.md 只裝本機那份（主力 Mac 是 macos.md；其他機器換成自己的 key），CLAUDE.md 用 @~/.claude/host-facts.md 匯入
-for pair in \
-  "CLAUDE.md:$HOME/.claude/CLAUDE.md" \
-  "hosts/macos.md:$HOME/.claude/host-facts.md" \
-  "rules:$HOME/.claude/rules" \
-  "rubrics:$HOME/.claude/rubrics" \
-  "skills/maintain-guideline:$HOME/.claude/skills/maintain-guideline" \
-  "skills/create-pr:$HOME/.claude/skills/create-pr" \
-  "skills/parallel-dispatch:$HOME/.claude/skills/parallel-dispatch"; do
-  src="$REPO/${pair%%:*}"; dst="${pair#*:}"
-  if [ -e "$dst" ] || [ -L "$dst" ]; then
-    echo "略過（已存在，需手動處理）：$dst"
-  else
-    ln -s "$src" "$dst"
-  fi
-done
-
-for agent in worker worker-opus verifier; do
-  src="$REPO/agents/$agent.md"; dst="$HOME/.claude/agents/$agent.md"
-  if [ -e "$dst" ] || [ -L "$dst" ]; then
-    echo "略過（已存在，需手動處理）：$dst"
-  else
-    ln -s "$src" "$dst"
-  fi
-done
-```
-
-指令可重跑（已存在就略過不覆蓋）。若「已存在」的是你自己的舊全域 CLAUDE.md，手動把本 repo 的路由表與鐵律段落合併進去，不要直接覆蓋。
-
-裝完驗證本機事實真的被匯入（`@import` 缺檔是**靜默略過**，不會報錯）：`claude -p --allowed-tools "" <<< '不准用工具，引用 context 裡「# 本機事實」那段的標題與 hostname'`——回不出標題就是 `~/.claude/host-facts.md` 沒連上，或 CLAUDE.md 少了 `@~/.claude/host-facts.md` 那行。
-
-symlink 的好處：session 依規則附加教訓、更新事實時直接改到 repo，git diff 一目了然，由使用者 review 後 commit。若遇到不跟隨 symlink 的工具，改用 `cp` 安裝並在每次改 repo 後重新複製。
-
-⚠️ **`~/.claude/rules/` 是無條件常駐區**：Claude Code 會把該目錄下無 `paths` frontmatter 的 `*.md` 每 session 全文載入，付的是每個 session 的固定 context 成本。所以只有「每次開工都需要」的內容放 `rules/`；只在特定情境才用得到的長內容放 `skills/`（維護協議）、`rubrics/`（驗收判準）或 `docs/`（封存與情境化參考），這三個目錄不會自動載入。`~/.claude/rubrics` 雖然裝法與 `rules/` 相同（symlink 或實體檔複本），但 `rules/` 才是 Claude Code 的 memory 目錄，`rubrics/` 不會被自動載入。
-
-### Claude Code permissions 要和鐵律二對齊
-
-`CLAUDE.md` 是 advisory context，不是 permission gate。`~/.claude/settings.json` 的全域 allowlist 不要放 `Bash(git push:*)`、`Bash(gh pr:*)` 或 `Bash(gh api:*)` 這類同時涵蓋唯讀與對外寫入的 wildcard；否則 push、merge 或任意 GitHub API 寫入可能不會出現逐次權限確認。只預先允許可明確判定為唯讀的子命令，例如 `git status`／`git diff`／`git log` 與 `gh pr view`／`gh pr checks`／`gh pr diff`。需要零例外硬擋時使用 `PreToolUse` hook 驗證 Bash command；不要把「規則文字通常會被遵守」當成 deterministic enforcement（見 [Anthropic 的 steering 指南](https://claude.com/blog/steering-claude-code-skills-hooks-rules-subagents-and-more)）。本 repo 不管理 `settings.json`，新機器安裝後要另行 audit。
-
-## 安裝（Windows／PowerShell）
-
-> ⚠️ **這一段要用系統管理員的 PowerShell 跑。**
-> Windows 在**建立** reparse point 的當下就依建立者的 token 蓋信任等級：非提權建的是 Level 1，啟用 RedirectionTrust 的行程一律拒絕走訪，回 `ERROR_UNTRUSTED_MOUNT_POINT`（os error 448）；admin 建的是 Level 2，誰都讀得到。非提權裝的話連結會全部建得起來、`LinkType`／`Target` read-back 也全綠，但 Claude Code 與 Codex 讀不到任何全域設定——「安裝全綠＋完全失效」。
-> 2026-09-20 在 `FatJohn-PC` 上實測確認（同一個目標檔，admin 建的讀得到、非 admin 建的 448）。Developer Mode 只決定「能不能建」，不決定「建出來能不能用」。
-> **裝完一定要實際讀一個檔驗證**（`Get-Content "$HOME\.claude\CLAUDE.md" -TotalCount 1`），不要只查 `LinkType`。不能提權的機器改用下一節的實體檔同步。
-
-一次裝好 Claude Code 與 Codex 兩側。**用系統管理員的 PowerShell 跑**（理由見上方警告）。Developer Mode 只是讓非提權也「建得起來」，建出來的是不受信任的 Level 1 連結，所以開不開 Developer Mode 都不影響這裡——提權才是關鍵。
-
-```powershell
-$REPO = 'D:\Projects\FatJohn\agents-guideline'   # 本機 repo 位置；其他機器見 rules/05-hosts.md
-
-# 備份會被取代的既有設定（只備份實際衝突的檔案，不整包複製 ~/.claude——裡面有大量 cache/sessions）
-# 兩道保護缺一不可，否則同日重跑會用 symlink 蓋掉第一次跑時保存的那份真備份（$stamp 同一天相同），
-# 使用者的原始設定永久消失，而事後 read-back 只查 LinkType，25 條連結照樣全綠、看不出來。
-$stamp = Get-Date -Format 'yyyy-MM-dd'
-foreach ($f in "$HOME\.claude\CLAUDE.md", "$HOME\.codex\AGENTS.md") {
-  $i = Get-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue
-  if (-not $i) { "無需備份（不存在）：$f"; continue }
-  if ($i.LinkType -eq 'SymbolicLink') { "已是 symlink，不重複備份：$f"; continue }   # 保護一：已安裝過就不動
-  $bak = "$f.bak-$stamp"
-  if (Get-Item -LiteralPath $bak -Force -EA SilentlyContinue) { "備份已存在，停手請自行處理：$bak"; continue }  # 保護二：不覆蓋既有備份
-  Move-Item -LiteralPath $f $bak      # 刻意不加 -Force
-  "已備份：$f -> $bak"
-}
-
-function Link-One($src, $dst) {
-  # 用 Get-Item -Force 而非 Test-Path：斷掉的 symlink 在 Test-Path 會回 False，會誤判成「不存在」而覆蓋失敗
-  if (Get-Item -LiteralPath $dst -Force -ErrorAction SilentlyContinue) { "略過（已存在，需手動處理）：$dst"; return }
-  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst) | Out-Null
-  New-Item -ItemType SymbolicLink -Path $dst -Target $src | Out-Null
-  "已連結：$dst -> $src"
-}
-
-# Claude Code
-Link-One "$REPO\CLAUDE.md"                 "$HOME\.claude\CLAUDE.md"
-Link-One "$REPO\hosts\windows.md"          "$HOME\.claude\host-facts.md"   # 本機那份；其他機器換 hosts\<key>.md
-Link-One "$REPO\rules"                     "$HOME\.claude\rules"
-Link-One "$REPO\rubrics"                   "$HOME\.claude\rubrics"
-Link-One "$REPO\skills\maintain-guideline"       "$HOME\.claude\skills\maintain-guideline"
-Link-One "$REPO\skills\create-pr"                "$HOME\.claude\skills\create-pr"
-Link-One "$REPO\skills\parallel-dispatch"        "$HOME\.claude\skills\parallel-dispatch"
-foreach ($a in 'worker','worker-opus','verifier') {
-  Link-One "$REPO\agents\$a.md" "$HOME\.claude\agents\$a.md"
-}
+# agents-guideline — a long-lived working system for AI coding agents
 
-# Codex
-Link-One "$REPO\AGENTS.md" "$HOME\.codex\AGENTS.md"
-Link-One "$REPO\codex\skills\session-handoff"    "$HOME\.agents\skills\session-handoff"
-Link-One "$REPO\skills\create-pr"                "$HOME\.agents\skills\create-pr"
-Link-One "$REPO\skills\maintain-guideline"       "$HOME\.agents\skills\maintain-guideline"
-Link-One "$REPO\skills\parallel-dispatch"        "$HOME\.agents\skills\parallel-dispatch"
+English | [繁體中文](README.zh-TW.md)
 
-# Codex agent TOML：先預覽，再寫入實體 regular files
-python "$REPO\scripts\sync-codex-agents.py" --destination "$HOME\.codex\agents"
-python "$REPO\scripts\sync-codex-agents.py" --destination "$HOME\.codex\agents" --apply
-```
+> **Language note (English README only).** The rules, skills, agent definitions and docs in this repo are written in Traditional Chinese (Taiwan usage). If you read English, ask your own AI agent to translate them into an English copy before you adopt them, and have it keep file names, paths and quoted section-title citations (written with 「」 in the originals) verbatim, or the cross-file references will break. This README is self-contained: the core concepts below cover the system's design, so you can follow it without reading Chinese.
 
-指令可重跑：連結部分已存在就略過不覆蓋，備份部分已安裝過就整段跳過（見上方兩道保護）。Codex agent TOML 由同步器寫成實體 regular files；read-back 驗證時只確認 Claude／AGENTS／skills 的連結，agent TOML 另看同步器輸出與檔案 bytes：
+## Core concepts
 
-```powershell
-Get-ChildItem "$HOME\.claude","$HOME\.claude\agents","$HOME\.claude\skills","$HOME\.codex","$HOME\.codex\agents","$HOME\.agents\skills" -Force |
-  Where-Object LinkType | Select-Object FullName, LinkType, @{n='Target';e={$_.Target}}
-```
+### Positioning
 
-Windows 專屬注意：
+A working system that takes effect once installed into `~/.claude/` or `~/.codex/`: model-dispatch rules, judgment criteria, acceptance rubrics, an acceptance agent, and a maintenance protocol. Goal: let different coding agents produce verifiable work at a steady quality in this environment.
 
-- **目錄可用 symlink 或 junction，檔案只能用 symlink**——`~/.claude/CLAUDE.md` 這種跨磁碟的檔案不能用 hardlink（hardlink 不可跨磁碟區）。
-- **Windows 檔名不分大小寫**：既有的 `~/.claude/claude.md` 與本 repo 的 `CLAUDE.md` 是同一個檔，所以上面腳本一定會動到它。跑完務必打開 `.bak-<日期>` 檔看一次——舊的全域 CLAUDE.md 若有值得保留的個人偏好，照 macOS 安裝段落「指令可重跑」後的說明手動併進 repo 的 `CLAUDE.md`（腳本只負責搬開，不負責合併）。
-- 底下 Codex 的 `~/.codex/config.toml` 合併說明（model／`[agents]`／`[features] memories`）**兩個平台都適用**，Windows 也要照做。
+### Design background and writing principles
 
-## 安裝（實體檔同步版——不能提權的機器用這個）
+Background: built in one pass on 2026-07-06 by a top-tier model (Fable 5) for all later sessions to reuse. The structure borrows from `goad-dot-claude`. Machine differences are isolated in `hosts/<key>.md` (each machine installs only its own file; a macOS main machine plus a Windows desktop, and a new machine is probed and given a file by an AI; the `<REPO>` mapping table is in `rules/05-hosts.md`).
 
-**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rubrics/`、`agents/worker.md`＋`worker-opus.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`）：
+Writing principles (revised 2026-07-25 per [the context-engineering guide for Claude 5 generation models](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models)): **write this environment's gotchas and authorization boundaries, not generic ways of working.** Judgment the model already has is not written as a decision tree; self-documenting interfaces (agent definitions) get no fill-in-the-blank examples; each rule keeps exactly one canonical location; only content needed at the start of every job goes into the always-loaded `rules/`. The principle is "fewer rules means a stronger model", not "more rules means safer".
 
-```bash
-python scripts/sync-profile.py --prune                                  # 先預覽
-python scripts/sync-profile.py --prune --apply --replace-symlinks       # 首次遷移：寫入
-python scripts/sync-codex-agents.py --apply                             # Codex agent TOML 另一支
-```
+### Always-loaded vs read-on-demand
 
-`--apply` 結束前會**逐檔開起來比對 bytes** 才算成功——在這類機器上「連結存在」不是證據，只有真的讀得到才是。既有檔案被取代前會先搬進同步器輸出的 `~/.claude.backup-*`；內容被手改過要覆蓋得再加 `--update`；`--prune` 只清掉「指向本 repo 但清單裡已經沒有」的舊連結，別人的連結與你自己建的檔不動。同步器遇到本次可捕捉的 move、write 或 read-back 失敗時會回復已搬開的項目與本次新建的檔案；若回復本身失敗，錯誤會保留可復原的 backup 目錄路徑。它不保證處理程序遭強制中止時的復原。
+⚠️ **`~/.claude/rules/` is an unconditionally always-loaded area**: Claude Code loads every `*.md` there that has no `paths` frontmatter in full at the start of each session, a fixed context cost paid by every session. So only content needed at the start of every job goes in `rules/`; long content used only in specific situations goes in `skills/` (maintenance protocol), `rubrics/` (acceptance criteria) or `docs/` (archives and situational reference), and those three directories are **not auto-loaded**.
 
-`--replace-symlinks` 是防呆閘門：只要計畫要把既有 symlink（或整棵 symlink 目錄）換成實體檔複本，`--apply` 沒帶這個旗標就會被 `SyncError` 擋下、不寫入任何東西——避免在其實是 symlink 安裝的機器（例如主力 Mac）上誤跑這支腳本，把整套 symlink 靜默換成複本。日常重跑（計畫裡已經沒有 migrate 動作）用 `python scripts/sync-profile.py --apply --update` 即可，不必再帶它。
+### Three iron laws
 
-⚠️ **代價：改了 repo 不會自動生效**。symlink 版改完即時生效，複本版要重跑 `python scripts/sync-profile.py --apply --update`。這條寫在 `hosts/windows.md`。
+1. **No completion claim without evidence** (test output / CI link / read-back result). Every report is graded: verified (with evidence) / pending CI / unverified.
+2. **Outbound or irreversible actions need explicit authorization in this session**: sending messages or email, merging a PR, pushing a shared branch, publishing, deleting or overwriting files you did not create. When already authorized explicitly in this session, act without asking again. Authorization is valid per occasion and per target and must not be generalized into standing policy.
+3. **No self-verification**: acceptance goes to a fresh-context acceptance agent, never to an agent that inherited the producer's context. Details: Claude `rules/10-dispatch.md` §5「驗證不自驗」; Codex `codex/rules/10-dispatch-codex.md` §6「驗證語意」.
 
-## 安裝 Codex（macOS／Linux，symlink 版）
+### Known degradation modes and prevention (maintainers must read)
 
-```bash
-# 備份既有設定
-cp -r ~/.codex ~/.codex.backup-$(date +%F) 2>/dev/null
+1. **Ritual death**: templates are copied but acceptance criteria become empty words → test: could another agent decide pass or fail from that sentence alone; a verifier FAILs vague criteria on sight
+2. **Bloat death**: every pitfall gets stuffed into the rules → lessons go only into `rules/50-lessons.md`; promoting one to an official criterion follows the `maintain-guideline` skill's process; line/byte thresholds trigger slimming; once promoted, move the lesson into `docs/lessons-archive.md` so the same thing never takes two places in the always-loaded area
+3. **Always-loaded-area bloat death**: long content used only in specific situations is put in `rules/` → every session pays a fixed cost. Test: is this content needed at the start of every job? If not, put it in `skills/`／`rubrics/`／`docs/`
+4. **Over-specification death**: decision trees hard-coded for judgments the model already makes, fill-in-the-blank examples attached to self-documenting interfaces → rules conflict and the model burns extra reasoning. The sunset clause (`maintain-guideline` skill §5) is the cure: is a rule about "a gotcha of this environment" or "a generic way of working"? Delete the latter
+5. **Staleness death**: model names or tool parameters change and the docs don't follow, so the whole system loses credibility → facts carry a verification date, are re-checked after 90 days, and a rotten one is fixed as it is found
+6. **Broken-link death**: a file is renamed and routing points to a path that no longer exists → `rg` for references before renaming; a broken link is P0
+7. **Bypass death**: "this task is simple, no need to follow the rules" → simple tasks are exactly where context blow-up starts; if a rule seems unreasonable, raise it through the process, never bypass it silently
 
-REPO=~/Projects/FatJohn/agents-guideline   # macOS 主力機；其他機器見 rules/05-hosts.md
-mkdir -p ~/.codex/agents
-for pair in "AGENTS.md:$HOME/.codex/AGENTS.md"; do
-  src="$REPO/${pair%%:*}"; dst="${pair#*:}"
-  if [ -e "$dst" ] || [ -L "$dst" ]; then
-    echo "略過（已存在，需手動處理）：$dst"
-  else
-    ln -s "$src" "$dst"
-  fi
-done
+### Honesty clause: what this system cannot fix
 
-mkdir -p ~/.agents/skills
-for pair in \
-  "codex/skills/session-handoff:session-handoff" \
-  "skills/create-pr:create-pr" \
-  "skills/maintain-guideline:maintain-guideline" \
-  "skills/parallel-dispatch:parallel-dispatch"; do
-  src="$REPO/${pair%%:*}"; dst="$HOME/.agents/skills/${pair#*:}"
-  if [ -e "$dst" ] || [ -L "$dst" ]; then
-    echo "略過（已存在，需手動處理）：$dst"
-  else
-    ln -s "$src" "$dst"
-  fi
-done
-
-# Codex agent TOML：先預覽，再寫入實體 regular files
-python3 "$REPO/scripts/sync-codex-agents.py" --destination "$HOME/.codex/agents"
-python3 "$REPO/scripts/sync-codex-agents.py" --destination "$HOME/.codex/agents" --apply
-```
-
-不要把本 repo 的 `rules/*.md` symlink 到 `~/.codex/rules/`。Codex 的 `~/.codex/rules/*.rules` 是命令權限規則（Starlark），不是 Markdown 工作守則；Codex 入口 `AGENTS.md` 會直接指向本 repo 的 `rules/` 文件。
-
-若要採用本制度推薦的低成本一般 coding 預設，可將下列設定合併進 `~/.codex/config.toml`；這是建議值，不是
-runtime 證據。設定檔只反映預設；當前主 session 的 model／effort 以 runtime metadata 或 CLI header 為準：
-
-```toml
-model = "gpt-5.6-luna"
-model_reasoning_effort = "max"
-```
-
-特定困難任務可在 UI 或 CLI 當次明確選擇 Terra／Sol 與相應 effort；這不代表要改掉一般預設。global instruction 無法在已啟動的主對話中自動切換主 agent，實際可控點是 delegated agent、direct CLI 與下一個 session。
-
-目前 Codex release 會從 `~/.codex/agents/*.toml` 探索 custom agents；這些檔案要用上方同步器安裝成實體 regular files，只有 `AGENTS.md` 與 skills 維持 symlink。repo 更新後先 dry-run，再執行 `python3 scripts/sync-codex-agents.py --apply`（Windows 用 `python`）；既有檔案內容不同時加上 `--update`，同步器會先把檔案或 symlink 備份到 `agents` 目錄外的唯一資料夾。不要預先替少數角色另寫 `[agents.<name>]`；若檔案已有 `[agents]`，只更新其中的並行設定，不可新增第二個 `[agents]` table；只有原本沒有時才新增整段。官方現行 key 是 `max_concurrent_threads_per_session`；`max_threads` 仍可讀取，但只是 legacy alias（見 [Codex subagents 設定](https://learn.chatgpt.com/docs/agent-configuration/subagents)）。
-
-Codex subagent 並行與遞迴上限建議固定：
-
-    [agents]
-    max_concurrent_threads_per_session = 4
-    max_depth = 1
-
-`max_depth = 1` 的用意是把 subagent 遞迴限制在一層；調高前需重新評估 token、延遲與 working-tree 風險。此 key 在 2026-08-31 以本機 Codex CLI 0.151.0 的 `--strict-config` 驗證可接受，但**本次沒有實跑 nested spawn 驗證其行為**，且目前公開 config reference 沒有列出，因此是本系統的實測相容設定，不是官方 canonical；新 CLI 若拒絕就移除，角色合約本身仍禁止 nested spawn。`codex exec --ephemeral --sandbox read-only` 是單體 fresh reviewer 的 direct CLI 路徑；它直接驗收，不在該 ephemeral process nested spawn。
-
-安裝後實際測一次 named spawn；清單列出角色或 TOML parse 通過不代表能建立。physical TOML 讓目前桌面與 fresh CLI 的 explorer named path 可重跑；named 建立與 model／effort 的 child metadata 仍要以實際工具證據確認。沒有永久 config registration；證據、限制與用法見 `docs/codex-named-agent-registration.md`，不可用時仍依 runtime adapter 的 permission gate 選 fallback。
-
-Codex 的三個層次要分開看：standalone `~/.codex/agents/*.toml` 只提供角色設定與註冊來源；named role runtime 只有在當前 surface 明確選中並取得證據時才算套用；named unavailable 時由 runtime adapter 選擇實際 `agent_type=default` 或 direct CLI，並加上 `codex/rules/30-delegation-templates-codex.md` 的 adapter envelope 與完整 logical-role contract，再明確傳入 mapping 的 model／effort。generic spawn 要 override model／effort 時，`fork_turns` 必須是 `none` 或正整數，不能用 full-history fork。permission 分成 logical contract 與 runtime evidence：寫入角色可在父 session 權限涵蓋 approved scope 時用 `default`；read-only 角色只有 runtime 已是 read-only 時可用 `default`，否則改走 `codex exec --sandbox read-only`。generic／direct CLI 是可執行 fallback，不是 custom role；若 model／effort／permission 證據完整，可作獨立驗收，缺證據則標 runtime 未驗證、不能正式結案。
-
-Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用：
-
-```toml
-[features]
-memories = true
-```
-
-本 repo 另外提供四個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議，`parallel-dispatch` 處理多寫入切片的切分、派工與整合驗收（worktree 與 terminal 只是 adapter 層）。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`（2026-09-02 降級，理由見該檔檔頭）。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
-
-## 新機器建檔（5 分鐘探測清單）
-
-> 2026-08-30 從 `rules/05-hosts.md` 搬出。理由：這份清單只在裝新機器當下用得到，而 `rules/` 是每個 session 全文載入的常駐區（`maintain-guideline` §5「只在特定情境才用得到的內容不該放 rules/」）。原文僅把相對路徑補成 repo 根目錄視角；2026-09-06 另加了「探測結果分兩邊寫」的分流（工具鏈明細改進 `docs/hosts-detail.md`），探測清單 1–5 項本身未改寫。
-
-`hosts/` 沒有這台機器的檔時，照這份跑一輪，然後**自己建檔**（下列檔都可直接寫入，不用問）——**探測結果分三處寫**：
-
-- `hosts/<key>.md`（常駐，但**每台機器只裝自己那份**，2026-09-20 從 `rules/05-hosts.md` 拆出）：標題以「# 本機事實：」開頭並寫 hostname；內容是機器身分、專案位置、本系統 repo 位置、**驗證能力**、以及**陷阱**（不知道就會踩的那種，例如某 port 被系統佔用、`python3` 沒有別名）。然後照上方安裝段把它連／複製到 `~/.claude/host-facts.md`（`sync-profile.py` 要認得新 key 就在 `HOST_KEYS` 加一行）。
-- `rules/05-hosts.md`（常駐）與 `AGENTS.md`：`<REPO>` 對照表各加一行「hostname → repo 路徑 → `hosts/<key>.md`」。
-- `docs/hosts-detail.md`（非常駐）：OS／shell／套件管理器版本、CLI 版本、工具盤點清單——這些是加速用快照，不佔每 session 的固定成本。
-
-1. 身分：`hostname`＋OS（macOS 用 `sw_vers`；Windows 看 shell 環境是 PowerShell / Git Bash / WSL）
-2. shell 與套件管理器（brew／winget／scoop）
-3. 常用工具盤點：`for t in git gh node python3 flutter dotnet rg jq; do command -v $t; done`
-   （PowerShell：`'git','gh','node','python','flutter','dotnet','rg','jq' | % { Get-Command $_ -EA SilentlyContinue }`；Windows 常無 `python3` 別名）
-4. 這台機器能做哪些驗證：能不能跑 Flutter build？.NET build？（決定 `rules/20-judgment.md` §2 在這台機器怎麼落地）
-5. 記憶注意：內建持久記憶與 `.remember/` 都是本機的——機器綁定的事實要註明是哪台機器的
-
-另外確認（2026-09-27 加，不屬上面的探測清單）：全域 gitignore（`git config --global core.excludesFile` 指向的檔）含 `.worktrees/`（不帶開頭 `/`）與 `**/.claude/worktrees/` 兩條；驗證 `git -C <任一 repo> check-ignore -v .worktrees/x` 與 `git -C <任一 repo> check-ignore -v .claude/worktrees/x` 都要印出命中規則。理由見 `skills/parallel-dispatch/references/worktree.md`「所有權與路徑」。
-
-## 檔案結構
-
-**Claude Code 每 session 自動載入**（固定 context 成本，只放每次都要的）：
-
-| 檔案 | 用途 |
-|------|------|
-| `CLAUDE.md` | 路由表＋三鐵律＋優先權排序（裝在 `~/.claude/`） |
-| `rules/00-environment.md` | 跨機器事實、三大結構性風險與修法 |
-| `hosts/<key>.md` | 單機事實（身分、repo 位置、驗證能力、陷阱）；經全域 `CLAUDE.md` 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**（2026-09-20 從 `rules/05-hosts.md` 拆出，理由見 `maintain-guideline` §5）；新機器由 AI 照本檔「新機器建檔」建檔 |
-| `rules/05-hosts.md` | 跨機器規則、`<REPO>` 對照表、缺檔哨兵（context 裡沒有「# 本機事實」段時怎麼辦） |
-| `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |
-| `rules/20-judgment.md` | 判斷準則：升級／完成／問使用者／換路／環境先驗，各附正反例 |
-| `rules/50-lessons.md` | **還沒有正式判準承接的**活躍教訓＋交接欄 |
-
-Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需讀本 repo 的 `rules/`、`codex/rules/`、`rubrics/` 與 skills，不能把 Claude Code 的 resident imports 當成 Codex 的常駐內容。
-
-**用到才讀**（不在 `rules/`，故不自動載入）：
-
-| 檔案 | 用途 |
-|------|------|
-| `skills/maintain-guideline/SKILL.md` | 系統維護協議：權限分級、修改流程、教訓寫回、瘦身與日落條款、路由完整性（原 `rules/40-maintenance.md`） |
-| `docs/debug-environment-first.md` | 除錯前的環境事實檢查清單＋量測方法自證陷阱；`rules/20-judgment.md` §5 只留判準與指向 |
-| `rubrics/document-quality.md` | 文件類產出的逐條驗收判準（verifier 讀） |
-| `rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描與作假偵測） |
-| `rubrics/research-analysis.md` | 研究／盤點類產出的逐條驗收判準 |
-| `docs/lessons-archive.md` | 已升級成正式判準的歷史教訓（保留原文，作為判準來歷） |
-| `scripts/dispatch-usage.py` | 日落審查用：從 `~/.claude/projects/**/*.jsonl` 量主對話自寫 vs 派 subagent 的使用率（2026-09-07 加入，量法見 `maintain-guideline` §5） |
-| `docs/hosts-detail.md` | 各機器工具鏈與版本明細（探測快照，2026-09-06 從 `rules/05-hosts.md` 搬出，非常駐） |
-| `docs/skill-catalog.md` | 各類任務用哪個 skill／plugin，含 Figma 在 MCP 缺席時的 curl fallback（原 `rules/00-environment.md` §好用的 skill／plugin，2026-08-12 移出常駐區） |
-| `docs/harness-facts.md` | 查證過的 harness 事實（2026-08-22 從 00-environment 搬出，非常駐） |
-| `docs/codex-named-agent-registration.md` | Codex named agent 實體 TOML 同步、註冊實測差異與限制，非常駐 |
-| `docs/memory-layers.md` | 記憶機制四層的分工與邊界（2026-08-22 從 00-environment 搬出，非常駐） |
-| `docs/archive/` | 無任何檔案引用的歷史文件（2026-07 的 Codex 分層路由 spec／plan、2026-08-29 的驗收輪次盤點）；只作事故考古用 |
-| `codex/rules/10-dispatch-codex.md` | Codex 調度：角色 mapping、named-first → `default` runtime adapter、reasoning effort、subagent 使用邊界、驗證不自驗 |
-| `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份 logical-role 派工模板與共用 adapter envelope（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
-| `agents/worker.md` | 標準執行者 agent 定義（Sonnet 5.5 完整 model ID `claude-sonnet-5-5` + effort xhigh，派工不帶 `model`；2026-09-29 使用者決策由 Opus 5.5/medium 改為 Sonnet 5.5/xhigh 試用，升級仍依 §4）。只在 controller 核定的完整 plan 下動手，涵蓋一般程式碼與一般文件；不做自己的正式驗收、不擴 scope、不執行對外或不可逆動作 |
-| `agents/worker-opus.md` | 備用車道（2026-09-29 起），Opus 5.5/medium，合約同 `worker`；預設路由仍是 worker；設計已核定、但實作須同時推理多條執行路徑或時序時，或使用者指定時才用，不作為失敗升級路徑；派工不帶 `model`（2026-10-01 定位調整） |
-| `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high）。含「找碴範圍」與收斂標記；**高風險驗收用同一個角色、檔位不變**（派工一律顯式 `model: opus`；升 `model: fable` 的條件與例外見 `rules/10-dispatch.md` §5「驗證不自驗」） |
-| `codex/agents/scanner.toml` | Codex Luna/medium/read-only 精確掃描 agent |
-| `codex/agents/explorer.toml` | Codex Terra/medium/read-only 探索 agent |
-| `codex/agents/planner.toml` | Codex Terra/high/read-only 非平凡任務規劃 agent |
-| `codex/agents/worker.toml` | Codex 所有訂閱檔位的 Luna/max/workspace-write 標準實作 agent；需完整 approved plan |
-| `codex/agents/pro_worker.toml` | Codex Terra/high/workspace-write higher-complexity 實作 agent；有 complexity signals 時可預先使用 |
-| `codex/agents/recovery_worker.toml` | Codex Terra/high/workspace-write Luna 能力／脈絡理解不足或兩次未明失敗後的 recovery agent |
-| `codex/agents/reviewer.toml` | Codex Terra/high/read-only 一般實作 review agent |
-| `codex/agents/escalation_planner.toml` | Codex Sol/medium/read-only root-cause 規劃升級 agent |
-| `codex/agents/escalation_worker.toml` | Codex Sol/medium/workspace-write Terra 已確認能力不足後的 root-cause 升級實作 agent |
-| `codex/agents/verifier.toml` | Codex Terra/high/read-only 一般 fresh-context 驗收 agent |
-| `codex/agents/sol_verifier.toml` | Codex Sol/high/read-only 高風險 fresh-context 驗收 agent |
-| `codex/skills/session-handoff/SKILL.md` | Codex 收尾／交接 skill，產生專案 `.codex/HANDOFF.md` |
-| `skills/create-pr/SKILL.md` | Codex／Claude 共用的 Pull Request 建立 skill |
-| `skills/parallel-dispatch/SKILL.md` | Claude／Codex 共用的平行開發 orchestration：ANALYZE → PARALLELIZE? → TASK GRAPH → WORKERS → VALIDATION → INTEGRATION → FINAL VALIDATION，含 divide-and-conquer 與 agent-race 兩種 pattern；`references/templates.md`（brief／report 格式）、`references/worktree.md`（隔離與清理機制）、execution adapter `references/claude-code.md`／`codex.md`／`cli.md`（純 shell、tmux、VS Code、Herdr、Orca 等外部 CLI process） |
-
-`agents/*.md` 與 `codex/agents/*.toml` 是 standalone role 定義／設定；它們的正文只在該 named role 被派工時進入 subagent context（name／description 會出現在每 session 的可用 agent 清單裡）。named unavailable 時，generic adapter 仍須在 prompt 帶入 `30-delegation-templates-codex.md` 的完整 logical-role contract；`pro_worker` 明確重用 D 的 worker contract，只替換 Terra/high mapping，並附 higher-complexity route 證據。TOML 安裝或角色名稱不能取代 runtime evidence。
-
-**為什麼 Claude 側只自建 `worker`／`verifier`，沒有 `scanner`／`explorer`／`planner` 的等價 custom agent**：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋唯讀掃描與規劃，且本制度不把 haiku 列入 active routing。`worker` 與 `verifier` 需要獨立定義檔的理由相同——**Agent 呼叫無法逐次指定 effort**，一般實作與文件撰寫要固定綁 `sonnet 5.5／xhigh`、驗收要固定綁 `opus／high`，只有寫成 standalone agent 才能把 model 與 effort 一起鎖進角色合約，不必每次呼叫都手動重複。（原為 `rules/10-dispatch.md` §0 註，2026-08-05 移出常駐區；2026-09-07 因新增 `worker` 改寫。） 2026-09-24 `worker` 改為 Opus 5.5/medium，另加 Sonnet/xhigh 備用車道 `worker-sonnet`（合約同 `worker`），不改變這裡的角色分工。2026-09-29 `worker` 改為 Sonnet 5.5/xhigh，Opus 5.5/medium 改為備用車道 `worker-opus`。
-
-**為什麼 Claude 側沒有派工模板檔、Codex 側有**：Claude 側的模板（原 `rules/30-delegation-templates.md`）在 2026-07-25 移除，內容併入 `rules/10-dispatch.md` §2 的派工合約與各 `agents/*.md` 的角色合約——填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `codex/rules/30-delegation-templates-codex.md`：它把 approved plan、寫入所有權、驗證命令與回報格式做成可核對欄位，避免 controller 只靠角色名稱推定 child 已取得完整脈絡。
-
-Codex routing 依 complexity signals，而不是 task 名稱：simple／mechanical 用 Luna low／medium；normal development 用 `worker/Luna max`；higher complexity 可預先用 `planner`／`pro_worker` 的 Terra high，Luna 失敗後才由 `recovery_worker/Terra high` 接手；high-impact judgment 可直接用 `escalation_planner`／`escalation_worker` 的 Sol medium，其他路徑則等 Terra 已確認能力不足才升 Sol medium；exceptional difficulty 才用 Sol high。xhigh／max 沒有固定 route。失敗時先分 execution mistake、reasoning 不足、model／context 理解不足與 evidence／environment 不足，再決定補正、加 effort、升 tier 或補證據。
-
-Codex custom role 名稱使用底線，以符合目前 `spawn_agent.task_name` 的格式限制。安裝 TOML 不等於 runtime 已選中角色：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata；named 可用時優先選 named，unavailable 時依 `codex/rules/10-dispatch-codex.md` §0 permission gate 選擇 `default` 或 direct CLI 套用 logical-role contract。這些值只進 adapter envelope：surface metadata 記「工具宣告值」，工具回傳或 child metadata 另有 runtime 值才升級為「runtime 已驗證」，沒有 metadata 就記「runtime 未驗證」。user-facing commentary 正常只報指定 role 名稱與任務摘要；generic／direct CLI fallback 必須標示，避免把 generic child 冒充 custom role。
-
-## 三條鐵律
-
-1. **無證據不得宣稱完成**——回報分級：已驗證（附測試輸出／CI 連結）／待 CI／未驗證
-2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。
-3. **驗證不自驗**——一般文件與驗收依原有首次驗收分工優先派 named `verifier/Terra high`；named unavailable 時使用指定 Terra/high、sandbox 強制 read-only、完整 logical `verifier` contract 的 direct CLI，runtime 證據完整即可作獨立驗收，仍標 generic／direct CLI。安全、不可逆、重大架構與正式高風險產出優先派 named `sol_verifier/Sol high`；named unavailable 時以同樣條件使用指定 Sol/high direct CLI。缺 model／effort／permission 證據不得正式結案，也不得冒稱 custom role。
-
-## 已知退化模式與預防（維護者必讀）
-
-1. **儀式死**：模板照抄但驗收條件寫成空話 → 判準：另一個 agent 能不能只憑那句話判定過或不過；verifier 見到模糊條件直接 FAIL
-2. **膨脹死**：每個坑都塞進規則 → 教訓只進 `rules/50-lessons.md`；升級成正式判準要走 `maintain-guideline` skill 的流程；行數／bytes 門檻觸發瘦身；升級落地後把該條教訓移進 `docs/lessons-archive.md`，不要讓同一件事在常駐區佔兩份
-6. **常駐區膨脹死**：把只在特定情境用得到的長內容放進 `rules/` → 每個 session 都付固定成本。判準：這份內容是不是「每次開工都需要」？不是就放 `skills/`／`rubrics/`／`docs/`
-7. **過度規格化死**：為模型本來就會做的判斷寫死決策樹、為自我文件化的介面附填空範例 → 規則互相衝突、模型多耗推理。日落條款（`maintain-guideline` skill §5）就是解法：規則是不是在講「這個環境的 gotcha」還是「通用做事方法」？後者刪掉
-3. **過時死**：模型名/工具參數換了文件沒跟上，整套失去公信力 → 事實帶查證日期、90 天過期重核、爛一條修一條
-4. **斷鏈死**：檔案改名路由指向不存在的路徑 → 改名前 `rg` 掃引用；斷鏈是 P0
-5. **繞過死**：「這個任務很簡單不用照守則」→ 簡單任務正是 context 塞爆的起點；覺得規則不合理走流程提出，不准默默繞過
-
-## 誠實條款：這套系統補不了的
-
-拆解、模板、fresh-context 驗收能拉高**執行品質**；**品味與模糊題**（長期架構取捨、文案語氣、功能該不該存在）補不了。遇到時依序：沿用 repo 既有慣例 → 用可用的最強模型 → 產出多個候選讓使用者選 → 明說「這超出系統能保證的範圍」。
+Decomposition, templates and fresh-context acceptance raise **execution quality**; they cannot fix **taste and ambiguous questions** (long-term architecture trade-offs, copy tone, whether a feature should exist). When you hit one, in order: follow the repo's existing conventions → use the strongest available model → produce several candidates for the user to choose from → state plainly that "this is beyond what the system can guarantee".
+
+## Installation
+
+Full steps (including post-install verification and caveats) are in [`docs/install.md`](docs/install.md). Pick by platform and privilege:
+
+- **Claude Code, macOS/Linux**: Claude Code on macOS/Linux; symlink install, the repo is the single source of truth and edits take effect immediately.
+- **Codex, macOS/Linux**: Codex on macOS/Linux; `AGENTS.md` and skills are symlinks, agent TOML files are written as regular files by a sync script.
+- **Windows (PowerShell)**: Windows; run in an administrator PowerShell, which installs both Claude Code and Codex.
+- **Regular-file sync**: machines that cannot elevate; `scripts/sync-profile.py` writes regular-file copies, and the sync must be re-run after every repo change.
+
+For a new machine (no file for it in `hosts/`), probe it and create its file by following 「新機器建檔」 in [`docs/new-host.md`](docs/new-host.md). `docs/install.md`, `docs/new-host.md` and `docs/repo-layout.md` exist in Chinese only, since agents and rules cite them.
+
+## Directory map
+
+Per-file purposes are in 「檔案結構」 of [`docs/repo-layout.md`](docs/repo-layout.md).
+
+| Path | Purpose |
+|------|---------|
+| `CLAUDE.md`, `AGENTS.md` | Global entry points (one each for Claude Code and Codex): routing and iron laws only |
+| `rules/` | **Auto-loaded every session (always-loaded)**: only rules needed at the start of every job |
+| `hosts/` | Per-machine facts `hosts/<key>.md`; imported via the global `CLAUDE.md`, also always-loaded, each machine installs only its own file |
+| `skills/`, `rubrics/`, `docs/` | **Read on demand, not auto-loaded**: maintenance protocol and shared skills, acceptance criteria, situational reference |
+| `agents/` | Claude Code agent definitions: `worker`, `worker-opus`, `verifier` |
+| `codex/` | Codex-specific: dispatch rules and delegation templates, agent TOML, skills |
+| `scripts/`, `tests/` | Install sync scripts, the sunset-review measurement script, and tests |

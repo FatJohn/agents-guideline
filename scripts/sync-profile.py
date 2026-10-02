@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Synchronize this repository into ~/.claude, ~/.codex and ~/.agents as regular files.
 
-The repository is the source of truth.  ``README.md`` installs the same set as
+The repository is the source of truth.  ``docs/install.md`` installs the same set as
 symlinks, which is the preferred layout because a repo edit takes effect with no
 further step.  This script exists for hosts where a symlinked profile silently
 fails to load: ``hosts/windows.md`` records ``FatJohn-PC``, where opening any
@@ -123,7 +123,7 @@ def default_mappings(
     agents_home: Path,
     host_key: str,
 ) -> list[Mapping]:
-    """The same set README.md installs as symlinks, as regular files.
+    """The same set docs/install.md installs as symlinks, as regular files.
 
     ``hosts/<host_key>.md`` is the one per-machine file; the other machines'
     files stay in the repository and never reach the profile.

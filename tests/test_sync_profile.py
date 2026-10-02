@@ -54,6 +54,7 @@ def build_repo(root: Path) -> Path:
     (repo / "hosts" / "windows.md").write_text("# win\n", encoding="utf-8")
     (repo / "rubrics" / "code-change.md").write_text("# code change\n", encoding="utf-8")
     (repo / "agents" / "worker.md").write_text("# worker\n", encoding="utf-8")
+    (repo / "agents" / "worker-opus.md").write_text("# worker-opus\n", encoding="utf-8")
     (repo / "agents" / "verifier.md").write_text("# verifier\n", encoding="utf-8")
     (repo / "codex" / "skills" / "session-handoff" / "SKILL.md").write_text(
         "# handoff\n", encoding="utf-8"
@@ -114,7 +115,7 @@ class SyncProfileTests(unittest.TestCase):
             self.assertTrue((self.claude / "skills" / name / "SKILL.md").is_file())
             self.assertTrue((self.agents / "skills" / name / "SKILL.md").is_file())
 
-        # worker.md is the entry README's symlink install has been missing.
+        # worker.md is the entry docs/install.md's symlink install has been missing.
         self.assertEqual((self.claude / "agents" / "worker.md").read_text(encoding="utf-8"), "# worker\n")
 
     def test_host_facts_installs_only_this_machines_file(self) -> None:
