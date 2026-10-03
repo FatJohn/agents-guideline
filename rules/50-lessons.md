@@ -5,9 +5,7 @@
 > **本檔只留「已套用到：尚未」的教訓**——它們還沒有正式判準承接，所以需要常駐提醒。
 > 一旦升級成正式判準（改到 10／20 或 agent 定義），把該條移到 `docs/lessons-archive.md`，別讓同一件事在 context 裡佔兩份位置。
 
-- [2026-09-23][web-member-login] `filter-branch`／`commit-tree` 改寫的 commit 掉簽章，推上去變 unverified → 改訊息用 `rebase`／`commit --amend`（會照 `commit.gpgsign` 重簽），`commit-tree` 加 `-S`，`filter-branch`／`filter-repo` 後跑 `git rebase --rebase-merges --exec 'git commit --amend --no-edit -S' <base>` 補簽（漏 `--rebase-merges` 會壓平 merge；整段歷史被改寫時 `<base>` 換 `--root`），推前 `git log --format='%h %G?'` 確認無 `N` → 已套用到：尚未
-- [2026-09-24][clean-dev-machine-cache] 量 `find -mtime` 門檻，Claude Code 的 `find` 是包 bfs 的 function，整點取樣把「>48h」量成「>49h」 → 量系統工具行為用絕對路徑（`/usr/bin/find`，先 `type <cmd>` 確認），時間門檻樣本取到邊界兩側的分鐘級 → 已套用到：尚未
-- [2026-09-30][global] 不收斂任務換 worker-opus 後驗收輪數從零算、升級 prompt 寫「照做，不要自行換方向」 → 換 model／role 輪數續算，升級 prompt 必要求先建立 root cause；規則原文已有，缺的是派工當下照做 → 已套用到：尚未
+- [2026-09-23][project-a] 驗收跑突變讓 dotnet test 卡住，--blame-hang-timeout 每次寫約 7.4GB 傾印，累積 74GB 塞滿磁碟 → 跑突變或可能卡住的 `dotnet test` 一律加 `--blame-hang-dump-type none`（預設 full） → 已套用到：尚未
 
 ## 交接欄
 

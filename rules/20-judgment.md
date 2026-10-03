@@ -37,7 +37,7 @@
 ✅ **正例**：「已驗證：測試 12/12 通過（輸出如下）、verifier 判定三項驗收全 PASS。」
 ❌ **反例**：「我已經修好了，邏輯上這個改動會解決問題。」——沒有執行證據，這叫「改完了」，不叫「完成了」。
 
-**補充判準（重構／字串抽取／搬移／更正事實宣稱類任務）**：宣稱完成前，全 repo `rg`（**一律加 `--hidden`**，否則漏 `.claude/`／`.agents/`／`.gemini/` 殘留、誤判乾淨）搜尋舊引用／字串／路徑無殘留，附指令與結果。改動範圍常小於實際散佈——entrypoint（如 main.tsx）、設定檔、腳本、**`.github/workflows`／`.github/actions`** 最易漏；release／deploy-only 的 CI 路徑 PR 不會跑，**PR 全綠不代表沒炸**。排除清單只能排內容型目標，設定型（會被執行）不可排除（細節見 `<REPO>/docs/debug-environment-first.md`）。
+**補充判準（重構／字串抽取／搬移／更正事實宣稱類任務）**：宣稱完成前，全 repo 搜尋舊引用／字串／路徑無殘留，附指令與結果。搜尋必須含隱藏目錄，否則漏 `.claude/`／`.agents/`／`.gemini/` 殘留、誤判乾淨：Bash 的 `rg` 一律加 `--hidden`（Claude Code 設了 `RIPGREP_CONFIG_PATH` 時已是預設，重複加不影響；Codex 與沒設定的 session 必須加，設定見 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」）；Claude Code 的 Grep 工具本就含隱藏目錄（不搜 `.git`）。改動範圍常小於實際散佈——entrypoint（如 main.tsx）、設定檔、腳本、**`.github/workflows`／`.github/actions`** 最易漏；release／deploy-only 的 CI 路徑 PR 不會跑，**PR 全綠不代表沒炸**。排除清單只能排內容型目標，設定型（會被執行）不可排除（細節見 `<REPO>/docs/debug-environment-first.md`）。
 
 ✅ **正例**：i18n 字串抽取收尾前跑 `rg '<原字串>'` 全 repo，抓到 main.tsx 兩處殘留 → 補完、附搜尋輸出，才回報完成。
 ❌ **反例**：「我把用到的元件都改完了」——只改了記憶中的引用點，沒有全 repo 搜尋證據，殘留等下個 session 才爆。
@@ -148,11 +148,7 @@ React 實跑渲染出 `<meta http-equiv="refresh">`。
 
 ## 4. 品質底線怎麼驗
 
-逐條判準寫在 rubric 檔裡（不常駐，要用時再讀；verifier 依 `~/.claude/agents/verifier.md` 規則 3 自選，派工者可指定）：
-
-- 文件、規則、說明 → `<REPO>/rubrics/document-quality.md`
-- 實作、修 bug、重構 → `<REPO>/rubrics/code-change.md`
-- 查證、調研、盤點 → `<REPO>/rubrics/research-analysis.md`
+逐條判準寫在 rubric 檔裡（`<REPO>/rubrics/`，不常駐，要用時再讀）；哪種產出套哪份，verifier 依 `~/.claude/agents/verifier.md` 規則 3 自選，派工者可指定。
 
 **寫驗收條件時的自我檢查**：另一個 agent 能不能只憑這句話判定過或不過？做不到就是空話，verifier 見到模糊條件應直接 FAIL。
 

@@ -52,6 +52,82 @@ symlink 的好處：session 依規則附加教訓、更新事實時直接改到 
 
 `CLAUDE.md` 是 advisory context，不是 permission gate。`~/.claude/settings.json` 的全域 allowlist 不要放 `Bash(git push:*)`、`Bash(gh pr:*)` 或 `Bash(gh api:*)` 這類同時涵蓋唯讀與對外寫入的 wildcard；否則 push、merge 或任意 GitHub API 寫入可能不會出現逐次權限確認。只預先允許可明確判定為唯讀的子命令，例如 `git status`／`git diff`／`git log` 與 `gh pr view`／`gh pr checks`／`gh pr diff`。需要零例外硬擋時使用 `PreToolUse` hook 驗證 Bash command；不要把「規則文字通常會被遵守」當成 deterministic enforcement（見 [Anthropic 的 steering 指南](https://claude.com/blog/steering-claude-code-skills-hooks-rules-subagents-and-more)）。本 repo 不管理 `settings.json`，新機器安裝後要另行 audit。
 
+### 選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定
+
+兩個檔，裝法跟 `agents/*.md` 一樣是單檔 symlink；裝完要另外改 `~/.claude/settings.json` 才會生效（本 repo 不管理 `settings.json`）。
+
+- `hooks/block-ci-edit.sh`：Claude Code `PreToolUse` hook。**主對話**（hook 收到的 stdin 沒有 `agent_id`）用 Edit／Write／MultiEdit／NotebookEdit 改路徑含 `.github/workflows/` 或 `.github/actions/` 的檔會被擋（exit 2，訊息要求改派 worker）；subagent（有 `agent_id`）與其他路徑一律放行。把 `rules/10-dispatch.md`「Controller 工作迴圈」那條「CI／release 設定不屬小修例外」變成機械擋板。
+- `config/ripgreprc`：讓 **Bash 裡的 `rg`** 預設 `--hidden` 並排除 `.git`，對應 `rules/20-judgment.md` §2 的殘留掃描。Claude Code 的 Grep 工具本來就搜隱藏目錄（不搜 `.git`），也不讀 `RIPGREP_CONFIG_PATH`，所以這份設定只影響 Bash 的 `rg`。
+
+安裝檔案（macOS／Linux；可重跑，已存在就略過）：
+
+```bash
+REPO=~/Projects/FatJohn/agents-guideline   # 其他機器見 rules/05-hosts.md
+mkdir -p ~/.claude/hooks
+for pair in \
+  "hooks/block-ci-edit.sh:$HOME/.claude/hooks/block-ci-edit.sh" \
+  "config/ripgreprc:$HOME/.claude/ripgreprc"; do
+  src="$REPO/${pair%%:*}"; dst="${pair#*:}"
+  if [ -e "$dst" ] || [ -L "$dst" ]; then
+    echo "略過（已存在，需手動處理）：$dst"
+  else
+    ln -s "$src" "$dst"
+  fi
+done
+```
+
+Windows 的這兩個 symlink 已在下方「安裝（Windows／PowerShell）」的腳本裡（`Link-One` 兩行）；不能提權的機器改跑 `python scripts/sync-profile.py --apply --update`（同步器已含這兩個檔，改了 hook 要重跑）。
+
+`~/.claude/settings.json` 要加兩段。頂層 `env`（已有 `env` 就只加這一個 key）；值必須是絕對路徑，settings 的 `env` 不經 shell 展開（`~` 是否展開沒測，不要依賴）；`<echo "$HOME/.claude/ripgreprc" 的輸出>` 整個換成該指令印出的完整路徑，路徑錯時 `rg` 每次在 stderr 報錯，且 `--hidden` 不生效：
+
+```json
+{
+  "env": {
+    "RIPGREP_CONFIG_PATH": "<echo \"$HOME/.claude/ripgreprc\" 的輸出>"
+  }
+}
+```
+
+以及下面這一個 hook 元素。**追加**到既有的 `hooks.PreToolUse` 陣列（別的元素，例如 matcher 為 `*` 的 hook，保留不動，不是取代）：
+
+```json
+{
+  "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+  "hooks": [
+    { "type": "command", "command": "bash \"$HOME/.claude/hooks/block-ci-edit.sh\"" }
+  ]
+}
+```
+
+command 用 `bash "<路徑>"`，不依賴執行權限位元。`$HOME` 在 command 裡的展開沒有單獨測（測試用的是絕對路徑）；若 hook 沒生效就改寫絕對路徑。
+
+裝完驗證（在本 repo 根目錄；前兩行離線、不需要 claude，`python3 -m unittest discover -s tests` 也會一起跑到）：
+
+```bash
+bash tests/test-block-ci-edit.sh ~/.claude/hooks/block-ci-edit.sh   # 13 個斷言，需要 jq
+bash tests/test-ripgreprc.sh ~/.claude/ripgreprc                    # 4 個斷言，需要 rg
+# 端到端：主對話應被擋、檔案不變（<abs path> 換成任一 git 目錄下的 .github/workflows/x.yml）
+# ripgreprc 端到端：在 Claude Code 的 Bash 裡（讀 settings.json 的 env）不帶 --hidden 也要搜到隱藏目錄；印出 PATH OK 才算生效
+claude -p "Run exactly: mkdir -p /tmp/rgchk/.h && echo rgtoken > /tmp/rgchk/.h/f && rg -l rgtoken /tmp/rgchk && echo PATH OK"
+claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x' to 'name: y' in <abs path>/.github/workflows/x.yml; quote any tool error verbatim."
+```
+
+**已知限制**：
+
+- **Bash 改檔不經 hook**：`sed -i`、heredoc、`tee`、`git apply` 改 `.github/workflows` 都不會被擋（實測 `sed -i` 改成功）。hook 只補 Edit／Write 這條路，`rules/10-dispatch.md` 那條規則仍然要靠 controller 自己守。路徑只做字串比對，不解析 symlink。
+- **CLI adapter 的 worker 也會被擋**：`skills/parallel-dispatch/references/cli.md` 用 `claude -p` 起的 worker 是頂層 session，hook 的 stdin 沒有 `agent_id`，判斷方式與主對話相同，改 `.github/workflows`／`.github/actions` 會被擋。裝了這個 hook 的機器，這類切片改用 Agent 工具派 `worker`，不走 CLI adapter。
+- **使用者要求主對話直接改 CI 也會被擋**：hook 不分專案、不分誰下的指示。使用者在編輯器自己改不受影響；真要主對話改，只能暫時移除 `settings.json` 裡那個 `PreToolUse` 元素。`claude --agent <name>` 啟動的主執行緒同樣沒有 `agent_id`，會被當主對話擋。
+- **hook 會被略過**：`claude --bare`、`--setting-sources` 不含 user、`disableAllHooks`。`jq` 不在 PATH 或 stdin 不是 JSON 時 hook fail-open（exit 1，非阻擋錯誤，工具照跑；transcript 會顯示 `CI edit guard is INACTIVE`／`did not run`）——等於沒裝，不會誤擋。
+- **沒測過**：agent teams／teammate、`isolation: worktree` 的 subagent（預期同樣帶 `agent_id`），以及與其他 `*` hook 並存。
+- **`--hidden` 不蓋過 gitignore**：`.worktrees/` 或被專案 `.gitignore` 排除的隱藏目錄仍搜不到，要 `--no-ignore`（會連 `node_modules` 一起進）。沒裝 ripgreprc 的機器（包含 Codex）Bash 的 `rg` 要手動加 `--hidden`。
+
+**Windows（本段在 Windows 上全部未驗證）**：
+
+- hook 在 Git Bash 執行，要用 `jq`。裝完先在 Git Bash 跑 `jq --version`；找不到就是 fail-open（印 `jq not found`），沒有保護。
+- 行尾：`.gitattributes` 已把 `*.sh` 與 `config/ripgreprc` 固定成 LF；CRLF 的 `.sh` 會報 `$'\r': command not found`。
+- `RIPGREP_CONFIG_PATH` 寫 Windows 路徑，建議正斜線：`C:/Users/<user>/.claude/ripgreprc`（`rg` 是原生 exe，推測讀不懂 MSYS 的 `/c/Users/...`）。另外該機 `rg` 走 `WinGet\Links` symlink，Git Bash 開不了（見 `docs/hosts-detail.md`），ripgreprc 目前沒有東西可影響，hook 可先裝。
+- 該機的 `settings.json` 要自己加同樣兩段。
+
 ## 安裝 Codex（macOS／Linux，symlink 版）
 
 ```bash
@@ -168,6 +244,9 @@ Link-One "$REPO\skills\parallel-dispatch"        "$HOME\.claude\skills\parallel-
 foreach ($a in 'worker','worker-opus','verifier') {
   Link-One "$REPO\agents\$a.md" "$HOME\.claude\agents\$a.md"
 }
+# 選配的 hook 與 ripgreprc（只連結檔案，settings.json 另外加，見上方「選配」段）
+Link-One "$REPO\hooks\block-ci-edit.sh" "$HOME\.claude\hooks\block-ci-edit.sh"
+Link-One "$REPO\config\ripgreprc"       "$HOME\.claude\ripgreprc"
 
 # Codex
 Link-One "$REPO\AGENTS.md" "$HOME\.codex\AGENTS.md"
@@ -196,7 +275,7 @@ Windows 專屬注意：
 
 ## 安裝（實體檔同步版——不能提權的機器用這個）
 
-**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rubrics/`、`agents/worker.md`＋`worker-opus.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`）：
+**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rubrics/`、`agents/worker.md`＋`worker-opus.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`，以及上方「選配」段的 `hooks/` 與 `config/ripgreprc`；後兩者只寫檔，`settings.json` 仍要手動加）：
 
 ```bash
 python scripts/sync-profile.py --prune                                  # 先預覽

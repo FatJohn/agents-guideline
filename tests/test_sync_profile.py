@@ -56,6 +56,10 @@ def build_repo(root: Path) -> Path:
     (repo / "agents" / "worker.md").write_text("# worker\n", encoding="utf-8")
     (repo / "agents" / "worker-opus.md").write_text("# worker-opus\n", encoding="utf-8")
     (repo / "agents" / "verifier.md").write_text("# verifier\n", encoding="utf-8")
+    (repo / "hooks").mkdir(parents=True)
+    (repo / "hooks" / "block-ci-edit.sh").write_text("#!/bin/bash\n# hook\n", encoding="utf-8")
+    (repo / "config").mkdir(parents=True)
+    (repo / "config" / "ripgreprc").write_text("--hidden\n", encoding="utf-8")
     (repo / "codex" / "skills" / "session-handoff" / "SKILL.md").write_text(
         "# handoff\n", encoding="utf-8"
     )
@@ -117,6 +121,27 @@ class SyncProfileTests(unittest.TestCase):
 
         # worker.md is the entry docs/install.md's symlink install has been missing.
         self.assertEqual((self.claude / "agents" / "worker.md").read_text(encoding="utf-8"), "# worker\n")
+
+    def test_hook_and_ripgreprc_are_installed_as_regular_files(self) -> None:
+        self.run_sync(apply=True)
+
+        hook = self.claude / "hooks" / "block-ci-edit.sh"
+        self.assertTrue(hook.is_file())
+        self.assertFalse(hook.is_symlink())
+        self.assertEqual(hook.read_text(encoding="utf-8"), "#!/bin/bash\n# hook\n")
+        self.assertFalse((self.claude / "hooks").is_symlink())
+
+        ripgreprc = self.claude / "ripgreprc"
+        self.assertTrue(ripgreprc.is_file())
+        self.assertFalse(ripgreprc.is_symlink())
+        self.assertEqual(ripgreprc.read_text(encoding="utf-8"), "--hidden\n")
+
+    def test_missing_hook_source_is_refused_before_writing(self) -> None:
+        (self.repo / "hooks" / "block-ci-edit.sh").unlink()
+
+        with self.assertRaises(sync_profile.SyncError):
+            self.run_sync(apply=True)
+        self.assertFalse(self.claude.exists())
 
     def test_host_facts_installs_only_this_machines_file(self) -> None:
         self.run_sync(apply=True, host_key="windows")

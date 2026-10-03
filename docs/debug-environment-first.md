@@ -28,6 +28,7 @@
   - **突變與還原要繞過建置快取**：Python 的 `__pycache__` 以原始檔 mtime（秒）＋大小判斷是否重編，同一秒內改成同樣長度的內容會沿用舊 `.pyc`——突變後照樣綠、還原後照樣紅（2026-09-29 Python 3.14.6 實測：`return 1`→`return 2` 在已有 `.pyc` 時照樣綠，清掉 `__pycache__` 後才紅；「還原後仍紅」是同日 verifier 重現的反方向）。突變與還原前後的重跑一律先 `rm -rf __pycache__`（或對應的快取目錄）——`python3 -B`／`PYTHONDONTWRITEBYTECODE=1` 只擋寫入、不擋讀取既有 `.pyc`，已有舊快取時是假修法（verifier 5/5 重現仍綠）。其他有增量建置快取的工具鏈同理，先確認它真的重編了。
 
   - **squash merge 之後不要用 commit 數判「內容已進 main」**：`git log main..<branch> | wc -l` 對 squash 永遠非 0（原始 commit 不在 main 歷史裡）。要量的是 PR 的 MERGED 狀態或 `git diff main..<branch> -- <檔>` 為空。附帶：印出「全為 0 才刪」而下一行無條件 `git branch -D`，那個檢查沒有擋住任何東西——gate 要寫成 `&&` 或 `assert`（2026-09-12 踩過）。
+  - **改寫歷史的 commit 會掉簽章**（2026-09-23 踩過）：`filter-branch`／`commit-tree` 改寫的 commit 掉簽章，推上去變 unverified。改訊息用 `rebase`／`commit --amend`（會照 `commit.gpgsign` 重簽），`commit-tree` 加 `-S`，`filter-branch`／`filter-repo` 後跑 `git rebase --rebase-merges --exec 'git commit --amend --no-edit -S' <base>` 補簽（漏 `--rebase-merges` 會壓平 merge；整段歷史被改寫時 `<base>` 換 `--root`），推前 `git log --format='%h %G?'` 確認無 `N`。
 
   **報出任何數字或訂任何門檻之前**（下面這些都在 2026-08-23 踩過；後續踩到的直接加進來，
 不要在這裡記條數——那個數字每次新增都會腐爛一次）：
@@ -62,6 +63,7 @@
   - **殘留掃描的排除清單只能排內容型目標**（記憶快照之類的資料）；**設定型**檔案（會被執行或讀取的
     `launch.json`、hook、workflow）即使與快照同目錄也不可排除——整個 `.claude/` 排掉會連指向已刪
     workspace 的 `launch.json` 一起蓋住。設定型用 `git ls-files <dir> | grep -E '\.(json|sh|toml|ya?ml)$'` 列出。
+  - **量系統工具的行為要用絕對路徑**（2026-09-24 踩過）：量 `find -mtime` 門檻時，Claude Code 的 `find` 是包 bfs 的 function，整點取樣把「>48h」量成「>49h」。量系統工具行為用絕對路徑（`/usr/bin/find`，先 `type <cmd>` 確認），時間門檻的樣本取到邊界兩側的分鐘級。
 
 ✅ **正例**：dev server 一直回 400/503 → 先 `lsof -i :8787`，發現是另一個 clone 殘留的 mock-server 佔著 port，殺掉即復原，程式碼一行不用改。
 ❌ **反例**：反覆修改 API 呼叫端程式碼想解 503，兩小時後才發現打到的根本不是自己起的 server。

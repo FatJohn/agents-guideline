@@ -63,4 +63,5 @@ Per-file purposes are in 「檔案結構」 of [`docs/repo-layout.md`](docs/repo
 | `skills/`, `rubrics/`, `docs/` | **Read on demand, not auto-loaded**: maintenance protocol and shared skills, acceptance criteria, situational reference |
 | `agents/` | Claude Code agent definitions: `worker`, `worker-opus`, `verifier` |
 | `codex/` | Codex-specific: dispatch rules and delegation templates, agent TOML, skills |
+| `hooks/`, `config/` | Optional Claude Code hook (blocks main-conversation edits to CI config) and ripgrep defaults (`--hidden` for Bash `rg`); install steps in [`docs/install.md`](docs/install.md) |
 | `scripts/`, `tests/` | Install sync scripts, the sunset-review measurement script, and tests |

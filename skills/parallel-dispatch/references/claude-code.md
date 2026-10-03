@@ -15,9 +15,9 @@
 ## 派工與 worktree
 
 - harness 不回報 worktree 路徑，worker prompt 必須要求回報 worktree 絕對路徑、branch、HEAD SHA（worker report 的 Location 欄）。
-- **隔離 worktree 例外**（`<REPO>/agents/worker.md` 規則 5）：plan 明寫「本任務在隔離 worktree（`isolation: worktree` 或 controller 自建 worktree）」時，worker 可在該 worktree 自己的 branch commit，完成前 rebase 到最新 base 一次並自行解純文字 conflict，解完重跑機械驗證；push、開 PR、開 issue、merge 仍禁止，且仍是該 worktree 唯一寫入者。這個 commit／rebase 權限來自 worker 合約，不因 fresh 或 follow-up 靜默延伸到非 isolation 的同 worktree；後者由 controller 建 checkpoint。
+- **隔離 worktree 例外**（`<REPO>/agents/worker.md` 規則 5）：plan 明寫「本任務在隔離 worktree（`isolation: worktree` 或 controller 自建 worktree）」時，worker 可在該 worktree 自己的 branch commit，完成前 rebase 到最新 base 一次並自行解純文字 conflict，解完重跑機械驗證；開 PR、開 issue、merge 仍禁止（push 僅在 brief 明文寫出 controller 已取得使用者對該 push 的授權時可做，見 worker 規則 5），且仍是該 worktree 唯一寫入者。這個 commit／rebase 權限來自 worker 合約，不因 fresh 或 follow-up 靜默延伸到非 isolation 的同 worktree；後者由 controller 建 checkpoint。
 - controller read-back：`git worktree list`、`git -C <wt> log -1 --format=%H`、`git -C <wt> status --short`、`git -C <wt> diff <base>...HEAD --stat`。同一 working tree 僅一寫入者；read-only agent 與寫入者共用 tree 時，其測試／build 量測無效（`worktree.md`「何時需要」）。
-- worktree branch 為 `worktree-<name>` 時，controller 以 `git -C <wt> push origin worktree-<name>:refs/heads/<repo 慣例 branch>` 推出並走 `create-pr` skill；所有 push、PR、merge、tracker comment 都需當次授權並由 controller 做。
+- worktree branch 為 `worktree-<name>` 時，controller 以 `git -C <wt> push origin worktree-<name>:refs/heads/<repo 慣例 branch>` 推出並走 `create-pr` skill；所有 push、PR、merge、tracker comment 都需當次授權並由 controller 做（worker 的 push 例外見上方隔離 worktree 例外）。
 - `Workflow` 工具的 `agent()` 未確認支援 `isolation`，且需使用者當次明確要求，本流程不使用。
 
 ## 驗收角色分流

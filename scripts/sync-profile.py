@@ -143,6 +143,10 @@ def default_mappings(
         Mapping(repo / "agents" / "worker.md", claude_home / "agents" / "worker.md", "file"),
         Mapping(repo / "agents" / "worker-opus.md", claude_home / "agents" / "worker-opus.md", "file"),
         Mapping(repo / "agents" / "verifier.md", claude_home / "agents" / "verifier.md", "file"),
+        # Files only: wiring them into ~/.claude/settings.json (hook entry,
+        # RIPGREP_CONFIG_PATH) stays manual, see docs/install.md.
+        Mapping(repo / "hooks", claude_home / "hooks", "tree"),
+        Mapping(repo / "config" / "ripgreprc", claude_home / "ripgreprc", "file"),
         Mapping(repo / "AGENTS.md", codex_home / "AGENTS.md", "file"),
         Mapping(
             repo / "codex" / "skills" / "session-handoff",

@@ -58,7 +58,8 @@ Execution environment（由 adapter 填）:
 - 落地位置: <絕對路徑；隔離時為 worktree>
 - 你是此位置唯一寫入者
 - 可否 commit / rebase: <依 worker 合約：適用隔離例外時原樣貼上該合約的宣告句（Claude 為「本任務在隔離 worktree（isolation: worktree 或 controller 自建 worktree）」），否則寫「禁止」；adapter 只填事實，不做授權判斷>
-- 禁止: push、開 PR、開 issue、merge、tracker、刪除非自建檔案
+- 禁止: 開 PR、開 issue、merge、tracker、刪除非自建檔案；push 見下一行
+- push 授權（Claude 限定；Codex worker 一律禁止 push）: <controller 已取得使用者對該 push 的授權時，明寫授權對象與範圍；空白＝禁止 push>
 
 Expected output:
 <程式碼 / 測試 / 文件…>

@@ -113,7 +113,7 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 
 **收斂即整合，不等整批**：§3 語意風險判定為無的片，一收斂（`CONVERGED`，或 `PROSE-ONLY` 修完 read-back）就單獨走第 7–8 步 merge 或開 PR，不等同批其他片；只有判定有語意風險的片才等它互動的對象一起做第 9 步。早 merge 前第 2 步的交集稽核改用**其他片 brief 的允許路徑**對本片實際改動檔取交集（非空就停）；其餘片完成後，再以實際改動檔補跑一次完整交集。§7 的全批最終驗證照做。
 
-merge／push 一律由 controller 依當次 session 授權執行；本 skill 不授權任何對外或不可逆動作。每次 merge 後比對實際 merge 結果的 tree 與該次候選 integration tree，記錄 merge SHA 並確認 required CI；不一致就停下一次 merge，先查明並重驗。某片 merge 後才發現壞：revert **該片**的 merge（或其 squash commit），其餘片不動，不整批回退；受影響證據依第 7 步作廢重驗。
+merge／push 一律由 controller 依當次 session 授權執行（worker 的 push 例外依 `<REPO>/agents/worker.md` 規則 5，仍須 brief 明文寫出使用者授權）；本 skill 不授權任何對外或不可逆動作。每次 merge 後比對實際 merge 結果的 tree 與該次候選 integration tree，記錄 merge SHA 並確認 required CI；不一致就停下一次 merge，先查明並重驗。某片 merge 後才發現壞：revert **該片**的 merge（或其 squash commit），其餘片不動，不整批回退；受影響證據依第 7 步作廢重驗。
 
 ## §7 FINAL VALIDATION 與 RESULT
 

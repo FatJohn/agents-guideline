@@ -24,18 +24,15 @@
 
 **修法**：
 - 判斷基準（context 成本 × 任務獨立性）的 canonical 在 dispatch 文件：Claude `10-dispatch.md` §1「雙軸判斷：context 成本 × 任務耦合」；Codex `../codex/rules/10-dispatch-codex.md` §1「雙軸派工判斷」。
-- 何時 compact 由使用者看 statusline 的 context 用量決定，controller 不量測、不主動提醒（2026-10-03 窗口 D：量測提醒 0 次執行，實際 4 次 compact 全由使用者發起，見 `../docs/worker-sonnet55-trial-2026-09.md`「窗口 D 量測」）。controller 不能自己 compact（`/compact` 只有使用者能打）；使用者說要 compact、要離開 >1h（prompt cache 1h 過期，回來整段重寫；窗口 C 9 次 $41），或要「新 prompt」時，給一段可直接貼在 `/compact` 後面的保留指示：目標、授權、未完成項目、**在途 subagent（名稱、任務、worktree／分支）**、產物證據位置。有在途 subagent 時先告知，建議等回報後再 compact；等不了就把在途清單寫進保留指示。
-- 主對話**每一次工具呼叫都是一次完整 context 重讀**，成本隨 context 線性放大：read-back 併成一次 Bash（`git status`＋`rev-parse`＋`diff --stat` 同一則），多檔閱讀與掃 repo 依 `10-dispatch.md` §1 表派出、只拿結論，不在主對話逐檔 `sed`／`cat`（2026-09-18 實測主對話成本 74% 是 cache 重讀，見 `../docs/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」；2026-10-01 窗口 C：主對話 69% 是 cache 重讀，連續唯讀工具 request 占 23.8%，見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」）。
+- 何時 compact 由使用者看 statusline 的 context 用量決定，controller 不量測、不主動提醒。controller 不能自己 compact（`/compact` 只有使用者能打）；使用者說要 compact、要離開 >1h（prompt cache 1h 過期，回來整段重寫），或要「新 prompt」時，給一段可直接貼在 `/compact` 後面的保留指示：目標、授權、未完成項目、**在途 subagent（名稱、任務、worktree／分支）**、產物證據位置。有在途 subagent 時先告知，建議等回報後再 compact；等不了就把在途清單寫進保留指示。量測依據見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」。
 
 ### 2. 假完成：宣稱通過但沒有實際執行
 
-**症狀**：說「測試通過」「已修好」但沒有跑過任何驗證，或驗證是自己看自己的產出。
-
-**修法**：鐵律一（回報分級：已驗證／待 CI／未驗證）＋按產出風險分工驗證。完成的定義見 `20-judgment.md` §2；誰驗什麼、用哪份 rubric 見 Claude `10-dispatch.md` §5「驗證不自驗」或 Codex `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。
+見鐵律一（回報分級）、`20-judgment.md` §2「何時算真的完成」；誰驗什麼見 Claude `10-dispatch.md` §5「驗證不自驗」或 Codex `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。
 
 ### 3. 固定注入肥大：每個 session 開場漏掉數千 token
 
-**症狀**：plugin 與 MCP server 每 session 注入工具清單、skill 描述與絕對化指令；skill 清單本身就是固定成本，跟用不用得到無關。（當下啟用了哪些 plugin 一律現查 `~/.claude/settings.json` 的 `enabledPlugins`，此處刻意不列舉——列了就會過時，而過時的清單比沒有清單更糟。）
+**症狀**：plugin／MCP server 每 session 注入工具清單、skill 描述與絕對化指令，固定成本與用不用得到無關。啟用了哪些 plugin 一律現查 `~/.claude/settings.json` 的 `enabledPlugins`，此處不列舉。
 
 **修法**：
 - 抓住優先權排序（見全域 CLAUDE.md），不被注入音量牽著走。

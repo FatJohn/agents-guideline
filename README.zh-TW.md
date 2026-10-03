@@ -61,4 +61,5 @@
 | `skills/`、`rubrics/`、`docs/` | **用到才讀，不自動載入**：維護協議與共用 skill、驗收判準、情境化參考 |
 | `agents/` | Claude Code agent 定義：`worker`、`worker-opus`、`verifier` |
 | `codex/` | Codex 專用：調度規則與派工模板、agent TOML、skill |
+| `hooks/`、`config/` | 選配的 Claude Code hook（擋主對話改 CI 設定）與 ripgrep 設定（讓 Bash 的 `rg` 預設 `--hidden`）；安裝見 [`docs/install.md`](docs/install.md) |
 | `scripts/`、`tests/` | 安裝同步器、日落審查量測腳本與測試 |

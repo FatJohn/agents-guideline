@@ -46,6 +46,9 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
   ```
 - **prompt cache 為 1h TTL**：窗口 C 的 cache_write 全為 1h、5m 為 0。request 間隔 5–60 分的 137 次全部未過期；間隔 >60 分（71–501 分）的 9 次全部整段重寫，cache_write $40.68（含 cache_read 的 request 總額約 $41）。cache 完整重寫合計 11 次、$45.53；ToolSearch 載入 deferred tool 會改 prefix 而觸發重寫，2 次、$4.52（$45.53 與 $4.52 都是 request 總額口徑）。
 - **主對話成本拆解**：69% 是 cache_read；context 中位 344K、P90 770K，>400K 的 request 占 62% 成本；最貴 3 個 session 占 82%；前兩名 context 中位 571K／674K、窗口內未 compact，第三名中位 293K、最大 494K、compact 1 次。連續唯讀工具 request（每段第一個以外）369 個、$84.45＝23.8%。subagent 回報中位 5.2K 字，全文留在主對話 context、每輪重讀，占位估 $72.19（20.4%，估算值）。
+- **窗口 D：compact 提醒規則沒有執行**（2026-10-03 從 `rules/00-environment.md` §1 搬入；原文未改寫）：「2026-10-03 窗口 D：量測提醒 0 次執行，實際 4 次 compact 全由使用者發起，見 `../docs/worker-sonnet55-trial-2026-09.md`「窗口 D 量測」」。窗口 C 離開 >1h 後 cache 整段重寫的「9 次 $41」見上方 prompt cache 那條。
+- **回報字數上限無效**（2026-10-03 從 `rules/10-dispatch.md` §3 搬入；原文未改寫）：「回報全文會留在主對話 context、之後每個 request 重讀（2026-10-01 窗口 C 回報中位 5.2K 字，占位約主對話成本 20%），所以長度靠兩道結構收住，不靠字數上限（窗口 D：brief 寫 2,000 字上限的 23 份回報全部超過，見 `../docs/worker-sonnet55-trial-2026-09.md`「窗口 D 量測」）：brief 的回報格式只列 controller 下一步決策要用的欄位；欄位以外的內容一律落檔附路徑。」5.2K／20.4% 的算法見上方成本拆解那條。
+- **主對話每次工具呼叫都重讀整個 context**（2026-10-03 從 `rules/00-environment.md` §1 搬入，該條日落；原文未改寫）：「主對話**每一次工具呼叫都是一次完整 context 重讀**，成本隨 context 線性放大：read-back 併成一次 Bash（`git status`＋`rev-parse`＋`diff --stat` 同一則），多檔閱讀與掃 repo 依 `10-dispatch.md` §1 表派出、只拿結論，不在主對話逐檔 `sed`／`cat`（2026-09-18 實測主對話成本 74% 是 cache 重讀，見 `../docs/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」；2026-10-01 窗口 C：主對話 69% 是 cache 重讀，連續唯讀工具 request 占 23.8%，見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」）。」日落依據：連續唯讀工具 request 占比窗口 C 23.8%（369 筆）→ 窗口 D 25.5%（571 筆），規則生效期間沒有改善（`../docs/worker-sonnet55-trial-2026-09.md`「窗口 D 量測」的「規則三：read-back 併批」）；74% 的口徑與機制見 `../docs/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」。
 - **compact 模擬**：「context 超過 T 就 compact 到約 90K」，T=200K 上界省 37%、T=300K 上界省 34%（上界：未計 compact 後重建 context 的成本與在途工作風險）。
 - **未驗證**：compact 時有在途背景 subagent，其回報是否仍正常送達主對話。
 - **subagent 寫報告檔會被擋**（2026-10-01，n=2，general-purpose）：用 Write 把報告寫到 scratchpad 時 harness 回「Subagents should return findings as text, not write report files」。觸發條件（[anthropics/claude-code#44657](https://github.com/anthropics/claude-code/issues/44657)，2026-10-01 查證、本機 2.1.286）：Agent 工具派出的 subagent 寫 `.md` 且檔名以 `report`／`summary`／`findings`／`analysis` 開頭（不分大小寫），與路徑、agent 類型無關；server 端開關，無 settings／環境變數可關。worker 改 repo 內其他檔名不受影響。要長產物落檔時，檔名改用不以這四字開頭的名稱（如 `out-<主題>.md`；2026-10-01 使用者同意此做法），或由 controller 從回報文字存檔。
@@ -76,3 +79,22 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 - 同日常駐 bytes 帳（`CLAUDE.md`＋`rules/00`＋`rules/05`＋host-facts；`git show <rev>:<file> | wc -c`）：當天第一個 commit 之前 11,631 → 拆分前 13,982（同日 `1673f4d` 把 05-hosts 從 2,615 加到 4,317）→ 拆分後 Mac 12,324／Windows 13,389 → 同日再精簡 CLAUDE.md（刪掉與 `hosts/windows.md` 重複的 Windows 專屬 ⚠️ 段、縮檔頭與段標題，4,792 → 3,959）後 Mac 11,491／Windows 12,599 → 第二輪（CLAUDE.md 常駐檔索引列併成一句、只留「用到才讀」表，3,959 → 3,104；`hosts/macos.md` 1,185 → 1,106）後 Mac 10,557／Windows 11,744。**上面「省 303／≈870 tokens」是對拆分前那個當天才長大的基準算的**；對當天開頭算，Mac −1,074 bytes、Windows +113 bytes（Windows 多的是新增的 448／複本安裝事實）。
 - `claude -p --allowed-tools "" '<prompt>'` 會把 prompt 吃進 `--allowed-tools`（可變長參數）而報 `Input must be provided`；prompt 用 stdin（`echo … | claude -p …`）或 `<<<`，或把 `--allowed-tools ""` 放在 prompt 之後。
 - 附帶：`rules/10-dispatch.md` §2「subagent 也會讀到全域 rules」只對 general-purpose／worker 成立，Explore／Plan 不成立——登記為候選（`FatJohn/agents-guideline` issue #3），未動判準。
+
+## 常用 subagent 類型（`subagent_type`）
+
+> 2026-10-03 從 `rules/10-dispatch.md` §0 搬入。理由：harness 每 session 已注入 agent 清單與描述，常駐區再列一次是重複；別處沒有而需常駐的事實（general-purpose 是升級車道、verifier 顯式 opus、simplify 是 skill、codex-rescue 的定位）已留在 §0「車道備註」。以下原文未改寫（文中「上方」與 §N 指原 `rules/10-dispatch.md`）。
+
+**常用 subagent 類型**（`subagent_type`）：
+- `Explore`——唯讀搜索，掃 repo、找檔案、答「哪裡有 X」。不能改檔。
+- `Plan`——出實作計畫、架構取捨。
+- `general-purpose`——多步驟執行、實作、批次改檔（全工具）；worker 升級或需要 opus／fable 時改派這個並顯式指定 model。
+- 本系統自帶 `worker`／`worker-opus`（呼叫方式見上方「執行者預設」）與 `verifier`（獨立驗收）；派工前讀
+  `~/.claude/agents/<角色>.md` 合約。verifier 顯式 `model: opus`，升 fable 見 §5。
+- 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
+- `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
+
+## 固定注入：plugin／MCP／skill 清單
+
+> 2026-10-03 從 `rules/00-environment.md` §3 搬入。理由：§3 常駐區只留動作句與標題；症狀說明與「為什麼不列舉」屬理由。以下原文未改寫。
+
+**症狀**：plugin 與 MCP server 每 session 注入工具清單、skill 描述與絕對化指令；skill 清單本身就是固定成本，跟用不用得到無關。（當下啟用了哪些 plugin 一律現查 `~/.claude/settings.json` 的 `enabledPlugins`，此處刻意不列舉——列了就會過時，而過時的清單比沒有清單更糟。）

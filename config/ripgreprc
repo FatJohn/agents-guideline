@@ -1,0 +1,10 @@
+# ripgrep config; effective only when RIPGREP_CONFIG_PATH points at this file.
+# One argument per line; lines starting with # are comments.
+#
+# Search hidden files/dirs (.claude/, .agents/, .gemini/, .github/, ...).
+# Without this, `rg <old-string>` silently skips them and residue checks
+# (20-judgment.md section 2) come back falsely clean.
+--hidden
+# --hidden would also search inside .git (objects, hooks, config). Keep it out.
+# Pattern has no trailing slash on purpose: in worktrees/submodules .git is a file.
+--glob=!.git

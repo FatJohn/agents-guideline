@@ -13,14 +13,7 @@
 不要發明 Agent 工具未提供的 effort 參數。規劃／複雜度升級與驗收另依 §1／§4／§5。
 模型升級鏈為 Sonnet → Opus → Fable，不代表必須依次嘗試；Haiku 不作預設或 fallback。
 
-**常用 subagent 類型**（`subagent_type`）：
-- `Explore`——唯讀搜索，掃 repo、找檔案、答「哪裡有 X」。不能改檔。
-- `Plan`——出實作計畫、架構取捨。
-- `general-purpose`——多步驟執行、實作、批次改檔（全工具）；worker 升級或需要 opus／fable 時改派這個並顯式指定 model。
-- 本系統自帶 `worker`／`worker-opus`（呼叫方式見上方「執行者預設」）與 `verifier`（獨立驗收）；派工前讀
-  `~/.claude/agents/<角色>.md` 合約。verifier 顯式 `model: opus`，升 fable 見 §5。
-- 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
-- `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
+**車道備註**：`general-purpose`（全工具）是 worker 升級或需要 opus／fable 時改派的車道，須顯式指定 model；`worker`／`worker-opus`（呼叫方式見上方「執行者預設」）與 `verifier` 是本系統自帶角色，派工前讀 `~/.claude/agents/<角色>.md` 合約（verifier 顯式 `model: opus`，升 fable 見 §5）；簡化剛改過的程式碼用內建 `simplify` skill（它是 skill，不是 subagent）；`codex:codex-rescue` 是外部模型（GPT 系，Codex 訂閱，不占 Claude 配額）備用車道，第二意見或整包委派用。`Explore`／`Plan` 等類型的職責見 `../docs/harness-facts.md`「常用 subagent 類型」。
 
 ## 1. 雙軸判斷：context 成本 × 任務耦合
 
@@ -52,7 +45,7 @@
 3. controller read-back 實際檔案／指令輸出，不採信 worker 自述。
 4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `../skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
 
-controller 自行小修的例外**只限**單點、低風險、可機械驗證、scope 無歧義的修正（如打字錯誤、單一路徑修正）；涉及授權、安全、架構取捨或主觀品質的文件一律走上面四步，不得用「順手改一下」跳過。會被執行的 CI／release 設定（`.github/workflows`、`.github/actions` 等）不屬小修例外，一律走上面四步。`worker` 與 `verifier` 不得對自己收到的任務再套用本節或 §1「雙軸判斷」去派工——它們是執行者／找碴者，不是第二層 controller。
+controller 自行小修的例外**只限**單點、低風險、可機械驗證、scope 無歧義的修正（如打字錯誤、單一路徑修正）；涉及授權、安全、架構取捨或主觀品質的文件一律走上面四步，不得用「順手改一下」跳過。會被執行的 CI／release 設定（`.github/workflows`、`.github/actions` 等）不屬小修例外，一律走上面四步；已依 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」裝好 hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open）；沒裝的環境與 Bash 改檔都不經 hook，仍靠本條。
 
 ## 工作目錄與背景任務安全
 
@@ -70,7 +63,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 每個 subagent prompt 必含三段，缺一段就是不合格的派工：
 
 1. **目標與動機**——要達成什麼、為什麼（subagent 看不到主對話，脈絡要自帶：相關檔案、使用者原話、已知限制）。
-2. **驗收條件**——可機械判定的完成定義；判準：另一個 agent 能只憑這句話判定過或不過。填不出驗收條件代表你還沒想清楚要什麼，先想再派。
+2. **驗收條件**——可機械判定的完成定義，自我檢查與正反例見 `20-judgment.md` §4。填不出驗收條件代表你還沒想清楚要什麼，先想再派。
 3. **回報格式**——規定回哪些欄位（預設合約見 §3）。
 
 三個非顯然的必要條件（漏掉會出事，不是風格建議）：
@@ -91,7 +84,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 - Subagent 只回**結論與證據**（檔案:行號、指令輸出關鍵行），不回原始內容傾倒。
 - 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接依 `../docs/memory-layers.md`「顯式交接檔」條。
-- 回報長度以 controller 下一步決策需要的資訊為準；大 diff、完整清單、全文等長產物落檔（`.md` 檔名不以 report／summary／findings／analysis 開頭，否則 harness 擋 subagent 寫入，見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），回報附路徑與摘要（驗收的逐條判定屬決策資訊，留在回報內）。回報全文會留在主對話 context、之後每個 request 重讀（2026-10-01 窗口 C 回報中位 5.2K 字，占位約主對話成本 20%），所以長度靠兩道結構收住，不靠字數上限（窗口 D：brief 寫 2,000 字上限的 23 份回報全部超過，見 `../docs/worker-sonnet55-trial-2026-09.md`「窗口 D 量測」）：brief 的回報格式只列 controller 下一步決策要用的欄位；欄位以外的內容一律落檔附路徑。要縮時先砍原始內容傾倒與重複敘述，不砍決策所需證據。唯讀角色（Explore／Plan）與要附進 brief 的素材（檔案清單、關鍵段落）不受此限。
+- 回報長度以 controller 下一步決策需要的資訊為準；大 diff、完整清單、全文等長產物落檔（`.md` 檔名不以 report／summary／findings／analysis 開頭，否則 harness 擋 subagent 寫入，見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），回報附路徑與摘要（驗收的逐條判定屬決策資訊，留在回報內）。回報全文會留在主對話 context 每輪重讀，所以長度不靠字數上限（上限寫了也會被超過），靠 brief 的回報格式只列 controller 下一步決策要用的欄位、欄位以外一律落檔附路徑（量測見前述 `harness-facts.md` 該節）。要縮時先砍原始內容傾倒與重複敘述，不砍決策所需證據。唯讀角色（Explore／Plan）與要附進 brief 的素材（檔案清單、關鍵段落）不受此限。
 - 回報必須分級：**已驗證（附證據）／待 CI／未驗證**（鐵律一）。
 
 ## 4. 升降級路徑
@@ -115,11 +108,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 - **高風險判斷**（對外文件、不可逆、架構決策）：加獨立第二意見，可用 codex-rescue 或兩個 agent，分歧交使用者。
 
 Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`；frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑。
-改用 `model: fable` 前，說明訊號與證據並取得當次同意：
-(a) 同一條件連續兩輪 UNSURE；(b) 與實跑或獨立結論矛盾且 controller 無法裁決；
-(c) 後來實測抓到它漏掉的安全、授權或不可逆缺陷。使用者當次直接指定 fable 不必再問；
-無上述訊號仍可提議，但要明說沒有訊號及判斷理由。Codex 刻意維持 `sol_verifier/Sol high`，
-見 `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。歷史理由見 `<REPO>/docs/verification-policy-history.md`。
+改用 `model: fable` 前，說明訊號（清單見 `<REPO>/docs/verification-policy-history.md`「fable 升檔訊號」）與證據並取得當次同意。使用者當次直接指定 fable 不必再問；無訊號仍可提議，但要明說沒有訊號及判斷理由。Codex 刻意維持 `sol_verifier/Sol high`，見 `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。歷史理由見 `<REPO>/docs/verification-policy-history.md`。
 
 「第二個現場」是取樣，不是本次必修清單；verifier 交回的 N 個實例清單同樣是取樣——逐個修完之前先問
 「是什麼產生它們」，再決定修哪一層。範圍內依 `20-judgment.md` §2「停止端」修正分流；
