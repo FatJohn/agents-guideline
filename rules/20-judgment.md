@@ -57,7 +57,7 @@ canonical 在 `<REPO>/docs/debug-environment-first.md`**，新增的語言寫進
 
 **補充判準（修正與驗收輪次）**：首次驗收依既有分工，不另派小型機械工作。驗收後修正：低風險且有確定性檢查能證明 finding 已修、無相關迴歸時，controller 可自行檢查並以「finding→修正→證據」結案；安全、授權、不可逆、重大架構或缺乏可靠機械證據時仍須 fresh-context delta 驗收。文件待實作與證據穩定後集中更新，不逐輪加未驗宣稱；**驗收輪次按產物切開**——可執行宣稱（測試、斷言）在實作當下寫並驗，散文最後一次寫完才驗；同一交付批次中證據已穩定、無個別交付依賴的散文可合併成一次驗收，不得為合批延後已可交付的 issue／PR 或阻塞後續工作，行為承載文件不因此降成散文；平行批次的切片依 `<REPO>/skills/parallel-dispatch/SKILL.md` §5「VALIDATION：切片驗收」各自驗收、收斂即整合，不受此限。
 
-delta 派工須帶原 finding、修正 diff、受影響的原始驗收條件與既有證據；evidence set 範圍、歸因與收斂判定的 canonical 在 `~/.claude/agents/verifier.md` 規則 4（Codex：`../codex/agents/verifier.toml`）。
+delta 派工須帶原 finding、修正 diff、受影響的原始驗收條件與既有證據；evidence set 範圍、歸因與收斂判定的 canonical 在 `~/.claude/agents/verifier.md` 規則 4（Codex：`../codex/agents/verifier.toml`）。首輪 brief 指定 repo 外的探針落檔路徑，delta brief 附該路徑；除「改既有檢查」的放寬探測外，delta brief 不另指定新探測形狀或開放式找漏洞。修正者（含 controller 自修）對文件新寫或改寫的句子逐句對照權威來源，對新增或修改的測試斷言與守門檢查附實跑會變紅的突變紅／綠輸出（Claude 細節見 `~/.claude/agents/worker.md` 規則 2），兩者證據帶進 delta brief。
 
 ✅ **正例**：低風險輸出格式修正跑過邊界及迴歸測試後結案；授權條件修正則交 fresh verifier。
 ❌ **反例**：用 `git diff --check` 代替授權語意驗收；或為無關文案重開完整驗收。

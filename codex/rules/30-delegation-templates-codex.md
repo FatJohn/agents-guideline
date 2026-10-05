@@ -31,7 +31,7 @@ runtime permission evidence: 【named metadata／CLI header／繼承父 session�
 authorization boundary: 【controller 已授權的動作；對外或不可逆動作一律交回 controller】
 ```
 
-`actual agent_type=default` 時，完整 logical-role contract 仍照貼；沒有 child metadata 時 runtime evidence 必須保留「runtime 未驗證」。generic spawn surface 沒有 sandbox override 時，runtime permission evidence 寫「繼承父 session」；寫入角色須先證明父權限涵蓋 approved scope，read-only 角色則只有父 runtime 已是 read-only 時可派，否則改走 direct CLI 或停止。不得把 prompt 內的 read-only 自稱或事後 read-back 當作 sandbox 證據。若使用 `codex exec --ephemeral --sandbox read-only` 走 direct CLI review，該 process 是單體 fresh reviewer，可在指定 model／effort、sandbox 與完整 contract 都有 runtime 證據時完成獨立驗收（包含 Sol/high）；回報標 `direct CLI fallback`，不能把 generic child 或 direct CLI 稱為 custom role。缺任一身份／權限證據只能標「runtime 未驗證」，不能正式結案。
+`actual agent_type=default` 時，完整 logical-role contract 仍照貼；沒有 child metadata 時 runtime evidence 必須保留「runtime 未驗證」。generic spawn surface 沒有 sandbox override 時，runtime permission evidence 寫「繼承父 session」；寫入角色須先證明父權限涵蓋 approved scope（verifier 類只需父 runtime 至少 workspace-write，其寫入範圍僅 repo 外探針目錄，由合約約束；父 runtime 為 read-only 時改走 direct CLI（`--sandbox workspace-write`）或停止），reviewer 等 read-only 角色則只有父 runtime 已是 read-only 時可派，否則改走 direct CLI 或停止。不得把 prompt 內的 read-only 自稱或事後 read-back 當作 sandbox 證據。若使用 `codex exec --ephemeral --sandbox <read-only｜workspace-write>`（reviewer 等唯讀角色用 read-only，verifier 類用 workspace-write）走 direct CLI review，該 process 是單體 fresh reviewer，可在指定 model／effort、sandbox 與完整 contract 都有 runtime 證據時完成獨立驗收（包含 Sol/high）；回報標 `direct CLI fallback`，不能把 generic child 或 direct CLI 稱為 custom role。缺任一身份／權限證據只能標「runtime 未驗證」，不能正式結案。
 
 首輪驗收依原有首次驗收分工獨立完成，高風險沒有豁免。若是 finding 後的 delta，prompt 必須填入原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據；delta 的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，不主動設計或執行新的探測形狀。固定 evidence set 內，任何結果若直接使受影響的原始驗收條件不成立，即使 base 也失敗，仍列 FAIL／OPEN；該條件不能判 PASS，也不得標 `CONVERGED`。只有與受影響的原始驗收條件無關、且不是修正 diff 引入的 base 既有／旁支問題，才列後續事項、不擋本次收斂。修正 diff 引入的缺陷仍列 FAIL，歸因要對 base 重跑同一探針。修正 diff 本身又放寬既有檢查時，依 `<REPO>/rules/20-judgment.md` §2「改既有檢查／過濾／驗證規則」照做對抗性探測（不受上述「不主動設計或執行新的探測形狀」限制）。
 verifier 回報狀態使用 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`；必要條件有 `UNSURE` 時為 `INCONCLUSIVE`，`OPEN` 依風險分流而非自動要求 fresh delta。`PROSE-ONLY` 修完並 read-back 後停止；三輪回報點依同一產出計數，換 model／role 不重設。
@@ -166,10 +166,10 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 回報格式：最多 30 行；先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目，分級為已驗證／待 CI／未驗證。
 ```
 
-## J. 一般驗收（角色：verifier；Terra/high/read-only）
+## J. 一般驗收（角色：verifier；Terra/high/workspace-write，只寫 repo 外探針目錄）
 
 ```text
-你是 verifier，親自完成本任務；禁止再 spawn subagent。保持 read-only；只找碴與判定，不製作或修正產物。
+你是 verifier，親自完成本任務；禁止再 spawn subagent。只找碴與判定，只寫 repo 外探針目錄，不製作或修正產物。執行測試／build 產生且 git 未追蹤或被 ignore 的可再生副產物（如 `__pycache__`、`bin/`／`obj/`、build 輸出）不算違反本條；不得 `git add`、`git clean` 或刪改它們。tracked 檔（含 lockfile、snapshot）被改動不在此例外。
 
 目標：【要驗證什麼決策或完成宣稱】。
 動機：【為何需要 fresh-context 驗收】。
@@ -198,10 +198,10 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 回報格式：最多 30 行；先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目，分級為已驗證／待 CI／未驗證。
 ```
 
-## L. 高風險驗收（角色：sol_verifier；Sol/high/read-only）
+## L. 高風險驗收（角色：sol_verifier；Sol/high/workspace-write，只寫 repo 外探針目錄）
 
 ```text
-你是 sol_verifier，親自完成本任務；禁止再 spawn subagent。保持 read-only；只找碴與判定，不製作或修正產物。
+你是 sol_verifier，親自完成本任務；禁止再 spawn subagent。只找碴與判定，只寫 repo 外探針目錄，不製作或修正產物。
 
 目標：對【安全、不可逆、重大架構或正式高風險產出】做 fresh-context 最終驗收。
 動機：【為什麼一般 Terra verifier 不足；要避免的高代價風險】。
@@ -210,7 +210,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 1.【需求、approved plan 與高風險邊界是否落地】
 2.【invariants、failure modes、rollback strategy 與驗證證據是否完整】
 3.【是否存在安全漏洞、不可逆副作用、重大架構假設，或會讓讀者採取錯誤高風險行動的語意缺陷】
-限制：完全 read-only；禁止寫檔、branch、stash、commit、push、發訊息、寄信、merge、發佈或其他對外動作。若證據不足標 UNSURE，不替製作者腦補；每個 FAIL 附 `檔案:行號` 與一行理由。
+限制：唯一可寫的是 repo 外的探針目錄（父任務指定；未指定時在 `$TMPDIR` 下新建）；禁止修改受驗產物或任何 repo 內檔案、branch、stash、commit、push、發訊息、寄信、merge、發佈或其他對外動作。執行測試／build 產生且 git 未追蹤或被 ignore 的可再生副產物（如 `__pycache__`、`bin/`／`obj/`、build 輸出）不算違反本條；不得 `git add`、`git clean` 或刪改它們。tracked 檔（含 lockfile、snapshot）被改動不在此例外。若證據不足標 UNSURE，不替製作者腦補；每個 FAIL 附 `檔案:行號` 與一行理由。
 找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/rules/20-judgment.md` §2「停止端」。純措辭、語氣與行文品味不算缺陷。
 回報格式：最多 30 行；第一行標 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`，再列逐條判定、證據、最大風險與分級為已驗證／待 CI／未驗證。高風險 delta 必須確認原始 finding、修正 diff、受影響原始驗收條件與既有證據都已提供；缺任一項標 `INCONCLUSIVE`。
 ```

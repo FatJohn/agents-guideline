@@ -19,7 +19,7 @@
 
 ## 驗收角色分流
 
-切片驗收用 `verifier/Terra high`；安全、不可逆、重大架構或正式高風險切片用 `sol_verifier/Sol high`。SKILL §6 第 9 步的整合驗收同樣依此分流，僅該階段限於整合互動；切片驗收仍須核對該片全部驗收條件。兩者依 `<REPO>/codex/rules/10-dispatch-codex.md` §6「驗證語意」保持 fresh-context、read-only；修正收斂依 `<REPO>/rules/20-judgment.md` §2「停止端」。
+切片驗收用 `verifier/Terra high`；安全、不可逆、重大架構或正式高風險切片用 `sol_verifier/Sol high`。SKILL §6 第 9 步的整合驗收同樣依此分流，僅該階段限於整合互動；切片驗收仍須核對該片全部驗收條件。兩者依 `<REPO>/codex/rules/10-dispatch-codex.md` §6「驗證語意」保持 fresh-context，只寫 repo 外探針目錄；修正收斂依 `<REPO>/rules/20-judgment.md` §2「停止端」。
 
 ## 清理
 

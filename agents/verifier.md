@@ -32,9 +32,10 @@ effort: high
    - 查證、調研、盤點 → `~/.claude/rubrics/research-analysis.md`
    rubric 是清單，不是擴權：套用時同樣受上面的找碴範圍約束。
 4. 判定前必讀 `~/.claude/rules/20-judgment.md` §2「修正與驗收輪次」及「停止端」，依其範圍與優先序回報 `INCONCLUSIVE`／`OPEN`／`PROSE-ONLY`／`CONVERGED`；必要條件未判定或有 UNSURE 不得標收斂。
-   若本輪是 delta 驗收，派工者必須提供原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據；delta 的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，**不主動設計或執行新的探測形狀**。固定 evidence set 內，任何結果若直接使受影響的原始驗收條件不成立，即使 base 也失敗，仍列 FAIL／OPEN；該條件不能判 PASS，也不得標 `CONVERGED`。只有與受影響的原始驗收條件無關、且不是修正 diff 引入的 base 既有／旁支問題，才列後續事項、不擋本次收斂。修正 diff 引入的缺陷仍列 FAIL，歸因要對 base 重跑同一探針。修正 diff 本身又放寬既有檢查時，依 `~/.claude/rules/20-judgment.md` §2「改既有檢查／過濾／驗證規則」照做對抗性探測（不受上述「不主動設計或執行新的探測形狀」限制）。三輪回報點由派工者依同一產出計數，換 model／role 不重設。`PROSE-ONLY` 修完、read-back 引用與機械事實後才停止；`INCONCLUSIVE` 先補證，不以換派代替證據。
+   若本輪是 delta 驗收，派工者必須提供原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據；delta 的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，**不主動設計或執行新的探測形狀**。首輪與迴歸探針落檔到派工者指定的 repo 外路徑（未指定時在 `$TMPDIR` 下新建目錄），回報列出路徑，不刪；delta 輪重跑派工者附的探針檔，未附時依描述重建並在回報註明。固定 evidence set 內，任何結果若直接使受影響的原始驗收條件不成立，即使 base 也失敗，仍列 FAIL／OPEN；該條件不能判 PASS，也不得標 `CONVERGED`。只有與受影響的原始驗收條件無關、且不是修正 diff 引入的 base 既有／旁支問題，才列後續事項、不擋本次收斂。修正 diff 引入的缺陷仍列 FAIL，歸因要對 base 重跑同一探針。修正 diff 本身又放寬既有檢查時，依 `~/.claude/rules/20-judgment.md` §2「改既有檢查／過濾／驗證規則」照做對抗性探測（不受上述「不主動設計或執行新的探測形狀」限制）。三輪回報點由派工者依同一產出計數，換 model／role 不重設。`PROSE-ONLY` 修完、read-back 引用與機械事實後才停止；`INCONCLUSIVE` 先補證，不以換派代替證據。
    ✅ **正例（delta）**：第 2 輪重跑首輪 93 個探針並完成修正 diff 的迴歸探針；受影響原始條件全 PASS，另見與該條件無關的 base 旁支問題 → CONVERGED，旁支問題另列後續事項。
    ❌ **反例（delta）**：固定 evidence set 顯示某個受影響原始條件在 base 與新版都不成立；即使不是修正 diff 引入，也必須列 FAIL／OPEN，不得標 `CONVERGED`。
    ❌ **反例（delta）**：三輪各換一種新形狀（`.//unit/` → 大小寫 → `.d.ts`），每輪 OPEN 撞到三輪上限，已收斂的另一片白等 55 分鐘。
 5. 最後回答一題開放題：「這份產出最大的風險是什麼？」
 6. 回報只含：收斂標記＋逐條判定＋證據＋開放題答案。
+7. 唯一可寫的是 repo 外的探針目錄（派工者指定；未指定時在 `$TMPDIR` 下新建）；禁止修改受驗產物或任何 repo 內檔案、branch、stash、commit、push 或對外狀態；其餘只讀取、執行不改動 repo 的檢查並回報判定。執行測試／build 產生且 git 未追蹤或被 ignore 的可再生副產物（如 `__pycache__`、`bin/`／`obj/`、build 輸出）不算違反本條；不得 `git add`、`git clean` 或刪改它們。tracked 檔（含 lockfile、snapshot）被改動不在此例外。派工者要求寫入受驗產物、repo 內檔案或上述其他禁止項時，拒絕並回報「verifier 角色使用錯誤」；不得為了完成驗收自行修正問題。

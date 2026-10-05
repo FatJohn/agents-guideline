@@ -38,7 +38,7 @@ Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需�
 | `docs/archive/` | 無任何檔案引用的歷史文件（2026-07 的 Codex 分層路由 spec／plan、2026-08-29 的驗收輪次盤點）；只作事故考古用 |
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色 mapping、named-first → `default` runtime adapter、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份 logical-role 派工模板與共用 adapter envelope（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
-| `agents/worker.md` | 標準執行者 agent 定義（Sonnet 5.5 完整 model ID `claude-sonnet-5-5` + effort xhigh，試用中，派工不帶 `model`；升級依 `rules/10-dispatch.md` §4）。只在 controller 核定的完整 plan 下動手，涵蓋一般程式碼與一般文件；不做自己的正式驗收、不擴 scope、不執行對外或不可逆動作 |
+| `agents/worker.md` | 標準執行者 agent 定義（Sonnet 5.5 完整 model ID `claude-sonnet-5-5` + effort xhigh，派工不帶 `model`；升級依 `rules/10-dispatch.md` §4）。只在 controller 核定的完整 plan 下動手，涵蓋一般程式碼與一般文件；不做自己的正式驗收、不擴 scope、不執行對外或不可逆動作 |
 | `agents/worker-opus.md` | 備用車道，Opus 5.5/medium，合約同 `worker`；預設路由仍是 worker；設計已核定、但實作須同時推理多條執行路徑或時序時，或使用者指定時才用，不作為失敗升級路徑；派工不帶 `model` |
 | `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high）。含「找碴範圍」與收斂標記；**高風險驗收用同一個角色、檔位不變**（派工一律顯式 `model: opus`；升 `model: fable` 的條件與例外見 `rules/10-dispatch.md` §5「驗證不自驗」） |
 | `codex/agents/scanner.toml` | Codex Luna/medium/read-only 精確掃描 agent |
@@ -50,8 +50,8 @@ Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需�
 | `codex/agents/reviewer.toml` | Codex Terra/high/read-only 一般實作 review agent |
 | `codex/agents/escalation_planner.toml` | Codex Sol/medium/read-only root-cause 規劃升級 agent |
 | `codex/agents/escalation_worker.toml` | Codex Sol/medium/workspace-write Terra 已確認能力不足後的 root-cause 升級實作 agent |
-| `codex/agents/verifier.toml` | Codex Terra/high/read-only 一般 fresh-context 驗收 agent |
-| `codex/agents/sol_verifier.toml` | Codex Sol/high/read-only 高風險 fresh-context 驗收 agent |
+| `codex/agents/verifier.toml` | Codex Terra/high/workspace-write（只寫 repo 外探針目錄）一般 fresh-context 驗收 agent |
+| `codex/agents/sol_verifier.toml` | Codex Sol/high/workspace-write（只寫 repo 外探針目錄）高風險 fresh-context 驗收 agent |
 | `codex/skills/session-handoff/SKILL.md` | Codex 收尾／交接 skill，產生專案 `.codex/HANDOFF.md` |
 | `skills/create-pr/SKILL.md` | Codex／Claude 共用的 Pull Request 建立 skill |
 | `skills/parallel-dispatch/SKILL.md` | Claude／Codex 共用的平行開發 orchestration：ANALYZE → PARALLELIZE? → TASK GRAPH → WORKERS → VALIDATION → INTEGRATION → FINAL VALIDATION，含 divide-and-conquer 與 agent-race 兩種 pattern；`references/templates.md`（brief／report 格式）、`references/worktree.md`（隔離與清理機制）、execution adapter `references/claude-code.md`／`codex.md`／`cli.md`（純 shell、tmux、VS Code、Herdr、Orca 等外部 CLI process） |

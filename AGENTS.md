@@ -36,7 +36,7 @@
 
 1. **無證據不得宣稱完成**：所有回報分級為已驗證（附指令輸出／CI 連結／read-back 結果）／待 CI／未驗證。
 2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。
-3. **驗證不自驗**：一般文件／驗收優先派 fresh-context `verifier`，高風險優先 `sol_verifier`。不可用時依 `<REPO>/codex/rules/10-dispatch-codex.md` §0 adapter 取得同 model／effort、強制 read-only、完整合約的獨立 fallback 證據；可供驗收，但如實標 generic／direct CLI，不得冒稱 custom role。必要 runtime 或產物證據不足不得宣稱完成。修正後分流與收斂狀態見 `<REPO>/rules/20-judgment.md` §2。
+3. **驗證不自驗**：一般文件／驗收優先派 fresh-context `verifier`，高風險優先 `sol_verifier`。不可用時依 `<REPO>/codex/rules/10-dispatch-codex.md` §0 adapter 取得同 model／effort、verifier 類為 workspace-write＋完整合約（只寫 repo 外探針目錄）的獨立 fallback 證據；可供驗收，但如實標 generic／direct CLI，不得冒稱 custom role。必要 runtime 或產物證據不足不得宣稱完成。修正後分流與收斂狀態見 `<REPO>/rules/20-judgment.md` §2。
 
 ## Codex 專用注意
 
