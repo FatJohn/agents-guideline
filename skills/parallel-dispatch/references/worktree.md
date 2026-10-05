@@ -4,7 +4,7 @@
 
 ## 何時需要
 
-≥2 個 worker 要同時寫入同一 repo 時必須各用獨立 worktree（single-writer：同一 working tree 同一時間只有一個寫入者；只要共用 tree，即使檔案不重疊也只能序列）。單一 worker、或 worker 之間嚴格序列，可直接在主 working tree 做，不必開 worktree。read-only 角色（verifier、探索）與寫入者共用 tree 時，唯讀結論仍可信，但**跑測試／build 得到的數字被污染**——要嘛等寫入者停手，要嘛給它自己的 worktree。
+≥2 個 worker 要同時寫入同一 repo 時必須各用獨立 worktree（single-writer：同一 working tree 同一時間只有一個寫入者；只要共用 tree，即使檔案不重疊也只能序列）。單一 worker、或 worker 之間嚴格序列，可直接在主 working tree 做，不必開 worktree。不寫 repo 的角色（verifier、探索）與寫入者共用 tree 時，唯讀結論仍可信，但**跑測試／build 得到的數字被污染**——要嘛等寫入者停手，要嘛給它自己的 worktree。
 
 ## 所有權與路徑
 

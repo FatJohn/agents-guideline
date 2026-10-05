@@ -37,7 +37,7 @@
 
 ### Direct CLI review branch
 
-`reviewer`、`verifier`、`sol_verifier` 或其他唯讀 logical role 若沒有可用 child surface，controller 可直接啟動 fresh process。`--sandbox` 依角色：`reviewer` 等唯讀角色用 `read-only`；`verifier`／`sol_verifier` 用 `workspace-write`（只為了寫 repo 外探針目錄，repo 內不寫由合約約束，controller 事後 read-back `git status`／`git stash list`）：
+`reviewer`、`verifier`、`sol_verifier` 或其他不寫 repo 的 logical role 若沒有可用 child surface，controller 可直接啟動 fresh process。`--sandbox` 依角色：`reviewer` 等唯讀角色用 `read-only`；`verifier`／`sol_verifier` 用 `workspace-write`（只為了寫 repo 外探針目錄，repo 內不寫由合約約束，controller 事後 read-back `git status`／`git stash list`）：
 
 ```bash
 codex exec --ephemeral --strict-config --sandbox <read-only｜workspace-write> \
