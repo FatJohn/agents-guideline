@@ -1,6 +1,6 @@
 ---
 name: parallel-dispatch
-description: 一個開發任務可能拆給 ≥2 個 coding agent 平行做（divide & conquer），或讓多個 agent 各解一版再選優（agent race）時使用；spec 尚未切分、要先判斷值不值得平行或能不能切時也用。已有切好的 tracker 項目要直接平行派工與整合驗收時同樣觸發。不論中英文措辭（如「這幾個 issue 一起處理」、"split this into tasks"）。
+description: 一個開發任務可能拆給 ≥2 個 coding agent 平行做（divide & conquer），或讓多個 agent 各解一版再選優（agent race）時使用；spec 尚未切分、要先判斷值不值得平行或能不能切時也用。已有切好的 tracker 項目要直接平行派工與整合驗收時同樣觸發；互相獨立的多個 issue 也觸發，§1 會把它們分到各自的 issue session。不論中英文措辭（如「這幾個 issue 一起處理」、"split this into tasks"）。
 allowed-tools: Bash(git:*), Bash(gh:*), Read, Grep, Glob
 ---
 
@@ -35,6 +35,8 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 ```
 
 ## §1 ANALYZE：任務分析
+
+**先分流**：候選項目若是互相獨立的 issue（各自可單獨交付、不必一起整合），不進本流程的同 session fan out，改依 `references/cli.md`「盤點 session 與 issue session」一個 issue 一個頂層 session，各 issue session 是自己的 controller；本流程只處理同一 issue／功能內需要一起整合的切片。判不出是否獨立（共用 schema、lockfile、registry、CI 設定、migration 序號，或驗收要一起跑）就當成相依，留在本流程。理由與量測見 `<REPO>/docs/issue-session-trial-2026-10.md`。
 
 - **入口 A**：tracker 已有切好的項目 → 不重切，但每項仍要補齊下列欄位；tracker 上的數字與事實以現查為準，與使用者提供素材不一致時在 plan 並列，不靜默採用。
 - **入口 B**：spec／grilling 結論尚未切 → 先切。單模組、依賴已知時由 controller 自切；跨模組或依賴不明時依平台 dispatch 派 read-only 規劃角色，controller 核定。

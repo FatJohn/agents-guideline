@@ -21,7 +21,7 @@
 
 探索與決策需即時互動時留在主對話；實際寫入僅適用下方小修例外。無法隔離就序列派工，不改成多個寫入者。
 
-準備讓 ≥2 個各需寫入的切片平行（含 spec 尚未切分、要先判斷能不能切時）→ 先讀 `~/.claude/skills/parallel-dispatch/SKILL.md`，該 skill 承載切分判準、派工、整合驗收流程（worktree 與 terminal 只是 adapter 層）。
+**互相獨立的 issue（各自可單獨交付、不必一起整合）一個 issue 一個頂層 session，不由同一個 controller 平行扛**：本 session 只做盤點，每個 issue 各開一個 session，依 `~/.claude/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」開出——一個 controller 扛 N 個 issue，每輪都重讀所有在途 issue 的 brief 與回報（量測見 `<REPO>/docs/issue-session-trial-2026-10.md`）。issue session 的 brief 逐字引用使用者在盤點 session 對該 issue 的授權時，視同該 session 已授權，範圍以引文為限、上限 push feature branch＋開 PR，細節見上述 cli.md 該段「授權」條。一個 issue 交付後要換主題，開新 session，不在大 context 上接新主題。同一 issue／功能內準備讓 ≥2 個各需寫入的切片平行（含 spec 尚未切分、要先判斷能不能切時）→ 先讀 `~/.claude/skills/parallel-dispatch/SKILL.md`，該 skill 承載切分判準、派工、整合驗收流程（worktree 與 terminal 只是 adapter 層）。
 
 | 工作 | 派給 | model |
 |------|------|-------|
@@ -40,7 +40,7 @@
 
 一般實作與一般文件的標準路徑，四步、不預設疊多輪 review：
 
-1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。核定時若本波有 ≥2 個 ownership 不相交的 issue／切片，先依 §1「雙軸判斷」的平行入口判斷能不能切，不預設序列。單一 issue 的 plan 預估要動 ≥2 個模組，或 phases 涵蓋整個功能一片到底時，同樣先評估 ownership 不相交、可獨立交付的切法，值不值得切仍依 `~/.claude/skills/parallel-dispatch/SKILL.md` §2「值不值得」；切不出來或不值得平行就維持單片，或依同檔「單片尺寸評估」比較冷啟動、context、重讀與交接成本後選序列交接，不以工具呼叫數或預估分鐘數強制切分。**核定前先派 `Explore` 拿要動的檔案清單、關鍵段落與既有測試結構**，把結果依 §2「把已讀過的素材附進 prompt」附進 brief，不讓執行者自己從零探索；同時用這份清單估單片 context（觸發序列交接的參考值見「單片尺寸評估」）。**不算違規**：改動範圍已知且 controller 手上就有素材（單檔修正、延續同一 session 剛讀過的檔）時免派 Explore、直接核定；下述不變量前置仍適用。**修正要對所有執行路徑或時序都成立（同一條件要在多個呼叫點處理、非同步／並行交錯、多處讀寫同一份狀態），或以新增檢查閘門作為修補手段時**，plan 先寫出不變量（修完後要由結構保證成立的條件），再派 `Plan`（opus）與 `codex:codex-rescue`（不可用時改派第二個獨立 agent）各自獨立出方案並互相比對；只靠事後檢查補洞的方案不核定。**不算違規**：只改單一路徑、結果不依賴其他路徑或執行順序的修正。
+1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。核定時若本波有 ≥2 個互相獨立的 issue，依 §1 改做盤點、每個 issue 各開一個 session，本 session 不兼任其中任何一個；同一 issue 內有 ≥2 個 ownership 不相交的切片時，先依 §1「雙軸判斷」的平行入口判斷能不能切，不預設序列。單一 issue 的 plan 預估要動 ≥2 個模組，或 phases 涵蓋整個功能一片到底時，同樣先評估 ownership 不相交、可獨立交付的切法，值不值得切仍依 `~/.claude/skills/parallel-dispatch/SKILL.md` §2「值不值得」；切不出來或不值得平行就維持單片，或依同檔「單片尺寸評估」比較冷啟動、context、重讀與交接成本後選序列交接，不以工具呼叫數或預估分鐘數強制切分。**核定前先派 `Explore` 拿要動的檔案清單、關鍵段落與既有測試結構**，把結果依 §2「把已讀過的素材附進 prompt」附進 brief，不讓執行者自己從零探索；同時用這份清單估單片 context（觸發序列交接的參考值見「單片尺寸評估」）。**不算違規**：改動範圍已知且 controller 手上就有素材（單檔修正、延續同一 session 剛讀過的檔）時免派 Explore、直接核定；下述不變量前置仍適用。**修正要對所有執行路徑或時序都成立（同一條件要在多個呼叫點處理、非同步／並行交錯、多處讀寫同一份狀態），或以新增檢查閘門作為修補手段時**，plan 先寫出不變量（修完後要由結構保證成立的條件），再派 `Plan`（opus）與 `codex:codex-rescue`（不可用時改派第二個獨立 agent）各自獨立出方案並互相比對；只靠事後檢查補洞的方案不核定。**不算違規**：只改單一路徑、結果不依賴其他路徑或執行順序的修正。
 2. 派 `worker`（single-writer）依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
 3. controller read-back 實際檔案／指令輸出，不採信 worker 自述。
 4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `../skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
