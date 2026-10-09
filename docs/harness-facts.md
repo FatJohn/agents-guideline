@@ -7,9 +7,10 @@
 > **查證日：2026-08-06。版本更新後重新核對**——這些值會隨 Claude Code／Codex 改版漂移，
 > 要宣稱某個參數存在時以當場現查的工具 schema 為準，不引用本檔。
 
-- Agent 呼叫可逐次指定 model；effort 仍由 agent 定義 frontmatter 或 session/workflow 設定控制。
-- 主對話（controller）的 model 由 UI 選擇，effort 由 `~/.claude/settings.json` 的 `effortLevel` 設定（2026-07-25 核對為 `xhigh`；2026-09-07 複查仍為 `xhigh`，另有 `modelSettings.claude-fable-5-1.effortLevel: high` 的逐型號覆寫）。**subagent 不指定 `model`、且 agent 定義 frontmatter 也沒寫 `model` 時，繼承主對話的模型**，所以 `../rules/10-dispatch.md` 各表的 model 欄是顯式 routing 指示，派 `worker`／`verifier` 一律要寫 `model:`（worker 已改，見本條末句）。**更正（2026-09-23 實測）**：agent 定義 frontmatter 有寫 `model` 時，不帶參數用的是 frontmatter 的型號、不繼承主對話——`claude -p --model sonnet` 主對話（claude-sonnet-5）不帶 `model` 派 `worker-opus`，subagent transcript 記錄 `claude-opus-5-5`；「繼承主對話」只適用於 frontmatter 沒寫 `model` 的 agent。派 `verifier` 仍照舊顯式寫 `model:`；`worker`（型號與 effort 由其 frontmatter 決定）見 `../rules/10-dispatch.md` §0。（2026-09-07 從 `rules/10-dispatch.md` §0 搬入；原「Max 檔位實作預設 opus、Pro 檔位降回 sonnet」的分檔位規則已由不分檔位的 `worker`（型號由其 frontmatter 決定）取代，刻意放棄。）
+- Agent 呼叫可逐次指定 model 與 effort（`effort` 參數見下方「沒有 frontmatter effort 的 subagent」）；不帶 effort 時由 agent 定義 frontmatter 或 session/workflow 設定控制。
+- 主對話（controller）的 model 由 UI 選擇，effort 由 `~/.claude/settings.json` 的 `effortLevel` 設定，Opus 5.5 起改看 `modelSettings` 逐型號值（見下方「沒有 frontmatter effort 的 subagent」）（2026-07-25 核對為 `xhigh`；2026-09-07 複查仍為 `xhigh`，另有 `modelSettings.claude-fable-5-1.effortLevel: high` 的逐型號覆寫；2026-10-09 現查已改為 `medium`，逐型號覆寫為 `claude-opus-5-5: high`、`claude-fable-5-1: medium`——數值會被使用者調整，引用前現查）。**subagent 不指定 `model`、且 agent 定義 frontmatter 也沒寫 `model` 時，繼承主對話的模型**，所以 `../rules/10-dispatch.md` 各表的 model 欄是顯式 routing 指示，派 `worker`／`verifier` 一律要寫 `model:`（worker 已改，見本條「更正（2026-09-23 實測）」）。**更正（2026-09-23 實測）**：agent 定義 frontmatter 有寫 `model` 時，不帶參數用的是 frontmatter 的型號、不繼承主對話——`claude -p --model sonnet` 主對話（claude-sonnet-5）不帶 `model` 派 `worker-opus`，subagent transcript 記錄 `claude-opus-5-5`；「繼承主對話」只適用於 frontmatter 沒寫 `model` 的 agent。派 `verifier` 仍照舊顯式寫 `model:`；`worker`（型號與 effort 由其 frontmatter 決定）見 `../rules/10-dispatch.md` §0。（2026-09-07 從 `rules/10-dispatch.md` §0 搬入；原「Max 檔位實作預設 opus、Pro 檔位降回 sonnet」的分檔位規則已由不分檔位的 `worker`（型號由其 frontmatter 決定）取代，刻意放棄。）
 - Agent frontmatter 的 `effort` 可填 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用值仍受模型與組織限制。（2026-09-30 併入原 `rules/10-dispatch.md` §0 的「也可由 session／workflow 控制」；原文未改寫。）
+- **沒有 frontmatter effort 的 subagent**（如 `general-purpose`）：Agent 工具有逐次 `effort` 參數（`low`／`medium`／`high`／`xhigh`／`max`），官方文件：「When you ask Claude to run a non-fork subagent at a specific effort level, it can also pass an `effort` parameter for that invocation. The parameter overrides the `effort` field」，需 v2.1.292 以上（[sub-agents](https://code.claude.com/docs/en/sub-agents.md)）。runtime 可查：Bash 子行程與 hook 會自動帶 `CLAUDE_EFFORT`（「the effort level in effect」，[env-vars](https://code.claude.com/docs/en/env-vars.md)）。**2026-10-09 實測**（2.1.295，主對話 Opus 5.5／`modelSettings.claude-opus-5-5.effortLevel: high`）：`general-purpose`＋`model: opus` 不帶 `effort` → `CLAUDE_EFFORT=high`；帶 `effort: medium` → `medium`。不帶時是繼承主對話還是依 subagent 型號解析 `modelSettings`，這次分不出（兩者同為 Opus 5.5／high），文件也未明寫。session 層的解析順序：`CLAUDE_CODE_EFFORT_LEVEL`／`--effort`／`/effort` → 設定（`modelSettings` 逐型號，「Claude Code resolves each model separately」）→ 模型預設；`~/.claude/settings.json` 的頂層 `effortLevel` 對 Opus 5.5 不算數，project／local／managed 的頂層仍套到每個模型（[model-config](https://code.claude.com/docs/en/model-config.md)、[settings-reference](https://code.claude.com/docs/en/settings-reference.md)）。`/tasks` 只在 subagent 有明確設定 effort 時才顯示。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。不是每個 session 都有（`claude -p` 起的 session 曾缺它，機制未查明），以當下 Agent 工具列出的類型為準。（2026-09-30 從 `rules/10-dispatch.md` §0 搬入；原文未改寫。）
 - 新增 `~/.claude/agents/*.md` 後，已在執行中的 session 不必重開：新增當輪派該名字會回 `Agent type ... not found`，下一個使用者輪次 harness 注入「New agent types are now available」後即可派（2026-09-23 實測，`worker-opus`，n=1）。
 - `Monitor` 工具（2026-09-29 在 Claude Code 2.1.284 由工具 schema 現查）：預設是 deferred tool，要先 `ToolSearch` 載入 schema 才能呼叫；背景跑一支 script，**stdout 每一行是一則通知**，script 結束即停止；`timeout_ms` 預設 5 分鐘，上限依 session 而異（同日互動 session 的 schema 寫 cap 1800000ms＝30 分，`claude -p` session 的 schema 寫 cap 600000ms＝10 分，JSON `maximum` 皆為 3600000），以當場 schema 為準；到期要重新掛。只需要一次通知（「CI 跑完告訴我」）時，schema 建議改用 Bash `run_in_background` 加會自己結束的 `until` 迴圈；過濾條件要涵蓋失敗與所有終止狀態，否則當掉和還在跑一樣安靜。用在 CI 等待的做法見 `../skills/parallel-dispatch/references/claude-code.md`「CI 等待與 PR」。
@@ -55,9 +56,9 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 
 ## 被問到 model／effort 時怎麼答
 
-> 2026-08-30 從 `rules/10-dispatch.md` §3 搬入。理由：這段服務的是「使用者問起時怎麼答」這個罕見場景，不是每個 session 都要的；§3 的判準（報呼叫參數、註明 runtime 未驗證）留在常駐區，本節只是細節。內容原文未改寫。
+> 2026-08-30 從 `rules/10-dispatch.md` §3 搬入。理由：這段服務的是「使用者問起時怎麼答」這個罕見場景，不是每個 session 都要的；§3 的判準（報呼叫參數、註明 runtime 未驗證）留在常駐區，本節只是細節。內容原文未改寫；2026-10-09 改寫 effort 那句（見句內更正註記）。
 
-被問到 model／effort 時報**呼叫時指定的參數**——那是你自述得出的。**本制度不稽核 subagent 實際跑在哪個 model**：runtime model ID 只能在派工 prompt 裡事前要求 subagent 自報，事後補問不到，而每次派工都加那段話的成本高過它的價值。所以被問時答「呼叫參數是 X，runtime 未驗證」，不要改口說已驗證。effort 另有硬限制：Agent 工具沒有 effort 參數、也無法 runtime 自報，有 `agents/<角色>.md` 的角色引其 frontmatter 標「宣告值」，其餘寫「未指定，繼承主對話」；外部模型（`codex:codex-rescue`）model／effort 都寫「不適用」。報制度出處要指得出是 §1、§5 或 `20-judgment.md` §1 的哪一條，「範圍明確」這類自由心證不算。
+被問到 model／effort 時報**呼叫時指定的參數**——那是你自述得出的。**本制度不稽核 subagent 實際跑在哪個 model**：runtime model ID 只能在派工 prompt 裡事前要求 subagent 自報，事後補問不到，而每次派工都加那段話的成本高過它的價值。所以被問時答「呼叫參數是 X，runtime 未驗證」，不要改口說已驗證。effort：呼叫時帶了 `effort` 參數就報該值；沒帶時，有 `agents/<角色>.md` 的角色引其 frontmatter 標「宣告值」，其餘寫「未指定，依 session 設定」；要確認實際值可在 subagent 內跑 `echo $CLAUDE_EFFORT`（2026-10-09 更正：原文寫「Agent 工具沒有 effort 參數、也無法 runtime 自報」，已不成立，見本檔開頭「沒有 frontmatter effort 的 subagent」）；外部模型（`codex:codex-rescue`）model／effort 都寫「不適用」。報制度出處要指得出是 §1、§5 或 `20-judgment.md` §1 的哪一條，「範圍明確」這類自由心證不算。
 
 ## 常駐內容對 subagent 的可見性、`paths` frontmatter、hook 注入（2026-09-20 實測）
 
@@ -89,7 +90,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 - `Plan`——出實作計畫、架構取捨。
 - `general-purpose`——多步驟執行、實作、批次改檔（全工具）；worker 升級或需要 opus／fable 時改派這個並顯式指定 model。
 - 本系統自帶 `worker`（呼叫方式見 `../rules/10-dispatch.md` §0「執行者預設」）與 `verifier`（獨立驗收）；派工前讀
-  `~/.claude/agents/<角色>.md` 合約。verifier 顯式 `model: opus`，升 fable 見 §5。
+  `~/.claude/agents/<角色>.md` 合約。verifier 顯式 `model: opus`，升 fable 見 `../rules/10-dispatch.md` §5「驗證不自驗」。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
 
