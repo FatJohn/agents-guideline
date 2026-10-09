@@ -11,7 +11,7 @@
 - prompt 開頭必須禁止遞迴 spawn：subagent 親自完成，不得再派 subagent。
 - 以下 A–L 每一個 code block 都是完整的 logical-role contract；實際派送時，先把一次性的 adapter envelope 貼在對應 code block 前。`logical role`、`actual agent_type`、model／effort、runtime evidence 與 permission contract 缺一不可；不因使用 generic `default` 而刪減 A–L 內容。
 - A–L 內「你是 `<role>`」是 logical role 標籤，不是 runtime 身份。child 的 `actual agent_type` 依 `10-dispatch-codex.md` §0 的 named-first → `default` fallback 決定；direct CLI review 填 `direct CLI process`，generic child 不得自稱 custom role。
-- `pro_worker` 沒有另一份重複模板：它重用 D 的 worker contract，把 logical role 改為 `pro_worker`，依 §0 改用 Terra/high，並附觸發 higher-complexity route 的 signals 與證據；execution mistake 可補正一次，若 Terra 抓錯核心、遺漏跨模組關係或能力不足就立即停止並建議 Sol/medium，原因不明且兩次無進展也停止。
+- `pro_worker` 沒有另一份重複模板：它重用 D 的 worker contract，把 logical role 改為 `pro_worker`，依 §0 改用 Terra/high，並附觸發 higher-complexity route 的 signals 與證據；execution mistake 可補正一次，若 Terra 抓錯核心、遺漏跨模組關係或能力不足就立即停止並建議 Sol/medium，原因不明且兩次無進展也停止，停止時附逐輪嘗試表。
 
 ### Adapter envelope（A–L 共用前綴）
 
@@ -88,7 +88,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
 寫入所有權：【絕對路徑清單】；禁止修改清單外檔案。
 限制：先核對 approved plan 已含必填項且未決問題均已解決或列為禁止範圍；不完整就停止並交回 controller，禁止邊做邊補 plan。最小必要變更；不改【禁止範圍】；不新增依賴除非必要。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；若任務需要對外或不可逆動作，立即停止並回報 controller，由 controller 決定授權與後續路徑。
-機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。
+機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。失敗重試時每輪當下記一列逐輪嘗試表（欄位見 `<REPO>/codex/rules/10-dispatch-codex.md` §5「升降級路徑」），停止回報時附上；有機械指標時無進展依 `<REPO>/rules/20-judgment.md` §1 數字判定。
 回報格式：最多 30 行；列出改動檔案、驗證指令與輸出關鍵行、偏離 prompt 的決定，分級為已驗證／待 CI／未驗證。
 ```
 
@@ -159,9 +159,9 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 目標：在 approved plan 已存在，且 pro_worker／recovery_worker 已確認 Terra 能力不足後，先建立【root cause】，再完成【授權範圍內的修正】。
 動機：【原始需求與為什麼需要升級能力】。
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
-輸入證據：原始需求【】；approved plan【】；Terra 實作者的相關 diff【】；Terra root cause 報告與能力不足判定【】；原因不明但達兩次無進展上限時，另附完整失敗輸出與已嘗試 hypotheses【】。
+輸入證據：原始需求【】；approved plan【】；Terra 實作者的相關 diff【】；Terra root cause 報告與能力不足判定【】；原因不明但達兩次無進展上限時，另附完整失敗輸出與已嘗試 hypotheses＋逐輪嘗試表【】。
 限制：先分析並回報 root cause 與修正策略，再編輯；只修改【絕對路徑清單】。禁止 branch、stash、commit、push、對外動作與不可逆範圍擴張；若仍需要新的授權或不可逆決策，停止交回 controller。
-失敗處理：先分 execution mistake、reasoning 不足、model／context 理解不足與 evidence／environment 不足；execution mistake 可補正一次，原因不明且兩次無進展就停止。只有 Sol medium 的 capability／context 確認不足，或新證據顯示 exceptional high-risk，才交回 controller 決定是否升 Sol high。
+失敗處理：先分 execution mistake、reasoning 不足、model／context 理解不足與 evidence／environment 不足；execution mistake 可補正一次，原因不明且兩次無進展就停止，停止時附逐輪嘗試表（欄位見 `<REPO>/codex/rules/10-dispatch-codex.md` §5「升降級路徑」）。只有 Sol medium 的 capability／context 確認不足，或新證據顯示 exceptional high-risk，才交回 controller 決定是否升 Sol high。
 機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。
 回報格式：最多 30 行；先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目，分級為已驗證／待 CI／未驗證。
 ```
@@ -191,9 +191,9 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 目標：在 worker/Luna max 顯示模型能力／脈絡理解不足，或兩次未明失敗後，先建立【root cause】，再完成【授權範圍內的修正】。
 動機：【原始需求與為什麼需要 Terra high recovery】。
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
-輸入證據：原始需求【】；approved plan【】；標準實作者相關 diff【】；對應門檻證據【能力／脈絡入口：抓錯核心或遺漏關係的證據；未明失敗入口：兩次完整測試／錯誤輸出＋已嘗試 hypotheses】。
+輸入證據：原始需求【】；approved plan【】；標準實作者相關 diff【】；對應門檻證據【能力／脈絡入口：抓錯核心或遺漏關係的證據；未明失敗入口：兩次完整測試／錯誤輸出＋已嘗試 hypotheses＋逐輪嘗試表】。
 限制：先分析並回報 root cause 與修正策略，再編輯；只修改【絕對路徑清單】；遵循既有 invariants、rollback strategy 與 completion criteria。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；需要這些動作時交回 controller。
-機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。execution mistake 且修法明確時可補正一次；建立 root cause 後確認 Terra 能力不足，或原因不明且兩次無進展時，停止並回報應升級 `escalation_worker/Sol medium`。其他仍可可靠收斂的失敗繼續依 approved plan 修復。
+機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。execution mistake 且修法明確時可補正一次；建立 root cause 後確認 Terra 能力不足，或原因不明且兩次無進展時，停止並回報應升級 `escalation_worker/Sol medium`，回報時附逐輪嘗試表（欄位見 `<REPO>/codex/rules/10-dispatch-codex.md` §5「升降級路徑」）。其他仍可可靠收斂的失敗繼續依 approved plan 修復。
 驗收條件：root cause 可由對應門檻證據支持；修正符合 approved plan；相關驗證通過或明確分級未驗證；不擴大寫入範圍。
 回報格式：最多 30 行；先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目，分級為已驗證／待 CI／未驗證。
 ```
