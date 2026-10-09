@@ -106,7 +106,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 - **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。
 - **高風險判斷**（對外文件、不可逆、架構決策）：加獨立第二意見，可用 codex-rescue 或兩個 agent，分歧交使用者。
 
-Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`；frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑。
+Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`；frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑；真的 fallback 時另帶 `effort: high`（與 verifier frontmatter 相同），否則 effort 落到 session 設定。
 改用 `model: fable` 前，說明訊號（清單見 `<REPO>/docs/verification-policy-history.md`「fable 升檔訊號」）與證據並取得當次同意。使用者當次直接指定 fable 不必再問；無訊號仍可提議，但要明說沒有訊號及判斷理由。Codex 刻意維持 `sol_verifier/Sol high`，見 `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。歷史理由見 `<REPO>/docs/verification-policy-history.md`。
 
 「第二個現場」是取樣，不是本次必修清單；verifier 交回的 N 個實例清單同樣是取樣——逐個修完之前先問
