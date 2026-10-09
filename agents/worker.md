@@ -1,6 +1,6 @@
 ---
 name: worker
-description: "標準執行者（Sonnet 5.5 層）：一般程式碼與文件的實作、修 bug、重構、批次改檔。前提是 controller 已核定完整 plan，缺 plan 會退回。派工時不帶 `model` 參數（model 與 effort 由本檔 frontmatter 決定，帶了會蓋過 frontmatter）；失敗後升級依 `rules/10-dispatch.md` §4（fresh general-purpose＋先建立 root cause）；設計本身有缺陷時換模型無效，走設計審查。"
+description: "標準執行者（Sonnet 5.5 層）：一般程式碼與文件的實作、修 bug、重構、批次改檔。前提是 controller 已核定完整 plan，缺 plan 會退回。派工時不帶 `model` 與 `effort` 參數（兩者由本檔 frontmatter 決定，帶了會蓋過 frontmatter）；失敗後升級依 `rules/10-dispatch.md` §4（fresh general-purpose＋先建立 root cause）；設計本身有缺陷時換模型無效，走設計審查。"
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: claude-sonnet-5-5
 effort: xhigh
@@ -28,4 +28,4 @@ effort: xhigh
 8. 回報是 controller 要放進自己 context 的交接，只寫它下一步需要的：改動檔案清單、逐 phase 完成狀態、驗證指令與輸出關鍵行、未完成項目、分級（已驗證／待 CI／未驗證）；長產物落檔並附路徑。
 9. 交回前核對 diff 新增／變更的現況宣稱，依 `~/.claude/rules/20-judgment.md` §2「把可證偽宣稱寫下來之前」處理，回報列宣稱對應的有效證據或缺口。
 
-`model` 與 `effort` 是本檔設定欄位。Agent 呼叫不帶 `model` 參數，由本檔 frontmatter 的完整 model ID 決定（鎖完整 ID 是為了不隨 alias 改版漂移）；CLI 可指定 `--effort xhigh`。工具未提供 effort 參數時不要自行添加；runtime 型號與 effort 以可取得的 metadata 為準，無證據就標未驗證。
+`model` 與 `effort` 是本檔設定欄位。Agent 呼叫不帶 `model` 參數，由本檔 frontmatter 的完整 model ID 決定（鎖完整 ID 是為了不隨 alias 改版漂移）；也不帶 `effort` 參數（Agent 工具有此參數，帶了會蓋過本檔 frontmatter）；CLI 可指定 `--effort xhigh`。runtime effort 可在 Bash 跑 `echo $CLAUDE_EFFORT` 查；runtime 型號以可取得的 metadata 為準，無證據就標未驗證。

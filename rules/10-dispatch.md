@@ -9,7 +9,7 @@
 
 **執行者預設**：一般實作與文件產出使用 `worker`（Sonnet 5.5 層；2026-09-29 切換，2026-10-05 使用者確認轉為正式方案）。
 呼叫時不帶 `model`，model 與 effort 由 `agents/worker.md` frontmatter 決定。
-不要發明 Agent 工具未提供的 effort 參數。規劃／複雜度升級與驗收另依 §1／§4／§5。
+Agent 工具有逐次 `effort` 參數，但派 `worker`／`verifier` 不帶（帶了會蓋過其 frontmatter）；沒有 frontmatter effort 的車道（`general-purpose` 等）只在本檔或使用者要求固定 effort 時才帶，見下方「車道備註」。規劃／複雜度升級與驗收另依 §1／§4／§5。
 模型升級鏈為 Sonnet → Opus → Fable，不代表必須依次嘗試；Haiku 不作預設或 fallback。
 
 **車道備註**：`general-purpose`（全工具）是 worker 升級或需要 opus／fable 時改派的車道，須顯式指定 model；使用者當次指定 Opus 執行時也派這條（`model: opus`、`effort: medium`，與移除前的 `worker-opus` 相同，使用者當次指定別的 effort 時從其指定；brief 要求照 `~/.claude/agents/worker.md` 合約。不帶 `effort` 會依 session 設定跑（2026-10-09 本機實測為 high，隨設定與主對話型號變動，不可當常數），見 `../docs/harness-facts.md`「沒有 frontmatter effort 的 subagent」）；`worker`（呼叫方式見上方「執行者預設」）與 `verifier` 是本系統自帶角色，派工前讀 `~/.claude/agents/<角色>.md` 合約（verifier 顯式 `model: opus`，升 fable 見 §5）；簡化剛改過的程式碼用內建 `simplify` skill（它是 skill，不是 subagent）；`codex:codex-rescue` 是外部模型（GPT 系，Codex 訂閱，不占 Claude 配額）備用車道，第二意見或整包委派用。`Explore`／`Plan` 等類型的職責見 `../docs/harness-facts.md`「常用 subagent 類型」。

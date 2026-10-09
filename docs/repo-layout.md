@@ -57,7 +57,7 @@ Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需�
 
 `agents/*.md` 與 `codex/agents/*.toml` 是 standalone role 定義／設定；它們的正文只在該 named role 被派工時進入 subagent context（name／description 會出現在每 session 的可用 agent 清單裡）。named unavailable 時，generic adapter 仍須在 prompt 帶入 `30-delegation-templates-codex.md` 的完整 logical-role contract；`pro_worker` 明確重用 D 的 worker contract，只替換 Terra/high mapping，並附 higher-complexity route 證據。TOML 安裝或角色名稱不能取代 runtime evidence。
 
-**為什麼 Claude 側只自建 `worker`／`verifier`，沒有 `scanner`／`explorer`／`planner` 的等價 custom agent**：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋唯讀掃描與規劃，且本制度不把 haiku 列入 active routing。`worker` 與 `verifier` 需要獨立定義檔的理由相同——**Agent 呼叫無法逐次指定 effort**，一般實作與文件撰寫要固定綁 `sonnet 5.5／xhigh`、驗收要固定綁 `opus／high`，只有寫成 standalone agent 才能把 model 與 effort 一起鎖進角色合約，不必每次呼叫都手動重複。
+**為什麼 Claude 側只自建 `worker`／`verifier`，沒有 `scanner`／`explorer`／`planner` 的等價 custom agent**：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋唯讀掃描與規劃，且本制度不把 haiku 列入 active routing。`worker` 與 `verifier` 需要獨立定義檔的理由相同——一般實作與文件撰寫要固定綁 `sonnet 5.5／xhigh`、驗收要固定綁 `opus／high`，寫成 standalone agent 才能把 model、effort 與角色合約一起鎖成預設，不靠每次呼叫都記得帶參數。（2026-10-09 更正：原文寫「**Agent 呼叫無法逐次指定 effort**」，已不成立——Agent 工具 v2.1.292 起有逐次 `effort` 參數，見 `harness-facts.md`「沒有 frontmatter effort 的 subagent」。）
 
 **為什麼 Claude 側沒有派工模板檔、Codex 側有**：Claude 側的派工合約併在 `rules/10-dispatch.md` §2 與各 `agents/*.md` 的角色合約，沒有獨立模板檔——填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `codex/rules/30-delegation-templates-codex.md`：它把 approved plan、寫入所有權、驗證命令與回報格式做成可核對欄位，避免 controller 只靠角色名稱推定 child 已取得完整脈絡。
 
