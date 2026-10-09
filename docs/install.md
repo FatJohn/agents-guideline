@@ -30,7 +30,7 @@ for pair in \
   fi
 done
 
-for agent in worker worker-opus verifier; do
+for agent in worker verifier; do
   src="$REPO/agents/$agent.md"; dst="$HOME/.claude/agents/$agent.md"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -41,6 +41,8 @@ done
 ```
 
 指令可重跑（已存在就略過不覆蓋）。若「已存在」的是你自己的舊全域 CLAUDE.md，手動把本 repo 的路由表與鐵律段落合併進去，不要直接覆蓋。
+
+2026-10-09 起移除 `worker-opus` 車道（`agents/worker-opus.md` 已刪，本檔的 symlink 與實體檔同步兩種流程都不再裝它）：舊安裝要手動刪 `~/.claude/agents/worker-opus.md`——實體檔複本安裝的那份不會被 `scripts/sync-profile.py --prune` 清掉，因為 `plan_prunes` 只清指向本 repo 的 symlink（見其 docstring 與 `_is_repo_link`）；symlink 安裝的該連結會變成斷鏈，同樣直接刪掉即可。
 
 裝完驗證本機事實真的被匯入（`@import` 缺檔是**靜默略過**，不會報錯）：`claude -p --allowed-tools "" <<< '不准用工具，引用 context 裡「# 本機事實」那段的標題與 hostname'`——回不出標題就是 `~/.claude/host-facts.md` 沒連上，或 CLAUDE.md 少了 `@~/.claude/host-facts.md` 那行。
 
@@ -241,7 +243,7 @@ Link-One "$REPO\rubrics"                   "$HOME\.claude\rubrics"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.claude\skills\maintain-guideline"
 Link-One "$REPO\skills\create-pr"                "$HOME\.claude\skills\create-pr"
 Link-One "$REPO\skills\parallel-dispatch"        "$HOME\.claude\skills\parallel-dispatch"
-foreach ($a in 'worker','worker-opus','verifier') {
+foreach ($a in 'worker','verifier') {
   Link-One "$REPO\agents\$a.md" "$HOME\.claude\agents\$a.md"
 }
 # 選配的 hook 與 ripgreprc（只連結檔案，settings.json 另外加，見上方「選配」段）
@@ -275,7 +277,7 @@ Windows 專屬注意：
 
 ## 安裝（實體檔同步版——不能提權的機器用這個）
 
-**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rubrics/`、`agents/worker.md`＋`worker-opus.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`，以及上方「選配」段的 `hooks/` 與 `config/ripgreprc`；後兩者只寫檔，`settings.json` 仍要手動加）：
+**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rubrics/`、`agents/worker.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`，以及上方「選配」段的 `hooks/` 與 `config/ripgreprc`；後兩者只寫檔，`settings.json` 仍要手動加）：
 
 ```bash
 python scripts/sync-profile.py --prune                                  # 先預覽

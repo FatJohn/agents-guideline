@@ -39,7 +39,6 @@ Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需�
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色 mapping、named-first → `default` runtime adapter、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份 logical-role 派工模板與共用 adapter envelope（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
 | `agents/worker.md` | 標準執行者 agent 定義（Sonnet 5.5 完整 model ID `claude-sonnet-5-5` + effort xhigh，派工不帶 `model`；升級依 `rules/10-dispatch.md` §4）。只在 controller 核定的完整 plan 下動手，涵蓋一般程式碼與一般文件；不做自己的正式驗收、不擴 scope、不執行對外或不可逆動作 |
-| `agents/worker-opus.md` | 備用車道，Opus 5.5/medium，合約同 `worker`；預設路由仍是 worker；設計已核定、但實作須同時推理多條執行路徑或時序時，或使用者指定時才用，不作為失敗升級路徑；派工不帶 `model` |
 | `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high）。含「找碴範圍」與收斂標記；**高風險驗收用同一個角色、檔位不變**（派工一律顯式 `model: opus`；升 `model: fable` 的條件與例外見 `rules/10-dispatch.md` §5「驗證不自驗」） |
 | `codex/agents/scanner.toml` | Codex Luna/medium/read-only 精確掃描 agent |
 | `codex/agents/explorer.toml` | Codex Terra/medium/read-only 探索 agent |
@@ -58,7 +57,7 @@ Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需�
 
 `agents/*.md` 與 `codex/agents/*.toml` 是 standalone role 定義／設定；它們的正文只在該 named role 被派工時進入 subagent context（name／description 會出現在每 session 的可用 agent 清單裡）。named unavailable 時，generic adapter 仍須在 prompt 帶入 `30-delegation-templates-codex.md` 的完整 logical-role contract；`pro_worker` 明確重用 D 的 worker contract，只替換 Terra/high mapping，並附 higher-complexity route 證據。TOML 安裝或角色名稱不能取代 runtime evidence。
 
-**為什麼 Claude 側只自建 `worker`／`verifier`，沒有 `scanner`／`explorer`／`planner` 的等價 custom agent**：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋唯讀掃描與規劃，且本制度不把 haiku 列入 active routing。`worker` 與 `verifier` 需要獨立定義檔的理由相同——**Agent 呼叫無法逐次指定 effort**，一般實作與文件撰寫要固定綁 `sonnet 5.5／xhigh`、驗收要固定綁 `opus／high`，只有寫成 standalone agent 才能把 model 與 effort 一起鎖進角色合約，不必每次呼叫都手動重複。備用車道 `worker-opus`（Opus 5.5/medium，合約同 `worker`）不改變這裡的角色分工。
+**為什麼 Claude 側只自建 `worker`／`verifier`，沒有 `scanner`／`explorer`／`planner` 的等價 custom agent**：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋唯讀掃描與規劃，且本制度不把 haiku 列入 active routing。`worker` 與 `verifier` 需要獨立定義檔的理由相同——**Agent 呼叫無法逐次指定 effort**，一般實作與文件撰寫要固定綁 `sonnet 5.5／xhigh`、驗收要固定綁 `opus／high`，只有寫成 standalone agent 才能把 model 與 effort 一起鎖進角色合約，不必每次呼叫都手動重複。
 
 **為什麼 Claude 側沒有派工模板檔、Codex 側有**：Claude 側的派工合約併在 `rules/10-dispatch.md` §2 與各 `agents/*.md` 的角色合約，沒有獨立模板檔——填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `codex/rules/30-delegation-templates-codex.md`：它把 approved plan、寫入所有權、驗證命令與回報格式做成可核對欄位，避免 controller 只靠角色名稱推定 child 已取得完整脈絡。
 

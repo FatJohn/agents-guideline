@@ -54,7 +54,6 @@ def build_repo(root: Path) -> Path:
     (repo / "hosts" / "windows.md").write_text("# win\n", encoding="utf-8")
     (repo / "rubrics" / "code-change.md").write_text("# code change\n", encoding="utf-8")
     (repo / "agents" / "worker.md").write_text("# worker\n", encoding="utf-8")
-    (repo / "agents" / "worker-opus.md").write_text("# worker-opus\n", encoding="utf-8")
     (repo / "agents" / "verifier.md").write_text("# verifier\n", encoding="utf-8")
     (repo / "hooks").mkdir(parents=True)
     (repo / "hooks" / "block-ci-edit.sh").write_text("#!/bin/bash\n# hook\n", encoding="utf-8")

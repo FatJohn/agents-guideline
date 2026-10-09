@@ -141,7 +141,6 @@ def default_mappings(
         Mapping(repo / "rules", claude_home / "rules", "tree"),
         Mapping(repo / "rubrics", claude_home / "rubrics", "tree"),
         Mapping(repo / "agents" / "worker.md", claude_home / "agents" / "worker.md", "file"),
-        Mapping(repo / "agents" / "worker-opus.md", claude_home / "agents" / "worker-opus.md", "file"),
         Mapping(repo / "agents" / "verifier.md", claude_home / "agents" / "verifier.md", "file"),
         # Files only: wiring them into ~/.claude/settings.json (hook entry,
         # RIPGREP_CONFIG_PATH) stays manual, see docs/install.md.

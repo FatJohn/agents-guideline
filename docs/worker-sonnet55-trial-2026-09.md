@@ -385,9 +385,24 @@ worker-opus 成本占比 10.0%→3.8%，牆鐘中位 29.4→11.5 分，$ 中位 
    - `../rules/10-dispatch.md` §0「執行者預設」、`../docs/repo-layout.md`、`dispatch-cost-review-2026-09-17.md`：移除「試用」標示並記錄使用者決策。
 7. **分級**：已驗證：B／C／D 計數與修正者 model（腳本重跑、`message.model` 讀取）。人工判讀、未經 fresh 驗收：F 分類（單人判讀）；n=17，且 L38／L40 兩條鏈與文件草稿佔大半，樣本不足以支撐型號層級的結論。
 
+## 移除 worker-opus（2026-10-09）
+
+- **決定**：2026-10-09 使用者決定移除 `worker-opus` 車道（`../agents/worker-opus.md` 刪除），Claude 端執行者只留 `worker`（Sonnet 5.5/xhigh）。
+- **派工占比**（已驗證，主對話一次性 Python 統計，未進 repo）：`worker-opus` 派工 9/28–10/02 為 18/218≈8%，10/03–10/09（至 10/09 上午）為 55/231≈24%。口徑：`~/.claude/projects/*/*.jsonl` 中 mtime ≥ 2026-09-29 的主對話檔（不含 `subagents/`），數 `subagent_type` 為 `worker` 或 `worker-opus` 的 Agent 呼叫，分母＝兩者合計；9/28 只含延續到 9/29 之後的 session，可能少算。
+- **約一半落在使用條件之外**（人工判讀，主對話依派工描述分類，未經 fresh 驗收）：10/03–10/09 的 55 筆中約 24 筆（≈24/55）不屬「設計已核定、但實作須同時推理多條執行路徑或時序」——文件約 4、補測試／突變約 4、lint／CI／環境約 5、範例 App 1、verifier finding 修正輪與 delta 約 10。另觀察到「首輪用了就一路延續到修正輪」的黏性（同為人工判讀）。
+- **成本**：`issue-session-trial-2026-10.md` 記錄 `worker-opus` 成本占比 11.0%→14.6%（已驗證（占比）那一列）。
+- **效益結論的射程**：本檔「轉正式與 delta OPEN 成因（2026-10-05）」的成因分析指向設計換層與文件新句未核對，沒有支持「Sonnet 型號造成」的證據，且樣本不足以支撐型號層級的結論（n=17，選題不同）。因此這次移除的依據是**沒有證據顯示** Opus 5.5/medium 執行者比 Sonnet 5.5/xhigh 好，**不是**「證明較差」；該節第 4 點已寫明不得把 B–D 較高的 OPEN 率當成「Opus 修得比較差」引用，本節沿用同一射程。
+- **時序類難度的出口改由既有機制承接**：
+  - `../rules/10-dispatch.md`「Controller 工作迴圈」第 1 步：修正要對所有執行路徑或時序都成立時，plan 先寫不變量，再派 `Plan`（opus）與 `codex:codex-rescue` 各自獨立出方案並比對。
+  - `worker` 遇 plan 不完整，退回 controller。
+  - `worker` 失敗，依 `../rules/10-dispatch.md` §4 改派 fresh `general-purpose`（`model: opus`），先建立 root cause。
+- **使用者當次指定 Opus 執行**：派 `general-purpose`，顯式 `model: opus`，brief 要求照 `../agents/worker.md` 合約執行（規則在 `../rules/10-dispatch.md` §0「車道備註」）。
+- **分級**：已驗證：派工數與占比（腳本統計）、成本占比（`issue-session-trial-2026-10.md`）。人工判讀、未經 fresh 驗收：「約一半落在使用條件外」的分類與延續黏性。
+- 上方各窗口的歷史量測段落中的 `worker-opus` 是當時事實，保留不改。
+
 ## 回退方式
 
-- **臨時單次改派**：派 `worker-opus`（不帶 `model`，model 與 effort 由其 frontmatter 決定）。適用條件依 `../agents/worker-opus.md` description（2026-10-01 起：設計已核定、但實作須同時推理多條執行路徑或時序時，或使用者指定）；失敗後升級不走這條，依 `../rules/10-dispatch.md` §4。不必動制度檔。
+- **臨時單次改派**：`worker-opus` 已於 2026-10-09 移除（見上方「移除 worker-opus（2026-10-09）」）；臨時要 Opus 執行改派 `general-purpose`（`model: opus`，brief 要求照 `../agents/worker.md` 合約）。要恢復車道，從移除前的 commit（`git log --diff-filter=D -- agents/worker-opus.md` 找）還原 `agents/worker-opus.md`，並加回 `scripts/sync-profile.py` mapping、`docs/install.md` 兩個安裝迴圈、`rules/10-dispatch.md` §0 與 `agents/worker.md` description 的路由（以移除 commit 的 diff 為完整清單）。恢復屬修改既有判準，要使用者明確同意。
 - **整體回退**：要改 `../agents/worker.md` frontmatter 與 `../rules/10-dispatch.md` §0。這屬於修改既有判準，**要使用者明確同意**才能動手，worker 與 controller 都不得自行決定。
 
 ## 質性 review（Fable 5.1）

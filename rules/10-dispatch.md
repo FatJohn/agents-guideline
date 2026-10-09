@@ -8,12 +8,11 @@
 **Agent 工具的 `model` 參數**只接受 harness 每 session 注入的 alias enum（`haiku`／`sonnet`／`opus`／`fable`；2026-09-26 由 Agent 工具 schema 現查確認只有這四值，2026-08-30 首次記錄）；完整 model ID 與 `inherit` 只能寫在 agent frontmatter 的 `model` 欄。alias→實際型號的對照在 `../docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」——alias 會隨平台改版重新指向新一代同層模型，要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準。
 
 **執行者預設**：一般實作與文件產出使用 `worker`（Sonnet 5.5 層；2026-09-29 切換，2026-10-05 使用者確認轉為正式方案）。
-呼叫時不帶 `model`，model 與 effort 由 `agents/worker.md` frontmatter 決定；Opus 備用車道為
-`worker-opus`（不帶 `model`，model 與 effort 由其 frontmatter 決定）。
+呼叫時不帶 `model`，model 與 effort 由 `agents/worker.md` frontmatter 決定。
 不要發明 Agent 工具未提供的 effort 參數。規劃／複雜度升級與驗收另依 §1／§4／§5。
 模型升級鏈為 Sonnet → Opus → Fable，不代表必須依次嘗試；Haiku 不作預設或 fallback。
 
-**車道備註**：`general-purpose`（全工具）是 worker 升級或需要 opus／fable 時改派的車道，須顯式指定 model；`worker`／`worker-opus`（呼叫方式見上方「執行者預設」）與 `verifier` 是本系統自帶角色，派工前讀 `~/.claude/agents/<角色>.md` 合約（verifier 顯式 `model: opus`，升 fable 見 §5）；簡化剛改過的程式碼用內建 `simplify` skill（它是 skill，不是 subagent）；`codex:codex-rescue` 是外部模型（GPT 系，Codex 訂閱，不占 Claude 配額）備用車道，第二意見或整包委派用。`Explore`／`Plan` 等類型的職責見 `../docs/harness-facts.md`「常用 subagent 類型」。
+**車道備註**：`general-purpose`（全工具）是 worker 升級或需要 opus／fable 時改派的車道，須顯式指定 model；使用者當次指定 Opus 執行時也派這條（`model: opus`，brief 要求照 `~/.claude/agents/worker.md` 合約）；`worker`（呼叫方式見上方「執行者預設」）與 `verifier` 是本系統自帶角色，派工前讀 `~/.claude/agents/<角色>.md` 合約（verifier 顯式 `model: opus`，升 fable 見 §5）；簡化剛改過的程式碼用內建 `simplify` skill（它是 skill，不是 subagent）；`codex:codex-rescue` 是外部模型（GPT 系，Codex 訂閱，不占 Claude 配額）備用車道，第二意見或整包委派用。`Explore`／`Plan` 等類型的職責見 `../docs/harness-facts.md`「常用 subagent 類型」。
 
 ## 1. 雙軸判斷：context 成本 × 任務耦合
 
