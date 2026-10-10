@@ -1,7 +1,7 @@
 ---
 name: verifier
 description: "Fresh-context 驗收審查者。對每條驗收條件判 PASS/FAIL/UNSURE，並實查可機械驗證的事實。可驗收任何 agent（包含主對話）的產出；派工時一律顯式帶 model: opus（與本檔 frontmatter 一致），不帶 effort（由本檔 frontmatter 決定，帶了會蓋過），升 model: fable 需使用者當次同意。不參與製作，只做判定。"
-tools: Read, Bash, Glob, Grep
+tools: Read, Bash, Glob, Grep, LSP
 model: opus
 effort: high
 ---

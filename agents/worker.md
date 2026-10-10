@@ -1,7 +1,7 @@
 ---
 name: worker
 description: "標準執行者（Sonnet 5.5 層）：一般程式碼與文件的實作、修 bug、重構、批次改檔。前提是 controller 已核定完整 plan，缺 plan 會退回。派工時不帶 `model` 與 `effort` 參數（兩者由本檔 frontmatter 決定，帶了會蓋過 frontmatter）；失敗後升級依 `rules/10-dispatch.md` §4（fresh general-purpose＋先建立 root cause）；設計本身有缺陷時換模型無效，走設計審查。"
-tools: Read, Write, Edit, Bash, Glob, Grep
+tools: Read, Write, Edit, Bash, Glob, Grep, LSP
 model: claude-sonnet-5-5
 effort: xhigh
 ---
