@@ -5,14 +5,14 @@
 
 ## 0. 可用模型與 subagent（查證過，不要憑印象改）
 
-**Agent 工具的 `model` 參數**只接受 harness 每 session 注入的 alias enum（`haiku`／`sonnet`／`opus`／`fable`；2026-09-26 由 Agent 工具 schema 現查確認只有這四值，2026-08-30 首次記錄）；完整 model ID 與 `inherit` 只能寫在 agent frontmatter 的 `model` 欄。alias→實際型號的對照在 `../docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」——alias 會隨平台改版重新指向新一代同層模型，要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準。
+**Agent 工具的 `model` 參數**只接受 harness 每 session 注入的 alias enum（`haiku`／`sonnet`／`opus`／`fable`）；完整 model ID 與 `inherit` 只能寫在 agent frontmatter 的 `model` 欄。alias→實際型號的對照在 `../docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」。
 
 **執行者預設**：一般實作與文件產出使用 `worker`（Sonnet 5.5 層；2026-09-29 切換，2026-10-05 使用者確認轉為正式方案）。
 呼叫時不帶 `model`，model 與 effort 由 `agents/worker.md` frontmatter 決定。
 Agent 工具有逐次 `effort` 參數，但派 `worker`／`verifier` 不帶（帶了會蓋過其 frontmatter）；沒有 frontmatter effort 的車道（`general-purpose` 等）只在本檔或使用者要求固定 effort 時才帶，見下方「車道備註」。規劃／複雜度升級與驗收另依 §1／§4／§5。
 模型升級鏈為 Sonnet → Opus → Fable，不代表必須依次嘗試；Haiku 不作預設或 fallback。
 
-**車道備註**：`general-purpose`（全工具）是 worker 升級或需要 opus／fable 時改派的車道，須顯式指定 model；使用者當次指定 Opus 執行時也派這條（`model: opus`、`effort: medium`，與移除前的 `worker-opus` 相同，使用者當次指定別的 effort 時從其指定；brief 要求照 `~/.claude/agents/worker.md` 合約。不帶 `effort` 會依 session 設定跑（2026-10-09 本機實測為 high，隨設定與主對話型號變動，不可當常數），見 `../docs/harness-facts.md`「沒有 frontmatter effort 的 subagent」）；`worker`（呼叫方式見上方「執行者預設」）與 `verifier` 是本系統自帶角色，派工前讀 `~/.claude/agents/<角色>.md` 合約（verifier 顯式 `model: opus`，升 fable 見 §5）；簡化剛改過的程式碼用內建 `simplify` skill（它是 skill，不是 subagent）；`codex:codex-rescue` 是外部模型（GPT 系，Codex 訂閱，不占 Claude 配額）備用車道，第二意見或整包委派用。`Explore`／`Plan` 等類型的職責見 `../docs/harness-facts.md`「常用 subagent 類型」。
+**車道備註**：`general-purpose`（全工具）是 worker 升級或需要 opus／fable 時改派的車道，須顯式指定 model；使用者當次指定 Opus 執行時也派這條（`model: opus`、`effort: medium`，使用者當次指定別的 effort 時從其指定；brief 要求照 `~/.claude/agents/worker.md` 合約。不帶 `effort` 依 session 設定（不可當常數），見 `../docs/harness-facts.md`「沒有 frontmatter effort 的 subagent」）；`worker`（呼叫方式見上方「執行者預設」）與 `verifier` 是本系統自帶角色，派工前讀 `~/.claude/agents/<角色>.md` 合約（verifier 顯式 `model: opus`，升 fable 見 §5；派 verifier 時只需提供該檔要求的素材，不必重述其職責）；簡化剛改過的程式碼用內建 `simplify` skill；`codex:codex-rescue` 是外部模型（GPT 系，Codex 訂閱，不占 Claude 配額）備用車道，第二意見或整包委派用。`Explore`／`Plan` 等類型的職責見 `../docs/harness-facts.md`「常用 subagent 類型」。
 
 ## 1. 雙軸判斷：context 成本 × 任務耦合
 
@@ -20,7 +20,7 @@ Agent 工具有逐次 `effort` 參數，但派 `worker`／`verifier` 不帶（�
 
 探索與決策需即時互動時留在主對話；實際寫入僅適用下方小修例外。無法隔離就序列派工，不改成多個寫入者。
 
-**互相獨立的 issue（各自可單獨交付、不必一起整合）一個 issue 一個頂層 session，不由同一個 controller 平行扛**：本 session 只做盤點，每個 issue 各開一個 session，依 `~/.claude/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」開出——一個 controller 扛 N 個 issue，每輪都重讀所有在途 issue 的 brief 與回報（量測見 `<REPO>/docs/issue-session-trial-2026-10.md`）。issue session 的 brief 逐字引用使用者在盤點 session 對該 issue 的授權時，視同該 session 已授權，範圍以引文為限、上限 push feature branch＋開 PR，細節見上述 cli.md 該段「授權」條。一個 issue 交付後要換主題，開新 session，不在大 context 上接新主題。同一 issue／功能內準備讓 ≥2 個各需寫入的切片平行（含 spec 尚未切分、要先判斷能不能切時）→ 先讀 `~/.claude/skills/parallel-dispatch/SKILL.md`，該 skill 承載切分判準、派工、整合驗收流程（worktree 與 terminal 只是 adapter 層）。
+**互相獨立的 issue（各自可單獨交付、不必一起整合）一個 issue 一個頂層 session，不由同一個 controller 平行扛**：本 session 只做盤點，每個 issue 各開一個 session，依 `~/.claude/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」開出（理由與量測見 `<REPO>/docs/issue-session-trial-2026-10.md`）。issue session 的 brief 逐字引用使用者在盤點 session 對該 issue 的授權時，視同該 session 已授權，範圍以引文為限、上限 push feature branch＋開 PR，細節見上述 cli.md 該段「授權」條。一個 issue 交付後要換主題，開新 session，不在大 context 上接新主題。同一 issue／功能內準備讓 ≥2 個各需寫入的切片平行（含 spec 尚未切分、要先判斷能不能切時）→ 先讀 `~/.claude/skills/parallel-dispatch/SKILL.md`，該 skill 承載切分判準、派工、整合驗收流程（worktree 與 terminal 只是 adapter 層）。
 
 | 工作 | 派給 | model |
 |------|------|-------|
@@ -73,8 +73,6 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 要求 subagent **補齊某個格式欄位**（例如每條規則的「不算違規」邊界）時，同時規定「查無來源就留空」——強制欄位一定會被填滿，原檔沒有的邊界會被當場發明。
 
-`verifier` 已把「需要哪些輸入、找碴範圍到哪、什麼時候標收斂」寫進 `~/.claude/agents/verifier.md`——派工時只需提供該檔要求的素材，不必重述其職責。
-
 ## 3. 回報合約
 
 **派工揭露（controller → 使用者）**：派工當下只講**指定的 agent 名稱與任務摘要**（「派 Explore 掃 repo」）；實際派送不是指定的 named role 就在名稱後標 `fallback` 並簡述差異，建立失敗回報「`<agent>` 未建立」與 runtime 原因。model／effort 與制度出處平常不報，被問到、runtime 不一致、unsupported／unavailable 或稽核時才展開——怎麼答（報呼叫參數、註明 runtime 未驗證）見 `../docs/harness-facts.md`「被問到 model／effort 時怎麼答」。主對話自己做時，只有**符合 §1 任一派工條件卻仍不派**才要交代。Codex 端 `../codex/rules/10-dispatch-codex.md` §3 用同一套揭露。
@@ -83,7 +81,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 - Subagent 只回**結論與證據**（檔案:行號、指令輸出關鍵行），不回原始內容傾倒。
 - 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接依 `../docs/memory-layers.md`「顯式交接檔」條。
-- 回報長度以 controller 下一步決策需要的資訊為準；大 diff、完整清單、全文等長產物落檔（`.md` 檔名不以 report／summary／findings／analysis 開頭，否則 harness 擋 subagent 寫入，見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），回報附路徑與摘要（驗收的逐條判定屬決策資訊，留在回報內）。回報全文會留在主對話 context 每輪重讀，所以長度不靠字數上限（上限寫了也會被超過），靠 brief 的回報格式只列 controller 下一步決策要用的欄位、欄位以外一律落檔附路徑（量測見前述 `harness-facts.md` 該節）。要縮時先砍原始內容傾倒與重複敘述，不砍決策所需證據。唯讀角色（Explore／Plan）與要附進 brief 的素材（檔案清單、關鍵段落）不受此限。
+- 回報長度以 controller 下一步決策需要的資訊為準；大 diff、完整清單、全文等長產物落檔（`.md` 檔名不以 report／summary／findings／analysis 開頭，否則 harness 擋 subagent 寫入，見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），回報附路徑與摘要（驗收的逐條判定屬決策資訊，留在回報內）。長度靠 brief 的回報格式只列 controller 下一步決策要用的欄位，欄位以外一律落檔附路徑。要縮時先砍原始內容傾倒與重複敘述，不砍決策所需證據。唯讀角色（Explore／Plan）與要附進 brief 的素材（檔案清單、關鍵段落）不受此限。
 - 回報必須分級：**已驗證（附證據）／待 CI／未驗證**（鐵律一）。
 
 ## 4. 升降級路徑
@@ -94,7 +92,6 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 2. **換平台取第二意見**——`codex:codex-rescue`，或派兩個 agent 各自獨立解再比對。
 3. **重新定義問題**——見 `20-judgment.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。設計審查 brief 必含：開頭寫不變量並要求由結構保證、不靠事後檢查；附全部失敗紀錄與其共同形狀並明寫「不要列補丁」；每個候選方案逐一對照已知失敗形狀，判「結構上不可能／仍需檢查」。派 `Plan`（opus）與 `codex:codex-rescue` 各自獨立判斷，分歧交使用者。累計輪數沿用原任務，換 model／role 不重設（`20-judgment.md` §2「停止端」）。
 
-**降級**：難題解出可重複、可機械驗證的 pattern 後，把 pattern 寫進 prompt 降回 `worker` 批次套用；不降到 haiku。
 **重試上限**：同一件事最多兩輪（指同一個問題的修法重試，不含驗收輪次——驗收狀態與回報點見
 `20-judgment.md` §2「停止端」）。兩輪後還不行代表方向錯了，換方法或問人，不要換個措辭再試第三次。
 

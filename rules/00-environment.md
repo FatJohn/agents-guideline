@@ -1,6 +1,6 @@
 # 00 — 環境事實與結構性風險
 
-> 本檔只放**跨機器皆真**的結論；單機事實在 `../hosts/<key>.md`（Claude 端由全域 CLAUDE.md 匯入本機那份；跨機器規則與 `<REPO>` 對照在 `05-hosts.md`），開工前先認機器。
+> 本檔只放**跨機器皆真**的結論；單機事實在 `../hosts/<key>.md`（`<REPO>` 對照與匯入方式見 `05-hosts.md`），開工前先認機器。
 > **跨機器事實**的查證日以本檔檔頭為準：**2026-08-06**（單機事實的探測日各自記在 `../hosts/<key>.md`；個別條目另帶戳記者，以其戳記為準）。距今超過 90 天，先當場核對再引用，核對後更新此日期。事實過時就更新本檔，不要另開新檔。
 
 ## 使用者背景（最低必要認知）
@@ -32,18 +32,15 @@
 
 ### 3. 固定注入肥大：每個 session 開場漏掉數千 token
 
-**症狀**：plugin／MCP server 每 session 注入工具清單、skill 描述與絕對化指令，固定成本與用不用得到無關。啟用了哪些 plugin 一律現查 `~/.claude/settings.json` 的 `enabledPlugins`，此處不列舉。
-
 **修法**：
 - 抓住優先權排序（見全域 CLAUDE.md），不被注入音量牽著走。
 - deferred MCP 工具只注入名稱——與任務無關的 schema 不要主動 ToolSearch。
 
 ## 非常駐內容索引（用到才讀）
 
-動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造。下面三份都不會自動載入：
+動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造。下面兩份都不會自動載入：
 
 | 什麼時候讀 | 讀哪份 |
 |---|---|
-| 要寫或讀記憶 | `../docs/memory-layers.md`——四層（自動事件史／精選持久記憶／顯式交接檔／repo 文件＝制度層）的分工與已知邊界 |
 | 找這類任務有沒有現成 skill／plugin | `../docs/skill-catalog.md`——含 Figma 在 MCP 缺席時的 curl fallback；名稱一律以當前 session 公開的為準，不跨平台猜 |
 | 派工前要引用 harness 事實 | `../docs/harness-facts.md`——`model`／`effort` 可填值、`isolation: worktree` 等（查證日 2026-08-06，版本更新後重新核對） |

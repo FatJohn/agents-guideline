@@ -36,6 +36,8 @@
 
 alias 會隨平台改版重新指向新一代同層模型——要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準，不引用本表。
 
+2026-09-26 由 Agent 工具 schema 現查確認只有這四值，2026-08-30 首次記錄（2026-10-10 日落審查從 `rules/10-dispatch.md` §0 搬入；原句接在「`model` 參數只接受…alias enum（`haiku`／`sonnet`／`opus`／`fable`」之後，原文未改寫）。
+
 ## 主對話 context 大小怎麼量、cache 何時過期（2026-10-01 實測）
 
 > 窗口 C（2026-09-29 22:51～10-01 09:07）主對話 Opus 5.5 的 session jsonl 量測：1,262 request、$354.64（API 等價）。用途：`../rules/00-environment.md` §1「修法」的 cache 重讀數據（2026-10-03 起 compact 時機改由使用者看 statusline 決定），與 `../rules/10-dispatch.md` §3「Subagent 回報」的回報長度理由。
