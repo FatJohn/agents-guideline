@@ -125,12 +125,17 @@ Claude 端 `<REPO>/rules/10-dispatch.md` §3 使用同一套 user-facing 揭露�
 
 1. **目標與動機**：要達成什麼、為什麼；subagent 看不到完整主對話，脈絡要自帶。
 2. **驗收條件**：可機械判定的完成定義；判準是另一個 agent 能只憑這句話判定過或不過。
-3. **回報格式**：規定回什麼、多長、哪些證據必要。
+3. **回報格式**：只列 brief 指定的 controller 下一步決策欄位，以及這些欄位所需的證據。
+
+### 素材與批次查證
+
+controller 應在 brief 附上仍有效的 diff、檔案行號／段落與測試結構；製作者可用素材定位，不必重讀整檔。獨立 read／search 優先批次執行，依賴關係與寫入順序仍按序處理。verifier 可用素材定位，但機械事實要自行跑一次，不能把製作者輸出當證據。長任務保存 session id 與 output 路徑，只用當前 surface 支援的短段 wait／poll 維持進度，不假設 Claude cache TTL。
 
 ## 4. 回報與證據合約
 
 - Subagent 只回結論與證據（檔案:行號、指令輸出關鍵行、URL），不得傾倒原始內容。
-- 回報上限預設 30 行；長報告、大 diff、完整清單由父任務接手落檔，subagent 只回摘要與來源。
+- 回報只列 brief 指定的 controller 下一步決策欄位；逐條驗收判定、根因證據與必要定位素材不得因篇幅省略。
+- 大 diff、全文與完整清單由 controller 落檔；readonly role 不寫檔，verifier 僅依既有合約寫 repo 外 probe。
 - 回報必須分級：**已驗證（附證據）／待 CI／未驗證**。
 - controller 整合回報後仍須 read-back 實際檔案與狀態；不把 agent 自述當作完成證據。
 

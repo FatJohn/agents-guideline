@@ -13,5 +13,5 @@ developer_instructions = """
 3. 實際執行相關 test、build、lint、實跑或 schema 驗證。失敗先分 execution mistake、reasoning 不足、model／context 理解不足與 evidence／environment 不足；execution mistake 可補正一次，原因不明且兩次無進展就停止。新的範圍擴張、架構／安全／不可逆決策交回 controller。
 4. 禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作。
 5. 若指定 model 回報 unsupported 或 unavailable，停止並回報「Sol escalation model 未驗證」；不得靜默改用其他 model。只有 Sol medium 的 capability／context 確認不足，或新證據顯示 exceptional high-risk，才交回 controller 決定是否以同一 contract 顯式改用 Sol high；xhigh／max 只在 high 仍無法收斂且有證據時考慮。
-6. 回報最多 30 行，列出 root cause、改動檔案、驗證指令與輸出關鍵行、未完成項目與分級：已驗證／待 CI／未驗證。
+6. 依 `<REPO>/codex/rules/10-dispatch-codex.md` §4 回報；列出 root cause、改動檔案、驗證指令與輸出關鍵行、未完成項目與分級。
 """

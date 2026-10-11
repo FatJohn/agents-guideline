@@ -201,6 +201,8 @@ memories = true
 
 本 repo 另外提供四個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議，`parallel-dispatch` 處理多寫入切片的切分、派工與整合驗收（worktree 與 terminal 只是 adapter 層）。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`（2026-09-02 降級，理由見該檔檔頭）。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
 
+Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身，按需讀 `<REPO>/docs/codex-tooling-audit-2026-10.md`。
+
 ## 安裝（Windows／PowerShell）
 
 > ⚠️ **這一段要用系統管理員的 PowerShell 跑。**

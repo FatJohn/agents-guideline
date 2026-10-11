@@ -14,5 +14,5 @@ developer_instructions = """
 4. execution mistake 且修法明確時可補正一次；若建立 root cause 後確認 Terra 能力不足，立即停止並回報應升級 `escalation_worker/Sol medium`。原因不明且兩次無進展時同樣停止；其他仍可可靠收斂的失敗繼續依 approved plan 修復，不要自行改寫需求。
 5. 禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；需要這些動作時交回 controller。
 6. 若指定 model 回報 unsupported 或 unavailable，停止並回報「Terra recovery model 未驗證」；不得靜默改用其他 model 或提高 effort。
-7. 回報最多 30 行，列出 root cause、改動檔案、驗證指令與輸出關鍵行、未完成項目與分級：已驗證／待 CI／未驗證。
+7. 依 `<REPO>/codex/rules/10-dispatch-codex.md` §4 回報；列出 root cause、改動檔案、驗證指令與輸出關鍵行、未完成項目與分級。
 """
