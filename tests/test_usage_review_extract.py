@@ -122,7 +122,10 @@ def main_records():
         # one request written as two rows (one per content block): output 300 then 900
         assistant(ts("03:00:07"), "msg_dup", "req_dup", usage(inp=1, cr=111, out=300), [text("abc")], uuid=DUP_A),
         assistant(ts("03:00:08"), "msg_dup", "req_dup", usage(inp=1, cr=222, out=900), [text("defg")], uuid=DUP_B),
-        assistant(ts("03:00:09"), "msg_price", "req_price", usage(inp=1000, cw1h=1000, cw5m=1000, cr=1000, out=1000),
+        # a resend: same message.id under two different requestIds are two requests, not one
+        assistant(ts("03:00:08"), "msg_resend", "req_resend_a", usage(inp=2, cr=20, out=40), [text("r1")]),
+        assistant(ts("03:00:08"), "msg_resend", "req_resend_b", usage(inp=3, cr=30, out=50), [text("r2")]),
+        assistant(ts("03:00:09"), "msg_price", "req_price", usage(inp=1000, cw1h=2000, cw5m=1000, cr=1000, out=1000),
                   [text("x")]),
         assistant(ts("03:00:10"), "msg_unk", "req_unk", usage(inp=10, out=10), [text("y")], model="claude-unknown-9"),
         assistant(ts("03:00:11"), "msg_total", "req_total", usage(inp=1, cr=2, out=3, total_only=500), [text("z")]),
@@ -215,6 +218,12 @@ class ExtractTests(unittest.TestCase):
         # a copy of the same record (same uuid) in another session file must not add its text twice
         self.assertEqual(dup[0]["vis"], len("abc") + len("defg"))
 
+    def test_same_message_id_under_different_request_ids_stays_two_requests(self):
+        resend = sorted((r for r in self.data["reqs"] if r["mid"] == "msg_resend"), key=lambda r: r["rid"])
+        self.assertEqual(len(resend), 2)
+        self.assertEqual([r["rid"] for r in resend], ["req_resend_a", "req_resend_b"])
+        self.assertEqual([(r["inp"], r["cr"], r["out_raw"]) for r in resend], [(2, 20, 40), (3, 30, 50)])
+
     def test_tool_results_directory_is_never_read(self):
         self.assertNotIn("msg_decoy", self.by_mid)
         self.assertEqual(sum(r["inp"] for r in self.data["reqs"] if r["inp"] >= 999999), 0)
@@ -293,9 +302,10 @@ class ExtractTests(unittest.TestCase):
 
     def test_cost_of_a_priced_request_splits_cache_write_by_ttl(self):
         r = self.by_mid["msg_price"]
-        expected = (1000 * 4 + 1000 * 4 * 1.25 + 1000 * 4 * 2 + 1000 * 0.20 + 1000 * 20) / 1e6
+        # cw1h != cw5m on purpose: with equal counts a swapped 1h/5m multiplier would price the same
+        expected = (1000 * 4 + 1000 * 4 * 1.25 + 2000 * 4 * 2 + 1000 * 0.20 + 1000 * 20) / 1e6
         self.assertAlmostEqual(r["cost_raw"], expected, places=12)
-        self.assertEqual((r["cw"], r["cw1h"], r["cw5m"], r["cw_ttl_known"]), (2000, 1000, 1000, True))
+        self.assertEqual((r["cw"], r["cw1h"], r["cw5m"], r["cw_ttl_known"]), (3000, 2000, 1000, True))
         self.assertIsNone(r["cost_est"])
         self.assertIsNone(r["out_est"])
 
@@ -314,7 +324,7 @@ class ExtractTests(unittest.TestCase):
         self.assertEqual(self.est_by_mid["msg_price"]["out_est"], 1000 + 680)
         self.assertEqual(self.est_by_mid["msg_son"]["out_est"], max(10, int(0.9 * 100)))
         self.assertEqual(self.est_by_mid["msg_price"]["out_raw"], 1000)  # the raw figure is kept
-        expected_est = (1000 * 4 + 1000 * 4 * 1.25 + 1000 * 4 * 2 + 1000 * 0.20 + 1680 * 20) / 1e6
+        expected_est = (1000 * 4 + 1000 * 4 * 1.25 + 2000 * 4 * 2 + 1000 * 0.20 + 1680 * 20) / 1e6
         self.assertAlmostEqual(self.est_by_mid["msg_price"]["cost_est"], expected_est, places=12)
         self.assertAlmostEqual(self.est_by_mid["msg_price"]["cost_raw"], self.by_mid["msg_price"]["cost_raw"], places=12)
         self.assertIsNone(self.est_by_mid["msg_unk"]["cost_est"])

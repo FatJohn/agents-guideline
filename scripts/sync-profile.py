@@ -134,6 +134,9 @@ def default_mappings(
     claude_skills = claude_home / "skills"
     agents_skills = agents_home / "skills"
     shared_skills = ("maintain-guideline", "create-pr", "parallel-dispatch")
+    # usage-review only parses Claude Code session jsonl, so docs/install.md
+    # leaves it out of the Codex (~/.agents/skills) lists.
+    claude_only_skills = ("usage-review",)
 
     mappings = [
         Mapping(repo / "CLAUDE.md", claude_home / "CLAUDE.md", "file"),
@@ -156,6 +159,8 @@ def default_mappings(
     for name in shared_skills:
         mappings.append(Mapping(repo / "skills" / name, claude_skills / name, "tree"))
         mappings.append(Mapping(repo / "skills" / name, agents_skills / name, "tree"))
+    for name in claude_only_skills:
+        mappings.append(Mapping(repo / "skills" / name, claude_skills / name, "tree"))
     return mappings
 
 

@@ -41,7 +41,7 @@ def build_repo(root: Path) -> Path:
     (repo / "rubrics").mkdir(parents=True)
     (repo / "agents").mkdir(parents=True)
     (repo / "codex" / "skills" / "session-handoff").mkdir(parents=True)
-    for name in ("maintain-guideline", "create-pr", "parallel-dispatch"):
+    for name in ("maintain-guideline", "create-pr", "parallel-dispatch", "usage-review"):
         (repo / "skills" / name).mkdir(parents=True)
         (repo / "skills" / name / "SKILL.md").write_text(f"# {name}\n", encoding="utf-8")
 
@@ -117,6 +117,9 @@ class SyncProfileTests(unittest.TestCase):
         for name in ("maintain-guideline", "create-pr", "parallel-dispatch"):
             self.assertTrue((self.claude / "skills" / name / "SKILL.md").is_file())
             self.assertTrue((self.agents / "skills" / name / "SKILL.md").is_file())
+        # usage-review is Claude-only: docs/install.md does not put it under ~/.agents/skills.
+        self.assertTrue((self.claude / "skills" / "usage-review" / "SKILL.md").is_file())
+        self.assertFalse((self.agents / "skills" / "usage-review").exists())
 
         # worker.md is the entry docs/install.md's symlink install has been missing.
         self.assertEqual((self.claude / "agents" / "worker.md").read_text(encoding="utf-8"), "# worker\n")

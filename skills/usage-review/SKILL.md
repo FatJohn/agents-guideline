@@ -68,14 +68,14 @@ python3 <SK>/scripts/report.py dispatch --data "$TMPDIR/ur-data.json" \
 5. **角色以主對話 `Agent` 呼叫的 `subagent_type` 為準**（agent 定義被刪後 meta 會被改寫，`retyped` 欄位標出）。型別來源都對不上的 subagent 角色是 `unknown`。
 6. **量到的是這段期間這台機器**：用量絕對值不能跨機器、跨期間直接比，比相對占比與前後變化。
 
-jsonl 是 Claude Code 的內部紀錄檔，官方的檔案結構文件只說明它是對話紀錄、沒有定義欄位格式，所以視為**沒有穩定性保證**。extract 在新版本壞掉或數字突然對不上時：先對照 `references/schema.md` 與 `scripts/extract.py` 的 record 解析（user／assistant／attachment 各種記錄的欄位名），再看 `references/caveats.md`；report 層不需要改，因為它只認 schema。
+jsonl 是 Claude Code 的內部紀錄檔。官方 sessions 文件明寫：「The entry format is internal to Claude Code and changes between versions, so scripts that parse these files directly can break on any release」（記錄格式屬 Claude Code 內部、隨版本改變，直接解析的腳本任何版本都可能壞掉），並建議改用 `/export` 或 script interfaces；本 skill 仍直接解析 jsonl，所以視為**沒有穩定性保證**，並把這份耦合限制在 `extract.py` 一處。extract 在新版本壞掉或數字突然對不上時：先對照 `references/schema.md` 與 `scripts/extract.py` 的 record 解析（user／assistant／attachment 各種記錄的欄位名），再看 `references/caveats.md`；report 層不需要改，因為它只認 schema。
 
 ## 與官方機制的關係
 
 依 code.claude.com 的 costs、monitoring-usage、claude-directory 文件（2026-10-12 讀取，版本更新後重新核對）：
 
-- 官方 `/usage`（別名 `/cost`、`/stats`）看當前 session 的 token 用量與以定價估算的金額；訂閱方案另顯示近期用量的歸因百分比（skills、subagents、plugins、MCP 各占幾 %）。文件描述的是當前 session 區塊與近期歸因（VS Code 另有 Day／Week 切換），沒有描述任意窗口或 request 明細。本 skill 補的是跨 session 的任意窗口、subagent 角色×model 的**金額**拆帳、cache 1h／5m 與過期重寫、context 分布、派工平行度與 controller 行為。
-- OpenTelemetry 的 cost counter 與 `api_request` 事件帶 `agent.name`（發出 request 的 subagent 類型）與 `query_source`（main／subagent／auxiliary），可以**往後**取代 extract 的角色拆帳；限制：從開啟遙測之後才有資料、不回溯；自訂 agent 名預設會被改成 `custom`，要設 `OTEL_LOG_TOOL_DETAILS=1` 才帶真名；文件列出的 token 欄位是 `cache_read_tokens`／`cache_creation_tokens`，沒有 1h／5m 細分。
+- 官方 `/usage`（別名 `/cost`、`/stats`）看當前 session 的 token 用量與以定價估算的金額；訂閱方案另顯示近期用量的歸因百分比（skills、subagents、plugins、MCP 各占幾 %）。文件描述的是當前 session 區塊與近期歸因（CLI 的 `/usage` 按 `d`／`w` 在最近 24 小時與 7 天之間切換；VS Code 的 Account & usage 對話框有 Day／Week 切換，沒有 Loops 列），沒有描述任意窗口或 request 明細。本 skill 補的是跨 session 的任意窗口、subagent 角色×model 的**金額**拆帳、cache 1h／5m 與過期重寫、context 分布、派工平行度與 controller 行為。
+- OpenTelemetry 的 cost counter 與 `api_request` 事件帶 `agent.name`（發出 request 的 subagent 類型），可以**往後**取代 extract 的角色拆帳；`query_source` 屬性在兩處的值不同：cost／token counter 上是粗分類 `main`／`subagent`／`auxiliary`，`api_request` 事件上是 `repl_main_thread`、`compact` 或 subagent 名；限制：從開啟遙測之後才有資料、不回溯；自訂 agent 名預設會被改成 `custom`，要設 `OTEL_LOG_TOOL_DETAILS=1` 才帶真名；文件列出的 token 欄位是 `cache_read_tokens`／`cache_creation_tokens`，沒有 1h／5m 細分。
 - 官方 `cleanupPeriodDays` 決定本機 jsonl 留多久（預設 30 天），超過會被刪。
 
 ## 未納入（需要時另做）
