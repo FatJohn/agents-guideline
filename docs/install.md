@@ -18,6 +18,7 @@ for pair in \
   "CLAUDE.md:$HOME/.claude/CLAUDE.md" \
   "hosts/macos.md:$HOME/.claude/host-facts.md" \
   "rules:$HOME/.claude/rules" \
+  "rules-controller:$HOME/.claude/rules-controller" \
   "rubrics:$HOME/.claude/rubrics" \
   "skills/maintain-guideline:$HOME/.claude/skills/maintain-guideline" \
   "skills/create-pr:$HOME/.claude/skills/create-pr" \
@@ -55,11 +56,26 @@ symlink 的好處：session 依規則附加教訓、更新事實時直接改到 
 
 `CLAUDE.md` 是 advisory context，不是 permission gate。`~/.claude/settings.json` 的全域 allowlist 不要放 `Bash(git push:*)`、`Bash(gh pr:*)` 或 `Bash(gh api:*)` 這類同時涵蓋唯讀與對外寫入的 wildcard；否則 push、merge 或任意 GitHub API 寫入可能不會出現逐次權限確認。只預先允許可明確判定為唯讀的子命令，例如 `git status`／`git diff`／`git log` 與 `gh pr view`／`gh pr checks`／`gh pr diff`。需要零例外硬擋時使用 `PreToolUse` hook 驗證 Bash command；不要把「規則文字通常會被遵守」當成 deterministic enforcement（見 [Anthropic 的 steering 指南](https://claude.com/blog/steering-claude-code-skills-hooks-rules-subagents-and-more)）。本 repo 不管理 `settings.json`，新機器安裝後要另行 audit。
 
+### SessionStart hook：注入 controller 專用規則（必裝）
+
+`rules-controller/`（`10-dispatch.md` 派工與選 model、`20-judgment-controller.md` 升降級與何時問使用者）只有主對話用得到，但放在 `rules/` 會原封注入每個 worker／verifier／general-purpose subagent。所以它不放在 `~/.claude/rules/`，改由 `hooks/controller-context.sh` 以 SessionStart hook 的 stdout 只注入主對話（subagent 不跑 SessionStart、不繼承），省每個 subagent 的這份固定注入（`rules-controller/` 現有約 21K bytes，依 `docs/harness-facts.md` 實測的約 2 bytes/token 估約 10K tokens）；分流實測見 `docs/harness-facts.md`「controller 專用規則分流」。
+
+- `rules-controller/` 的 symlink 由上方主安裝迴圈建立；`hooks/controller-context.sh` 的 symlink 由下一節「選配」小節的 hook 安裝迴圈一併建立（該迴圈同時處理選配的 `block-ci-edit.sh` 與 `ripgreprc`，只有 `controller-context.sh` 那一行是必裝）。
+- **手動追加**到 `~/.claude/settings.json` 的 `hooks.SessionStart` 陣列（**追加元素，不要取代既有條目**；不設 matcher，官方文件寫 startup／resume／clear／compact 來源都會重跑；compaction 後重注入本機尚未實測，見 `docs/harness-facts.md`「controller 專用規則分流」）：
+
+```json
+{ "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/controller-context.sh\"" } ] }
+```
+
+- 驗證方式：新開 session 後 context 裡應有一行以 `# Contents of ` 開頭、含 `rules-controller/10-dispatch.md` 的注入；沒有＝hook 未登記（hook 缺檔靜默略過，與 `@import` 同一陷阱）。
+- Windows 與複本安裝：symlink 版用 `Link-One`（見下方 Windows 腳本），複本版由 `sync-profile.py` 一併複製 `rules-controller/` 與 `hooks/`，`settings.json` 一樣要手動加。
+- 腳本缺目錄或缺檔時 exit 0、無輸出，不會讓 session 啟動失敗；`CLAUDE_CONTROLLER_RULES_DIR` 環境變數可改來源目錄（測試用，`bash tests/test-controller-context.sh`）。
+
 ### 選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定
 
 兩個檔，裝法跟 `agents/*.md` 一樣是單檔 symlink；裝完要另外改 `~/.claude/settings.json` 才會生效（本 repo 不管理 `settings.json`）。
 
-- `hooks/block-ci-edit.sh`：Claude Code `PreToolUse` hook。**主對話**（hook 收到的 stdin 沒有 `agent_id`）用 Edit／Write／MultiEdit／NotebookEdit 改路徑含 `.github/workflows/` 或 `.github/actions/` 的檔會被擋（exit 2，訊息要求改派 worker）；subagent（有 `agent_id`）與其他路徑一律放行。把 `rules/10-dispatch.md`「Controller 工作迴圈」那條「CI／release 設定不屬小修例外」變成機械擋板。
+- `hooks/block-ci-edit.sh`：Claude Code `PreToolUse` hook。**主對話**（hook 收到的 stdin 沒有 `agent_id`）用 Edit／Write／MultiEdit／NotebookEdit 改路徑含 `.github/workflows/` 或 `.github/actions/` 的檔會被擋（exit 2，訊息要求改派 worker）；subagent（有 `agent_id`）與其他路徑一律放行。把 `rules-controller/10-dispatch.md`「Controller 工作迴圈」那條「CI／release 設定不屬小修例外」變成機械擋板。
 - `config/ripgreprc`：讓 **Bash 裡的 `rg`** 預設 `--hidden` 並排除 `.git`，對應 `rules/20-judgment.md` §2 的殘留掃描。Claude Code 的 Grep 工具本來就搜隱藏目錄（不搜 `.git`），也不讀 `RIPGREP_CONFIG_PATH`，所以這份設定只影響 Bash 的 `rg`。
 
 安裝檔案（macOS／Linux；可重跑，已存在就略過）：
@@ -68,6 +84,7 @@ symlink 的好處：session 依規則附加教訓、更新事實時直接改到 
 REPO=~/Projects/FatJohn/agents-guideline   # 其他機器見 rules/05-hosts.md
 mkdir -p ~/.claude/hooks
 for pair in \
+  "hooks/controller-context.sh:$HOME/.claude/hooks/controller-context.sh" \
   "hooks/block-ci-edit.sh:$HOME/.claude/hooks/block-ci-edit.sh" \
   "config/ripgreprc:$HOME/.claude/ripgreprc"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
@@ -79,7 +96,7 @@ for pair in \
 done
 ```
 
-Windows 的這兩個 symlink 已在下方「安裝（Windows／PowerShell）」的腳本裡（`Link-One` 兩行）；不能提權的機器改跑 `python scripts/sync-profile.py --apply --update`（同步器已含這兩個檔，改了 hook 要重跑）。
+Windows 的這些 symlink（含必裝的 `controller-context.sh`）已在下方「安裝（Windows／PowerShell）」的腳本裡（`Link-One` 各一行）；不能提權的機器改跑 `python scripts/sync-profile.py --apply --update`（同步器已含這三個檔，改了 hook 要重跑）。
 
 `~/.claude/settings.json` 要加兩段。頂層 `env`（已有 `env` 就只加這一個 key）；值必須是絕對路徑，settings 的 `env` 不經 shell 展開（`~` 是否展開沒測，不要依賴）；`<echo "$HOME/.claude/ripgreprc" 的輸出>` 整個換成該指令印出的完整路徑，路徑錯時 `rg` 每次在 stderr 報錯，且 `--hidden` 不生效：
 
@@ -117,7 +134,7 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 
 **已知限制**：
 
-- **Bash 改檔不經 hook**：`sed -i`、heredoc、`tee`、`git apply` 改 `.github/workflows` 都不會被擋（實測 `sed -i` 改成功）。hook 只補 Edit／Write 這條路，`rules/10-dispatch.md` 那條規則仍然要靠 controller 自己守。路徑只做字串比對，不解析 symlink。
+- **Bash 改檔不經 hook**：`sed -i`、heredoc、`tee`、`git apply` 改 `.github/workflows` 都不會被擋（實測 `sed -i` 改成功）。hook 只補 Edit／Write 這條路，`rules-controller/10-dispatch.md` 那條規則仍然要靠 controller 自己守。路徑只做字串比對，不解析 symlink。
 - **CLI adapter 的 worker 也會被擋**：`skills/parallel-dispatch/references/cli.md` 用 `claude -p` 起的 worker 是頂層 session，hook 的 stdin 沒有 `agent_id`，判斷方式與主對話相同，改 `.github/workflows`／`.github/actions` 會被擋。裝了這個 hook 的機器，這類切片改用 Agent 工具派 `worker`，不走 CLI adapter。
 - **使用者要求主對話直接改 CI 也會被擋**：hook 不分專案、不分誰下的指示。使用者在編輯器自己改不受影響；真要主對話改，只能暫時移除 `settings.json` 裡那個 `PreToolUse` 元素。`claude --agent <name>` 啟動的主執行緒同樣沒有 `agent_id`，會被當主對話擋。
 - **hook 會被略過**：`claude --bare`、`--setting-sources` 不含 user、`disableAllHooks`。`jq` 不在 PATH 或 stdin 不是 JSON 時 hook fail-open（exit 1，非阻擋錯誤，工具照跑；transcript 會顯示 `CI edit guard is INACTIVE`／`did not run`）——等於沒裝，不會誤擋。
@@ -242,6 +259,7 @@ function Link-One($src, $dst) {
 Link-One "$REPO\CLAUDE.md"                 "$HOME\.claude\CLAUDE.md"
 Link-One "$REPO\hosts\windows.md"          "$HOME\.claude\host-facts.md"   # 本機那份；其他機器換 hosts\<key>.md
 Link-One "$REPO\rules"                     "$HOME\.claude\rules"
+Link-One "$REPO\rules-controller"          "$HOME\.claude\rules-controller"
 Link-One "$REPO\rubrics"                   "$HOME\.claude\rubrics"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.claude\skills\maintain-guideline"
 Link-One "$REPO\skills\create-pr"                "$HOME\.claude\skills\create-pr"
@@ -250,7 +268,8 @@ Link-One "$REPO\skills\usage-review"             "$HOME\.claude\skills\usage-rev
 foreach ($a in 'worker','verifier') {
   Link-One "$REPO\agents\$a.md" "$HOME\.claude\agents\$a.md"
 }
-# 選配的 hook 與 ripgreprc（只連結檔案，settings.json 另外加，見上方「選配」段）
+# hook 與選配的 ripgreprc（只連結檔案，settings.json 另外加，見上方「SessionStart hook」與「選配」段）
+Link-One "$REPO\hooks\controller-context.sh" "$HOME\.claude\hooks\controller-context.sh"   # 必裝
 Link-One "$REPO\hooks\block-ci-edit.sh" "$HOME\.claude\hooks\block-ci-edit.sh"
 Link-One "$REPO\config\ripgreprc"       "$HOME\.claude\ripgreprc"
 
@@ -281,7 +300,7 @@ Windows 專屬注意：
 
 ## 安裝（實體檔同步版——不能提權的機器用這個）
 
-**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rubrics/`、`agents/worker.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`，以及上方「選配」段的 `hooks/` 與 `config/ripgreprc`；後兩者只寫檔，`settings.json` 仍要手動加）：
+**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rules-controller/`、`rubrics/`、`agents/worker.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`，以及上方「選配」段的 `hooks/` 與 `config/ripgreprc`；後兩者只寫檔，`settings.json` 仍要手動加）。`rules-controller/` 也由同步器複製，SessionStart hook 登記仍手動（見上方「SessionStart hook」）：
 
 ```bash
 python scripts/sync-profile.py --prune                                  # 先預覽

@@ -26,7 +26,7 @@
 | Codex 派 subagent、依 complexity signals 選 model/reasoning effort、判斷 retry／escalation、驗收產出 | `<REPO>/codex/rules/10-dispatch-codex.md` |
 | Codex LSP／語意工具、plugin／skill context 盤點與瘦身 | `<REPO>/docs/codex-tooling-audit-2026-10.md`（按需讀；區分 facts、建議與未驗） |
 | 平行切分多個寫入任務、建立 worktree、整合驗收 | `parallel-dispatch` skill（先讀共通 `SKILL.md`，再讀 Codex reference） |
-| 判斷題：該不該升級／算不算完成／要不要問使用者／該不該換路；寫程式時文件與註解怎麼取捨（現況證據與規格權威分工） | `<REPO>/rules/20-judgment.md` |
+| 判斷題：該不該升級／算不算完成／要不要問使用者／該不該換路；寫程式時文件與註解怎麼取捨（現況證據與規格權威分工） | `<REPO>/rules/20-judgment.md`；「該不該升級」「要不要問使用者」兩節在 `<REPO>/rules-controller/20-judgment-controller.md` |
 | 撰寫 Codex subagent prompt | `<REPO>/codex/rules/30-delegation-templates-codex.md`（A–L logical-role contract 與共用 runtime adapter envelope） |
 | 收尾、交接、記錄目前進度、下次續接 | 使用 `session-handoff` skill，預設寫到專案 `.codex/HANDOFF.md` |
 | 寫驗收條件、或驗收者要逐條判品質 | `<REPO>/rubrics/` 底下對應產出類型的 `document-quality.md`／`code-change.md`／`research-analysis.md` |

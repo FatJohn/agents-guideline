@@ -22,7 +22,7 @@
 
 1. **無證據不得宣稱完成**（測試輸出／CI 連結／read-back 結果）。所有回報分級：已驗證（附證據）／待 CI／未驗證。
 2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。授權逐次、逐對象有效，不得推廣為常設政策。
-3. **驗證不自驗**：驗收派 fresh-context 的驗收 agent，不用繼承脈絡的 agent 驗收。分工細節：Claude `rules/10-dispatch.md` §5「驗證不自驗」；Codex `codex/rules/10-dispatch-codex.md` §6「驗證語意」。
+3. **驗證不自驗**：驗收派 fresh-context 的驗收 agent，不用繼承脈絡的 agent 驗收。分工細節：Claude `rules-controller/10-dispatch.md` §5「驗證不自驗」；Codex `codex/rules/10-dispatch-codex.md` §6「驗證語意」。
 
 ### 已知退化模式與預防（維護者必讀）
 
@@ -57,9 +57,10 @@
 |------|------|
 | `CLAUDE.md`、`AGENTS.md` | 全域入口（Claude Code／Codex 各一份）：只放路由與鐵律 |
 | `rules/` | **每 session 自動載入（常駐）**：只放每次開工都要的守則 |
+| `rules-controller/` | **只對主對話常駐的 controller 專用規則**：由 SessionStart hook 注入主對話，subagent 不繼承（派工、升降級、何時問使用者） |
 | `hosts/` | 單機事實 `hosts/<key>.md`；經全域 `CLAUDE.md` 匯入、同為常駐，每台機器只裝自己那份 |
 | `skills/`、`rubrics/`、`docs/` | **用到才讀，不自動載入**：維護協議與共用 skill、驗收判準、情境化參考 |
 | `agents/` | Claude Code agent 定義：`worker`、`verifier` |
 | `codex/` | Codex 專用：調度規則與派工模板、agent TOML、skill |
-| `hooks/`、`config/` | 選配的 Claude Code hook（擋主對話改 CI 設定）與 ripgrep 設定（讓 Bash 的 `rg` 預設 `--hidden`）；安裝見 [`docs/install.md`](docs/install.md) |
+| `hooks/`、`config/` | Claude Code hook（`controller-context.sh`：必裝的 SessionStart hook，注入 `rules-controller/`；`block-ci-edit.sh`：選配，擋主對話改 CI 設定）與 ripgrep 設定（讓 Bash 的 `rg` 預設 `--hidden`）；安裝見 [`docs/install.md`](docs/install.md) |
 | `scripts/`、`tests/` | 安裝同步器、日落審查量測腳本與測試 |

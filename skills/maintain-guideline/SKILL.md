@@ -17,7 +17,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 | `rules/00-environment.md` | 跨機器事實與風險 | ✅ 更新過時事實（附當場驗證與查證日期）；「三大結構性風險」框架不可移除 |
 | `rules/05-hosts.md` | 跨機器規則＋`<REPO>` 對照表＋缺檔哨兵 | ✅ 新機器對照行可自行加；哨兵句不可刪（`@import` 缺檔靜默略過，哨兵是唯一偵測） |
 | `hosts/<key>.md` | 單機事實（每台只裝自己那份） | ✅ 新機器可自行建檔；過時事實可更新（附探測日）；標題必須以「# 本機事實：」開頭並含 hostname |
-| `rules/10-dispatch.md`／`rules/20-judgment.md`／`codex/rules/10-dispatch-codex.md`／`codex/rules/30-delegation-templates-codex.md` | 系統核心 | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |
+| `rules-controller/10-dispatch.md`／`rules-controller/20-judgment-controller.md`／`rules/20-judgment.md`／`codex/rules/10-dispatch-codex.md`／`codex/rules/30-delegation-templates-codex.md` | 系統核心 | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |
 | `skills/maintain-guideline/SKILL.md`（本檔） | 憲法 | ❌ 動之前先問使用者 |
 | `rules/50-lessons.md` | 活躍教訓日誌 | ✅ 隨時可加；升級成判準後移到 `<REPO>/docs/lessons-archive.md` |
 | `docs/lessons-archive.md` | 教訓封存 | ✅ 可加封存條目；**不改寫既有條目原文** |
@@ -33,7 +33,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 
 1. 確認回退路徑：`git status --short` 應為乾淨，或至少確認未提交變更是你自己的。**本 repo 有 git 版控，不要 `cp` 出 `.bak` 檔**——那是雜訊，回退用 `git checkout`／`git diff`。
 2. 修改（優先「新增段落」而非動既有文字）。
-3. 驗證：派 fresh-context verifier 做 read-back；兩端都用 `verifier`——**Claude 端不因高風險或動到憲法／判準就升檔**，一律顯式帶 `model: opus`（與 `<REPO>/agents/verifier.md` frontmatter 一致；升 `model: fable` 的訊號與授權要求見 `<REPO>/rules/10-dispatch.md` §5「驗證不自驗」）；Codex 端高風險仍派 `sol_verifier`（刻意分版）。驗收條件至少包含「與其他 rules 檔無矛盾」「引用的路徑/指令實際存在」。
+3. 驗證：派 fresh-context verifier 做 read-back；兩端都用 `verifier`——**Claude 端不因高風險或動到憲法／判準就升檔**，一律顯式帶 `model: opus`（與 `<REPO>/agents/verifier.md` frontmatter 一致；升 `model: fable` 的訊號與授權要求見 `<REPO>/rules-controller/10-dispatch.md` §5「驗證不自驗」）；Codex 端高風險仍派 `sol_verifier`（刻意分版）。驗收條件至少包含「與其他 rules 檔無矛盾」「引用的路徑/指令實際存在」。
 4. 提醒使用者 repo 有未 commit 的變更（不要自行 commit）。
 
 **新增或修改 skill／agent／rubric 檔時多一步**：在 repo 加檔**不等於**任何機器已安裝——Codex agent TOML 依平台執行 `<REPO>/docs/install.md` 的 `sync-codex-agents.py --apply`（既有差異加 `--update`），read-back regular bytes 與 named runtime；AGENTS、skills 與 Claude 其餘 symlink 仍照 `<REPO>/docs/install.md` 安裝段落確認。漏掉這步，規則會指向一個當下根本叫不出來的名字。
@@ -43,7 +43,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 
 - 修改 `~/.codex/config.toml` 前先備份（這個檔不在 git 裡），修改後驗證不存在重複的 TOML table。
 - commit 前 read-back：`git status --short`、`git diff --cached`、`git stash list`；確認 staged scope 與 stash 狀態後才進行下一步。仍須遵守本節第 4 步：不要自行 commit。
-- 平行寫入與 working-tree 所有權規則見對應平台 dispatch：Claude 為 `<REPO>/rules/10-dispatch.md`「工作目錄與背景任務安全」；Codex 為 `<REPO>/codex/rules/10-dispatch-codex.md` §2「工作目錄與執行安全」。
+- 平行寫入與 working-tree 所有權規則見對應平台 dispatch：Claude 為 `<REPO>/rules-controller/10-dispatch.md`「工作目錄與背景任務安全」；Codex 為 `<REPO>/codex/rules/10-dispatch-codex.md` §2「工作目錄與執行安全」。
 
 ## 3. 教訓寫回（每次踩坑後）
 
@@ -71,7 +71,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 
 ## 5. 瘦身協議（防膨脹＋日落條款）
 
-- 觸發：`<REPO>/rules/50-lessons.md` 的活躍教訓超過 **8** 條，或任一 `<REPO>/rules/` 檔超過 200 行，或任一 `<REPO>/rules/` 檔超過 20,000 bytes，或 `<REPO>/rules/` 全目錄超過 44,000 bytes。行／byte 是 Claude 常駐內容的代理量，不等於 token。Codex 的共用 rules 與 codex/rules 按需載入，另計實際載入內容。日落審查時的使用率用 `python3 <REPO>/scripts/dispatch-usage.py --days 45` 量（主對話自寫 vs 派 worker／verifier，逐專案），不要裸 grep。
+- 觸發：`<REPO>/rules/50-lessons.md` 的活躍教訓超過 **8** 條，或任一 `<REPO>/rules/`／`<REPO>/rules-controller/` 檔超過 200 行或 20,000 bytes，或 `<REPO>/rules/` 與 `<REPO>/rules-controller/` 合計超過 44,000 bytes。行／byte 是 Claude 常駐內容的代理量，不等於 token。Codex 的共用 rules 與 codex/rules 按需載入，另計實際載入內容。日落審查時的使用率用 `python3 <REPO>/scripts/dispatch-usage.py --days 45` 量（主對話自寫 vs 派 worker／verifier，逐專案），不要裸 grep。
 - **上面的 200 行、20,000／44,000 bytes 是觸發審查的 tripwire，不是要逼近的優化目標**：碰到門檻就排一次日落審查，不是「砍到剛好低於門檻」就算處理完；沒碰到門檻也不代表不能瘦身。（活躍教訓那 8 條是硬上限，見下方「活躍教訓是硬上限 8 條」那條，不適用本句。）
   理由：門檻被當成目標逼近時，每加一行都得先砍一行，最先被砍的永遠是『不算違規』邊界句；byte 上限的梯度會獎勵「用指向取代解釋」，把規則壓成沒人跟得動的互指散文。目錄門檻只在真成長時響；另設每檔上限，是因為目錄總量看不出哪個檔在長。
 - **正反例不放常駐區**：✅／❌ 一律寫在 `<REPO>/docs/judgment-rationale.md` 對應標題下（原句保留），`rules/`、`agents/` 的常駐正文只留觸發情境、要做什麼、不算違規、指向；判準本身仍要讓另一個 agent 只憑這句判得了過或不過（`<REPO>/rules/20-judgment.md` §4 對驗收條件的要求同樣適用於判準）。要省空間就**整條日落或整條搬走**，不留只剩動詞與檔名的骨架。
@@ -83,10 +83,10 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 - 動作：已升級成判準的教訓搬到 `<REPO>/docs/lessons-archive.md`；只在特定情境才需要的長內容搬出 `<REPO>/rules/`（進 `<REPO>/skills/`、`<REPO>/rubrics/` 或 `<REPO>/docs/`）；合併重複；同一條規則只留一個 canonical 位置，其餘改為指向。
 - **驗證方法類判準：判準留常駐、細節進 docs**——「怎麼驗才算驗到」這類判準（各工具的檢查指令、觸發詞清單、失敗現場）一律寫進 `<REPO>/docs/debug-environment-first.md`，`<REPO>/rules/20-judgment.md` §2 只留一句判準、不算違規邊界與指向。
   理由：常駐區膨脹的主因常是落地模式不一致（把細節含例整段塞進常駐區），不是判準太多。
-- **只在特定情境才用得到的內容不該放 `rules/`**：`rules/` 是無條件常駐區，付的是每個 session 的固定成本。維護協議、驗收 rubric、封存教訓、派工範例都屬於「用到才讀」，放 `skills/`／`rubrics/`／`docs/`。
+- **只在特定情境才用得到的內容不該放 `rules/`**：`rules/` 是無條件常駐區，付的是每個 session 的固定成本。維護協議、驗收 rubric、封存教訓、派工範例都屬於「用到才讀」，放 `skills/`／`rubrics/`／`docs/`。`rules-controller/` 同樣是常駐區，只是只對主對話常駐、subagent 不付這份成本；只有 controller 用得到的規則放這裡。
 - **單機專屬事實不進 `rules/`，放 `<REPO>/hosts/<key>.md`**：由全域 CLAUDE.md 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**（`<REPO>/docs/install.md` 安裝段各連一個；`sync-profile.py` 依平台選檔，`--host-key` 可覆寫）；`rules/05-hosts.md` 只留跨機器規則、`<REPO>` 對照與缺檔哨兵。匯入內容與 rules 同一快取層、`worker`／`general-purpose` 都看得到（`Explore`／`Plan` 本來就看不到 rules），缺檔**靜默略過**——所以 05-hosts 的哨兵句不能拿掉。實測事實見 `<REPO>/docs/harness-facts.md`「常駐內容對 subagent 的可見性」。
   理由：任一 session 只用得到本機那段，另一台機器的段落純浪費，且每派一個 worker／verifier 再付一次；`paths` frontmatter 實測只在 Read 到相符檔之後才載入、絕對路徑 glob 不匹配，做不了機器分流。
-- **新增、改寫或刪除 `rules/10-dispatch.md`／`rules/20-judgment.md` 的判準內容，觸發條件只有兩種**：(1) 使用者直接要求**修改判準**——只要求 review 不算，review 結果列給使用者，使用者對其中某項說「改」才算該項觸發；(2) `<REPO>/rules/50-lessons.md` 出現新條目，且該條目寫明情境發生在**本 repo 以外的專案 session**（條目標專案名，或標 `[global]` 但情境句寫出是哪個專案的工作）；本 repo 自身工作產生的教訓，要依 §3「踩第二次」才算觸發。**主動對 rules 做 review、瘦身掃描**這類沒有事故在前的「可以更好」不算觸發，登記為候選、等下一次觸發時一併處理。候選（含使用者要求 review 後未表態要改的項目）登記在本 repo 的 GitHub issue，標題前綴 `candidate:`；開之前先 `gh -R FatJohn/agents-guideline issue list --search 'candidate:'` 查重，已有就補在該 issue 下，不進 `rules/`。
+- **新增、改寫或刪除 `rules-controller/10-dispatch.md`／`rules-controller/20-judgment-controller.md`／`rules/20-judgment.md` 的判準內容，觸發條件只有兩種**：(1) 使用者直接要求**修改判準**——只要求 review 不算，review 結果列給使用者，使用者對其中某項說「改」才算該項觸發；(2) `<REPO>/rules/50-lessons.md` 出現新條目，且該條目寫明情境發生在**本 repo 以外的專案 session**（條目標專案名，或標 `[global]` 但情境句寫出是哪個專案的工作）；本 repo 自身工作產生的教訓，要依 §3「踩第二次」才算觸發。**主動對 rules 做 review、瘦身掃描**這類沒有事故在前的「可以更好」不算觸發，登記為候選、等下一次觸發時一併處理。候選（含使用者要求 review 後未表態要改的項目）登記在本 repo 的 GitHub issue，標題前綴 `candidate:`；開之前先 `gh -R FatJohn/agents-guideline issue list --search 'candidate:'` 查重，已有就補在該 issue 下，不進 `rules/`。
   **不受本條限制**（照原有流程直接做）：(a) 已觸發的修改，其驗收輪次中 verifier 的發現——不論 `OPEN`、`INCONCLUSIVE` 或 `PROSE-ONLY`——照 `<REPO>/rules/20-judgment.md` §2 停止端處理（`OPEN` 依風險分流低風險機械結案或 fresh delta、`INCONCLUSIVE` 先補證、`PROSE-ONLY` 修完 read-back 後停止）；(b) 搬移或改名後的路徑更新與斷鏈修正（本檔 §6）；(c) `00`／`05` 的事實更新。本條只管**要不要開一輪修改**，不管已開的那一輪怎麼收。
   理由：制度自審很容易變成最大的維護成本來源，而制度的目的是服務真實專案。
 - **常駐判準的格式**：`<REPO>/rules/20-judgment.md` 每條判準／補充判準的正文**四句以內、約 400 bytes**——觸發情境、要做什麼、不算違規、指向（可省）；✅／❌ 寫在 `<REPO>/docs/judgment-rationale.md` 對應標題下。訂條理由、事故脈絡、修辭句、與鄰條的分工說明一律寫進 `<REPO>/docs/judgment-rationale.md` 對應標題下（原句搬入，不改寫），常駐區不留。依本條把理由句搬出常駐正文屬「搬移」，不算下方「整檔重寫」。**400 bytes 是目標不是門檻**：機制事實、指令、數字與「不算違規」邊界砍不動而超標**不算違規**，回報實際 bytes 即可——砍到邊界句才是違規。
@@ -99,7 +99,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 
 - 搬移或改名任何被引用的檔案時，同一次修改先用 `rg --hidden -l '<舊檔名>' ~/.claude/ ~/.codex/ <REPO>/` 找出所有引用一起改；專案 CLAUDE.md／AGENTS.md 裡的引用照 §1 權限先問再改。
 - **改 markdown 標題也會斷鏈，不是只有搬檔會**：標題一改，下游所有 anchor 連結（`檔名#章節`）就死。改完用 `rg --hidden '檔名#'` 全 repo 驗存活。手算 GitHub anchor 容易錯，歷史文件寧可用「檔案層連結＋章節名文字」而不是 anchor。
-- **跨平台共用的章節指向，一律逐平台各寫一組編號並附章節名**（「Claude：`<REPO>/rules/10-dispatch.md` §5『驗證不自驗』；Codex：`<REPO>/codex/rules/10-dispatch-codex.md` §6『驗證語意』」）。兩份 dispatch 的章節編號本來就不同，只寫 §N 會讓另一個平台翻到別節；章節名是編號漂移時唯一的救命錨點。連例子裡的檔名也要寫成可解析的路徑——本檔在 `skills/` 底下，裸檔名從這裡解析不到。
+- **跨平台共用的章節指向，一律逐平台各寫一組編號並附章節名**（「Claude：`<REPO>/rules-controller/10-dispatch.md` §5『驗證不自驗』；Codex：`<REPO>/codex/rules/10-dispatch-codex.md` §6『驗證語意』」）。兩份 dispatch 的章節編號本來就不同，只寫 §N 會讓另一個平台翻到別節；章節名是編號漂移時唯一的救命錨點。連例子裡的檔名也要寫成可解析的路徑——本檔在 `skills/` 底下，裸檔名從這裡解析不到。
 - 定期（或使用者要求時）健檢：派 verifier 對每個 rules 檔引用的路徑與指令做存在性檢查。
 
 ## 7. 跨專案應用

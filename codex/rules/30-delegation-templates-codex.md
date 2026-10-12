@@ -88,7 +88,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
 寫入所有權：【絕對路徑清單】；禁止修改清單外檔案。
 限制：先核對 approved plan 已含必填項且未決問題均已解決或列為禁止範圍；不完整就停止並交回 controller，禁止邊做邊補 plan。最小必要變更；不改【禁止範圍】；不新增依賴除非必要。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；若任務需要對外或不可逆動作，立即停止並回報 controller，由 controller 決定授權與後續路徑。
-機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。失敗重試時每輪當下記一列逐輪嘗試表（欄位見 `<REPO>/codex/rules/10-dispatch-codex.md` §5「升降級路徑」），停止回報時附上；有機械指標時無進展依 `<REPO>/rules/20-judgment.md` §1 數字判定。
+機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。失敗重試時每輪當下記一列逐輪嘗試表（欄位見 `<REPO>/codex/rules/10-dispatch-codex.md` §5「升降級路徑」），停止回報時附上；有機械指標時無進展依 `<REPO>/rules-controller/20-judgment-controller.md` §1 數字判定。
 回報格式：依 `<REPO>/codex/rules/10-dispatch-codex.md` §4，列出改動檔案、驗證指令與輸出關鍵行、偏離 prompt 的決定。
 ```
 

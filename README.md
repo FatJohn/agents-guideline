@@ -24,7 +24,7 @@ Writing principles (revised 2026-07-25 per [the context-engineering guide for Cl
 
 1. **No completion claim without evidence** (test output / CI link / read-back result). Every report is graded: verified (with evidence) / pending CI / unverified.
 2. **Outbound or irreversible actions need explicit authorization in this session**: sending messages or email, merging a PR, pushing a shared branch, publishing, deleting or overwriting files you did not create. When already authorized explicitly in this session, act without asking again. Authorization is valid per occasion and per target and must not be generalized into standing policy.
-3. **No self-verification**: acceptance goes to a fresh-context acceptance agent, never to an agent that inherited the producer's context. Details: Claude `rules/10-dispatch.md` §5「驗證不自驗」; Codex `codex/rules/10-dispatch-codex.md` §6「驗證語意」.
+3. **No self-verification**: acceptance goes to a fresh-context acceptance agent, never to an agent that inherited the producer's context. Details: Claude `rules-controller/10-dispatch.md` §5「驗證不自驗」; Codex `codex/rules/10-dispatch-codex.md` §6「驗證語意」.
 
 ### Known degradation modes and prevention (maintainers must read)
 
@@ -59,9 +59,10 @@ Per-file purposes are in 「檔案結構」 of [`docs/repo-layout.md`](docs/repo
 |------|---------|
 | `CLAUDE.md`, `AGENTS.md` | Global entry points (one each for Claude Code and Codex): routing and iron laws only |
 | `rules/` | **Auto-loaded every session (always-loaded)**: only rules needed at the start of every job |
+| `rules-controller/` | **Controller-only always-loaded rules**: injected into the main conversation only by a SessionStart hook, not inherited by subagents (dispatch, escalation and when-to-ask rules) |
 | `hosts/` | Per-machine facts `hosts/<key>.md`; imported via the global `CLAUDE.md`, also always-loaded, each machine installs only its own file |
 | `skills/`, `rubrics/`, `docs/` | **Read on demand, not auto-loaded**: maintenance protocol and shared skills, acceptance criteria, situational reference |
 | `agents/` | Claude Code agent definitions: `worker`, `verifier` |
 | `codex/` | Codex-specific: dispatch rules and delegation templates, agent TOML, skills |
-| `hooks/`, `config/` | Optional Claude Code hook (blocks main-conversation edits to CI config) and ripgrep defaults (`--hidden` for Bash `rg`); install steps in [`docs/install.md`](docs/install.md) |
+| `hooks/`, `config/` | Claude Code hooks (`controller-context.sh`, a required SessionStart hook that injects `rules-controller/`; `block-ci-edit.sh`, optional, blocks main-conversation edits to CI config) and ripgrep defaults (`--hidden` for Bash `rg`); install steps in [`docs/install.md`](docs/install.md) |
 | `scripts/`, `tests/` | Install sync scripts, the sunset-review measurement script, and tests |

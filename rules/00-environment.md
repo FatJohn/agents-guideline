@@ -13,7 +13,7 @@
 
 先辨識當前 runtime，只展開相符的一條；另一平台的 dispatch 檔留在 context 外：
 
-- **Claude Code** → 只讀 `10-dispatch.md` §0「可用模型與 subagent」；平行寫入另讀 `../skills/parallel-dispatch/references/claude-code.md`。
+- **Claude Code** → 只讀 `../rules-controller/10-dispatch.md` §0「可用模型與 subagent」；平行寫入另讀 `../skills/parallel-dispatch/references/claude-code.md`。
 - **Codex** → 只讀 `../codex/rules/10-dispatch-codex.md` §0–1「角色與 runtime adapter／雙軸派工判斷」；平行寫入另讀 `../skills/parallel-dispatch/references/codex.md`。
 
 ## 三大結構性風險與修法（按嚴重度）
@@ -23,12 +23,12 @@
 **症狀**：大量讀檔、掃 repo、抓網頁、批次改檔在主對話進行，context 膨脹；compaction 觸發後早期決定遺失，開始重做已完成的工作或偏離原目標。
 
 **修法**：
-- 判斷基準（context 成本 × 任務獨立性）的 canonical 在 dispatch 文件：Claude `10-dispatch.md` §1「雙軸判斷：context 成本 × 任務耦合」；Codex `../codex/rules/10-dispatch-codex.md` §1「雙軸派工判斷」。
+- 判斷基準（context 成本 × 任務獨立性）的 canonical 在 dispatch 文件：Claude `../rules-controller/10-dispatch.md` §1「雙軸判斷：context 成本 × 任務耦合」；Codex `../codex/rules/10-dispatch-codex.md` §1「雙軸派工判斷」。
 - 何時 compact 由使用者看 statusline 的 context 用量決定，controller 不量測、不主動提醒。controller 不能自己 compact（`/compact` 只有使用者能打）；使用者說要 compact、要離開 >1h（prompt cache 1h 過期，回來整段重寫），或要「新 prompt」時，給一段可直接貼在 `/compact` 後面的保留指示：目標、授權、未完成項目、**在途 subagent（名稱、任務、worktree／分支）**、產物證據位置。有在途 subagent 時先告知，建議等回報後再 compact；等不了就把在途清單寫進保留指示。量測依據見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」。
 
 ### 2. 假完成：宣稱通過但沒有實際執行
 
-見鐵律一（回報分級）、`20-judgment.md` §2「何時算真的完成」；誰驗什麼見 Claude `10-dispatch.md` §5「驗證不自驗」或 Codex `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。
+見鐵律一（回報分級）、`20-judgment.md` §2「何時算真的完成」；誰驗什麼見 Claude `../rules-controller/10-dispatch.md` §5「驗證不自驗」或 Codex `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。
 
 ### 3. 固定注入肥大：每個 session 開場漏掉數千 token
 

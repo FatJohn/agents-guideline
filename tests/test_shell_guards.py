@@ -1,6 +1,6 @@
-"""Run the shell-level assertions for hooks/block-ci-edit.sh and config/ripgreprc.
+"""Run the shell-level assertions for hooks/block-ci-edit.sh, hooks/controller-context.sh and config/ripgreprc.
 
-The two scripts under tests/ build synthetic input (hook stdin JSON, a throwaway
+The scripts under tests/ build synthetic input (hook stdin JSON, a throwaway
 fixture tree) and need no Claude Code or network.  They are wrapped here so
 ``python3 -m unittest discover -s tests`` covers them with the rest.  A missing
 tool (bash, jq, rg, git) skips instead of failing: the hook is fail-open without
@@ -47,6 +47,20 @@ class BlockCiEditHookTests(unittest.TestCase):
         self.assertEqual(count_lines(result.stdout, "FAIL"), 0, result.stdout)
         # A script that prints nothing and exits 0 must not pass.
         self.assertGreaterEqual(count_lines(result.stdout, "PASS"), 13, result.stdout)
+        self.assertIn("failures=0", result.stdout)
+
+
+class ControllerContextHookTests(unittest.TestCase):
+    def test_hook_assertions_pass(self) -> None:
+        if shutil.which("bash") is None:
+            self.skipTest("bash is not on PATH")
+
+        result = run_script("test-controller-context.sh")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(count_lines(result.stdout, "FAIL"), 0, result.stdout)
+        # A script that prints nothing and exits 0 must not pass.
+        self.assertGreaterEqual(count_lines(result.stdout, "PASS"), 10, result.stdout)
         self.assertIn("failures=0", result.stdout)
 
 

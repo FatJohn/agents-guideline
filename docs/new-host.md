@@ -1,6 +1,7 @@
 # 新機器建檔（5 分鐘探測清單）
 
 > 這份清單只在裝新機器當下用得到，所以不放 `rules/`——那是每個 session 全文載入的常駐區（`maintain-guideline` §5「只在特定情境才用得到的內容不該放 rules/」）。
+> 裝完照 `install.md` 走，含 SessionStart hook 登記（`rules-controller/` 靠它注入主對話）。
 
 `hosts/` 沒有這台機器的檔時，照這份跑一輪，然後**自己建檔**（下列檔都可直接寫入，不用問）——**探測結果分三處寫**：
 

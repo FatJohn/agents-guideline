@@ -1,7 +1,7 @@
 # 10C — Codex 模型調度守則
 
 > 讀者：Codex 主對話（controller）。每次要派工、選模型或驗收之前照著做。
-> 本檔是 `<REPO>/rules/10-dispatch.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
+> 本檔是 `<REPO>/rules-controller/10-dispatch.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
 > 下文的 `<REPO>` 同 `~/.codex/AGENTS.md` 檔頭定義（依機器而異；該檔頭有對照表，`readlink ~/.codex/AGENTS.md` 只在 symlink 安裝的機器上有效）。本檔位在 `<REPO>/codex/rules/`，寫成裸 `rules/…` 從這裡解析不到。
 
 ## 0. Codex 角色與 runtime adapter（以當前 session 實際工具為準）
@@ -119,7 +119,7 @@ controller 核定完整 plan → worker 產出與機械驗證 → controller rea
 
 主對話自己做時，只有在符合 §1 任一派工條件卻仍不派時才要交代；例行讀檔、跑指令與對話不必。這段簡短揭露是給使用者看的派工狀態，不放進 subagent prompt 取代下面三件套；詳細稽核資料留在 adapter envelope。
 
-Claude 端 `<REPO>/rules/10-dispatch.md` §3 使用同一套 user-facing 揭露：正常只報指定 role 名稱與任務摘要，fallback 才標差異。Codex 額外取得的 runtime metadata 留在 adapter envelope，不轉成每次 commentary；這是內部證據能力差異，不是使用者介面差異。
+Claude 端 `<REPO>/rules-controller/10-dispatch.md` §3 使用同一套 user-facing 揭露：正常只報指定 role 名稱與任務摘要，fallback 才標差異。Codex 額外取得的 runtime metadata 留在 adapter envelope，不轉成每次 commentary；這是內部證據能力差異，不是使用者介面差異。
 
 每個 subagent prompt 必含三段，缺一段就是不合格派工（模板見 `30-delegation-templates-codex.md`）：
 
@@ -146,7 +146,7 @@ controller 應在 brief 附上仍有效的 diff、檔案行號／段落與測試
 - **insufficient reasoning**：root cause 與相關脈絡已抓對，但推理鏈、比較或驗證深度不足 → 同 tier 提高一級 effort、換 fresh context 重試一次；不得連續加 effort。
 - **insufficient model capability／context understanding**：抓錯問題核心、反覆遺漏跨模組關係、無法維持必要脈絡，或 architecture judgment 明顯不足 → 立即換 fresh context 並升一個 model tier，不必等第二次失敗。Luna 升 Terra/high；Terra 升 Sol/medium。
 - **insufficient evidence／environment understanding**：缺 repo 事實、log、重現步驟或環境量測錯誤 → 先補查證或依 `<REPO>/docs/debug-environment-first.md` 校正量法；換更強模型不會補出不存在的證據。
-- 失敗原因仍不明時，同一子任務最多兩次未收斂嘗試；達上限就升 tier 或換方法。若每次錯誤都不同且驗收條件持續增加，視為正常收斂，不計作無效重試。有機械指標時是否收斂依 `<REPO>/rules/20-judgment.md` §1 的數字判定。
+- 失敗原因仍不明時，同一子任務最多兩次未收斂嘗試；達上限就升 tier 或換方法。若每次錯誤都不同且驗收條件持續增加，視為正常收斂，不計作無效重試。有機械指標時是否收斂依 `<REPO>/rules-controller/20-judgment-controller.md` §1 的數字判定。
 - 開工前已有 higher-complexity signals，可直接使用 `pro_worker/Terra high`；Luna 失敗後若已符合 capability／context 訊號，使用 `recovery_worker/Terra high`。Terra 已確認自身能力不足時，升級 `escalation_worker/Sol medium`；Sol medium 仍顯示能力不足或高代價風險支持更深推理時，才由 controller 顯式改用 Sol high。
 - 風險與實作難度分開判斷：安全／資料遺失／不可逆風險會提高規劃與驗收強度，但不自動證明實作一定需要 Sol；先看 root cause 與 complexity signals。
 - 所有升級 prompt 都必須附原始需求、approved plan、相關 diff 與**對應門檻的證據**：失敗入口附完整失敗輸出、已嘗試 hypotheses 與逐輪嘗試表（執行者每輪當下記一列：改動｜指令｜關鍵輸出或指標值｜改動仍在工作樹或已回退｜失敗理由）；能力／脈絡入口附誤判或遺漏證據；高風險入口附風險判定依據。升級實作者必須先建立 root cause 再編輯。若 approved plan 不完整或需要擴大 scope，先停止並交回 controller 走 planner 路徑。若任務需要對外或不可逆動作，worker／pro_worker／recovery_worker／escalation_worker 直接停止並交回 controller；任何 subagent 都不得代替 controller 執行。
@@ -154,7 +154,7 @@ controller 應在 brief 附上仍有效的 diff、檔案行號／段落與測試
 - 任一指定 model 回報 unsupported 或 unavailable → 停止宣稱該 model mapping 已驗證，改用已核准的 fallback 並標記「模型未驗證」；不得靜默繼承另一個 model。
 - 升級角色（`recovery_worker`、`escalation_planner`、`escalation_worker`、`verifier`、`sol_verifier`）只處理能力需求，不取代使用者授權；對外或不可逆動作未在本 session 明確授權時，停止並交回 controller。
 - `Sol high` 卡住 → 先換 fresh-context Sol、取得獨立第二意見或重定義問題與驗收條件；只有仍有明確邊際價值時，controller 才可顯式使用 xhigh／max。Ultra 只在當前 runtime 明確支援且工作可安全拆成獨立大型工作流時考慮。
-- 同一件事最多兩輪**無進展**重試；兩輪仍失敗就換方法、升級或依 `<REPO>/rules/20-judgment.md` §3「何時該停下來問使用者」取得方向。
+- 同一件事最多兩輪**無進展**重試；兩輪仍失敗就換方法、升級或依 `<REPO>/rules-controller/20-judgment-controller.md` §3「何時該停下來問使用者」取得方向。
 
 ## 6. 驗證語意（鐵律三）
 

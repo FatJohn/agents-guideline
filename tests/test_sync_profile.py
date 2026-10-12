@@ -38,6 +38,7 @@ def build_repo(root: Path) -> Path:
 
     repo = root / "repo"
     (repo / "rules").mkdir(parents=True)
+    (repo / "rules-controller").mkdir(parents=True)
     (repo / "rubrics").mkdir(parents=True)
     (repo / "agents").mkdir(parents=True)
     (repo / "codex" / "skills" / "session-handoff").mkdir(parents=True)
@@ -49,6 +50,7 @@ def build_repo(root: Path) -> Path:
     (repo / "AGENTS.md").write_text("# AGENTS\n", encoding="utf-8")
     (repo / "rules" / "00-environment.md").write_text("# env\n", encoding="utf-8")
     (repo / "rules" / "05-hosts.md").write_text("# hosts\n", encoding="utf-8")
+    (repo / "rules-controller" / "10-dispatch.md").write_text("# dispatch\n", encoding="utf-8")
     (repo / "hosts").mkdir(parents=True)
     (repo / "hosts" / "macos.md").write_text("# mac\n", encoding="utf-8")
     (repo / "hosts" / "windows.md").write_text("# win\n", encoding="utf-8")
@@ -123,6 +125,21 @@ class SyncProfileTests(unittest.TestCase):
 
         # worker.md is the entry docs/install.md's symlink install has been missing.
         self.assertEqual((self.claude / "agents" / "worker.md").read_text(encoding="utf-8"), "# worker\n")
+
+    def test_rules_controller_is_installed_as_a_tree(self) -> None:
+        self.run_sync(apply=True)
+
+        installed = self.claude / "rules-controller" / "10-dispatch.md"
+        self.assertTrue(installed.is_file())
+        self.assertFalse(installed.is_symlink())
+        self.assertEqual(installed.read_text(encoding="utf-8"), "# dispatch\n")
+
+        # The tree root must be a real directory, not a link.
+        self.assertTrue((self.claude / "rules-controller").is_dir())
+        self.assertFalse((self.claude / "rules-controller").is_symlink())
+        # It is its own tree: nothing leaks into (or out of) ~/.claude/rules.
+        self.assertFalse((self.claude / "rules" / "10-dispatch.md").exists())
+        self.assertFalse((self.claude / "rules-controller" / "00-environment.md").exists())
 
     def test_hook_and_ripgreprc_are_installed_as_regular_files(self) -> None:
         self.run_sync(apply=True)

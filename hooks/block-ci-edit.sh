@@ -1,7 +1,7 @@
 #!/bin/bash
 # PreToolUse hook: the MAIN conversation (controller) must not edit CI config.
 #
-# Rule (rules/10-dispatch.md, "Controller 工作迴圈"): CI/release config
+# Rule (rules-controller/10-dispatch.md, "Controller 工作迴圈"): CI/release config
 # (.github/workflows, .github/actions) is not covered by the controller's
 # small-fix exception; it goes through a worker. This hook enforces that
 # mechanically.
@@ -69,7 +69,7 @@ fi
 if [ "$decision" = "deny" ]; then
   cat >&2 <<MSG
 BLOCKED by hook block-ci-edit: 主對話（controller）不得直接修改 CI 設定（${path}）。
-規則見 rules/10-dispatch.md「Controller 工作迴圈」：.github/workflows、.github/actions 不屬小修例外，必須走「核定 plan -> 派 worker 實作 -> controller read-back -> 一次 review/verifier」。
+規則見 rules-controller/10-dispatch.md「Controller 工作迴圈」：.github/workflows、.github/actions 不屬小修例外，必須走「核定 plan -> 派 worker 實作 -> controller read-back -> 一次 review/verifier」。
 請改派 worker subagent 修改此檔；不要改用 Bash（sed、heredoc）繞過。
 MSG
   exit 2

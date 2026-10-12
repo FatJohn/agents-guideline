@@ -25,7 +25,7 @@ worker 是哪個 CLI 就依該平台的角色表：Claude 側 `worker`／`verifi
 
 ## 盤點 session 與 issue session（互相獨立的 issue）
 
-SKILL §1「先分流」判為互相獨立的 issue 走這裡：一個 issue 一個頂層 session。**issue session 是該 issue 的 controller，不是上表的 worker**——它照 `<REPO>/rules/10-dispatch.md`「Controller 工作迴圈」自己派 worker／verifier、read-back、修正與交付；上表「一個 session 對應一個 worker」只適用同一 issue 內的切片。
+SKILL §1「先分流」判為互相獨立的 issue 走這裡：一個 issue 一個頂層 session。**issue session 是該 issue 的 controller，不是上表的 worker**——它照 `<REPO>/rules-controller/10-dispatch.md`「Controller 工作迴圈」自己派 worker／verifier、read-back、修正與交付；上表「一個 session 對應一個 worker」只適用同一 issue 內的切片。
 
 - **盤點 session**：現查 tracker 與 open PR，列出可做／blocked 項目、優先序與共用觸點（同檔、lockfile、schema、registry、CI 設定、migration 序號）；有共用觸點的 issue 序列開，不同時開。每個 issue 寫一份 brief 到 `<repo>/.worktrees/briefs/<issue>.md`（`.worktrees/` 的忽略方式見 `worktree.md`「所有權與路徑」）。不逐票讀 source、不收完整回報、不追各 issue 的 CI。
 - **brief**：目標與動機、tracker 連結、base ref、共用觸點與禁止碰的路徑、完成定義、授權（見下）、交付檔路徑（見下方 collect）。**不寫**「你是執行者、不要再派工」——那句只給 worker。

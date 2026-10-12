@@ -6,7 +6,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Read, Grep, Glob
 
 # Parallel Dispatch — 平行開發的 orchestration
 
-本 skill 只管 **orchestration strategy**：值不值得拆、怎麼拆、誰擁有什麼、怎麼驗、怎麼整合。它**不是** workspace／terminal／process manager。`<REPO>` 依全域 `CLAUDE.md`／`AGENTS.md` 的 bootstrap 解出；本檔承接 Claude `<REPO>/rules/10-dispatch.md` 與 Codex `<REPO>/codex/rules/10-dispatch-codex.md`，是切分與整合的 canonical；驗收沿用 rules。
+本 skill 只管 **orchestration strategy**：值不值得拆、怎麼拆、誰擁有什麼、怎麼驗、怎麼整合。它**不是** workspace／terminal／process manager。`<REPO>` 依全域 `CLAUDE.md`／`AGENTS.md` 的 bootstrap 解出；本檔承接 Claude `<REPO>/rules-controller/10-dispatch.md` 與 Codex `<REPO>/codex/rules/10-dispatch-codex.md`，是切分與整合的 canonical；驗收沿用 rules。
 
 四個概念彼此獨立，不得互相等同：
 
@@ -144,7 +144,7 @@ plan → execute → new information → re-plan（回 §3）→ execute
 | merge conflict | 純文字依 adapter；語意衝突依 §6 第 6 步；同一衝突兩輪未解就重切 |
 | worker 發現 decomposition 不合理 | 視為新資訊，回 §3 重切；已通過的片保留證據，只重驗受影響範圍 |
 
-**re-plan 規則**：切片清單、ownership 或比較準則有變就重過 checkpoint 2；ownership 與 brief 未變、且已綁定 SHA 的片保留證據；brief 被改的片證據作廢；foundation 或 base 變動＝全批依 §6 第 7 步重驗。re-plan 只重驗受影響的片，不因 re-plan 本身讓其他證據失效。同一件事的重試上限沿用平台 dispatch（Claude `<REPO>/rules/10-dispatch.md` §4、Codex `<REPO>/codex/rules/10-dispatch-codex.md` §5），兩輪後換方法或問人。
+**re-plan 規則**：切片清單、ownership 或比較準則有變就重過 checkpoint 2；ownership 與 brief 未變、且已綁定 SHA 的片保留證據；brief 被改的片證據作廢；foundation 或 base 變動＝全批依 §6 第 7 步重驗。re-plan 只重驗受影響的片，不因 re-plan 本身讓其他證據失效。同一件事的重試上限沿用平台 dispatch（Claude `<REPO>/rules-controller/10-dispatch.md` §4、Codex `<REPO>/codex/rules/10-dispatch-codex.md` §5），兩輪後換方法或問人。
 
 ## §9 Human-in-the-loop 與 execution adapter
 

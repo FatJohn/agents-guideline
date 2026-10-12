@@ -142,6 +142,7 @@ def default_mappings(
         Mapping(repo / "CLAUDE.md", claude_home / "CLAUDE.md", "file"),
         Mapping(repo / "hosts" / f"{host_key}.md", claude_home / "host-facts.md", "file"),
         Mapping(repo / "rules", claude_home / "rules", "tree"),
+        Mapping(repo / "rules-controller", claude_home / "rules-controller", "tree"),
         Mapping(repo / "rubrics", claude_home / "rubrics", "tree"),
         Mapping(repo / "agents" / "worker.md", claude_home / "agents" / "worker.md", "file"),
         Mapping(repo / "agents" / "verifier.md", claude_home / "agents" / "verifier.md", "file"),

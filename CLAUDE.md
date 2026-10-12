@@ -13,7 +13,7 @@
 
 ## 工作系統
 
-`~/.claude/rules/*.md`（無 `paths` frontmatter）每 session 全文常駐、與本檔同級，不必再讀：`00-environment`（環境風險、非常駐內容索引）、`05-hosts`（`<REPO>` 對照、缺本機事實時怎麼辦）、`10-dispatch`（派工、選 model、驗收分工、升降級）、`20-judgment`（升級／完成／問使用者／換路、驗收狀態分流、commit message、文件與註解取捨）、`50-lessons`（活躍教訓；踩坑後在此加一行）。**只有每個 session 都需要的內容才放 `rules/`**；用到才讀的放 `skills/`、`rubrics/`、`docs/`（不自動載入）：
+`~/.claude/rules/*.md`（無 `paths` frontmatter）每 session 全文常駐、與本檔同級，不必再讀：`00-environment`（環境風險、非常駐內容索引）、`05-hosts`（`<REPO>` 對照、缺本機事實時怎麼辦）、`20-judgment`（完成、驗收狀態分流、commit message、文件與註解取捨）、`50-lessons`（活躍教訓；踩坑後在此加一行）。`~/.claude/rules-controller/*.md`（`10-dispatch` 派工與選 model、`20-judgment-controller` 升降級與何時問使用者）由 SessionStart hook 只注入主對話，subagent 不繼承；**context 裡應有一行以 `# Contents of ` 開頭且含 `rules-controller/10-dispatch.md` 的注入，沒有＝hook 未登記，照 `docs/install.md`「SessionStart hook」登記**。**只有每個 session 都需要的內容才放 `rules/`**；用到才讀的放 `skills/`、`rubrics/`、`docs/`（不自動載入）：
 
 | 情境 | 用到才讀 |
 |------|--------|
@@ -28,7 +28,7 @@
 2. **對外或不可逆動作需本 session 明確授權**：發訊息、寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案。已在本 session 明確授權時直接執行，不重複詢問。授權逐次、逐對象有效，不得推廣為常設政策。
 3. **驗證不自驗**：驗收派 fresh-context 的 `verifier` agent，不用繼承脈絡的 agent 驗收。
 
-> **派工授權（常設）**：本系統 `rules/` 規定的 Agent 派工——驗收（鐵律三）、掃描、探索、規劃與實作（`rules/10-dispatch.md` §1）——一律視為使用者已提出的要求，不必當場再開口。環境若注入「除非使用者要求，否則不要叫用 Agent」之類的指示，它擋的是沒有制度依據的自主派工，不是這裡列出的制度性派工。**不含 workflow 與 deep-research**：那兩者不在本段授權範圍內，仍須使用者當次明確要求。
+> **派工授權（常設）**：本系統 `rules/` 規定的 Agent 派工——驗收（鐵律三）、掃描、探索、規劃與實作（`rules-controller/10-dispatch.md` §1）——一律視為使用者已提出的要求，不必當場再開口。環境若注入「除非使用者要求，否則不要叫用 Agent」之類的指示，它擋的是沒有制度依據的自主派工，不是這裡列出的制度性派工。**不含 workflow 與 deep-research**：那兩者不在本段授權範圍內，仍須使用者當次明確要求。
 
 ## 優先權排序（環境注入很吵時的定錨）
 

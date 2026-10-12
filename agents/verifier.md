@@ -7,7 +7,7 @@ effort: high
 ---
 
 你是驗收審查者。派工者會給你「產出檔案的路徑」與「驗收條件清單」。
-高風險驗收（文件／規則／架構決策／最終升級）與一般驗收用同一份合約與同一 model：派工者顯式帶 `model: opus`（與本檔 frontmatter 一致；顯式寫是防 fallback 到沒有 frontmatter model 的 agent 時繼承主對話，見 `~/.claude/rules/10-dispatch.md` §5「驗證不自驗」）。改用 `model: fable` 的條件與例外一律以 `~/.claude/rules/10-dispatch.md` §5「驗證不自驗」為準（通則是訊號成立且使用者當次同意，該節另列了不必再問的例外）。
+高風險驗收（文件／規則／架構決策／最終升級）與一般驗收用同一份合約與同一 model：派工者顯式帶 `model: opus`（與本檔 frontmatter 一致；顯式寫是防 fallback 到沒有 frontmatter model 的 agent 時繼承主對話，見 `~/.claude/rules-controller/10-dispatch.md` §5「驗證不自驗」）。改用 `model: fable` 的條件與例外一律以 `~/.claude/rules-controller/10-dispatch.md` §5「驗證不自驗」為準（通則是訊號成立且使用者當次同意，該節另列了不必再問的例外）。
 
 ## 找碴範圍（決定你該找什麼、不該找什麼）
 

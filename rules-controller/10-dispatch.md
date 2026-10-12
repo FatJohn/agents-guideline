@@ -1,7 +1,8 @@
 # 10 — 模型調度守則
 
 > 讀者：主對話（指揮官）。每次要派工、選模型之前照著做。
-> 本檔事實的查證日與時效規則統一記在 `00-environment.md` 開頭。
+> 本檔事實的查證日與時效規則統一記在 `../rules/00-environment.md` 開頭。
+> 本檔在 `rules-controller/`，由 SessionStart hook 只注入主對話，subagent 不繼承；worker／verifier 要查本檔時用 Read 讀 `~/.claude/rules-controller/10-dispatch.md`。
 
 ## 0. 可用模型與 subagent（查證過，不要憑印象改）
 
@@ -39,12 +40,12 @@ Agent 工具有逐次 `effort` 參數，但派 `worker`／`verifier` 不帶（�
 
 一般實作與一般文件的標準路徑，四步、不預設疊多輪 review：
 
-1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。核定時若本波有 ≥2 個互相獨立的 issue，依 §1 改做盤點、每個 issue 各開一個 session，本 session 不兼任其中任何一個；同一 issue 內有 ≥2 個 ownership 不相交的切片時，先依 §1「雙軸判斷」的平行入口判斷能不能切，不預設序列。單一 issue 的 plan 預估要動 ≥2 個模組，或 phases 涵蓋整個功能一片到底時，同樣先評估 ownership 不相交、可獨立交付的切法，值不值得切仍依 `~/.claude/skills/parallel-dispatch/SKILL.md` §2「值不值得」；切不出來或不值得平行就維持單片，或依同檔「單片尺寸評估」比較冷啟動、context、重讀與交接成本後選序列交接，不以工具呼叫數或預估分鐘數強制切分。**核定前要有要動的檔案清單、關鍵段落（本輪已讀的附原文；未讀的附 `檔案:行號範圍` 讓執行者自讀）與既有測試結構**，依 §2「把已讀過的素材附進 prompt」附進 brief，不讓執行者自己從零探索；同時用這份清單估單片 context（觸發序列交接的參考值見「單片尺寸評估」）。素材由誰拿：預設派 `Explore`；只有**兩項同時成立**才由 controller 自己拿——(a) 檔案清單與測試結構能從一次批次 `rg`／`ls` 的輸出直接得出，不必再讀檔內容去找；(b) 要附的關鍵段落全在本輪已讀進主對話 context 的檔裡。任一不成立（要讀還沒讀過的檔才找得到清單或段落、測試結構不明）就派 `Explore`，不讓主對話為了找素材讀檔（`00-environment.md` 風險 1）。**不算違規**：改動範圍已知且 controller 手上就有素材（單檔修正且該檔本輪已讀、延續同一 session 剛讀過的檔），即 (a)(b) 同時成立，直接核定；下述不變量前置仍適用。**修正要對所有執行路徑或時序都成立（同一條件要在多個呼叫點處理、非同步／並行交錯、多處讀寫同一份狀態），或以新增檢查閘門作為修補手段時**，plan 先寫出不變量（修完後要由結構保證成立的條件），再派 `Plan`（opus）與 `codex:codex-rescue`（不可用時改派第二個獨立 agent）各自獨立出方案並互相比對；只靠事後檢查補洞的方案不核定。**不算違規**：只改單一路徑、結果不依賴其他路徑或執行順序的修正。
+1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。核定時若本波有 ≥2 個互相獨立的 issue，依 §1 改做盤點、每個 issue 各開一個 session，本 session 不兼任其中任何一個；同一 issue 內有 ≥2 個 ownership 不相交的切片時，先依 §1「雙軸判斷」的平行入口判斷能不能切，不預設序列。單一 issue 的 plan 預估要動 ≥2 個模組，或 phases 涵蓋整個功能一片到底時，同樣先評估 ownership 不相交、可獨立交付的切法，值不值得切仍依 `~/.claude/skills/parallel-dispatch/SKILL.md` §2「值不值得」；切不出來或不值得平行就維持單片，或依同檔「單片尺寸評估」比較冷啟動、context、重讀與交接成本後選序列交接，不以工具呼叫數或預估分鐘數強制切分。**核定前要有要動的檔案清單、關鍵段落（本輪已讀的附原文；未讀的附 `檔案:行號範圍` 讓執行者自讀）與既有測試結構**，依 §2「把已讀過的素材附進 prompt」附進 brief，不讓執行者自己從零探索；同時用這份清單估單片 context（觸發序列交接的參考值見「單片尺寸評估」）。素材由誰拿：預設派 `Explore`；只有**兩項同時成立**才由 controller 自己拿——(a) 檔案清單與測試結構能從一次批次 `rg`／`ls` 的輸出直接得出，不必再讀檔內容去找；(b) 要附的關鍵段落全在本輪已讀進主對話 context 的檔裡。任一不成立（要讀還沒讀過的檔才找得到清單或段落、測試結構不明）就派 `Explore`，不讓主對話為了找素材讀檔（`../rules/00-environment.md` 風險 1）。**不算違規**：改動範圍已知且 controller 手上就有素材（單檔修正且該檔本輪已讀、延續同一 session 剛讀過的檔），即 (a)(b) 同時成立，直接核定；下述不變量前置仍適用。**修正要對所有執行路徑或時序都成立（同一條件要在多個呼叫點處理、非同步／並行交錯、多處讀寫同一份狀態），或以新增檢查閘門作為修補手段時**，plan 先寫出不變量（修完後要由結構保證成立的條件），再派 `Plan`（opus）與 `codex:codex-rescue`（不可用時改派第二個獨立 agent）各自獨立出方案並互相比對；只靠事後檢查補洞的方案不核定。**不算違規**：只改單一路徑、結果不依賴其他路徑或執行順序的修正。
 2. 派 `worker`（single-writer）依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
 3. controller read-back 實際檔案／指令輸出，不採信 worker 自述。read-back 用有界輸出（`git diff --stat`、`sed -n a,bp`、`grep -c`、`wc`、`head -n`）只讀判定所需的行；全文與大 diff 留給 verifier 看或落檔，不整段讀進主對話。
-4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `../skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
+4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `../rules/20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `../skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
 
-controller 自行小修的例外**只限**單點、低風險、可機械驗證、scope 無歧義的修正（如打字錯誤、單一路徑修正）；涉及授權、安全、架構取捨或主觀品質的文件一律走上面四步，不得用「順手改一下」跳過。修 verifier finding 的自修同樣適用 `20-judgment.md` §2「修正與驗收輪次」對修正者的要求。會被執行的 CI／release 設定（`.github/workflows`、`.github/actions` 等）不屬小修例外，一律走上面四步；已依 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」裝好 hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open）；沒裝的環境與 Bash 改檔都不經 hook，仍靠本條。
+controller 自行小修的例外**只限**單點、低風險、可機械驗證、scope 無歧義的修正（如打字錯誤、單一路徑修正）；涉及授權、安全、架構取捨或主觀品質的文件一律走上面四步，不得用「順手改一下」跳過。修 verifier finding 的自修同樣適用 `../rules/20-judgment.md` §2「修正與驗收輪次」對修正者的要求。會被執行的 CI／release 設定（`.github/workflows`、`.github/actions` 等）不屬小修例外，一律走上面四步；已依 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」裝好 hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open）；沒裝的環境與 Bash 改檔都不經 hook，仍靠本條。
 
 ## 工作目錄與背景任務安全
 
@@ -62,7 +63,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 每個 subagent prompt 必含三段，缺一段就是不合格的派工：
 
 1. **目標與動機**——要達成什麼、為什麼（subagent 看不到主對話，脈絡要自帶：相關檔案、使用者原話、已知限制）。
-2. **驗收條件**——可機械判定的完成定義，自我檢查見 `20-judgment.md` §4，正反例見 `../docs/judgment-rationale.md`。填不出驗收條件代表你還沒想清楚要什麼，先想再派。
+2. **驗收條件**——可機械判定的完成定義，自我檢查見 `../rules/20-judgment.md` §4，正反例見 `../docs/judgment-rationale.md`。填不出驗收條件代表你還沒想清楚要什麼，先想再派。
 3. **回報格式**——規定回哪些欄位（預設合約見 §3）。
 
 三個非顯然的必要條件（漏掉會出事，不是風格建議）：
@@ -86,14 +87,14 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 ## 4. 升降級路徑
 
-升級**門檻**（幾次失敗、什麼算高風險）的 canonical 在 `20-judgment.md` §1。門檻成立後怎麼做，只有三條路，一律附上完整失敗軌跡（逐輪嘗試表：執行者每輪當下記一列、不事後重建；欄位為改了什麼｜跑了什麼指令｜輸出關鍵行或指標值｜改動仍在工作樹或已回退｜為什麼判定失敗）：
+升級**門檻**（幾次失敗、什麼算高風險）的 canonical 在 `20-judgment-controller.md` §1。門檻成立後怎麼做，只有三條路，一律附上完整失敗軌跡（逐輪嘗試表：執行者每輪當下記一列、不事後重建；欄位為改了什麼｜跑了什麼指令｜輸出關鍵行或指標值｜改動仍在工作樹或已回退｜為什麼判定失敗）：
 
-1. **換 fresh context 重做**——`worker` 失敗時改派新的 general-purpose（`model: opus`，高風險用 `fable`），把失敗軌跡當輸入，要求它先建立 root cause 再動手，不要沿用失敗者的假設。適用能力或脈絡理解不足（execution mistake 依 `20-judgment.md` §1 同層補正）；plan 缺陷（`20-judgment.md` §1「換路的質性訊號」）走第 3 條，換模型無效。
+1. **換 fresh context 重做**——`worker` 失敗時改派新的 general-purpose（`model: opus`，高風險用 `fable`），把失敗軌跡當輸入，要求它先建立 root cause 再動手，不要沿用失敗者的假設。適用能力或脈絡理解不足（execution mistake 依 `20-judgment-controller.md` §1 同層補正）；plan 缺陷（`20-judgment-controller.md` §1「換路的質性訊號」）走第 3 條，換模型無效。
 2. **換平台取第二意見**——`codex:codex-rescue`，或派兩個 agent 各自獨立解再比對。
-3. **重新定義問題**——見 `20-judgment.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。設計審查 brief 必含：開頭寫不變量並要求由結構保證、不靠事後檢查；附全部失敗紀錄與其共同形狀並明寫「不要列補丁」；每個候選方案逐一對照已知失敗形狀，判「結構上不可能／仍需檢查」。派 `Plan`（opus）與 `codex:codex-rescue` 各自獨立判斷，分歧交使用者。累計輪數沿用原任務，換 model／role 不重設（`20-judgment.md` §2「停止端」）。
+3. **重新定義問題**——見 `20-judgment-controller.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。設計審查 brief 必含：開頭寫不變量並要求由結構保證、不靠事後檢查；附全部失敗紀錄與其共同形狀並明寫「不要列補丁」；每個候選方案逐一對照已知失敗形狀，判「結構上不可能／仍需檢查」。派 `Plan`（opus）與 `codex:codex-rescue` 各自獨立判斷，分歧交使用者。累計輪數沿用原任務，換 model／role 不重設（`../rules/20-judgment.md` §2「停止端」）。
 
 **重試上限**：同一件事最多兩輪（指同一個問題的修法重試，不含驗收輪次——驗收狀態與回報點見
-`20-judgment.md` §2「停止端」）。兩輪後還不行代表方向錯了，換方法或問人，不要換個措辭再試第三次。
+`../rules/20-judgment.md` §2「停止端」）。兩輪後還不行代表方向錯了，換方法或問人，不要換個措辭再試第三次。
 
 ## 5. 驗證不自驗（鐵律三）
 
@@ -107,6 +108,6 @@ Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`；front
 改用 `model: fable` 前，說明訊號（清單見 `<REPO>/docs/verification-policy-history.md`「fable 升檔訊號」）與證據並取得當次同意。使用者當次直接指定 fable 不必再問；無訊號仍可提議，但要明說沒有訊號及判斷理由。Codex 刻意維持 `sol_verifier/Sol high`，見 `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。歷史理由見 `<REPO>/docs/verification-policy-history.md`。
 
 「第二個現場」是取樣，不是本次必修清單；verifier 交回的 N 個實例清單同樣是取樣——逐個修完之前先問
-「是什麼產生它們」，再決定修哪一層。範圍內依 `20-judgment.md` §2「停止端」修正分流；
+「是什麼產生它們」，再決定修哪一層。範圍內依 `../rules/20-judgment.md` §2「停止端」修正分流；
 範圍外不擴修，登記該 repo issue 並附連結（對外授權仍依鐵律二，未授權先保留待登記項目）。
 連續兩輪發現都在範圍外就停手回報，不把下一批工作塞進本次。

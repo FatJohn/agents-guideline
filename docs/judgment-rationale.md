@@ -1,22 +1,24 @@
 # `rules/20-judgment.md` 各判準的來歷與理由
 
-> 常駐區只留判準與不算違規邊界（格式規則見 `<REPO>/skills/maintain-guideline/SKILL.md` §5「常駐判準的格式」）。訂條理由、事故脈絡、修辭句、鄰條分工與 ✅／❌ 正反例從常駐區搬到這裡，**原句保留不改寫**；標題與 `20-judgment.md` 的節名／補充判準名一一對應。要查「這條為什麼存在」時再讀，不會自動載入。例外：檔尾「2026-09-21 session review：非 20-judgment 檔的調整理由」一節收 `agents/worker.md`、`rules/10-dispatch.md`、`CLAUDE.md` 的理由，以及 `rules/10-dispatch.md`、`agents/verifier.md` 搬出的 ✅／❌。
+> 常駐區只留判準與不算違規邊界（格式規則見 `<REPO>/skills/maintain-guideline/SKILL.md` §5「常駐判準的格式」）。訂條理由、事故脈絡、修辭句、鄰條分工與 ✅／❌ 正反例從常駐區搬到這裡，**原句保留不改寫**；標題與 `20-judgment.md` 的節名／補充判準名一一對應。要查「這條為什麼存在」時再讀，不會自動載入。例外：檔尾「2026-09-21 session review：非 20-judgment 檔的調整理由」一節收 `agents/worker.md`、`rules-controller/10-dispatch.md`、`CLAUDE.md` 的理由，以及 `rules-controller/10-dispatch.md`、`agents/verifier.md` 搬出的 ✅／❌。
 
 ## §1 何時該升級能力層
+
+（本節判準現在在 `../rules-controller/20-judgment-controller.md`）
 
 以下原句因 2026-09-09 常駐格式瘦身從 §1 移出，原句保留：
 
 > 本節是升級門檻的 canonical 定義。
 
-> 模型 mapping 見對應平台 dispatch 文件（Claude：`10-dispatch.md`；Codex：`../codex/rules/10-dispatch-codex.md`）。
+> 模型 mapping 見對應平台 dispatch 文件（Claude：`../rules-controller/10-dispatch.md`；Codex：`../codex/rules/10-dispatch-codex.md`）。
 
 > 已在高能力層時，換 fresh context、取得第二意見或重新定義問題通常比只加 effort 有效。
 
 > 缺 log、repo 事實或環境量測時先補證據，不靠升級模型猜。（常駐區保留的判準已簡化為「缺證據先補證據」，此處保留原本列舉的三種證據類型：log、repo 事實、環境量測。）
 
-以下原句因 2026-09-30 依 `maintain-guideline` §5「合併重複」從 §1 移出（Codex 端 `sol_verifier` 在 `../codex/rules/10-dispatch-codex.md`、Claude 端顯式 `model: opus` 與升級要先問使用者在 `10-dispatch.md` §5 各有 canonical），原句保留：
+以下原句因 2026-09-30 依 `maintain-guideline` §5「合併重複」從 §1 移出（Codex 端 `sol_verifier` 在 `../codex/rules/10-dispatch-codex.md`、Claude 端顯式 `model: opus` 與升級要先問使用者在 `../rules-controller/10-dispatch.md` §5 各有 canonical），原句保留：
 
-> **高風險驗收依平台而定**——Codex 用 `sol_verifier`／Sol high（`../codex/rules/10-dispatch-codex.md` §6「驗證語意」）；Claude 端驗收一律顯式 `model: opus`，升級要先問使用者（`10-dispatch.md` §5「驗證不自驗」）。
+> **高風險驗收依平台而定**——Codex 用 `sol_verifier`／Sol high（`../codex/rules/10-dispatch-codex.md` §6「驗證語意」）；Claude 端驗收一律顯式 `model: opus`，升級要先問使用者（`../rules-controller/10-dispatch.md` §5「驗證不自驗」）。
 
 以下 ✅／❌ 於 2026-10-12 從常駐區搬出（使用者決定：常駐範例是在補償舊模型，新模型靠判準與邊界即可照做），原句保留：
 
@@ -35,7 +37,7 @@
 事故形狀：兩個任務（一個寫入 await 期間切日期寫錯 state 的 race；一個 fromJson 例外未接住並加原始碼守門）的 worker＋verifier 跑到第三輪以上不收斂。
 每輪「照 plan 做了嗎」都 PASS，FAIL 卻是同一根因換層重現（送出中旗標卡住 → widget 讀到舊 isLoading → 重複 POST）；中途換 Opus 一樣無效。
 最後靠設計審查（寫出不變量、要求結構保證、對照全部失敗形狀、多模型獨立判斷）找到根本解法，首輪驗收即收斂。
-因此 §1 加「新 FAIL 與前一輪同根因只是換層或換形」訊號與「plan 缺陷不換執行者模型」；`10-dispatch.md` Controller 工作迴圈第 1 步加不變量前置（修正要對所有執行路徑或時序成立、或以新增檢查閘門作為修補手段；觸發條件刻意寫成語言與框架中立）；§4 第 1 條註明適用能力或脈絡理解不足（execution mistake 同層補正）、plan 缺陷走第 3 條，第 3 條補設計審查 brief 結構。
+因此 §1 加「新 FAIL 與前一輪同根因只是換層或換形」訊號與「plan 缺陷不換執行者模型」；`../rules-controller/10-dispatch.md` Controller 工作迴圈第 1 步加不變量前置（修正要對所有執行路徑或時序成立、或以新增檢查閘門作為修補手段；觸發條件刻意寫成語言與框架中立）；§4 第 1 條註明適用能力或脈絡理解不足（execution mistake 同層補正）、plan 缺陷走第 3 條，第 3 條補設計審查 brief 結構。
 
 ## §2 何時算真的完成
 
@@ -155,7 +157,7 @@
 
 > **放寬**時基線與正向語料照做（它們擋意外變化），但**不足以結案**——放寬的差異本來就是刻意的，基線只證明「沒有意外變化」，不證明「沒有新洞」。
 
-> 放寬安全檢查**另必派 fresh-context 對抗性探測**（攻擊者視角：別名、參數遮蔽、`this`、模板字面值等改寫，派 general-purpose 依 `10-dispatch.md` §1），且判不出是否安全的輸入維持擋——「證明安全才放行」，不是「認得出危險才擋」。
+> 放寬安全檢查**另必派 fresh-context 對抗性探測**（攻擊者視角：別名、參數遮蔽、`this`、模板字面值等改寫，派 general-purpose 依 `../rules-controller/10-dispatch.md` §1），且判不出是否安全的輸入維持擋——「證明安全才放行」，不是「認得出危險才擋」。
 
 > 「證明安全才放行」，不是「認得出危險才擋」——2026-09-09 lesson 明確標出的對照句（見 `<REPO>/rules/50-lessons.md` 或 `<REPO>/docs/lessons-archive.md` 對應條目）。
 
@@ -186,6 +188,8 @@
 > 在 portal 底下查另一個 repo 的 PR，回「找不到」而那個 exit code 被讀成 CI 失敗。
 
 ## §3 何時該停下來問使用者
+
+（本節判準現在在 `../rules-controller/20-judgment-controller.md`）
 
 2026-09-21 新增「本人在場」（量測窗 2026-09-18 09:26～09-21、38 session／230 派工）：session ba9bb6f5 09-21 02:49 派出等待 live 登入的背景指令後逾時，使用者 08:48 才回「沒有登入」（約 6 小時空轉）；另有 10.9 小時花在兩次沒人回的 AskUserQuestion，顯示需要使用者本人在場的動作應先問可用時段再派。
 
@@ -247,17 +251,17 @@
 
 使用者 review 了 2026-09-18 09:26～09-21 共 38 個 session／230 次派工的實測資料後，明確要求五項調整；`20-judgment.md` 的兩項理由在上方對應標題下，其餘如下。
 
-**`agents/worker.md` 規則 8「工具呼叫上限」——同日試過、撤回**：worker 工具呼叫中位 90 次／16.1 分，13/89 超過 150 次、8 個超過 40 分，最糟 345 次／51.8 分；派工 prompt 有無重申「指令批次化」沒差（中位 97.5 vs 89 次）。一度加上「超過 150 次未進最後 validation 就停止回報」，同日撤回：逐一檢視那 13 個，4 個是大批次機械改檔（Edit 82–152 次、13–27 分）、7 個是大功能實作（Edit 53–91 次）、2 個 Bash 偏重但仍有產出，沒有一個是鬼打牆；硬停只會打斷有產出的工作、再付一次冷啟動（第一次 Edit 前的摸索中位 24 次、占總呼叫 29%），且與 parallel-dispatch §3「不用單一 counter 當硬上限」相反、worker 也無法精確自計。鬼打牆由規則 7 管；尺寸由 controller 在核 plan 時管（見下方 `rules/10-dispatch.md` 段）。
+**`agents/worker.md` 規則 8「工具呼叫上限」——同日試過、撤回**：worker 工具呼叫中位 90 次／16.1 分，13/89 超過 150 次、8 個超過 40 分，最糟 345 次／51.8 分；派工 prompt 有無重申「指令批次化」沒差（中位 97.5 vs 89 次）。一度加上「超過 150 次未進最後 validation 就停止回報」，同日撤回：逐一檢視那 13 個，4 個是大批次機械改檔（Edit 82–152 次、13–27 分）、7 個是大功能實作（Edit 53–91 次）、2 個 Bash 偏重但仍有產出，沒有一個是鬼打牆；硬停只會打斷有產出的工作、再付一次冷啟動（第一次 Edit 前的摸索中位 24 次、占總呼叫 29%），且與 parallel-dispatch §3「不用單一 counter 當硬上限」相反、worker 也無法精確自計。鬼打牆由規則 7 管；尺寸由 controller 在核 plan 時管（見下方 `rules-controller/10-dispatch.md` 段）。
 
 **`agents/worker.md` 規則 9「工具呼叫次數」回報欄位**：同上量測窗，讓下次 review 看得到呼叫數分佈；成本近零，不作門檻。
 
-**`rules/10-dispatch.md`「Controller 工作迴圈」第 1 步「ownership 不相交先判斷能不能切」**：最密集兩個 session（14fc3eb6、ff6135b4）最大並行度只有 2，只有 43% 派工與其他 agent 重疊；平行是使用者開口（ff6135b4 09-20 19:53）才啟動，顯示 controller 預設序列、沒有主動判斷可平行的切片。驗收時發現與同檔 §1 既有入口重複，常駐句改為指向 §1，只保留「不預設序列」。同日追加「大片先找平行切法、切不出來維持單片」：窗內 8 個超過 40 分鐘的 worker 都是整個功能一片到底；而序列拆小每片要再付一次冷啟動（摸索中位 24 次呼叫），只有平行才賺得回來，所以判準是找不相交切法而不是一律拆小。「約 40 分鐘」取自窗內長尾（8/89）。
+**`rules-controller/10-dispatch.md`「Controller 工作迴圈」第 1 步「ownership 不相交先判斷能不能切」**：最密集兩個 session（14fc3eb6、ff6135b4）最大並行度只有 2，只有 43% 派工與其他 agent 重疊；平行是使用者開口（ff6135b4 09-20 19:53）才啟動，顯示 controller 預設序列、沒有主動判斷可平行的切片。驗收時發現與同檔 §1 既有入口重複，常駐句改為指向 §1，只保留「不預設序列」。同日追加「大片先找平行切法、切不出來維持單片」：窗內 8 個超過 40 分鐘的 worker 都是整個功能一片到底；而序列拆小每片要再付一次冷啟動（摸索中位 24 次呼叫），只有平行才賺得回來，所以判準是找不相交切法而不是一律拆小。「約 40 分鐘」取自窗內長尾（8/89）。
 
 **`CLAUDE.md`「## 語言」英文任務仍用繁中回覆**：760 則 controller 回覆有 37 則（5%）實質非中文，使用者糾正三次（e9e64834 09-19 07:10、07:36；a2a3ad15 09-19 01:25），都發生在任務內容是英文的 session。
 
-**2026-09-21 更正（同日 Codex review 後）**：(1) `agents/worker.md` 規則 9 的「工具呼叫次數」回報欄位撤回——與上方「worker 也無法精確自計」及 parallel-dispatch「單片尺寸評估」的「不可從文字猜」矛盾；呼叫數由 controller 從 session jsonl 取得（本次量測即取自 jsonl），沒有可靠來源就標 `unknown`。(2) 「約 40 分鐘」從 `rules/10-dispatch.md` 常駐句移除：窗內 8 個超過 40 分鐘的 worker 都是整功能任務，推不出整功能任務多半超過 40 分鐘。(3) 「只有平行才賺得回來」撤回：序列交接可能減少 context 膨脹與重讀成本，改為比較冷啟動、context、重讀與交接成本，與「單片尺寸評估」一致。(4) 以上數據全來自 Claude 端；`codex/rules/10-dispatch-codex.md` 同日補的是同一流程原則，效能改善尚待 Codex 自身量測。
+**2026-09-21 更正（同日 Codex review 後）**：(1) `agents/worker.md` 規則 9 的「工具呼叫次數」回報欄位撤回——與上方「worker 也無法精確自計」及 parallel-dispatch「單片尺寸評估」的「不可從文字猜」矛盾；呼叫數由 controller 從 session jsonl 取得（本次量測即取自 jsonl），沒有可靠來源就標 `unknown`。(2) 「約 40 分鐘」從 `rules-controller/10-dispatch.md` 常駐句移除：窗內 8 個超過 40 分鐘的 worker 都是整功能任務，推不出整功能任務多半超過 40 分鐘。(3) 「只有平行才賺得回來」撤回：序列交接可能減少 context 膨脹與重讀成本，改為比較冷啟動、context、重讀與交接成本，與「單片尺寸評估」一致。(4) 以上數據全來自 Claude 端；`codex/rules/10-dispatch-codex.md` 同日補的是同一流程原則，效能改善尚待 Codex 自身量測。
 
-### `rules/10-dispatch.md` §5「驗證不自驗」的 ✅／❌（2026-10-12 搬出）
+### `rules-controller/10-dispatch.md` §5「驗證不自驗」的 ✅／❌（2026-10-12 搬出）
 
 以下 ✅／❌ 於 2026-10-12 從常駐區搬出（使用者決定：常駐範例是在補償舊模型，新模型靠判準與邊界即可照做），原句保留：
 
@@ -279,7 +283,7 @@
 
 量測對象：project-a session `fecd2381`（2026-09-21 20:14～22:38 實際工作 2h24m；其後 6 小時是使用者空檔）。使用者開工 prompt 指定「單一片、實作用 opus」，controller 派 general-purpose opus 單片實作 #26 第 19 項。
 
-**`rules/10-dispatch.md`「Controller 工作迴圈」第 1 步「核定前先派 Explore」**：implementer 開工前 8 分鐘用了 76 個 turn 讀碼（第 77 turn 才第一次 Edit；context 57k→292k，tool 執行只 0.3 分鐘），派工 prompt 已有 8.6k 字仍不夠讓它免讀——但那 8.6k 字是任務描述，不含檔案內容與既有測試結構，所以這條的假設是「附的是素材而不是描述」才省得掉摸索段；這是尚未實證的假設，檢驗方式：下次同類派工比「第一次 Edit 前的 turn 數」，沒降就撤回，不重演 worker 規則 8 的路徑。與 2026-09-21 review 量到的「第一次 Edit 前的摸索中位 24 次、占總呼叫 29%」是同一件事。Explore 只回結論、成本落在 sonnet 且不進主對話 context；「Explore／Plan 看不到 rules」目前是 `docs/harness-facts.md` 的候選觀察（issue #3），不是已核定事實，本段成本論據不倚賴它；素材附進 brief 後執行者的探索段可省，controller 也才有依據估單片 context。不另設 planner 角色：內建 `Plan` 已能出計畫，缺的是 controller 有沒有派，不是角色缺席。
+**`rules-controller/10-dispatch.md`「Controller 工作迴圈」第 1 步「核定前先派 Explore」**：implementer 開工前 8 分鐘用了 76 個 turn 讀碼（第 77 turn 才第一次 Edit；context 57k→292k，tool 執行只 0.3 分鐘），派工 prompt 已有 8.6k 字仍不夠讓它免讀——但那 8.6k 字是任務描述，不含檔案內容與既有測試結構，所以這條的假設是「附的是素材而不是描述」才省得掉摸索段；這是尚未實證的假設，檢驗方式：下次同類派工比「第一次 Edit 前的 turn 數」，沒降就撤回，不重演 worker 規則 8 的路徑。與 2026-09-21 review 量到的「第一次 Edit 前的摸索中位 24 次、占總呼叫 29%」是同一件事。Explore 只回結論、成本落在 sonnet 且不進主對話 context；「Explore／Plan 看不到 rules」目前是 `docs/harness-facts.md` 的候選觀察（issue #3），不是已核定事實，本段成本論據不倚賴它；素材附進 brief 後執行者的探索段可省，controller 也才有依據估單片 context。不另設 planner 角色：內建 `Plan` 已能出計畫，缺的是 controller 有沒有派，不是角色缺席。
 
 **`skills/parallel-dispatch/SKILL.md`「單片尺寸評估」加 context 約 300k 提醒**：該單片首輪 4 commit（含兩輪修正共 7 commit、33 檔 +4781 行；首輪 4 commit 為 30 檔 +4119 行），首輪實作 50 分鐘（tool 執行 12 分、模型產出 38 分、含讀碼段共 268 turn／266k output tokens），時間面合理；問題在 context 一路漲到 655k（1M 視窗），336 turn 平均每輪重讀 426k、累計 143M cache-read tokens（同 session 主對話 24M、兩個 verifier 合計 24M）。commit 1–2（格式核心）與 3–4（saver／play 整合）之間有清楚的交接點且 3–4 依賴 2，平行切不了但序列交接可以，每段 context 可壓在 300k 內。300k 取「200k 以上進長 context 計費」與「交接冷啟動再付一次摸索」之間的折衷，只作提醒不作硬上限，與同段「不用單一 counter 當硬上限」一致。檢驗方式：之後 N 個單片交回時 `subagent_tokens` 的中位若 >300k，代表提醒值落在健康派工之下（與 60 次同形），即撤回。驗收兩輪 38 分鐘裡約一半是 .NET build+test 的 mutation 迴圈，屬「驗證不自驗」的必要成本，不列為問題。
 
@@ -287,7 +291,7 @@
 
 ## 2026-10-12 Explore 前置改成觸發式
 
-`rules/10-dispatch.md`「Controller 工作迴圈」第 1 步原文「核定前先派 `Explore`」是預設開啟、只留「手上已有素材」一個例外。改成預設仍派 Explore，但 (a) 清單與測試結構能從一次批次 `rg`／`ls` 輸出直接得出、且 (b) 關鍵段落全在本輪已讀進主對話 context 的檔裡時，controller 自己拿。第一版寫成兩組條件（「一次批次取得」對「要掃多目錄」）互相重疊又有缺口、「幾個檔」「明顯撐大」無邊界，fresh verifier 判不出結果而退回；改成「預設 Explore＋兩項同時成立才自拿」後只剩一個判斷軸：controller 要不要為了找素材去讀還沒讀過的檔。依據：2026-09-22 project-a 兩個 session 量到 Explore→brief 前置各約 12 分（樣本 n=2，量測只記在本機 session 記憶、未入 repo；當時被 live 量測蓋住，沒可並行工作時會變真牆鐘）；上方「2026-09-22 project-a session review」段已寫明「這條的假設是「附的是素材而不是描述」才省得掉摸索段」、「這是尚未實證的假設」。條件 (b) 綁「已讀進 context」是為了不與 `rules/00-environment.md` 風險 1（主對話下場做粗活）相抵。Codex 端 `codex/rules/10-dispatch-codex.md` §3「素材與批次查證」本來只要求 brief 附素材、沒有先派 explorer 的強制句，不需同步。來源：使用者 2026-10-12 核定 `docs/workflow-cost-improvement-brief-2026-10-12.md` 候選 1「派工依需要觸發」（本 session 回覆中列為候選 A）。檢驗方式兩項：沿用上段比「第一次 Edit 前的 turn 數」，controller 自拿素材的派工若明顯高於派 Explore 的，收回；另比主對話核定 plan 前的 context 增量（jsonl 量法見 `docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），自拿的派工若增量超過一次批次指令輸出的量級，代表 (b) 被繞過，同樣收回。
+`rules-controller/10-dispatch.md`「Controller 工作迴圈」第 1 步原文「核定前先派 `Explore`」是預設開啟、只留「手上已有素材」一個例外。改成預設仍派 Explore，但 (a) 清單與測試結構能從一次批次 `rg`／`ls` 輸出直接得出、且 (b) 關鍵段落全在本輪已讀進主對話 context 的檔裡時，controller 自己拿。第一版寫成兩組條件（「一次批次取得」對「要掃多目錄」）互相重疊又有缺口、「幾個檔」「明顯撐大」無邊界，fresh verifier 判不出結果而退回；改成「預設 Explore＋兩項同時成立才自拿」後只剩一個判斷軸：controller 要不要為了找素材去讀還沒讀過的檔。依據：2026-09-22 project-a 兩個 session 量到 Explore→brief 前置各約 12 分（樣本 n=2，量測只記在本機 session 記憶、未入 repo；當時被 live 量測蓋住，沒可並行工作時會變真牆鐘）；上方「2026-09-22 project-a session review」段已寫明「這條的假設是「附的是素材而不是描述」才省得掉摸索段」、「這是尚未實證的假設」。條件 (b) 綁「已讀進 context」是為了不與 `rules/00-environment.md` 風險 1（主對話下場做粗活）相抵。Codex 端 `codex/rules/10-dispatch-codex.md` §3「素材與批次查證」本來只要求 brief 附素材、沒有先派 explorer 的強制句，不需同步。來源：使用者 2026-10-12 核定 `docs/workflow-cost-improvement-brief-2026-10-12.md` 候選 1「派工依需要觸發」（本 session 回覆中列為候選 A）。檢驗方式兩項：沿用上段比「第一次 Edit 前的 turn 數」，controller 自拿素材的派工若明顯高於派 Explore 的，收回；另比主對話核定 plan 前的 context 增量（jsonl 量法見 `docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），自拿的派工若增量超過一次批次指令輸出的量級，代表 (b) 被繞過，同樣收回。
 
 ## 2026-09-22 parallel-dispatch skill fable review 落地
 
@@ -303,4 +307,4 @@
 
 ## 2026-10-12 read-back 有界輸出與唯讀角色回報形狀
 
-後段窗口（2026-10-10 23:25～10-12 16:22，`scripts/usage/scan2.py`、`scan3.py`）量測：主對話 Bash 3,021 次，Bash tool_result 5.8M 字元進主對話 context（排除 `S=`／`W=` 這類變數賦值後，指令首字前四名為 gh、cat、sed、grep），issue session 主對話 maxctx 仍在 402–452K（前十貴 session）；Explore 回報中位 17,179 字、Plan 17,195、codex-rescue 14,808（n=14／8／8），這三類原本「不受長度限制」但一樣每輪重讀。探針證實 Explore 不能寫檔（見 `docs/harness-facts.md`「常用 subagent 類型」），所以不能用落檔解，改成回行號範圍、執行者自讀；`rules/10-dispatch.md` Controller 工作迴圈第 3 步與 §3、`codex/rules/10-dispatch-codex.md` 同步。來源：使用者 2026-10-12 看完本週用量拆帳後核定。檢驗方式：下週量主對話每 request 的 Bash tool_result 字元數與這三類回報中位字數。
+後段窗口（2026-10-10 23:25～10-12 16:22，`scripts/usage/scan2.py`、`scan3.py`）量測：主對話 Bash 3,021 次，Bash tool_result 5.8M 字元進主對話 context（排除 `S=`／`W=` 這類變數賦值後，指令首字前四名為 gh、cat、sed、grep），issue session 主對話 maxctx 仍在 402–452K（前十貴 session）；Explore 回報中位 17,179 字、Plan 17,195、codex-rescue 14,808（n=14／8／8），這三類原本「不受長度限制」但一樣每輪重讀。探針證實 Explore 不能寫檔（見 `docs/harness-facts.md`「常用 subagent 類型」），所以不能用落檔解，改成回行號範圍、執行者自讀；`rules-controller/10-dispatch.md` Controller 工作迴圈第 3 步與 §3、`codex/rules/10-dispatch-codex.md` 同步。來源：使用者 2026-10-12 看完本週用量拆帳後核定。檢驗方式：下週量主對話每 request 的 Bash tool_result 字元數與這三類回報中位字數。

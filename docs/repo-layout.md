@@ -10,8 +10,9 @@
 | `rules/00-environment.md` | 跨機器事實、三大結構性風險與修法 |
 | `hosts/<key>.md` | 單機事實（身分、repo 位置、驗證能力、陷阱）；經全域 `CLAUDE.md` 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**；新機器由 AI 照 `docs/new-host.md`「新機器建檔」建檔 |
 | `rules/05-hosts.md` | 跨機器規則、`<REPO>` 對照表、缺檔哨兵（context 裡沒有「# 本機事實」段時怎麼辦） |
-| `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |
-| `rules/20-judgment.md` | 判斷準則：升級／完成／問使用者／換路／環境先驗，正反例與理由在 `docs/judgment-rationale.md` |
+| `rules-controller/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |
+| `rules/20-judgment.md` | 判斷準則：完成／品質底線／環境先驗／commit message／現況證據與規格權威（§1「升級」與 §3「問使用者」已搬到 `rules-controller/20-judgment-controller.md`，編號刻意留空缺），正反例與理由在 `docs/judgment-rationale.md` |
+| `rules-controller/` | controller 專用常駐規則：`10-dispatch.md`（Claude Code 調度）、`20-judgment-controller.md`（升級／問使用者／換路判準）；由 `hooks/controller-context.sh`（SessionStart hook）注入主對話，subagent 不繼承 |
 | `rules/50-lessons.md` | **還沒有正式判準承接的**活躍教訓＋交接欄 |
 
 Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需讀本 repo 的 `rules/`、`codex/rules/`、`rubrics/` 與 skills，不能把 Claude Code 的 resident imports 當成 Codex 的常駐內容。
@@ -38,8 +39,8 @@ Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需�
 | `docs/archive/` | 無任何檔案引用的歷史文件（2026-07 的 Codex 分層路由 spec／plan、2026-08-29 的驗收輪次盤點）；只作事故考古用 |
 | `codex/rules/10-dispatch-codex.md` | Codex 調度：角色 mapping、named-first → `default` runtime adapter、reasoning effort、subagent 使用邊界、驗證不自驗 |
 | `codex/rules/30-delegation-templates-codex.md` | Codex A–L 十二份 logical-role 派工模板與共用 adapter envelope（scanner 掃描；explorer repo 探索與外部研究；planner 規劃；worker 實作與重構；reviewer 一般 review；recovery_worker Terra recovery；escalation_planner 規劃升級；escalation_worker 升級實作；verifier 一般驗收；sol_verifier 高風險驗收） |
-| `agents/worker.md` | 標準執行者 agent 定義（Sonnet 5.5 完整 model ID `claude-sonnet-5-5` + effort xhigh，派工不帶 `model`；升級依 `rules/10-dispatch.md` §4）。只在 controller 核定的完整 plan 下動手，涵蓋一般程式碼與一般文件；不做自己的正式驗收、不擴 scope、不執行對外或不可逆動作 |
-| `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high）。含「找碴範圍」與收斂標記；**高風險驗收用同一個角色、檔位不變**（派工一律顯式 `model: opus`；升 `model: fable` 的條件與例外見 `rules/10-dispatch.md` §5「驗證不自驗」） |
+| `agents/worker.md` | 標準執行者 agent 定義（Sonnet 5.5 完整 model ID `claude-sonnet-5-5` + effort xhigh，派工不帶 `model`；升級依 `rules-controller/10-dispatch.md` §4）。只在 controller 核定的完整 plan 下動手，涵蓋一般程式碼與一般文件；不做自己的正式驗收、不擴 scope、不執行對外或不可逆動作 |
+| `agents/verifier.md` | fresh-context 驗收 agent 定義（opus + effort high，對齊 Codex verifier/Terra high）。含「找碴範圍」與收斂標記；**高風險驗收用同一個角色、檔位不變**（派工一律顯式 `model: opus`；升 `model: fable` 的條件與例外見 `rules-controller/10-dispatch.md` §5「驗證不自驗」） |
 | `codex/agents/scanner.toml` | Codex Luna/medium/read-only 精確掃描 agent |
 | `codex/agents/explorer.toml` | Codex Terra/medium/read-only 探索 agent |
 | `codex/agents/planner.toml` | Codex Terra/high/read-only 非平凡任務規劃 agent |
@@ -60,7 +61,7 @@ Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需�
 
 **為什麼 Claude 側只自建 `worker`／`verifier`，沒有 `scanner`／`explorer`／`planner` 的等價 custom agent**：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋唯讀掃描與規劃，且本制度不把 haiku 列入 active routing。`worker` 與 `verifier` 需要獨立定義檔的理由相同——一般實作與文件撰寫要固定綁 `sonnet 5.5／xhigh`、驗收要固定綁 `opus／high`，寫成 standalone agent 才能把 model、effort 與角色合約一起鎖成預設，不靠每次呼叫都記得帶參數。（2026-10-09 更正：原文寫「**Agent 呼叫無法逐次指定 effort**」，已不成立——Agent 工具 v2.1.292 起有逐次 `effort` 參數，見 `harness-facts.md`「沒有 frontmatter effort 的 subagent」。）
 
-**為什麼 Claude 側沒有派工模板檔、Codex 側有**：Claude 側的派工合約併在 `rules/10-dispatch.md` §2 與各 `agents/*.md` 的角色合約，沒有獨立模板檔——填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `codex/rules/30-delegation-templates-codex.md`：它把 approved plan、寫入所有權、驗證命令與回報格式做成可核對欄位，避免 controller 只靠角色名稱推定 child 已取得完整脈絡。
+**為什麼 Claude 側沒有派工模板檔、Codex 側有**：Claude 側的派工合約併在 `rules-controller/10-dispatch.md` §2 與各 `agents/*.md` 的角色合約，沒有獨立模板檔——填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `codex/rules/30-delegation-templates-codex.md`：它把 approved plan、寫入所有權、驗證命令與回報格式做成可核對欄位，避免 controller 只靠角色名稱推定 child 已取得完整脈絡。
 
 Codex routing 依 complexity signals，而不是 task 名稱：simple／mechanical 用 Luna low／medium；normal development 用 `worker/Luna max`；higher complexity 可預先用 `planner`／`pro_worker` 的 Terra high，Luna 失敗後才由 `recovery_worker/Terra high` 接手；high-impact judgment 可直接用 `escalation_planner`／`escalation_worker` 的 Sol medium，其他路徑則等 Terra 已確認能力不足才升 Sol medium；exceptional difficulty 才用 Sol high。xhigh／max 沒有固定 route。失敗時先分 execution mistake、reasoning 不足、model／context 理解不足與 evidence／environment 不足，再決定補正、加 effort、升 tier 或補證據。
 
