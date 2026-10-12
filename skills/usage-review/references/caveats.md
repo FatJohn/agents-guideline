@@ -18,8 +18,8 @@
    現象：有的記錄只有 `cache_creation_input_tokens` 總額，沒有 `cache_creation` 子物件。
    影響：1h 與 5m 的寫入單價差（2× vs 1.25× input）會讓成本不確定。
    處理：缺細分時整筆當 1h（成本上界），該 req 標 `cw_ttl_known: false`，extract 摘要會印出這類 req 的數量。
-   出處：這個 fallback 沿用 legacy 計價函式的做法（盤點 `legacy-inventory.md` §2：cw1h 缺值時整筆 cw 當 1h）。
-   現況：本機一份樣本中（2026-10-05 起的資料，47,239 筆 request），`cw_ttl_known=false` 為 0 筆，細分小於總額的有 137 筆（0.29%，verifier 實算，`verify-1/ac11.out`）；這是單一機器、單一期間的觀察，不是通則。
+   出處：這個 fallback 沿用本 skill 之前多輪手寫量測腳本的計價做法（cw1h 缺值時整筆 cw 當 1h，取上界）。
+   現況：本機一份樣本中（2026-10-05 起的資料，47,239 筆 request），`cw_ttl_known=false` 為 0 筆，細分小於總額的有 137 筆（0.29%）；這是單一機器、單一期間的觀察，不是通則。
 
 4. **細分合計可能小於總額**
    現象：有 `cache_creation` 細分，但 `ephemeral_1h + ephemeral_5m` 小於 `cache_creation_input_tokens`（在一週樣本裡約 0.3% 的 request，差額原因不明）。
