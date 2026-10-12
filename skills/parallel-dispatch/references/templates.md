@@ -91,6 +91,46 @@ Location: <落地位置絕對路徑、branch、HEAD>
 
 只回「Done」或缺任一欄 ＝ 未完成，controller 退回補齊。每一欄都要能被 controller **獨立核對**（逐欄核對法在 SKILL §4「回報」），沒有一欄是只能相信的形容詞；Files changed 與實際 diff 不符（多報或少報）＝ report 不成立。
 
+## Verifier brief（SKILL §5；controller → verifier，首輪與 delta 共用）
+
+語意的 canonical 在 verifier 合約（Claude：`<REPO>/agents/verifier.md` 規則 4；Codex：`<REPO>/codex/agents/verifier.toml`）與 `<REPO>/rules/20-judgment.md` §2「修正與驗收輪次」；本模板只列必帶欄位，不重述職責，缺欄時 verifier 怎麼處理以合約為準。delta 輪漏附探針目錄時，合約要 verifier 依描述重建探針，那段重建就是本模板要省掉的重複工作。
+
+```text
+輪次: 首輪 | delta 第 <n> 輪（同一產出累計；換 model／role 不重設）
+產出位置: <絕對路徑；worktree 時附 branch＋HEAD；tree 須乾淨>
+驗收條件: <逐條、可機械判定；測試數、新增條數等數字由 controller 現查，不抄製作者自報>
+rubric: <document-quality | code-change | research-analysis；可省，省略時 verifier 自判並回報用了哪份>
+探針目錄: <repo 外絕對路徑；首輪由 controller 指定，delta 原樣附回>
+--- 以下 delta 輪必填 ---
+原 finding: <上一輪 FAIL／UNSURE 原文或其落檔路徑>
+修正 diff: <diff 或 commit 範圍>
+受影響的原始驗收條件: <條號>
+既有證據: <首輪探針檔、測試輸出路徑；修正者對新寫句子的逐句對照與對新斷言的突變紅／綠輸出>
+放寬既有檢查: <否 | 是——是則依 20-judgment §2「改既有檢查／過濾／驗證規則」另做對抗性探測>
+```
+
+delta 輪的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，不另開放找新漏洞；輪數上限與回報點照 `<REPO>/rules/20-judgment.md` §2「停止端」，本模板不另設輪數。
+
+## Issue session result（`cli.md`「盤點 session 與 issue session」collect；issue session → 盤點 session）
+
+落地位置 `$(git rev-parse --show-toplevel)/.worktrees/result.md`（issue session 自己的 worktree 內）。只放盤點 session 下一步決策要用的欄位；完整驗收回報、log、diff 留在該 worktree 或 PR，以路徑或連結引用。填不出來的欄寫 `unknown`＋原因，不留空；盤點 session 讀到 `unknown` 或欄位不足時送回該 issue session 補，不自己重跑該 issue 的探索或驗收。
+
+```text
+Issue: <tracker 連結或編號>
+Status: working | blocked | awaiting verification | ready for authorization | merged | unknown
+Worktree: <絕對路徑>    Branch: <branch>
+Base SHA: <sha>    Candidate SHA: <HEAD；未 commit 寫 uncommitted>    Dirty: <git status --short 行數；0＝乾淨>
+Files changed: <已 commit：git diff --name-only <base>...HEAD；uncommitted：git status --short＋git diff --name-only，不能拿 HEAD diff 判零；碰到 brief 列的共用觸點或禁止路徑的另標>
+Verification: <CONVERGED | PROSE-ONLY | OPEN | INCONCLUSIVE @<sha>；修正輪數 <n>；探針目錄路徑；未派寫「未驗收」>
+PR / CI: <PR 連結；required CI 狀態與對應 SHA；無 PR 寫「無」>
+Cross-issue risk: <共用觸點、base 變動、與其他 issue 互踩；無則「無」>
+Pending authorization: <待使用者在本 issue session 親口授權的動作；無則「無」>
+Blocker: <一句；無則「無」>
+Merged: <merge SHA；merge 後補；未 merge 寫「—」>
+```
+
+Status 由 issue session 依證據自填：`awaiting verification`＝已派 verifier 未回；`ready for authorization`＝驗收收斂且 PR 已開，只差 Pending authorization 列的動作；`merged` 必須同時有 Merged 欄的 SHA。TUI idle、process 結束、分頁無回應都不對應任何一個狀態——盤點 session 查到這些只代表該去讀 result.md 或在那個分頁問，不得據此推進狀態（同 `cli.md` 該段「這只證明 TUI 閒置」句）。
+
 ## Tracker 對應（SKILL §3 checkpoint 2；專案規格未宣告時的預設）
 
 - 未宣告 → GitHub issue：一批一個 issue（或 milestone），切片寫成 task list；PR body 關聯 issue。

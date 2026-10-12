@@ -139,6 +139,10 @@
 
 **`skills/parallel-dispatch/SKILL.md`「單片尺寸評估」撤回 60 次工具呼叫提醒**：60 是 2026-09-17 訂的、當日 `<REPO>/docs/dispatch-cost-review-2026-09-17.md` 已標為待評估假設；2026-09-21 review 實測 worker 工具呼叫中位 90 次、13/89 超過 150 次且逐一檢視無鬼打牆（見上方「規則 8」段）。提醒值落在中位數以下，超過半數健康派工都會觸發，等於沒有訊號；同段已規定 counter 優先用 context 大小、呼叫數只是輔助，worker 也算不準自己的呼叫數。§6 第 10 步「不以首輪 60 次單獨決定」同步改為「不以工具呼叫數單獨決定」。
 
+## 2026-10-12 Explore 前置改成觸發式
+
+`rules/10-dispatch.md`「Controller 工作迴圈」第 1 步原文「核定前先派 `Explore`」是預設開啟、只留「手上已有素材」一個例外。改成預設仍派 Explore，但 (a) 清單與測試結構能從一次批次 `rg`／`ls` 輸出直接得出、且 (b) 關鍵段落全在本輪已讀進主對話 context 的檔裡時，controller 自己拿。第一版寫成兩組條件（「一次批次取得」對「要掃多目錄」）互相重疊又有缺口、「幾個檔」「明顯撐大」無邊界，fresh verifier 判不出結果而退回；改成「預設 Explore＋兩項同時成立才自拿」後只剩一個判斷軸：controller 要不要為了找素材去讀還沒讀過的檔。依據：2026-09-22 project-a 兩個 session 量到 Explore→brief 前置各約 12 分（樣本 n=2，量測只記在本機 session 記憶、未入 repo；當時被 live 量測蓋住，沒可並行工作時會變真牆鐘）；上方「2026-09-22 project-a session review」段已寫明「這條的假設是「附的是素材而不是描述」才省得掉摸索段」、「這是尚未實證的假設」。條件 (b) 綁「已讀進 context」是為了不與 `rules/00-environment.md` 風險 1（主對話下場做粗活）相抵。Codex 端 `codex/rules/10-dispatch-codex.md` §3「素材與批次查證」本來只要求 brief 附素材、沒有先派 explorer 的強制句，不需同步。來源：使用者 2026-10-12 核定 `docs/workflow-cost-improvement-brief-2026-10-12.md` 候選 1「派工依需要觸發」（本 session 回覆中列為候選 A）。檢驗方式兩項：沿用上段比「第一次 Edit 前的 turn 數」，controller 自拿素材的派工若明顯高於派 Explore 的，收回；另比主對話核定 plan 前的 context 增量（jsonl 量法見 `docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），自拿的派工若增量超過一次批次指令輸出的量級，代表 (b) 被繞過，同樣收回。
+
 ## 2026-09-22 parallel-dispatch skill fable review 落地
 
 使用者核准套用一份 fresh review（`skills/parallel-dispatch/SKILL.md` 與 `references/{claude-code,cli,worktree}.md`）的全部 24 條建議。以下記錄需要保留理由、事故數字或撤回史的項目；常駐區只留判準與邊界。
