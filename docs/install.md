@@ -21,7 +21,8 @@ for pair in \
   "rubrics:$HOME/.claude/rubrics" \
   "skills/maintain-guideline:$HOME/.claude/skills/maintain-guideline" \
   "skills/create-pr:$HOME/.claude/skills/create-pr" \
-  "skills/parallel-dispatch:$HOME/.claude/skills/parallel-dispatch"; do
+  "skills/parallel-dispatch:$HOME/.claude/skills/parallel-dispatch" \
+  "skills/usage-review:$HOME/.claude/skills/usage-review"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -199,7 +200,7 @@ Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用�
 memories = true
 ```
 
-本 repo 另外提供四個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議，`parallel-dispatch` 處理多寫入切片的切分、派工與整合驗收（worktree 與 terminal 只是 adapter 層）。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`（2026-09-02 降級，理由見該檔檔頭）。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
+本 repo 另外提供四個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議，`parallel-dispatch` 處理多寫入切片的切分、派工與整合驗收（worktree 與 terminal 只是 adapter 層）。`usage-review` 只解析 Claude Code 本機 session jsonl（`~/.claude/projects`），不裝到 Codex。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`（2026-09-02 降級，理由見該檔檔頭）。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
 
 Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身，按需讀 `<REPO>/docs/codex-tooling-audit-2026-10.md`。
 
@@ -245,6 +246,7 @@ Link-One "$REPO\rubrics"                   "$HOME\.claude\rubrics"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.claude\skills\maintain-guideline"
 Link-One "$REPO\skills\create-pr"                "$HOME\.claude\skills\create-pr"
 Link-One "$REPO\skills\parallel-dispatch"        "$HOME\.claude\skills\parallel-dispatch"
+Link-One "$REPO\skills\usage-review"             "$HOME\.claude\skills\usage-review"
 foreach ($a in 'worker','verifier') {
   Link-One "$REPO\agents\$a.md" "$HOME\.claude\agents\$a.md"
 }
