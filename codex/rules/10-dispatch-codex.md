@@ -99,7 +99,7 @@ controller 核定完整 plan → worker 產出與機械驗證 → controller rea
 - 需要即時與使用者互動或取得授權。
 - 平行寫入無法用獨立 worktree 隔離。
 
-主對話負責與使用者溝通、整合證據、做決策，並 read-back 實際狀態；subagent 的摘要不能取代這些責任。唯讀探索可批次化工具讀取；已提供素材仍在最新且足以回答當前問題時可不重讀，但獨立驗收一律做實際 read-back。
+主對話負責與使用者溝通、整合證據、做決策，並 read-back 實際狀態；subagent 的摘要不能取代這些責任。唯讀探索可批次化工具讀取；已提供素材仍在最新且足以回答當前問題時可不重讀，但獨立驗收一律做實際 read-back；read-back 用有界輸出（`git diff --stat`、`sed -n`、`grep -c`、`wc`）只讀判定所需的行，全文與大 diff 留給 verifier 或落檔。
 
 兩個以上可安全平行的寫入切片，讀 `<REPO>/skills/parallel-dispatch/SKILL.md` 與 `<REPO>/skills/parallel-dispatch/references/codex.md`；該 skill 是批次、矩陣、integration gate 與驗收的 canonical。
 
@@ -135,7 +135,7 @@ controller 應在 brief 附上仍有效的 diff、檔案行號／段落與測試
 
 - Subagent 只回結論與證據（檔案:行號、指令輸出關鍵行、URL），不得傾倒原始內容。
 - 回報只列 brief 指定的 controller 下一步決策欄位；逐條驗收判定、根因證據與必要定位素材不得因篇幅省略。
-- 大 diff、全文與完整清單由 controller 落檔；readonly role 不寫檔，verifier 僅依既有合約寫 repo 外 probe。
+- 大 diff、全文與完整清單由 controller 落檔；readonly role 不寫檔，verifier 僅依既有合約寫 repo 外 probe。readonly role 回「結論＋檔案:行號範圍」而非原文段落，執行者依範圍自讀。
 - 回報必須分級：**已驗證（附證據）／待 CI／未驗證**。
 - controller 整合回報後仍須 read-back 實際檔案與狀態；不把 agent 自述當作完成證據。
 

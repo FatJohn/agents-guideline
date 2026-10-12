@@ -111,6 +111,8 @@ rubric: <document-quality | code-change | research-analysis；可省，省略時
 
 delta 輪的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，不另開放找新漏洞；輪數上限與回報點照 `<REPO>/rules/20-judgment.md` §2「停止端」，本模板不另設輪數。
 
+verifier 回報第一行＝狀態＋下一步（Claude：`<REPO>/agents/verifier.md` 規則 6；Codex：`<REPO>/codex/agents/verifier.toml`）；controller 照下一步走，`PROSE-ONLY` 不派 delta。
+
 ## Issue session result（`cli.md`「盤點 session 與 issue session」collect；issue session → 盤點 session）
 
 落地位置 `$(git rev-parse --show-toplevel)/.worktrees/result.md`（issue session 自己的 worktree 內）。只放盤點 session 下一步決策要用的欄位；完整驗收回報、log、diff 留在該 worktree 或 PR，以路徑或連結引用。填不出來的欄寫 `unknown`＋原因，不留空；盤點 session 讀到 `unknown` 或欄位不足時送回該 issue session 補，不自己重跑該 issue 的探索或驗收。

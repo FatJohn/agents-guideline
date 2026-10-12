@@ -11,7 +11,7 @@
 | `hosts/<key>.md` | 單機事實（身分、repo 位置、驗證能力、陷阱）；經全域 `CLAUDE.md` 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**；新機器由 AI 照 `docs/new-host.md`「新機器建檔」建檔 |
 | `rules/05-hosts.md` | 跨機器規則、`<REPO>` 對照表、缺檔哨兵（context 裡沒有「# 本機事實」段時怎麼辦） |
 | `rules/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |
-| `rules/20-judgment.md` | 判斷準則：升級／完成／問使用者／換路／環境先驗，各附正反例 |
+| `rules/20-judgment.md` | 判斷準則：升級／完成／問使用者／換路／環境先驗，正反例與理由在 `docs/judgment-rationale.md` |
 | `rules/50-lessons.md` | **還沒有正式判準承接的**活躍教訓＋交接欄 |
 
 Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需讀本 repo 的 `rules/`、`codex/rules/`、`rubrics/` 與 skills，不能把 Claude Code 的 resident imports 當成 Codex 的常駐內容。

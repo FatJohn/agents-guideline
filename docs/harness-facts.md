@@ -96,6 +96,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
   `~/.claude/agents/<角色>.md` 合約。verifier 顯式 `model: opus`，升 fable 見 `../rules/10-dispatch.md` §5「驗證不自驗」。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
+- Explore／Plan 的角色系統指示禁止建立或寫入任何檔案（含 `/tmp`、scratchpad、heredoc 重導向）：2026-10-12 以 Explore（haiku）探針要求用 heredoc 寫 scratchpad 一個檔，agent 回「系統指示明確禁止…未執行」，沒有嘗試繞過；Plan 的角色指示在 claude 2.1.296 binary 的 strings 可見同款條文（READ-ONLY planning task、禁止建 /tmp 檔、禁止 `>`／`>>`／heredoc）。要落檔派 general-purpose；Explore／Plan 的回報長度只能靠 brief 的回報欄位控（`../rules/10-dispatch.md` §3）。
 
 ## 固定注入：plugin／MCP／skill 清單
 
