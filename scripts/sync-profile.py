@@ -133,7 +133,7 @@ def default_mappings(
 
     claude_skills = claude_home / "skills"
     agents_skills = agents_home / "skills"
-    shared_skills = ("maintain-guideline", "create-pr", "parallel-dispatch")
+    shared_skills = ("maintain-guideline", "create-pr", "parallel-dispatch", "writing-principles")
     # usage-review only parses Claude Code session jsonl, so docs/install.md
     # leaves it out of the Codex (~/.agents/skills) lists.
     claude_only_skills = ("usage-review",)

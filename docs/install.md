@@ -23,7 +23,8 @@ for pair in \
   "skills/maintain-guideline:$HOME/.claude/skills/maintain-guideline" \
   "skills/create-pr:$HOME/.claude/skills/create-pr" \
   "skills/parallel-dispatch:$HOME/.claude/skills/parallel-dispatch" \
-  "skills/usage-review:$HOME/.claude/skills/usage-review"; do
+  "skills/usage-review:$HOME/.claude/skills/usage-review" \
+  "skills/writing-principles:$HOME/.claude/skills/writing-principles"; do
   src="$REPO/${pair%%:*}"; dst="${pair#*:}"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -170,7 +171,8 @@ for pair in \
   "codex/skills/session-handoff:session-handoff" \
   "skills/create-pr:create-pr" \
   "skills/maintain-guideline:maintain-guideline" \
-  "skills/parallel-dispatch:parallel-dispatch"; do
+  "skills/parallel-dispatch:parallel-dispatch" \
+  "skills/writing-principles:writing-principles"; do
   src="$REPO/${pair%%:*}"; dst="$HOME/.agents/skills/${pair#*:}"
   if [ -e "$dst" ] || [ -L "$dst" ]; then
     echo "略過（已存在，需手動處理）：$dst"
@@ -217,7 +219,7 @@ Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用�
 memories = true
 ```
 
-本 repo 另外提供四個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議，`parallel-dispatch` 處理多寫入切片的切分、派工與整合驗收（worktree 與 terminal 只是 adapter 層）。`usage-review` 只解析 Claude Code 本機 session jsonl（`~/.claude/projects`），不裝到 Codex。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`（2026-09-02 降級，理由見該檔檔頭）。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
+本 repo 另外提供五個 Codex 可用的 global skills：`session-handoff` 負責在收尾時產生可 review 的專案交接檔（預設 `.codex/HANDOFF.md`），`create-pr` 負責分析 branch 變更並準備 Pull Request，`maintain-guideline` 是修改本工作系統時要先讀的維護協議，`parallel-dispatch` 處理多寫入切片的切分、派工與整合驗收（worktree 與 terminal 只是 adapter 層），`writing-principles` 提供長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則、判定與純標準庫檢查腳本（`scripts/check_docs.py`），寫的人與 verifier 跑同一支。`usage-review` 只解析 Claude Code 本機 session jsonl（`~/.claude/projects`），不裝到 Codex。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`（2026-09-02 降級，理由見該檔檔頭）。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
 
 Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身，按需讀 `<REPO>/docs/codex-tooling-audit-2026-10.md`。
 
@@ -265,6 +267,7 @@ Link-One "$REPO\skills\maintain-guideline"       "$HOME\.claude\skills\maintain-
 Link-One "$REPO\skills\create-pr"                "$HOME\.claude\skills\create-pr"
 Link-One "$REPO\skills\parallel-dispatch"        "$HOME\.claude\skills\parallel-dispatch"
 Link-One "$REPO\skills\usage-review"             "$HOME\.claude\skills\usage-review"
+Link-One "$REPO\skills\writing-principles"       "$HOME\.claude\skills\writing-principles"
 foreach ($a in 'worker','verifier') {
   Link-One "$REPO\agents\$a.md" "$HOME\.claude\agents\$a.md"
 }
@@ -279,6 +282,7 @@ Link-One "$REPO\codex\skills\session-handoff"    "$HOME\.agents\skills\session-h
 Link-One "$REPO\skills\create-pr"                "$HOME\.agents\skills\create-pr"
 Link-One "$REPO\skills\maintain-guideline"       "$HOME\.agents\skills\maintain-guideline"
 Link-One "$REPO\skills\parallel-dispatch"        "$HOME\.agents\skills\parallel-dispatch"
+Link-One "$REPO\skills\writing-principles"       "$HOME\.agents\skills\writing-principles"
 
 # Codex agent TOML：先預覽，再寫入實體 regular files
 python "$REPO\scripts\sync-codex-agents.py" --destination "$HOME\.codex\agents"
@@ -300,7 +304,7 @@ Windows 專屬注意：
 
 ## 安裝（實體檔同步版——不能提權的機器用這個）
 
-**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rules-controller/`、`rubrics/`、`agents/worker.md`＋`verifier.md`、三個共用 skill、`AGENTS.md`、`session-handoff`，以及上方「選配」段的 `hooks/` 與 `config/ripgreprc`；後兩者只寫檔，`settings.json` 仍要手動加）。`rules-controller/` 也由同步器複製，SessionStart hook 登記仍手動（見上方「SessionStart hook」）：
+**不能提權的機器**用這個。連結建得起來卻讀不到（Level 1／os error 448，見上方警告、`hosts/windows.md` 與 `docs/hosts-detail.md`）而又拿不到 admin 時，改用同步器把 repo 寫成**實體檔複本**，裝的是跟 symlink 版同一份清單（`CLAUDE.md`、`hosts/<key>.md`→`~/.claude/host-facts.md`（依平台自動選 `macos`／`windows`，`--host-key` 可覆寫）、`rules/`、`rules-controller/`、`rubrics/`、`agents/worker.md`＋`verifier.md`、四個共用 skill、`AGENTS.md`、`session-handoff`，以及上方「選配」段的 `hooks/` 與 `config/ripgreprc`；後兩者只寫檔，`settings.json` 仍要手動加）。`rules-controller/` 也由同步器複製，SessionStart hook 登記仍手動（見上方「SessionStart hook」）：
 
 ```bash
 python scripts/sync-profile.py --prune                                  # 先預覽

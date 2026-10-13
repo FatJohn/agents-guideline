@@ -39,3 +39,8 @@
 ## 5. 開放題（必答）
 
 「這份產出最大的風險是什麼？」——不得回答「沒有風險」。
+
+## 6. 長存文件的寫作原則（README、接入指南、設計說明、流程、參考頁、wiki 頁）
+
+- 產出屬於 `<REPO>/skills/writing-principles/SKILL.md`「何時用／不用」的「用」範圍時，照該 skill「原則與判定」逐條判：機械項自己重跑 `python3 <REPO>/skills/writing-principles/scripts/check_docs.py --repo <目標 repo>`（設定與 `--exclude` 依派工者附的清單），`SUMMARY` 行貼進回報，派工者附的輸出只當線索；`[verifier]` 項各抽樣 5 處。派工者未說明的 `--exclude` 與 `<!-- allow-time-word -->` 逐條判 FAIL。
+- 不屬於該範圍（程式註解、commit、PR、issue、ADR、CHANGELOG、本系統 rules／agents／skills）時本節標 N/A，不得套用。

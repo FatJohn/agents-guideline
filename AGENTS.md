@@ -29,6 +29,7 @@
 | 判斷題：該不該升級／算不算完成／要不要問使用者／該不該換路；寫程式時文件與註解怎麼取捨（現況證據與規格權威分工） | `<REPO>/rules/20-judgment.md`；「該不該升級」「要不要問使用者」兩節在 `<REPO>/rules-controller/20-judgment-controller.md` |
 | 撰寫 Codex subagent prompt | `<REPO>/codex/rules/30-delegation-templates-codex.md`（A–L logical-role contract 與共用 runtime adapter envelope） |
 | 收尾、交接、記錄目前進度、下次續接 | 使用 `session-handoff` skill，預設寫到專案 `.codex/HANDOFF.md` |
+| 寫或改長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁），或驗收這類文件 | `writing-principles` skill（`<REPO>/skills/writing-principles/SKILL.md`；原則、判定與檢查腳本） |
 | 寫驗收條件、或驗收者要逐條判品質 | `<REPO>/rubrics/` 底下對應產出類型的 `document-quality.md`／`code-change.md`／`research-analysis.md` |
 | 修改 rules 檔、`AGENTS.md`、`CLAUDE.md`、agent 定義或 rubric | `maintain-guideline` skill（或直接讀 `<REPO>/skills/maintain-guideline/SKILL.md`；先讀，內有權限分級） |
 | 踩坑之後 | 在 `<REPO>/rules/50-lessons.md` 加一行（已升級成判準的歷史條目在 `<REPO>/docs/lessons-archive.md`） |
