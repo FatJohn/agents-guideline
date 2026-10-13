@@ -31,7 +31,7 @@ LIST_ONLY_KEYS = ("p3-allow", "p7-section", "p8-source")
 
 EXPECTED_FAIL_COUNTS = {
     "p1": 1, "p1b": 1, "p2": 2, "p3": 2, "p3-allow": 0, "p4t": 1, "p4c": 1, "p5": 2,
-    "p7": 2, "p7a": 1, "p7-section": 1, "p8": 11, "p8-source": 2, "p9a": 1, "p9b": 1, "p9c": 3,
+    "p7": 2, "p7a": 1, "p7-section": 1, "p8": 13, "p8-source": 2, "p9a": 1, "p9b": 1, "p9c": 3,
     "p9d": 6, "p11": 1, "p12": 5,
 }
 
@@ -154,6 +154,9 @@ class FailFixtureTests(unittest.TestCase):
         self.assertRegex(p8, r"(?m)^p8-evidence\.md:\d+: 從讀碼來看會成功。$")
         self.assertRegex(p8, r"(?m)^p8-evidence\.md:\d+: \(讀碼:看起來是這樣\)。$")
         self.assertRegex(p8, r"(?m)^p8-evidence\.md:\d+: 只靠讀碼判斷結果。$")
+        # The verb phrase is let through only when it ends at punctuation, a space, 「的」 or the end of the line.
+        self.assertRegex(p8, r"(?m)^p8-evidence\.md:\d+: 這段用來讀碼確認結果會成功。$")
+        self.assertRegex(p8, r"(?m)^p8-evidence\.md:\d+: 用來讀碼表明會成功。$")
         # Reported: an unquoted placeholder in a table cell, and a marker whose content is not a source.
         self.assertRegex(out, r"(?m)^p8-evidence\.md:\d+: \| Android 15 \| 已實測（日期，環境） \|$")
         self.assertRegex(out, r"(?m)^p8-evidence\.md:\d+: .*隨便寫什麼都可以）。  （出處標示不是檔名、符號或章節）$")
