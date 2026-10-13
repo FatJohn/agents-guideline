@@ -67,15 +67,15 @@ allowed-tools: Bash(python3:*), Bash(git:*), Read, Grep, Glob
 ### 7. 未發版行為用固定字樣
 - **原則**：任何只在主幹成立、已發佈版本沒有的行為，用專案自訂的一句固定字樣（設定 `UNRELEASED_PHRASE`）標示，一字不差，依範圍擇一放在三種位置：(a) 整節成立——H2／H3 標題下一行單行 blockquote `> <字樣>。`；(b) 單一表格列、清單項或單句——該列／項／句尾 `（<字樣>）`；(c) 程式碼區塊內註解 `// <字樣>`。已發版的功能不標，版本需求寫「需要 vX.Y.Z 以上」。
 - **判定**：
-  1. `[腳本 p7]` 命中 `尚未發版|尚未發佈|未發佈|未發版|僅 main|only on main|unreleased|未釋出`（英文不分大小寫）的每一行必須含 (a)(b)(c) 之一；不符 0。未設定 `UNRELEASED_PHRASE` 時所有命中都算不符（腳本會提示要設定）。
+  1. `[腳本 p7]` 命中 `尚未發版|尚未發佈|未發佈|未發版|僅 main|only on main|unreleased|未釋出`（英文不分大小寫）的每一行必須含 (a)(b)(c) 之一；不符 0。未設定 `UNRELEASED_PHRASE` 時所有命中都算不符（腳本會提示要設定）。區段名指稱（見例外）另計 `p7-section`，不算不符。
   2. `[腳本 p7a]` (a) 型必須緊接在 H2／H3 之後、中間只隔一個空行；不符的 (a) 型行逐行列出。
-- **例外**：CHANGELOG 的 Unreleased 區段。
+- **例外**：CHANGELOG 檔本身的 Unreleased 區段（預設不掃）；別份文件以區段名指稱該區段的流程句——區段名放在反引號、「」或〈〉內並緊接「區段」「節」「標題」「section」「heading」（例如「把這行寫進 `## Unreleased` 區段」）——不必加字樣，腳本把整行列入 `p7-section`（不計 FAIL），verifier 逐行核對它講的是區段放什麼，不是某個行為只在主幹。
 
 ### 8. 證據等級用兩個固定值
-- **原則**：凡宣稱「在某環境能跑／會失敗」，只用 `已實測（YYYY-MM-DD，環境）` 與 `未實測` 兩種標法，放在限制表的「驗證」欄；讀碼可確認的結構事實直接寫成事實，行為宣稱實跑過才標已實測，讀碼不算實跑；不寫「推論」「讀碼推論」「未驗」這類來源標示。
+- **原則**：凡宣稱「在某環境能跑／會失敗」，只用 `已實測（YYYY-MM-DD，環境）` 與 `未實測` 兩種標法，放在限制表的「驗證」欄；讀碼可確認的結構事實（有某個類別、欄位、預設值、呼叫關係）直接寫成事實，可在句尾加出處標示 `（讀碼：<檔名、符號或章節>）`。出處標示答「從哪裡看來」，證據等級答「有沒有實跑」，兩者不互相取代：同句宣稱行為結果（在某環境會成功／失敗／被拒、會回傳 X）時仍要有證據等級，出處標示可以並存；行為宣稱實跑過才標已實測，讀碼不算實跑；不寫「推論」「讀碼推論」「未驗」或單獨的「（讀碼）」這類替代證據等級的字。
 - **判定**：
-  1. `[腳本 p8]` 排除標題行後，命中 `實測|驗證過|已測|測過|有測|未測|沒測|應該可以|理論上|預期可|未驗(?!簽)|推論` 的行，去掉合格寫法 `已實測（\d{4}-\d{2}-\d{2}，[^）]+）` 與 `未實測` 後仍含觸發詞者為不符；不符 0（「未驗簽」指 token 未驗簽章，不算）。
-  2. `[verifier]` 已實測必有日期與環境（裝置或系統版本）；未實測的條目不得同時寫成肯定句，寫「X 的行為：未實測」；一句涵蓋多個平台時逐平台各自標。
+  1. `[腳本 p8]` 排除標題行後，先去掉出處標示 `（讀碼：…）`（括號內含觸發詞的不去掉），命中 `實測|驗證過|已測|測過|有測|未測|沒測|應該可以|理論上|預期可|未驗(?!簽)|推論|讀碼` 的行，再去掉合格寫法 `已實測（\d{4}-\d{2}-\d{2}，[^）]+）` 與 `未實測` 後仍含觸發詞者為不符；不符 0（「未驗簽」指 token 未驗簽章，不算）。
+  2. `[verifier]` 已實測必有日期與環境（裝置或系統版本）；未實測的條目不得同時寫成肯定句，寫「X 的行為：未實測」；一句涵蓋多個平台時逐平台各自標。帶出處標示的句子：陳述結構事實 → PASS；陳述行為結果而沒有 已實測／未實測 → FAIL。
 - **例外**：ADR 的當時證據保留原貌。
 
 ### 9. 引用別份文件用章節名稱，連結文字要自己看得懂
@@ -109,12 +109,12 @@ allowed-tools: Bash(python3:*), Bash(git:*), Read, Grep, Glob
   2. `[verifier]` 標題含「步驟」的區段下的清單是編號清單。
   3. `[verifier]` 3 個以上、每項 2 個以上屬性的項目不得以散文並列，抽樣 5 處。
   4. `[verifier]` 同一清單項目開頭詞性一致，抽樣判定。
-- **例外**：無。
+- **例外**：PR／issue 範本（`.github/pull_request_template.md`、`.github/PULL_REQUEST_TEMPLATE/`、`.github/ISSUE_TEMPLATE/`、根目錄或 `docs/` 的 `pull_request_template.md`、GitLab 的 `.gitlab/merge_request_templates/`、`.gitlab/issue_templates/`；路徑從 repo 根起算、不分大小寫，子目錄下的同名檔不算範本）內的勾選清單（`- [ ]`）可以只有一項；範本內的單一普通項目與非範本檔的單一勾選項照判。
 
 ## 掃描範圍、例外與 allow marker
 
 - 預設範圍與排除見原則 10；`--exclude` 必列 PR；明列 FILE 參數時只掃那些檔，不套預設排除。
-- 唯一的行內 allow marker 是原則 3 的 `<!-- allow-time-word -->`；其他原則沒有 marker——命中就是改寫，不是標記。
+- 唯一的行內 allow marker 是原則 3 的 `<!-- allow-time-word -->`；其他原則沒有 marker——命中就是改寫，不是標記；`p7-section` 與原則 8 的出處標示是腳本自動辨識的形狀，不是 marker。
 - wiki 頁的讀回檔（頁名不在內文、沒有 `# ` 標題）用 `--headerless` 掃，檔頭取檔案最前兩個非空行。
 
 ## 專案自訂
@@ -138,13 +138,13 @@ allowed-tools: Bash(python3:*), Bash(git:*), Read, Grep, Glob
 ## 檢查腳本
 
 - 用法：`python3 <SK>/scripts/check_docs.py [--repo DIR] [--config FILE] [--exclude GLOB]… [--ticket-re RE] [--unreleased-phrase TEXT] [--types A|B] [--no-header PATHS] [--headerless] [--doc-host-re RE] [--list] [FILE…]`；`--repo` 預設 cwd，`--list` 只印掃描範圍。
-- 輸出：第一行 `掃描檔：N 個（…）`、第二行 `設定檔：…；詞表覆寫：…`；每個有命中的原則一段 `== pN …`，內容為 `path:line: 內容`；`== 提示（不計入 FAIL）` 段放 p4h、p6；最後 `SUMMARY …` 與 `RESULT PASS|FAIL`。exit code：0 無 FAIL 項、1 有、2 用法或環境錯（含掃描範圍為空）。
+- 輸出：第一行 `掃描檔：N 個（…）`、第二行 `設定檔：…；詞表覆寫：…`；每個有命中的原則一段 `== pN …`，內容為 `path:line: 內容`；`== p3-allow` 與 `== p7-section` 段列不計 FAIL 的行（verifier 逐行核對）；`== 提示（不計入 FAIL）` 段放 p4h、p6；最後 `SUMMARY …` 與 `RESULT PASS|FAIL`。exit code：0 無 FAIL 項、1 有、2 用法或環境錯（含掃描範圍為空）。
 - 純 Python 3 標準庫，不需 rg；專案不是 git repo、或 git 沒有任何已追蹤的 md 時改走目錄遍歷（跳過 `.git/`、`node_modules/`）。
 - 紅綠證據：`cd <REPO> && python3 -m unittest tests.test_writing_principles_check -v`；樣本在 `<REPO>/tests/fixtures/writing-principles/{pass,fail}`，`fail/` 每個原則一檔，直接跑 `python3 <SK>/scripts/check_docs.py --repo <REPO>/tests/fixtures/writing-principles/fail` 可看到每個原則的命中長什麼樣。
 
 ## 驗收怎麼用（給 verifier）
 
-`rubrics/document-quality.md` §6 指到這裡。verifier 自己重跑腳本（派工者附的輸出只當線索），SUMMARY 貼回報；機械項以腳本為準；`[verifier]` 項各抽樣 5 處；派工者附的 `--exclude` 清單與 `p3-allow` 逐檔清單要逐條有說明，沒有說明的判 FAIL。 腳本輸出第二行印出用了哪個設定檔與覆寫了哪些詞表；有覆寫 `TIME_WORDS`、`HISTORY_WORDS`、`IGNORE_WORDS` 時 verifier 逐條核對覆寫值：拿掉原詞表的詞、`IGNORE_WORDS` 的某項不是該專案文件實際出現的複合詞、或拿掉該項就等於放行一個時間詞（如 `目前的`），沒有逐條理由就判 FAIL（設定檔是專案可改的，腳本只擋得住不含觸發詞的項目）。
+`rubrics/document-quality.md` §6 指到這裡。verifier 自己重跑腳本（派工者附的輸出只當線索），SUMMARY 貼回報；機械項以腳本為準；`[verifier]` 項各抽樣 5 處；腳本列出的 `p7-section` 行逐行核對是指稱區段的流程句；派工者附的 `--exclude` 清單與 `p3-allow` 逐檔清單要逐條有說明，沒有說明的判 FAIL。 腳本輸出第二行印出用了哪個設定檔與覆寫了哪些詞表；有覆寫 `TIME_WORDS`、`HISTORY_WORDS`、`IGNORE_WORDS` 時 verifier 逐條核對覆寫值：拿掉原詞表的詞、`IGNORE_WORDS` 的某項不是該專案文件實際出現的複合詞、或拿掉該項就等於放行一個時間詞（如 `目前的`），沒有逐條理由就判 FAIL（設定檔是專案可改的，腳本只擋得住不含觸發詞的項目）。
 
 ## 改寫前後
 

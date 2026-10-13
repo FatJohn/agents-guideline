@@ -55,10 +55,17 @@ GUIDE_EXEMPT_H2_RE = re.compile(r"參考|下一步|延伸閱讀|相關文件|Nex
 UNRELEASED_HIT_RE = re.compile(
     r"尚未發版|尚未發佈|未發佈|未發版|僅 main|(?i:only on main|unreleased)|未釋出"
 )
+# 別份文件以區段名指稱 CHANGELOG 的未發版區段：區段名放在反引號、「」或〈〉內，緊接區段／節／標題／section／heading。
+UNRELEASED_SECTION_REF_RE = re.compile(
+    r"(`[^`]+`|「[^」]+」|〈[^〉]+〉)\s*(?:區段|(?:章|小)?節|標題|(?i:section|heading))"
+)
 
 EVIDENCE_TRIGGER_RE = re.compile(
-    r"實測|驗證過|已測|測過|有測|未測|沒測|應該可以|理論上|預期可|未驗(?!簽)|推論"
+    r"實測|驗證過|已測|測過|有測|未測|沒測|應該可以|理論上|預期可|未驗(?!簽)|推論|讀碼"
 )
+# 句尾的出處標示（讀碼：<檔名、符號或章節>）：答「從哪裡看來」，不是證據等級；p8 判定前先剔除，
+# 但括號內自己含觸發詞（「（讀碼：推論）」）的不剔除，免得禁用字躲進標示裡。
+EVIDENCE_SOURCE_RE = re.compile(r"（讀碼：([^）]+)）")
 EVIDENCE_OK_TESTED_RE = re.compile(r"已實測（\d{4}-\d{2}-\d{2}，[^）]+）")
 EVIDENCE_OK_UNTESTED = "未實測"
 
@@ -68,6 +75,12 @@ LINE_ANCHOR_RE = re.compile(r"#L[0-9]+")
 FENCE_RE = re.compile(r"^(\s*)(`{3,}|~{3,})(.*)$")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*\S)\s*$")
 LIST_RE = re.compile(r"^\s*([-*+]|\d+[.)])\s+")
+# PR／issue 範本的路徑（不分大小寫，從 repo 根起算；子目錄下的同名檔不算範本）；範本內的單一勾選項放行（原則 12 例外）。
+TEMPLATE_PATH_RE = re.compile(
+    r"(?i)^(\.github/(pull_request_template\.md|pull_request_template/[^/]+\.md|issue_template/[^/]+\.md)"
+    r"|(docs/)?pull_request_template\.md|\.gitlab/(merge_request_templates|issue_templates)/[^/]+\.md)$"
+)
+CHECKBOX_ITEM_RE = re.compile(r"^\s*[-*+]\s+\[[ xX]\]\s")
 THEMATIC_BREAK_RE = re.compile(r"^\s{0,3}([-*_])(\s*\1){2,}\s*$")
 CODE_SPAN_RE = re.compile(r"(?<!`)(`+)(?!`)(.*?[^`])?\1(?!`)")
 LINK_RE = re.compile(r"\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+(?:\"[^\"]*\"|'[^']*'))?\s*\)")
@@ -92,7 +105,7 @@ CONFIG_KEYS = (
 )
 
 HARD_IDS = (
-    "p1", "p1b", "p2", "p3", "p3-allow", "p4t", "p4c", "p5", "p7", "p7a",
+    "p1", "p1b", "p2", "p3", "p3-allow", "p4t", "p4c", "p5", "p7", "p7a", "p7-section",
     "p8", "p9a", "p9b", "p9c", "p11", "p12",
 )
 HINT_IDS = ("p4h", "p6")
@@ -106,6 +119,7 @@ TITLES = {
     "p5": "p5 接入指南步驟區不得依賴別份文件",
     "p7": "p7 未發版行為未用固定字樣",
     "p7a": "p7a 未發版 (a) 型位置不符",
+    "p7-section": "p7-section 區段名指稱（不計 FAIL）",
     "p8": "p8 證據等級未用兩個固定值",
     "p9a": "p9a 含糊連結字",
     "p9b": "p9b 行號錨點",
@@ -424,14 +438,18 @@ def check_line_patterns(doc: Doc, s: Settings, report: Report) -> None:
             if HEX_RE.search(line):
                 report.add("p4h", doc.rel, n, show(line))
         if UNRELEASED_HIT_RE.search(line):
-            if not phrase:
+            if unreleased_section_ref(line):
+                report.add("p7-section", doc.rel, n, show(line))
+            elif not phrase:
                 report.add("p7", doc.rel, n, show(line) + "  （未設定 UNRELEASED_PHRASE）")
             elif not unreleased_ok(line, phrase):
                 report.add("p7", doc.rel, n, show(line))
-        if not line.startswith("#") and EVIDENCE_TRIGGER_RE.search(line):
-            rest = EVIDENCE_OK_TESTED_RE.sub("", line).replace(EVIDENCE_OK_UNTESTED, "")
-            if EVIDENCE_TRIGGER_RE.search(rest):
-                report.add("p8", doc.rel, n, show(line))
+        if not line.startswith("#"):
+            body = strip_source_markers(line)
+            if EVIDENCE_TRIGGER_RE.search(body):
+                rest = EVIDENCE_OK_TESTED_RE.sub("", body).replace(EVIDENCE_OK_UNTESTED, "")
+                if EVIDENCE_TRIGGER_RE.search(rest):
+                    report.add("p8", doc.rel, n, show(line))
         if VAGUE_LINK_RE.search(line):
             report.add("p9a", doc.rel, n, show(line))
         if LINE_ANCHOR_RE.search(line):
@@ -444,6 +462,20 @@ def ticket_in(line: str, s: Settings) -> bool:
     return any(
         m.group(0).rsplit("-", 1)[0] not in NON_TICKET_PREFIXES
         for m in DEFAULT_TICKET_RE.finditer(line)
+    )
+
+
+def strip_source_markers(line: str) -> str:
+    """去掉出處標示 `（讀碼：…）`；括號內含 p8 觸發詞的保留，讓它照常被報。"""
+    return EVIDENCE_SOURCE_RE.sub(
+        lambda m: m.group(0) if EVIDENCE_TRIGGER_RE.search(m.group(1)) else "", line
+    )
+
+
+def unreleased_section_ref(line: str) -> bool:
+    """別份文件以區段名指稱未發版區段（例如「寫進 `## Unreleased` 區段」）：區段名本身含未發版字眼。"""
+    return any(
+        UNRELEASED_HIT_RE.search(m.group(1)) for m in UNRELEASED_SECTION_REF_RE.finditer(line)
     )
 
 
@@ -551,8 +583,11 @@ def check_copy_header(doc: Doc, s: Settings, report: Report) -> None:
         return
 
 
-def check_lists(doc: Doc, report: Report) -> None:
-    """Report lists that have exactly one item (nested items and loose lists count as one list)."""
+def check_lists(doc: Doc, report: Report, template: bool) -> None:
+    """Report lists that have exactly one item (nested items and loose lists count as one list).
+
+    PR／issue 範本（template=True）內只有一項的勾選清單（`- [ ]`）放行。
+    """
     lines = doc.lines
     n = len(lines)
     count = 0
@@ -562,7 +597,7 @@ def check_lists(doc: Doc, report: Report) -> None:
 
     def close() -> None:
         nonlocal count, first, kind
-        if count == 1:
+        if count == 1 and not (template and CHECKBOX_ITEM_RE.match(lines[first])):
             report.add("p12", doc.rel, first + 1, show(lines[first]))
         count, first, kind = 0, -1, ""
 
@@ -662,7 +697,7 @@ def scan_doc(doc: Doc, doc_path: Path, s: Settings, checker: LinkChecker, report
     check_guide_steps(doc, s, report)
     check_links(doc, doc_path, checker, report)
     check_copy_header(doc, s, report)
-    check_lists(doc, report)
+    check_lists(doc, report, bool(TEMPLATE_PATH_RE.search(doc.rel)))
     check_readability_hints(doc, report)
 
 
@@ -676,7 +711,7 @@ def render(report: Report, scanned: int, repo: Path, s: Settings) -> Tuple[str, 
     overrides = "、".join(s.overrides) if s.overrides else "無"
     out.append(f"設定檔：{s.config_path or '無'}；詞表覆寫：{overrides}")
     for key in HARD_IDS:
-        if key == "p3-allow" or not report.hits[key]:
+        if key in ("p3-allow", "p7-section") or not report.hits[key]:
             continue
         out.append(f"== {TITLES[key]}")
         for rel, line, text in report.hits[key]:
@@ -689,6 +724,10 @@ def render(report: Report, scanned: int, repo: Path, s: Settings) -> Tuple[str, 
             out.append(f"{rel}:{line}: {text}")
         for rel, number in per_file.items():
             out.append(f"逐檔：{rel} = {number}")
+    if report.hits["p7-section"]:
+        out.append("== p7-section：以區段名指稱未發版區段的行（不計 FAIL；verifier 核對是流程句，不是某個行為只在主幹）")
+        for rel, line, text in report.hits["p7-section"]:
+            out.append(f"{rel}:{line}: {text}")
     if report.hits["p4h"] or report.hits["p6"]:
         out.append("== 提示（不計入 FAIL）")
         for key, label in (("p4h", "p4h 7–40 位 hex 字串（只能是版本號、雜湊值範例或程式碼範例）"), ("p6", "p6 超過參考上限的位置")):
@@ -698,7 +737,7 @@ def render(report: Report, scanned: int, repo: Path, s: Settings) -> Tuple[str, 
                     out.append(f"{rel}:{line}: {text}")
     hard = " ".join(f"{k}={report.count(k)}" for k in HARD_IDS)
     hints = " ".join(f"{k}={report.count(k)}" for k in HINT_IDS)
-    failed = any(report.count(k) for k in HARD_IDS if k != "p3-allow")
+    failed = any(report.count(k) for k in HARD_IDS if k not in ("p3-allow", "p7-section"))
     out.append(f"SUMMARY {hard} | hints {hints}")
     out.append("RESULT FAIL" if failed else "RESULT PASS")
     return "\n".join(out) + "\n", failed

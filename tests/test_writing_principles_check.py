@@ -23,13 +23,13 @@ PASS_DIR = FIXTURES / "pass"
 FAIL_DIR = FIXTURES / "fail"
 
 HARD_KEYS = (
-    "p1", "p1b", "p2", "p3", "p3-allow", "p4t", "p4c", "p5", "p7", "p7a",
+    "p1", "p1b", "p2", "p3", "p3-allow", "p4t", "p4c", "p5", "p7", "p7a", "p7-section",
     "p8", "p9a", "p9b", "p9c", "p11", "p12",
 )
 
 EXPECTED_FAIL_COUNTS = {
     "p1": 1, "p1b": 1, "p2": 2, "p3": 2, "p3-allow": 0, "p4t": 1, "p4c": 1, "p5": 2,
-    "p7": 1, "p7a": 1, "p8": 3, "p9a": 1, "p9b": 1, "p9c": 3, "p11": 1, "p12": 2,
+    "p7": 2, "p7a": 1, "p7-section": 1, "p8": 6, "p9a": 1, "p9b": 1, "p9c": 3, "p11": 1, "p12": 5,
 }
 
 
@@ -58,9 +58,10 @@ class PassFixtureTests(unittest.TestCase):
         self.assertIn("RESULT PASS", result.stdout)
         summary = parse_summary(result.stdout)
         for key in HARD_KEYS:
-            if key != "p3-allow":
+            if key not in ("p3-allow", "p7-section"):
                 self.assertEqual(summary[key], 0, f"{key}\n{result.stdout}")
         self.assertEqual(summary["p3-allow"], 1, result.stdout)
+        self.assertEqual(summary["p7-section"], 1, result.stdout)
         self.assertGreaterEqual(summary["p4h"], 1, result.stdout)
 
     def test_default_scope_excludes_adr_and_changelog(self) -> None:
@@ -90,6 +91,29 @@ class FailFixtureTests(unittest.TestCase):
         # Look-alikes that must not be reported: a token-signature phrase and a list inside a code block.
         self.assertNotIn("未驗簽", result.stdout)
         self.assertNotIn("fence-only-item", result.stdout)
+
+    def test_template_checkbox_and_source_marker_lookalikes(self) -> None:
+        result = run_check("--repo", str(FAIL_DIR))
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        out = result.stdout
+        # p12: a lone checkbox is reported in a normal file, allowed in a PR template; a lone plain item stays reported there.
+        self.assertRegex(out, r"(?m)^p12-single-item\.md:\d+: - \[ \] 唯一的勾選項$")
+        self.assertRegex(out, r"(?m)^\.github/pull_request_template\.md:\d+: - 單一普通項目$")
+        self.assertNotRegex(out, r"(?m)^\.github/pull_request_template\.md:\d+: - \[ \] 單一勾選項")
+        # p8: a bare （讀碼） is not a source marker; （讀碼：<檔名>） is.
+        self.assertRegex(out, r"(?m)^p8-evidence\.md:\d+: .*（讀碼）。$")
+        self.assertNotIn("Resolver.kt", out)
+        # p8: a trigger word hidden inside the marker is still reported; the same-named file under a
+        # subdirectory is not a PR template, so its lone checkbox stays reported.
+        self.assertRegex(out, r"(?m)^p8-evidence\.md:\d+: 登入會成功（讀碼：推論）。$")
+        self.assertRegex(out, r"(?m)^nested/\.github/pull_request_template\.md:\d+: - \[ \] 子目錄的單一勾選項$")
+        # p7: a quoted section name that carries no trigger word is still a violation.
+        section = re.search(r"(?ms)^== p7-section：.*?(?=^== |^SUMMARY )", out)
+        self.assertIsNotNone(section, out)
+        self.assertIn("`## 未發佈` 區段", section.group(0))
+        self.assertRegex(out, r"(?m)^p7-unreleased\.md:\d+: 離線模式 unreleased，細節見「狀態」節。$")
+        self.assertNotIn("「狀態」節", section.group(0))
 
     def test_exclude_flag_and_config(self) -> None:
         excluded = run_check("--repo", str(FAIL_DIR), "--exclude", "p2-*.md")
