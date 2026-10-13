@@ -56,6 +56,7 @@ Codex 只自動取得 `~/.codex/AGENTS.md` 的路由；它依其中條件按需�
 | `skills/create-pr/SKILL.md` | Codex／Claude 共用的 Pull Request 建立 skill |
 | `skills/parallel-dispatch/SKILL.md` | Claude／Codex 共用的平行開發 orchestration：ANALYZE → PARALLELIZE? → TASK GRAPH → WORKERS → VALIDATION → INTEGRATION → FINAL VALIDATION，含 divide-and-conquer 與 agent-race 兩種 pattern；`references/templates.md`（brief／report 格式）、`references/worktree.md`（隔離與清理機制）、execution adapter `references/claude-code.md`／`codex.md`／`cli.md`（純 shell、tmux、VS Code、Herdr、Orca 等外部 CLI process） |
 | `skills/usage-review/SKILL.md` | 量 Claude Code 本機 session jsonl 的用量與派工行為（只裝 Claude Code，不裝 Codex）：`scripts/extract.py` 把 jsonl 正規化成單一 JSON（`schema.md` 定義欄位）、`scripts/report.py` 九個子命令（cost／cache／context／reports／dispatch／controller／verifier／agents／sessions）只讀該 JSON，`scripts/pricing.json` 是外置價格表，`references/caveats.md` 收攏量 jsonl 的已知陷阱 |
+| `skills/writing-principles/SKILL.md` | Claude／Codex 共用的長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）寫作原則：12 條原則各有判定，`scripts/check_docs.py`（純標準庫）判機械項，其餘由 verifier 抽樣；`references/sources.md` 收出處短引、`references/examples.md` 收改寫前後片段；樣本與測試在 `tests/fixtures/writing-principles/`、`tests/test_writing_principles_check.py` |
 
 `agents/*.md` 與 `codex/agents/*.toml` 是 standalone role 定義／設定；它們的正文只在該 named role 被派工時進入 subagent context（name／description 會出現在每 session 的可用 agent 清單裡）。named unavailable 時，generic adapter 仍須在 prompt 帶入 `30-delegation-templates-codex.md` 的完整 logical-role contract；`pro_worker` 明確重用 D 的 worker contract，只替換 Terra/high mapping，並附 higher-complexity route 證據。TOML 安裝或角色名稱不能取代 runtime evidence。
 

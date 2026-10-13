@@ -42,7 +42,7 @@ def build_repo(root: Path) -> Path:
     (repo / "rubrics").mkdir(parents=True)
     (repo / "agents").mkdir(parents=True)
     (repo / "codex" / "skills" / "session-handoff").mkdir(parents=True)
-    for name in ("maintain-guideline", "create-pr", "parallel-dispatch", "usage-review"):
+    for name in ("maintain-guideline", "create-pr", "parallel-dispatch", "writing-principles", "usage-review"):
         (repo / "skills" / name).mkdir(parents=True)
         (repo / "skills" / name / "SKILL.md").write_text(f"# {name}\n", encoding="utf-8")
 
@@ -116,7 +116,7 @@ class SyncProfileTests(unittest.TestCase):
         self.assertEqual((self.claude / "CLAUDE.md").read_text(encoding="utf-8"), "# CLAUDE\n")
         self.assertEqual((self.codex / "AGENTS.md").read_text(encoding="utf-8"), "# AGENTS\n")
         self.assertTrue((self.agents / "skills" / "session-handoff" / "SKILL.md").is_file())
-        for name in ("maintain-guideline", "create-pr", "parallel-dispatch"):
+        for name in ("maintain-guideline", "create-pr", "parallel-dispatch", "writing-principles"):
             self.assertTrue((self.claude / "skills" / name / "SKILL.md").is_file())
             self.assertTrue((self.agents / "skills" / name / "SKILL.md").is_file())
         # usage-review is Claude-only: docs/install.md does not put it under ~/.agents/skills.
