@@ -60,11 +60,12 @@ UNRELEASED_SECTION_REF_RE = re.compile(
     r"(`[^`]+`|「[^」]+」|〈[^〉]+〉)\s*(?:區段|(?:章|小)?節|標題|(?i:section|heading))"
 )
 
-# 「讀碼」只在單獨成標示「（讀碼）」、或接推論類判斷詞時算觸發；「只用來讀碼」「讀碼表」是一般用詞。
 EVIDENCE_TRIGGER_RE = re.compile(
-    r"實測|驗證過|已測|測過|有測|未測|沒測|應該可以|理論上|預期可|未驗(?!簽)|推論"
-    r"|讀碼(?:的)?(?:推論|確認|可知|得知|判斷|看來|顯示|證實|推斷|所見)|（讀碼）|\(讀碼\)"
+    r"實測|驗證過|已測|測過|有測|未測|沒測|應該可以|理論上|預期可|未驗(?!簽)|推論|讀碼"
 )
+# 唯一放行的「讀碼」寫法是動詞片語（「主 checkout 只用來讀碼」）：比對觸發詞前先剔除。「讀碼表」「只靠讀碼」
+# 「從讀碼來看」等其他寫法照舊算觸發；不加「讀碼表」之類的剔除，免得「讀碼表明會成功」被切成「明會成功」而漏掉。
+EVIDENCE_READ_CODE_VERB_RE = re.compile(r"(?:用來|拿來|用於)讀碼")
 # 句尾的出處標示（讀碼：<檔名、符號或章節>）：答「從哪裡看來」，不是證據等級；p8 判定前先剔除，
 # 但括號內自己含觸發詞（「（讀碼：推論）」）的不剔除，免得禁用字躲進標示裡。
 EVIDENCE_SOURCE_RE = re.compile(r"（讀碼：([^）]+)）")
@@ -564,7 +565,7 @@ def strip_source_markers(line: str) -> Tuple[str, bool, bool]:
 def check_evidence(doc: Doc, n: int, line: str, report: Report) -> None:
     """p8：證據等級只能是 `已實測（YYYY-MM-DD，環境）` 或 `未實測`；另列帶出處標示卻沒標等級的行（p8-source）。"""
     body, has_source, bad_source = strip_source_markers(line)
-    body = EVIDENCE_FORMAT_EXAMPLE_RE.sub("", body)
+    body = EVIDENCE_READ_CODE_VERB_RE.sub("", EVIDENCE_FORMAT_EXAMPLE_RE.sub("", body))
     leftover = False
     if EVIDENCE_TRIGGER_RE.search(body):
         rest = EVIDENCE_OK_TESTED_RE.sub("", body).replace(EVIDENCE_OK_UNTESTED, "")
@@ -796,6 +797,9 @@ def table_cells(row: str) -> List[str]:
 HEADING_NUMBER_RE = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+(.*)$")
 TITLE_IN_REF_RE = re.compile(r"〈([^〉]+)〉")
 SECTION_ENUM_RE = re.compile(r"[、，]\s*(\d+(?:\.\d+)*)(?![\d.])")
+# A dotted number (3.6, 3.10.1) is always a section number; a single number ("設計文件 2 份") only when
+# it is followed by 節／章、a quote or bracket, or punctuation, or ends the line.
+SECTION_TAIL_RE = re.compile(r"\s*(?:$|[節章「〈、，）。；:：])")
 
 
 def normalize_title(text: str) -> str:
@@ -863,6 +867,8 @@ class HeadingRefChecker:
                 found.append((more.group(1),) + more.span(1))
                 pos = more.end()
             for number, start, end in found:
+                if "." not in number and not SECTION_TAIL_RE.match(line, end):
+                    continue
                 if number not in self.numbers and not in_code(start, end):
                     report.add("p9d", rel, n, f"節號 {number}（{self.ref.path} 沒有這個節號）")
 

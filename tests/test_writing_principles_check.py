@@ -31,8 +31,8 @@ LIST_ONLY_KEYS = ("p3-allow", "p7-section", "p8-source")
 
 EXPECTED_FAIL_COUNTS = {
     "p1": 1, "p1b": 1, "p2": 2, "p3": 2, "p3-allow": 0, "p4t": 1, "p4c": 1, "p5": 2,
-    "p7": 2, "p7a": 1, "p7-section": 1, "p8": 8, "p8-source": 2, "p9a": 1, "p9b": 1, "p9c": 3,
-    "p9d": 5, "p11": 1, "p12": 5,
+    "p7": 2, "p7a": 1, "p7-section": 1, "p8": 11, "p8-source": 2, "p9a": 1, "p9b": 1, "p9c": 3,
+    "p9d": 6, "p11": 1, "p12": 5,
 }
 
 
@@ -146,9 +146,14 @@ class FailFixtureTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         out = result.stdout
-        # Not reported: backtick-quoted placeholders, 「讀碼」 as a verb or noun, a （讀碼：…） format example.
-        for lookalike in ("只用來讀碼表", "格式說明：", "驗證欄只用兩種標法"):
+        # Not reported: backtick-quoted placeholders, the verb phrase 用來讀碼, a （讀碼：…） format example.
+        for lookalike in ("只用來讀碼", "格式說明：", "驗證欄只用兩種標法"):
             self.assertNotIn(lookalike, out)
+        # Every other use of 「讀碼」 is reported: only the verb phrase is let through.
+        p8 = block_of(out, "p8 ")
+        self.assertRegex(p8, r"(?m)^p8-evidence\.md:\d+: 從讀碼來看會成功。$")
+        self.assertRegex(p8, r"(?m)^p8-evidence\.md:\d+: \(讀碼:看起來是這樣\)。$")
+        self.assertRegex(p8, r"(?m)^p8-evidence\.md:\d+: 只靠讀碼判斷結果。$")
         # Reported: an unquoted placeholder in a table cell, and a marker whose content is not a source.
         self.assertRegex(out, r"(?m)^p8-evidence\.md:\d+: \| Android 15 \| 已實測（日期，環境） \|$")
         self.assertRegex(out, r"(?m)^p8-evidence\.md:\d+: .*隨便寫什麼都可以）。  （出處標示不是檔名、符號或章節）$")
@@ -169,12 +174,14 @@ class FailFixtureTests(unittest.TestCase):
         self.assertRegex(block, r"(?m)^p9d-refs\.kt:5: 節號 1\.3（p9d-headings\.md 沒有這個節號）$")
         # A parenthesised suffix may be left out, but not invented.
         self.assertRegex(block, r"(?m)^p9d-refs\.kt:7: 〈1\.1 子節（不存在的後綴）〉（p9d-headings\.md 沒有這個標題）$")
+        # A bare number at the end of a sentence is a section number.
+        self.assertRegex(block, r"(?m)^p9d-refs\.kt:8: 節號 7（p9d-headings\.md 沒有這個節號）$")
         # A non-Markdown file and a Markdown file are both scanned.
         self.assertRegex(block, r"(?m)^p9-links\.md:\d+: 〈消失的章節〉（p9d-headings\.md 沒有這個標題）$")
         # Bare title, number-only and number+title forms resolve; so does a bare section number.
         for fine in ("〈第一節〉", "〈1.1〉", "〈1.1 子節〉", "節號 1（"):
             self.assertNotIn(fine, block)
-        self.assertEqual(len(re.findall(r"(?m)^\S+:\d+: ", block)), 5, block)
+        self.assertEqual(len(re.findall(r"(?m)^\S+:\d+: ", block)), 6, block)
 
     def test_exclude_flag_and_config(self) -> None:
         excluded = run_check("--repo", str(FAIL_DIR), "--exclude", "p2-*.md")
@@ -333,9 +340,27 @@ class HeadingRefTests(unittest.TestCase):
         self.assertRegex(result.stdout, r"(?m)^src/c\.kt:2: 〈流程（別的）〉（docs/design\.md 沒有這個標題）$")
         self.assertNotIn("src/a.kt:", result.stdout)
 
+    def test_a_plain_number_is_a_section_number_only_before_a_boundary(self) -> None:
+        self.write_design("## 1. 第一節")
+        (self.root / "src" / "a.kt").write_text("// ok\n", encoding="utf-8")
+        (self.root / "src" / "e.kt").write_text(
+            "// design.md 2 份\n// design.md 2026 年版\n// design.md 2）\n// design.md 2.5 份\n",
+            encoding="utf-8",
+        )
+        self.stage()
+
+        result = run_check("--repo", str(self.root))
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(parse_summary(result.stdout)["p9d"], 2, result.stdout)
+        self.assertRegex(result.stdout, r"(?m)^src/e\.kt:3: 節號 2（docs/design\.md 沒有這個節號）$")
+        self.assertRegex(result.stdout, r"(?m)^src/e\.kt:4: 節號 2\.5（docs/design\.md 沒有這個節號）$")
+        self.assertNotIn("src/e.kt:1:", result.stdout)
+        self.assertNotIn("src/e.kt:2:", result.stdout)
+
     def test_references_inside_inline_code_are_examples(self) -> None:
         (self.root / "src" / "d.kt").write_text(
-            "// 範例：`design.md〈不存在〉` 與 `design.md 9`\n"
+            "// 範例：`design.md〈不存在〉` 與 `design.md 9 節`\n"
             "// 檔名在反引號內、〈〉在外面：`docs/design.md`〈不存在〉\n"
             "// 同一行兩個：`design.md〈甲〉` 和 design.md〈乙〉\n",
             encoding="utf-8",
