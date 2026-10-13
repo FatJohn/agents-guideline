@@ -55,6 +55,8 @@ val mode = Mode.Offline // 僅在主幹，尚未發版
 | Android 15 | 登入成功 | 已實測（2026-10-01，Pixel 6 API 35） |
 | iOS 18 | 登入成功 | 未實測 |
 
+合併後把變更寫進 CHANGELOG 的 `## Unreleased` 區段。
+
 ## 參考
 
 - [登入流程總覽的登入流程](overview.md#登入流程)
