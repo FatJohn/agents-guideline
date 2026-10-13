@@ -6,7 +6,7 @@ that break a machine-checkable rule (see SKILL.md, section "原則與判定").
 Pure standard library; no ripgrep needed.
 
 Usage:
-    check_docs.py [--repo DIR] [--config FILE] [--exclude GLOB ...] [FILE ...]
+    check_docs.py [--repo DIR] [--config FILE] [--exclude GLOB ...] [--heading-ref "PATH [RE]"] ... [FILE ...]
 
 Exit code: 0 no FAIL item, 1 at least one FAIL item, 2 usage or environment error.
 """
@@ -20,7 +20,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 from urllib.parse import unquote
 
 DEFAULT_TYPES = ("接入指南", "參考", "說明", "流程", "規則", "入口")
@@ -60,12 +60,23 @@ UNRELEASED_SECTION_REF_RE = re.compile(
     r"(`[^`]+`|「[^」]+」|〈[^〉]+〉)\s*(?:區段|(?:章|小)?節|標題|(?i:section|heading))"
 )
 
+# 「讀碼」只在單獨成標示「（讀碼）」、或接推論類判斷詞時算觸發；「只用來讀碼」「讀碼表」是一般用詞。
 EVIDENCE_TRIGGER_RE = re.compile(
-    r"實測|驗證過|已測|測過|有測|未測|沒測|應該可以|理論上|預期可|未驗(?!簽)|推論|讀碼"
+    r"實測|驗證過|已測|測過|有測|未測|沒測|應該可以|理論上|預期可|未驗(?!簽)|推論"
+    r"|讀碼(?:的)?(?:推論|確認|可知|得知|判斷|看來|顯示|證實|推斷|所見)|（讀碼）|\(讀碼\)"
 )
 # 句尾的出處標示（讀碼：<檔名、符號或章節>）：答「從哪裡看來」，不是證據等級；p8 判定前先剔除，
 # 但括號內自己含觸發詞（「（讀碼：推論）」）的不剔除，免得禁用字躲進標示裡。
 EVIDENCE_SOURCE_RE = re.compile(r"（讀碼：([^）]+)）")
+# 括號內容要像檔名、符號或章節才算出處：反引號、兩個以上英文字母、〈〉、§、「第 N 節／章」、帶點節號，
+# 或整個內容就是佔位的 …／...。
+EVIDENCE_SOURCE_OK_RE = re.compile(
+    r"`|[A-Za-z]{2,}|〈|§|第\s*[\d.]+\s*[節章]|\d+(?:\.\d+)+|^(?:…|\.\.\.)$"
+)
+EVIDENCE_SOURCE_PLACEHOLDERS = ("…", "...")
+# 格式說明裡寫在反引號內的佔位範例，不是證據宣稱；沒有反引號的佔位寫法照舊算 p8。
+EVIDENCE_FORMAT_EXAMPLE_RE = re.compile(r"`已實測（(?:YYYY-MM-DD|日期)，環境）`")
+EVIDENCE_SOURCE_NOTE = "  （出處標示不是檔名、符號或章節）"
 EVIDENCE_OK_TESTED_RE = re.compile(r"已實測（\d{4}-\d{2}-\d{2}，[^）]+）")
 EVIDENCE_OK_UNTESTED = "未實測"
 
@@ -102,11 +113,15 @@ CONFIG_KEYS = (
     "HISTORY_WORDS",
     "TIME_WORDS",
     "IGNORE_WORDS",
+    "HEADING_REF",
 )
+
+# 只列出、不計 FAIL 的清單（render 另印一段，failed 也不算它們）。
+LIST_ONLY_IDS = ("p3-allow", "p7-section", "p8-source")
 
 HARD_IDS = (
     "p1", "p1b", "p2", "p3", "p3-allow", "p4t", "p4c", "p5", "p7", "p7a", "p7-section",
-    "p8", "p9a", "p9b", "p9c", "p11", "p12",
+    "p8", "p8-source", "p9a", "p9b", "p9c", "p9d", "p11", "p12",
 )
 HINT_IDS = ("p4h", "p6")
 TITLES = {
@@ -121,9 +136,11 @@ TITLES = {
     "p7a": "p7a 未發版 (a) 型位置不符",
     "p7-section": "p7-section 區段名指稱（不計 FAIL）",
     "p8": "p8 證據等級未用兩個固定值",
+    "p8-source": "p8-source 帶出處標示但無證據等級的行（不計 FAIL）",
     "p9a": "p9a 含糊連結字",
     "p9b": "p9b 行號錨點",
     "p9c": "p9c 內部連結或 anchor 不存在",
+    "p9d": "p9d 以〈標題〉或節號引用的文件標題不存在",
     "p11": "p11 副本頁首格式",
     "p12": "p12 單一項目清單",
 }
@@ -211,6 +228,14 @@ def read_doc(path: Path, rel: str) -> Optional[Doc]:
     return Doc(rel, text)
 
 
+class HeadingRef(NamedTuple):
+    """One HEADING_REF entry: the document whose headings are quoted, plus the two reference shapes."""
+
+    path: str  # relative to the repo root, as written in the config
+    title_re: "re.Pattern[str]"  # <前綴>…〈標題〉
+    number_re: "re.Pattern[str]"  # <前綴> 節號
+
+
 class Settings:
     def __init__(self) -> None:
         self.types: List[str] = list(DEFAULT_TYPES)
@@ -225,6 +250,7 @@ class Settings:
         self.overrides: List[str] = []
         self.config_path: str = ""
         self.headerless = False
+        self.heading_refs: List[HeadingRef] = []
 
     @property
     def types_re(self) -> "re.Pattern[str]":
@@ -232,8 +258,9 @@ class Settings:
         return re.compile(rf"^型別：({alternatives})\s*$")
 
 
-def load_config(path: Path) -> Dict[str, str]:
-    config: Dict[str, str] = {}
+def load_config(path: Path) -> Dict[str, Any]:
+    """Key=value lines; a repeated key overwrites, except HEADING_REF which accumulates into a list."""
+    config: Dict[str, Any] = {}
     for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
@@ -242,6 +269,10 @@ def load_config(path: Path) -> Dict[str, str]:
         key = key.strip()
         if key not in CONFIG_KEYS:
             print(f"警告：{path} 有未知的設定鍵 {key}（已忽略）", file=sys.stderr)
+            continue
+        if key == "HEADING_REF":
+            if value.strip():
+                config.setdefault(key, []).append(value.strip())
             continue
         config[key] = value.strip()
     return config
@@ -254,7 +285,26 @@ def compile_regex(label: str, pattern: str) -> "re.Pattern[str]":
         raise ValueError(f"{label} 不是合法的 regex：{exc}") from exc
 
 
-def build_settings(config: Dict[str, str], args: argparse.Namespace) -> Settings:
+HEADING_REF_FORMAT = "格式：<文件路徑> [前綴 regex]"
+
+
+def parse_heading_ref(value: str) -> HeadingRef:
+    parts = value.strip().split(None, 1)
+    if not parts:
+        raise ValueError(f"HEADING_REF 的值是空的（{HEADING_REF_FORMAT}）")
+    path = parts[0][2:] if parts[0].startswith("./") else parts[0]
+    prefix = parts[1].strip() if len(parts) > 1 else re.escape(Path(path).name)
+    if compile_regex("HEADING_REF", prefix).search(""):
+        raise ValueError("HEADING_REF 的前綴 regex 能匹配空字串，會把所有〈〉都當成引用：" + prefix)
+    # Named groups so that capturing groups inside the user's prefix cannot shift the numbering.
+    title_re = compile_regex(
+        "HEADING_REF", rf"(?:{prefix})[^〈\n]{{0,8}}(?P<refs>(?:〈[^〉]+〉[、，和與及或／\s]?){{1,8}})"
+    )
+    number_re = compile_regex("HEADING_REF", rf"(?:{prefix})\s*(?:第\s*)?(?P<num>\d+(?:\.\d+)*)(?![\d.])")
+    return HeadingRef(path, title_re, number_re)
+
+
+def build_settings(config: Dict[str, Any], args: argparse.Namespace) -> Settings:
     s = Settings()
     s.headerless = args.headerless
     # List-like keys: config and CLI values are merged.  Scalars: CLI wins over config.
@@ -279,6 +329,8 @@ def build_settings(config: Dict[str, str], args: argparse.Namespace) -> Settings
     if "IGNORE_WORDS" in config:
         s.ignore_re = compile_ignore_words(config["IGNORE_WORDS"], s)
     s.overrides = [k for k in ("HISTORY_WORDS", "TIME_WORDS", "IGNORE_WORDS") if config.get(k)]
+    # HEADING_REF is list-like: every config line and every --heading-ref adds one document.
+    s.heading_refs = [parse_heading_ref(v) for v in list(config.get("HEADING_REF", [])) + list(args.heading_ref or [])]
     return s
 
 
@@ -303,19 +355,31 @@ def compile_ignore_words(value: str, s: Settings) -> Optional["re.Pattern[str]"]
 # ---------------------------------------------------------------- scope
 
 
-def git_tracked_markdown(repo: Path) -> Optional[List[str]]:
+def git_tracked(repo: Path, pathspec: Optional[str] = None) -> Optional[List[str]]:
+    cmd = ["git", "-C", str(repo), "ls-files", "-z"] + (["--", pathspec] if pathspec else [])
     try:
-        result = subprocess.run(
-            ["git", "-C", str(repo), "ls-files", "-z", "--", "*.md"],
-            capture_output=True,
-            check=False,
-        )
+        result = subprocess.run(cmd, capture_output=True, check=False)
     except OSError:
         return None
     if result.returncode != 0:
         return None
     names = [n for n in result.stdout.decode("utf-8", "replace").split("\0") if n]
     return [n for n in names if (repo / n).is_file()]
+
+
+def git_tracked_markdown(repo: Path) -> Optional[List[str]]:
+    return git_tracked(repo, "*.md")
+
+
+def walk_files(repo: Path) -> List[str]:
+    found = []
+    for dirpath, dirnames, filenames in os.walk(repo):
+        dirnames[:] = [d for d in dirnames if d not in (".git", "node_modules")]
+        for name in filenames:
+            path = Path(dirpath) / name
+            if path.is_file():
+                found.append(path.relative_to(repo).as_posix())
+    return found
 
 
 def walk_markdown(repo: Path) -> List[str]:
@@ -334,6 +398,19 @@ def default_scope(repo: Path) -> List[str]:
     if not names:
         names = walk_markdown(repo)
     kept = [n for n in names if "changelog" not in n.lower() and not n.startswith("docs/adr/")]
+    return sorted(set(kept))
+
+
+def p9d_default_scope(repo: Path) -> List[str]:
+    """Every tracked file (a non-git directory or one with nothing tracked is walked); changelog／ADR Markdown stays out."""
+    names = git_tracked(repo)
+    if not names:
+        names = walk_files(repo)
+    kept = [
+        n
+        for n in names
+        if not (n.lower().endswith(".md") and ("changelog" in n.lower() or n.startswith("docs/adr/")))
+    ]
     return sorted(set(kept))
 
 
@@ -445,11 +522,7 @@ def check_line_patterns(doc: Doc, s: Settings, report: Report) -> None:
             elif not unreleased_ok(line, phrase):
                 report.add("p7", doc.rel, n, show(line))
         if not line.startswith("#"):
-            body = strip_source_markers(line)
-            if EVIDENCE_TRIGGER_RE.search(body):
-                rest = EVIDENCE_OK_TESTED_RE.sub("", body).replace(EVIDENCE_OK_UNTESTED, "")
-                if EVIDENCE_TRIGGER_RE.search(rest):
-                    report.add("p8", doc.rel, n, show(line))
+            check_evidence(doc, n, line, report)
         if VAGUE_LINK_RE.search(line):
             report.add("p9a", doc.rel, n, show(line))
         if LINE_ANCHOR_RE.search(line):
@@ -465,11 +538,43 @@ def ticket_in(line: str, s: Settings) -> bool:
     )
 
 
-def strip_source_markers(line: str) -> str:
-    """去掉出處標示 `（讀碼：…）`；括號內含 p8 觸發詞的保留，讓它照常被報。"""
-    return EVIDENCE_SOURCE_RE.sub(
-        lambda m: m.group(0) if EVIDENCE_TRIGGER_RE.search(m.group(1)) else "", line
-    )
+def strip_source_markers(line: str) -> Tuple[str, bool, bool]:
+    """去掉出處標示 `（讀碼：…）`，回傳 (剩下的文字, 有合格的出處標示, 有不合格的出處標示)。
+
+    括號內含 p8 觸發詞的保留，讓它照常被報；內容不像檔名、符號或章節的標示去掉並記為不合格；
+    整個內容只是佔位的 …／... 去掉但不算出處（那是格式說明，不是某一行的出處）。
+    """
+    found = {"valid": False, "bad": False}
+
+    def drop(m: "re.Match[str]") -> str:
+        inner = m.group(1)
+        if EVIDENCE_TRIGGER_RE.search(inner):
+            return m.group(0)
+        content = inner.strip()
+        if not EVIDENCE_SOURCE_OK_RE.search(content):
+            found["bad"] = True
+        elif content not in EVIDENCE_SOURCE_PLACEHOLDERS:
+            found["valid"] = True
+        return ""
+
+    body = EVIDENCE_SOURCE_RE.sub(drop, line)
+    return body, found["valid"], found["bad"]
+
+
+def check_evidence(doc: Doc, n: int, line: str, report: Report) -> None:
+    """p8：證據等級只能是 `已實測（YYYY-MM-DD，環境）` 或 `未實測`；另列帶出處標示卻沒標等級的行（p8-source）。"""
+    body, has_source, bad_source = strip_source_markers(line)
+    body = EVIDENCE_FORMAT_EXAMPLE_RE.sub("", body)
+    leftover = False
+    if EVIDENCE_TRIGGER_RE.search(body):
+        rest = EVIDENCE_OK_TESTED_RE.sub("", body).replace(EVIDENCE_OK_UNTESTED, "")
+        leftover = bool(EVIDENCE_TRIGGER_RE.search(rest))
+    if bad_source:
+        report.add("p8", doc.rel, n, show(line) + EVIDENCE_SOURCE_NOTE)
+    elif leftover:
+        report.add("p8", doc.rel, n, show(line))
+    elif has_source and not EVIDENCE_OK_TESTED_RE.search(line) and EVIDENCE_OK_UNTESTED not in line:
+        report.add("p8-source", doc.rel, n, show(line))
 
 
 def unreleased_section_ref(line: str) -> bool:
@@ -688,6 +793,109 @@ def table_cells(row: str) -> List[str]:
     return cells
 
 
+HEADING_NUMBER_RE = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+(.*)$")
+TITLE_IN_REF_RE = re.compile(r"〈([^〉]+)〉")
+SECTION_ENUM_RE = re.compile(r"[、，]\s*(\d+(?:\.\d+)*)(?![\d.])")
+
+
+def normalize_title(text: str) -> str:
+    text = re.sub(r"\s+#+\s*$", "", text.replace("`", ""))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def before_paren(title: str) -> str:
+    """The part of a title before its first full-width 「（」: the parenthesised suffix is an aside, and may be left out."""
+    return title.split("（", 1)[0].strip()
+
+
+class HeadingRefChecker:
+    """p9d for one HEADING_REF document: its current titles, bare titles (no number) and section numbers.
+
+    Every title is also known without its 「（…）」 suffix, with and without the leading number.
+    """
+
+    def __init__(self, ref: HeadingRef, doc: Doc) -> None:
+        self.ref = ref
+        self.titles: set = set()
+        self.bare_titles: set = set()
+        self.numbers: set = set()
+        for h in doc.headings:
+            title = normalize_title(h.text)
+            for variant in (title, before_paren(title)):
+                if not variant:
+                    continue
+                self.titles.add(variant)
+                numbered = HEADING_NUMBER_RE.match(variant)
+                if numbered:
+                    self.numbers.add(numbered.group(1))
+                    bare = numbered.group(2).strip()
+                    self.bare_titles.update(t for t in (bare, before_paren(bare)) if t)
+
+    def known_title(self, title: str) -> bool:
+        return title in self.titles or title in self.bare_titles or title in self.numbers
+
+    def check_line(self, rel: str, n: int, line: str, report: Report) -> None:
+        code_spans: Optional[List[Tuple[int, int]]] = None
+
+        def in_code(start: int, end: int) -> bool:
+            # A reference inside inline code is an example, not a reference (same as p9c).  Only the
+            # reference itself has to sit inside: a file name in backticks followed by 〈…〉 is checked.
+            nonlocal code_spans
+            if code_spans is None:
+                code_spans = [m.span() for m in CODE_SPAN_RE.finditer(line)]
+            return any(s <= start and end <= e for s, e in code_spans)
+
+        for m in self.ref.title_re.finditer(line):
+            base = m.start("refs")
+            for tm in TITLE_IN_REF_RE.finditer(m.group("refs")):
+                title = normalize_title(tm.group(1))
+                if not self.known_title(title) and not in_code(base + tm.start(), base + tm.end()):
+                    report.add("p9d", rel, n, f"〈{title}〉（{self.ref.path} 沒有這個標題）")
+        if not self.numbers:
+            return
+        for m in self.ref.number_re.finditer(line):
+            found = [(m.group("num"),) + m.span("num")]
+            pos = m.end()
+            while True:
+                more = SECTION_ENUM_RE.match(line, pos)
+                if not more:
+                    break
+                found.append((more.group(1),) + more.span(1))
+                pos = more.end()
+            for number, start, end in found:
+                if number not in self.numbers and not in_code(start, end):
+                    report.add("p9d", rel, n, f"節號 {number}（{self.ref.path} 沒有這個節號）")
+
+
+def load_heading_checkers(repo: Path, s: Settings) -> List[HeadingRefChecker]:
+    checkers = []
+    for ref in s.heading_refs:
+        path = repo / ref.path
+        doc = read_doc(path, ref.path) if path.is_file() else None
+        if doc is None:
+            raise FileNotFoundError(f"HEADING_REF 的文件不存在或讀不到：{ref.path}")
+        checkers.append(HeadingRefChecker(ref, doc))
+    return checkers
+
+
+def check_heading_refs(rel: str, path: Path, checkers: List[HeadingRefChecker], report: Report) -> None:
+    """Scan one file of any type for 〈標題〉／節號 references; binary or unreadable files are skipped."""
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return
+    if b"\0" in data:
+        return
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return
+    for i, raw in enumerate(text.split("\n")):
+        line = raw.rstrip("\r")
+        for checker in checkers:
+            checker.check_line(rel, i + 1, line, report)
+
+
 def scan_doc(doc: Doc, doc_path: Path, s: Settings, checker: LinkChecker, report: Report) -> None:
     exempt = any(fnmatch.fnmatchcase(doc.rel, pattern) for pattern in s.no_header)
     check_header(doc, s, report, exempt)
@@ -709,9 +917,10 @@ def render(report: Report, scanned: int, repo: Path, s: Settings) -> Tuple[str, 
     extra = " ".join(s.excludes) if s.excludes else "無"
     out.append(f"掃描檔：{scanned} 個（repo={repo}；預設排除：changelog、docs/adr/；--exclude／EXCLUDE：{extra}）")
     overrides = "、".join(s.overrides) if s.overrides else "無"
-    out.append(f"設定檔：{s.config_path or '無'}；詞表覆寫：{overrides}")
+    refs = "、".join(sorted({r.path for r in s.heading_refs})) or "未設定"
+    out.append(f"設定檔：{s.config_path or '無'}；詞表覆寫：{overrides}；標題引用：{refs}")
     for key in HARD_IDS:
-        if key in ("p3-allow", "p7-section") or not report.hits[key]:
+        if key in LIST_ONLY_IDS or not report.hits[key]:
             continue
         out.append(f"== {TITLES[key]}")
         for rel, line, text in report.hits[key]:
@@ -728,6 +937,10 @@ def render(report: Report, scanned: int, repo: Path, s: Settings) -> Tuple[str, 
         out.append("== p7-section：以區段名指稱未發版區段的行（不計 FAIL；verifier 核對是流程句，不是某個行為只在主幹）")
         for rel, line, text in report.hits["p7-section"]:
             out.append(f"{rel}:{line}: {text}")
+    if report.hits["p8-source"]:
+        out.append("== p8-source：帶出處標示但無證據等級的行（不計 FAIL；verifier 核對是結構事實，不是行為結果）")
+        for rel, line, text in report.hits["p8-source"]:
+            out.append(f"{rel}:{line}: {text}")
     if report.hits["p4h"] or report.hits["p6"]:
         out.append("== 提示（不計入 FAIL）")
         for key, label in (("p4h", "p4h 7–40 位 hex 字串（只能是版本號、雜湊值範例或程式碼範例）"), ("p6", "p6 超過參考上限的位置")):
@@ -737,7 +950,7 @@ def render(report: Report, scanned: int, repo: Path, s: Settings) -> Tuple[str, 
                     out.append(f"{rel}:{line}: {text}")
     hard = " ".join(f"{k}={report.count(k)}" for k in HARD_IDS)
     hints = " ".join(f"{k}={report.count(k)}" for k in HINT_IDS)
-    failed = any(report.count(k) for k in HARD_IDS if k not in ("p3-allow", "p7-section"))
+    failed = any(report.count(k) for k in HARD_IDS if k not in LIST_ONLY_IDS)
     out.append(f"SUMMARY {hard} | hints {hints}")
     out.append("RESULT FAIL" if failed else "RESULT PASS")
     return "\n".join(out) + "\n", failed
@@ -758,6 +971,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-header", action="append", metavar="PATHS", help="免檔頭的路徑，空白分隔，可重複（與設定 NO_HEADER 合併）")
     p.add_argument("--headerless", action="store_true", help="wiki 讀回檔：沒有 # 標題，檔頭取檔案最前兩個非空行")
     p.add_argument("--doc-host-re", help="視為『別份文件』的 wiki 網域 regex（覆寫設定 DOC_HOST_RE）")
+    p.add_argument(
+        "--heading-ref",
+        action="append",
+        metavar="\"PATH [RE]\"",
+        help="啟用 p9d：<文件路徑> [前綴 regex]，前綴省略時用檔名；可重複（與設定 HEADING_REF 合併）",
+    )
     p.add_argument("--list", action="store_true", help="只印掃描範圍內的檔案後結束")
     return p
 
@@ -793,6 +1012,11 @@ def main(argv: List[str]) -> int:
         for rel, _path in targets:
             print(rel)
         return 0
+    try:
+        heading_checkers = load_heading_checkers(repo, settings)
+    except FileNotFoundError as exc:
+        print(f"錯誤：{exc}", file=sys.stderr)
+        return 2
     report = Report()
     checker = LinkChecker(repo)
     for rel, path in targets:
@@ -801,6 +1025,13 @@ def main(argv: List[str]) -> int:
             print(f"錯誤：讀不到檔案：{path}", file=sys.stderr)
             return 2
         scan_doc(doc, path, settings, checker, report)
+    if heading_checkers:
+        # p9d reads every tracked file (code comments, test names, config), not only the Markdown scope.
+        p9d_targets = targets if args.files else [
+            (n, repo / n) for n in apply_excludes(p9d_default_scope(repo), settings.excludes)
+        ]
+        for rel, path in p9d_targets:
+            check_heading_refs(rel, path, heading_checkers, report)
     text, failed = render(report, len(targets), repo, settings)
     sys.stdout.write(text)
     return 1 if failed else 0
