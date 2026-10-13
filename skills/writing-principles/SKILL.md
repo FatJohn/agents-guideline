@@ -74,8 +74,8 @@ allowed-tools: Bash(python3:*), Bash(git:*), Read, Grep, Glob
 ### 8. 證據等級用兩個固定值
 - **原則**：凡宣稱「在某環境能跑／會失敗」，只用 `已實測（YYYY-MM-DD，環境）` 與 `未實測` 兩種標法，放在限制表的「驗證」欄；讀碼可確認的結構事實（有某個類別、欄位、預設值、呼叫關係）直接寫成事實，可在句尾加出處標示 `（讀碼：<檔名、符號或章節>）`。出處標示答「從哪裡看來」，證據等級答「有沒有實跑」，兩者不互相取代：同句宣稱行為結果（在某環境會成功／失敗／被拒、會回傳 X）時仍要有證據等級，出處標示可以並存；行為宣稱實跑過才標已實測，讀碼不算實跑；不寫「推論」「讀碼推論」「未驗」或單獨的「（讀碼）」這類替代證據等級的字。
 - **判定**：
-  1. `[腳本 p8]` 排除標題行後，先去掉出處標示 `（讀碼：…）`（括號內含觸發詞的不去掉），命中 `實測|驗證過|已測|測過|有測|未測|沒測|應該可以|理論上|預期可|未驗(?!簽)|推論|讀碼` 的行，再去掉合格寫法 `已實測（\d{4}-\d{2}-\d{2}，[^）]+）` 與 `未實測` 後仍含觸發詞者為不符；不符 0（「未驗簽」指 token 未驗簽章，不算）。
-  2. `[verifier]` 已實測必有日期與環境（裝置或系統版本）；未實測的條目不得同時寫成肯定句，寫「X 的行為：未實測」；一句涵蓋多個平台時逐平台各自標。帶出處標示的句子：陳述結構事實 → PASS；陳述行為結果而沒有 已實測／未實測 → FAIL。
+  1. `[腳本 p8]` 排除標題行後逐行判：(a) 出處標示 `（讀碼：…）` 的括號內容必須像檔名、符號或章節——含反引號、兩個以上英文字母、〈〉、§、「第 N 節」或帶點節號（如 3.7）；內容不像的計 p8，合格的標示從該行去掉，括號內含觸發詞的不去掉；整個內容只是佔位的 `…` 也去掉（格式說明用，不當出處）。(b) 反引號內的佔位範例 `` `已實測（YYYY-MM-DD，環境）` ``、`` `已實測（日期，環境）` `` 不算；沒有反引號的佔位寫法（例如表格格填 `已實測（日期，環境）`）照算。(c) 命中 `實測|驗證過|已測|測過|有測|未測|沒測|應該可以|理論上|預期可|未驗(?!簽)|推論` 的行，以及「讀碼」的兩種用法——單獨的 `（讀碼）`、接推論類判斷詞（`讀碼推論`、`讀碼確認`、`讀碼可知`、`讀碼的推論` 等）——再去掉合格寫法 `已實測（\d{4}-\d{2}-\d{2}，[^）]+）` 與 `未實測` 後仍含觸發詞者為不符；不符 0（「未驗簽」指 token 未驗簽章，「只用來讀碼」「讀碼表」是一般用詞，都不算）。(d) 有合格出處標示、沒被記 p8、整行也沒有 已實測／未實測 的行另列 `p8-source`（不計 FAIL），交判定 2 逐行核對。不把它機械判成 FAIL，是因為「結構事實」與「行為結果」的分界是語意判斷：「會＋結果動詞」這類啟發式會誤報結構事實、也漏掉不用「會」的行為句，誤報與漏抓都不可控；列成清單，verifier 的抽樣就是完整清單。
+  2. `[verifier]` 已實測必有日期與環境（裝置或系統版本）；未實測的條目不得同時寫成肯定句，寫「X 的行為：未實測」；一句涵蓋多個平台時逐平台各自標。腳本列在 `p8-source` 的行逐行判：陳述結構事實 → PASS；陳述行為結果而沒有 已實測／未實測 → FAIL。
 - **例外**：ADR 的當時證據保留原貌。
 
 ### 9. 引用別份文件用章節名稱，連結文字要自己看得懂
@@ -85,6 +85,7 @@ allowed-tools: Bash(python3:*), Bash(git:*), Read, Grep, Glob
   2. `[腳本 p9b]` `#L[0-9]+` 行號錨點命中 0（commit／blob 連結歸 p4c）。
   3. `[腳本 p9c]` 指向 repo 內檔案的相對連結，目標檔必須存在；帶 `#anchor` 時目標（或本檔）必須有對應標題（GitHub slug：小寫、去標點、空格換 `-`，重複標題依序加 `-1`、`-2`）；不存在 0。含 `://` 的外部連結與行內程式碼（反引號內）不檢查。
   4. `[verifier]` 連結文字含目的地文件名或章節名。
+  5. `[腳本 p9d]` 設定 `HEADING_REF` 後啟用：repo 內已追蹤的檔（非 git 或沒有已追蹤檔時走目錄遍歷）——程式註解、測試名、設定檔註解與其他 `.md`，changelog、`docs/adr/` 的 `.md` 與 `EXCLUDE` 除外，二進位檔跳過——以「<前綴>〈標題〉」（可連寫 `〈甲〉、〈乙〉`）或「<前綴> 節號」（如「設計文件 3.10.1、3.12」）引用該文件時，標題必須等於該文件現行的標題，開頭編號可省略、也可只寫編號；節號必須是該文件某個標題的編號（文件沒有編號標題時不查節號）；不存在 0。前綴是 `HEADING_REF` 指定的 regex（省略時為檔名），前綴與第一個〈之間至多隔 8 個字。只寫標題一部分的短寫算不命中，改成完整標題或編號；例外是標題的括號後綴可省略（`儀器測試（…）` 可引用成〈儀器測試〉），括號內不存在的後綴仍不命中。行內程式碼（反引號內）裡的引用是範例，不檢查；只有檔名在反引號內、〈〉在外面的照常檢查。不抓：沒有前綴的〈標題〉（不知道指哪份文件）；未設定 `HEADING_REF` 時整條不啟用。
 - **例外**：外部 RFC 或官方文件，連結文字用文件標題即可。
 
 ### 10. ADR、CHANGELOG 的例外與掃描範圍
@@ -119,7 +120,7 @@ allowed-tools: Bash(python3:*), Bash(git:*), Read, Grep, Glob
 
 ## 專案自訂
 
-- 設定檔 `<repo>/.writing-principles.conf`（腳本自動讀；`--config` 可指定別的路徑），一行一個 `KEY=VALUE`，`#` 開頭是註解，**不會被 source／eval**，未知的鍵會在 stderr 警告後忽略。鍵：`TYPES`（以 `|` 分隔的額外型別）、`NO_HEADER`（空白分隔的免檔頭路徑，可用 glob）、`TICKET_RE`、`UNRELEASED_PHRASE`、`DOC_HOST_RE`、`EXCLUDE`（空白分隔的 glob）、`HISTORY_WORDS`、`TIME_WORDS`（兩者覆寫預設 regex）、`IGNORE_WORDS`（比對 p2／p3 前先剔除的字面複合詞，`|` 分隔，每項須含觸發詞且比它長；預設空＝不剔除；已知漏抓形狀見原則 3）。旗標與設定檔並用時，單值鍵（`TICKET_RE`、`UNRELEASED_PHRASE`、`DOC_HOST_RE`）以旗標為準，清單型（`TYPES`、`NO_HEADER`、`EXCLUDE`）兩邊合併。
+- 設定檔 `<repo>/.writing-principles.conf`（腳本自動讀；`--config` 可指定別的路徑），一行一個 `KEY=VALUE`，`#` 開頭是註解，**不會被 source／eval**，未知的鍵會在 stderr 警告後忽略。鍵：`TYPES`（以 `|` 分隔的額外型別）、`NO_HEADER`（空白分隔的免檔頭路徑，可用 glob）、`TICKET_RE`、`UNRELEASED_PHRASE`、`DOC_HOST_RE`、`EXCLUDE`（空白分隔的 glob）、`HISTORY_WORDS`、`TIME_WORDS`（兩者覆寫預設 regex）、`IGNORE_WORDS`（比對 p2／p3 前先剔除的字面複合詞，`|` 分隔，每項須含觸發詞且比它長；預設空＝不剔除；已知漏抓形狀見原則 3）、`HEADING_REF`（`<文件路徑> [前綴 regex]`，路徑相對 repo 根，以第一個空白切開；前綴省略時用檔名；一行一份文件、可重複；啟用原則 9 的 p9d；文件不存在、regex 不合法或前綴 regex 能匹配空字串時 exit 2）。旗標與設定檔並用時，單值鍵（`TICKET_RE`、`UNRELEASED_PHRASE`、`DOC_HOST_RE`）以旗標為準，清單型（`TYPES`、`NO_HEADER`、`EXCLUDE`、`HEADING_REF`；旗標 `--heading-ref "<路徑> [regex]"` 可重複）兩邊合併。
 - 範例：
 
   ```
@@ -131,20 +132,21 @@ allowed-tools: Bash(python3:*), Bash(git:*), Read, Grep, Glob
   DOC_HOST_RE=wiki\.example\.com
   EXCLUDE=vendor/*
   IGNORE_WORDS=出現在|呈現在
+  HEADING_REF=docs/design.md design\.md|設計文件
   ```
 
 - 專案 AGENTS.md／CLAUDE.md 該寫什麼：指向本 skill；列設定檔的值與理由；專案額外規則（例如「一個平台一份接入指南」、共用說明的權威位置、哪些檔只能改排版不能改規則）寫在專案文件，**不改本 skill**；專案規則與本 skill 衝突時專案規則優先（優先權排序見全域 CLAUDE.md「優先權排序」節；Codex 端見全域 AGENTS.md「Codex 專用注意」末條）。
 
 ## 檢查腳本
 
-- 用法：`python3 <SK>/scripts/check_docs.py [--repo DIR] [--config FILE] [--exclude GLOB]… [--ticket-re RE] [--unreleased-phrase TEXT] [--types A|B] [--no-header PATHS] [--headerless] [--doc-host-re RE] [--list] [FILE…]`；`--repo` 預設 cwd，`--list` 只印掃描範圍。
-- 輸出：第一行 `掃描檔：N 個（…）`、第二行 `設定檔：…；詞表覆寫：…`；每個有命中的原則一段 `== pN …`，內容為 `path:line: 內容`；`== p3-allow` 與 `== p7-section` 段列不計 FAIL 的行（verifier 逐行核對）；`== 提示（不計入 FAIL）` 段放 p4h、p6；最後 `SUMMARY …` 與 `RESULT PASS|FAIL`。exit code：0 無 FAIL 項、1 有、2 用法或環境錯（含掃描範圍為空）。
+- 用法：`python3 <SK>/scripts/check_docs.py [--repo DIR] [--config FILE] [--exclude GLOB]… [--ticket-re RE] [--unreleased-phrase TEXT] [--types A|B] [--no-header PATHS] [--headerless] [--doc-host-re RE] [--heading-ref "PATH [RE]"]… [--list] [FILE…]`；`--repo` 預設 cwd，`--list` 只印掃描範圍。
+- 輸出：第一行 `掃描檔：N 個（…）`、第二行 `設定檔：…；詞表覆寫：…；標題引用：<HEADING_REF 的文件路徑，未設定寫「未設定」>`；每個有命中的原則一段 `== pN …`，內容為 `path:line: 內容`；`== p3-allow`、`== p7-section` 與 `== p8-source` 段列不計 FAIL 的行（verifier 逐行核對）；`== 提示（不計入 FAIL）` 段放 p4h、p6；最後 `SUMMARY …`（含 `p8-source`、`p9d` 兩個計數）與 `RESULT PASS|FAIL`。p9d 掃全部已追蹤檔，不只 `.md`。exit code：0 無 FAIL 項、1 有、2 用法或環境錯（含掃描範圍為空）。
 - 純 Python 3 標準庫，不需 rg；專案不是 git repo、或 git 沒有任何已追蹤的 md 時改走目錄遍歷（跳過 `.git/`、`node_modules/`）。
 - 紅綠證據：`cd <REPO> && python3 -m unittest tests.test_writing_principles_check -v`；樣本在 `<REPO>/tests/fixtures/writing-principles/{pass,fail}`，`fail/` 每個原則一檔，直接跑 `python3 <SK>/scripts/check_docs.py --repo <REPO>/tests/fixtures/writing-principles/fail` 可看到每個原則的命中長什麼樣。
 
 ## 驗收怎麼用（給 verifier）
 
-`rubrics/document-quality.md` §6 指到這裡。verifier 自己重跑腳本（派工者附的輸出只當線索），SUMMARY 貼回報；機械項以腳本為準；`[verifier]` 項各抽樣 5 處；腳本列出的 `p7-section` 行逐行核對是指稱區段的流程句；派工者附的 `--exclude` 清單與 `p3-allow` 逐檔清單要逐條有說明，沒有說明的判 FAIL。 腳本輸出第二行印出用了哪個設定檔與覆寫了哪些詞表；有覆寫 `TIME_WORDS`、`HISTORY_WORDS`、`IGNORE_WORDS` 時 verifier 逐條核對覆寫值：拿掉原詞表的詞、`IGNORE_WORDS` 的某項不是該專案文件實際出現的複合詞、或拿掉該項就等於放行一個時間詞（如 `目前的`），沒有逐條理由就判 FAIL（設定檔是專案可改的，腳本只擋得住不含觸發詞的項目）。
+`rubrics/document-quality.md` §6 指到這裡。verifier 自己重跑腳本（派工者附的輸出只當線索），SUMMARY 貼回報；機械項以腳本為準；`[verifier]` 項各抽樣 5 處；腳本列出的 `p7-section` 行逐行核對是指稱區段的流程句；`p8-source` 清單逐行核對（結構事實 PASS、行為結果沒標證據等級 FAIL）；派工者附的 `--exclude` 清單與 `p3-allow` 逐檔清單要逐條有說明，沒有說明的判 FAIL。 腳本輸出第二行印出用了哪個設定檔與覆寫了哪些詞表；有覆寫 `TIME_WORDS`、`HISTORY_WORDS`、`IGNORE_WORDS` 時 verifier 逐條核對覆寫值：拿掉原詞表的詞、`IGNORE_WORDS` 的某項不是該專案文件實際出現的複合詞、或拿掉該項就等於放行一個時間詞（如 `目前的`），沒有逐條理由就判 FAIL（設定檔是專案可改的，腳本只擋得住不含觸發詞的項目）。
 
 ## 改寫前後
 
