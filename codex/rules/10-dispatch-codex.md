@@ -71,11 +71,11 @@ unavailable 時，這條 direct CLI 是有效的獨立 fallback，包含指定 S
 Reasoning effort 只回答「同一模型需要思考多深」：問題已理解但推理鏈不夠完整，可提高一級 effort 並 fresh retry 一次；若 root cause、跨模組關係或需求模型本身理解錯誤，應升 model tier，而不是持續加 effort。
 
 - 寫入預設派 worker；只有下方 Controller 工作迴圈的小修例外可留在主對話。
-- 一般實作由 controller 核定 approved plan 後派 `worker/Luna max`；只有 complexity signals 支持時才加入 `planner/Terra high`、`pro_worker/Terra high` 或 `reviewer/Terra high`。
+- 一般實作由 controller 核定 approved plan 後派 `worker/Luna max`；只有 complexity signals 支持時才加入 `planner/Terra high`、`pro_worker/Terra high` 或 `reviewer/Terra high`（例外：diff 含外部呼叫、權限請求或不可逆副作用時依 §6 一律加 `reviewer`）。
 - `planner` 只檢查 repo、列出未決問題與提出 plan；controller 負責和使用者釐清 scope、取得授權、做最後決策。
 - controller 只有在 plan 已列出 affected files、寫入所有權、invariants、implementation phases、validation commands 與 completion criteria，且未決問題均已解決或明確交由 worker 不得碰觸時，才可標為 approved plan 並派 `worker`。缺任一項就留在規劃階段，不得用高 effort 取代清楚 plan。
 - `worker` 依 approved plan 分階段實作、執行測試／靜態檢查並修復一般失敗；不得自行擴大範圍或執行對外動作。
-- `reviewer` 做一般實作的 fresh-context review；一般文件與一般驗收改派 `verifier/Terra high`，安全、不可逆、重大架構與正式高風險驗收才改派 `sol_verifier/Sol high`。
+- `reviewer` 做一般實作的 fresh-context review；一般文件與一般驗收改派 `verifier/Terra high`，安全、不可逆、重大架構與正式高風險驗收才改派 `sol_verifier/Sol high`（「不可逆」依 `<REPO>/rules/20-judgment.md` §2 判準第 3 點 的 canonical 定義：只含一般側操作不算）。
 - 若 planner 的 Terra high 已抓對問題但推理仍不足，可 fresh-context 提高 Terra effort 一次；若它誤判核心、遺漏跨模組關係或無法承載必要脈絡，直接進入 `escalation_planner/Sol medium`。
 - retry／escalation 依 §5 的失敗原因處理；兩次失敗是未能判明原因時的硬上限，不是每條路都必須先浪費兩次。
 
@@ -150,7 +150,7 @@ controller 應在 brief 附上仍有效的 diff、檔案行號／段落與測試
 - 開工前已有 higher-complexity signals，可直接使用 `pro_worker/Terra high`；Luna 失敗後若已符合 capability／context 訊號，使用 `recovery_worker/Terra high`。Terra 已確認自身能力不足時，升級 `escalation_worker/Sol medium`；Sol medium 仍顯示能力不足或高代價風險支持更深推理時，才由 controller 顯式改用 Sol high。
 - 風險與實作難度分開判斷：安全／資料遺失／不可逆風險會提高規劃與驗收強度，但不自動證明實作一定需要 Sol；先看 root cause 與 complexity signals。
 - 所有升級 prompt 都必須附原始需求、approved plan、相關 diff 與**對應門檻的證據**：失敗入口附完整失敗輸出、已嘗試 hypotheses 與逐輪嘗試表（執行者每輪當下記一列：改動｜指令｜關鍵輸出或指標值｜改動仍在工作樹或已回退｜失敗理由）；能力／脈絡入口附誤判或遺漏證據；高風險入口附風險判定依據。升級實作者必須先建立 root cause 再編輯。若 approved plan 不完整或需要擴大 scope，先停止並交回 controller 走 planner 路徑。若任務需要對外或不可逆動作，worker／pro_worker／recovery_worker／escalation_worker 直接停止並交回 controller；任何 subagent 都不得代替 controller 執行。
-- `reviewer` 發現一般文件或一般驗收缺口 → 改派 `verifier/Terra high`；發現安全、不可逆、重大架構問題或正式高風險驗收需求 → 改派 `sol_verifier/Sol high`，不讓 reviewer 自行修正。
+- `reviewer` 發現一般文件或一般驗收缺口 → 改派 `verifier/Terra high`；發現安全、不可逆、重大架構問題或正式高風險驗收需求 → 改派 `sol_verifier/Sol high`，不讓 reviewer 自行修正（「不可逆」依 `<REPO>/rules/20-judgment.md` §2 判準第 3 點 的 canonical 定義，§7 回報的一般側操作 FAIL 不算）。
 - 任一指定 model 回報 unsupported 或 unavailable → 停止宣稱該 model mapping 已驗證，改用已核准的 fallback 並標記「模型未驗證」；不得靜默繼承另一個 model。
 - 升級角色（`recovery_worker`、`escalation_planner`、`escalation_worker`、`verifier`、`sol_verifier`）只處理能力需求，不取代使用者授權；對外或不可逆動作未在本 session 明確授權時，停止並交回 controller。
 - `Sol high` 卡住 → 先換 fresh-context Sol、取得獨立第二意見或重定義問題與驗收條件；只有仍有明確邊際價值時，controller 才可顯式使用 xhigh／max。Ultra 只在當前 runtime 明確支援且工作可安全拆成獨立大型工作流時考慮。
@@ -161,6 +161,7 @@ controller 應在 brief 附上仍有效的 diff、檔案行號／段落與測試
 - 主觀判斷、一般文件與一般驗收依原有首次驗收分工交給獨立 fresh-context `verifier/Terra high` read-back，逐條判 PASS/FAIL/UNSURE；安全、不可逆、重大架構與正式高風險產出改用獨立 fresh-context `sol_verifier/Sol high`。named role unavailable 時依 §0 direct CLI review branch，指定 model／effort、強制對應 sandbox（verifier 類 workspace-write＋完整同角色 contract、只寫 repo 外探針目錄；reviewer 等 read-only）並貼完整同角色 contract；證據完整即可作有效獨立驗收，身份仍標 generic／direct CLI，不冒稱 custom。
 - 一般程式碼 review 可由 fresh-context `reviewer` 執行；它發現一般文件問題升級 `verifier`，發現高風險或正式驗收問題升級 `sol_verifier`。
 - 測試、build、lint、實跑與 schema 驗證可由製作者執行，但回報必須附指令與輸出證據。
+- 含外部呼叫、權限請求或不可逆副作用的程式碼，不論風險等級，機械驗證外一律加 fresh-context `reviewer` review，套 `<REPO>/rubrics/code-change.md` §7「失敗路徑與不可逆副作用」；製作者的測試與突變證據只證 happy path，不得據此結案。本條是 §1「只有 complexity signals 支持時才加入 reviewer」的例外。「不可逆副作用」與本檔所有分流句、各 agent 合約、`30-delegation-templates-codex.md` 及 `<REPO>/skills/parallel-dispatch/references/codex.md` 裡「安全、不可逆」的範圍，一律依 `<REPO>/rules/20-judgment.md` §2 判準第 3 點 的 canonical 定義。reviewer 不因 diff 含一般側操作就升級 `sol_verifier`；controller 也不因 reviewer 依 §7 回報一般側操作的 FAIL（例如不可逆步驟排在可取消步驟之前）而改派 `sol_verifier`；修正後結案依同檔 §2「修正與驗收輪次」。
 - 高風險程式碼除機械驗證外，再做一次 fresh-context `reviewer` 與 `sol_verifier` review；若 named role unavailable，兩者依同一 direct CLI fallback 取得獨立證據，不能因 TOML 或角色名稱存在就視為已選中。
 - **修使用者實際回報的 bug 一律加 fresh-context `reviewer` review**，不必先判定風險等級或改動大小——「高風險」要當場判斷，「使用者回報的 bug」不用。該次驗收一定要問「同一個錯誤還有沒有第二個現場」——那是製作者最不適合回答的問題（他的心智模型正是漏掉那一處的原因），也是機械驗證最驗不到的：測試只覆蓋你改的那條路，改對的那條會全綠。答案是取樣不是本次必修清單；先判斷共同成因，再決定修哪一層。範圍內依 `<REPO>/rules/20-judgment.md` §2「停止端」分流；範圍外不擴修，由 controller 登記該 repo issue 並附連結，未取得對外授權則保留待登記項目。連續兩輪發現都在範圍外就停止回報，不把下一批工作塞進本次。
 - `verifier` 與 `sol_verifier` 的任務是假設產物有問題並找碴；只驗收與指出缺口，不修正產物。找碴範圍與「行為承載產物」分類的 canonical 在 `<REPO>/rules/20-judgment.md` §2「停止端」；不因檔案是 Markdown 就把會改變 agent／人員行動的語意降成散文。

@@ -308,3 +308,17 @@
 ## 2026-10-12 read-back 有界輸出與唯讀角色回報形狀
 
 後段窗口（2026-10-10 23:25～10-12 16:22，`scripts/usage/scan2.py`、`scan3.py`）量測：主對話 Bash 3,021 次，Bash tool_result 5.8M 字元進主對話 context（排除 `S=`／`W=` 這類變數賦值後，指令首字前四名為 gh、cat、sed、grep），issue session 主對話 maxctx 仍在 402–452K（前十貴 session）；Explore 回報中位 17,179 字、Plan 17,195、codex-rescue 14,808（n=14／8／8），這三類原本「不受長度限制」但一樣每輪重讀。探針證實 Explore 不能寫檔（見 `docs/harness-facts.md`「常用 subagent 類型」），所以不能用落檔解，改成回行號範圍、執行者自讀；`rules-controller/10-dispatch.md` Controller 工作迴圈第 3 步與 §3、`codex/rules/10-dispatch-codex.md` 同步。來源：使用者 2026-10-12 看完本週用量拆帳後核定。檢驗方式：下週量主對話每 request 的 Bash tool_result 字元數與這三類回報中位字數。
+
+## 2026-10-14 失敗路徑驗收：`rubrics/code-change.md` §7 與兩份 dispatch 的新分流
+
+**事故**：project-b（公司 Flutter App）一支一般 feature PR，作者用 coding agent 實作：3000 多個測試全綠、三處突變檢查、兩台實機手動測。fresh-context review 仍挑出五條同類問題：後端讀失敗首頁顯示 0；先做不可逆的後端綁定再要平台權限，被拒後帳號資料整個停住；後端回 422 仍顯示已同步；入口無防重入；登入頁等網路請求無 timeout。另有一條是拿掉先前 review 加的防線後，與另一個已核准決定疊出沒人討論過的情境；一條是把 API 文件當另一個 repo 的行為真相。
+
+**為什麼要改制度**：原因不是模型等級，是寫 code 的 session 接著寫測試，測試與突變全在 happy path。本系統原本已用 fresh-context verifier 處理「作者不能審自己」，但 (1) `rubrics/code-change.md` 沒有任何一題問失敗、取消、重入、慢網路、狀態訊號，verifier 只對驗收條件與 rubric 判，條件沒寫就不會查；(2) `rules-controller/10-dispatch.md` §5 原本只在高風險或使用者回報 bug 時加 fresh review，一般 feature 憑製作者的測試與突變證據即可結案，這支 PR 在本系統下很可能連 verifier 都不派。
+
+- ✅ diff 新增一個 `POST` 與一次清本機 cursor：controller 派 verifier（Codex：reviewer），對 §7 八條逐條回答，其中「取消與順序」FAIL 附行號，其餘寫「查過，沒有」並附查的位置。
+- ✅ diff 只改排版與文案、沒有外部呼叫或不可逆副作用：§7 不適用，照原分工走。
+- ✅ diff 新增扣款或寄推播的路徑：canonical 高風險側，走高風險驗收；§7「重入」仍要查（重複扣款、重複寄送）。
+- ✅ diff 新增向 iOS 請求 Health 權限：一般側的「請求平台權限」，不是高風險側的「權限模型設計」，不因此升高風險層。
+- ✅ diff 新增使用者改自己暱稱的 `PUT`：舊暱稱系統重建不了，但這是使用者當次對自己單筆資料的寫入，依收窄句歸一般側；同一支 PR 若有「刪除帳號」或後台批次改他人資料，那部分仍高風險側。（收窄句 2026-10-15 加，起因是 verifier 指出沒有它會把一般 CRUD 全推進高風險側、fresh delta 派工量會上升。）
+- ❌ 製作者附「三處突變都會紅」就結案：三處都是把成功判定改壞，沒有任何一處是「拒絕後不該發生的副作用改成會發生」。
+- ❌ verifier 自行判定「拿掉防線後的疊加情境可接受」：那是產品決定，verifier 只列出交派工者確認。

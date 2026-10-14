@@ -133,7 +133,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 1.【需求與 plan 是否落地】
 2.【測試／靜態檢查／實跑證據是否足夠】
 3.【是否有規則衝突、行為回歸、路徑錯誤或缺漏的測試】
-限制：遇到一般文件或一般驗收，停止並回報「升級 verifier/Terra high」；遇到安全、不可逆、重大架構／安全判斷或正式高風險驗收，停止並回報「升級 sol_verifier/Sol high」；不得自行修正。
+限制：遇到一般文件或一般驗收，停止並回報「升級 verifier/Terra high」；遇到安全、不可逆、重大架構／安全判斷或正式高風險驗收，停止並回報「升級 sol_verifier/Sol high」（「不可逆」依 `<REPO>/rules/20-judgment.md` §2 判準第 3 點 的 canonical 定義，一般側操作照 `<REPO>/rubrics/code-change.md` §7 審完、不升級）；不得自行修正。
 回報格式：依 `<REPO>/codex/rules/10-dispatch-codex.md` §4，逐條判定並附證據位置與最大未解風險。
 ```
 
@@ -209,10 +209,10 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 驗收條件（逐條判 PASS/FAIL/UNSURE）：
 1.【需求、approved plan 與高風險邊界是否落地】
 2.【invariants、failure modes、rollback strategy 與驗證證據是否完整】
-3.【是否存在安全漏洞、不可逆副作用、重大架構假設，或會讓讀者採取錯誤高風險行動的語意缺陷】
+3.【是否存在安全漏洞、不可逆的高風險決策、重大架構假設，或會讓讀者採取錯誤高風險行動的語意缺陷】
 限制：唯一可寫的是 repo 外的探針目錄（父任務指定；未指定時在 `$TMPDIR` 下新建）；禁止修改受驗產物或任何 repo 內檔案、branch、stash、commit、push、發訊息、寄信、merge、發佈或其他對外動作。執行測試／build 產生且 git 未追蹤或被 ignore 的可再生副產物（如 `__pycache__`、`bin/`／`obj/`、build 輸出）不算違反本條；不得 `git add`、`git clean` 或刪改它們。tracked 檔（含 lockfile、snapshot）被改動不在此例外。若證據不足標 UNSURE，不替製作者腦補；每個 FAIL 附 `檔案:行號` 與一行理由。
 找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/rules/20-judgment.md` §2「停止端」。純措辭、語氣與行文品味不算缺陷。
 回報格式：第一行標 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN` 並附下一步（`PROSE-ONLY`→修完 read-back 結案，不再派 verifier），再列逐條判定、證據與最大風險；分級依 `<REPO>/codex/rules/10-dispatch-codex.md` §4。高風險 delta 必須確認原始 finding、修正 diff、受影響原始驗收條件與既有證據都已提供；缺任一項標 `INCONCLUSIVE`。
 ```
 
-一般文件與一般驗收使用 `verifier/Terra high`；只有安全、不可逆、重大架構或正式高風險驗收才使用 `sol_verifier/Sol high`。Sol 實作／規劃升級先從 medium 開始；high 是 exceptional route，xhigh／max 只在 high 仍無法收斂且有證據時由 controller 顯式決定。
+一般文件與一般驗收使用 `verifier/Terra high`；只有安全、不可逆、重大架構或正式高風險驗收才使用 `sol_verifier/Sol high`（「不可逆」依 `<REPO>/rules/20-judgment.md` §2 判準第 3 點 的 canonical 定義）。Sol 實作／規劃升級先從 medium 開始；high 是 exceptional route，xhigh／max 只在 high 仍無法收斂且有證據時由 controller 顯式決定。

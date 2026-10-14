@@ -9,7 +9,7 @@
 **判準**：三個都成立才能說「完成」：
 1. 驗收條件逐條核過（派工時寫的那份）。
 2. 有**指令輸出或 read-back 結果**作為證據，不是「我認為」；回報按鐵律一分級（已驗證／待 CI／未驗證）。
-3. 驗證方式符合產出風險——機械驗證可自跑但要附輸出，主觀品質、高風險產出、以及修使用者實際回報的 bug 要 fresh-context 驗收。誰驗什麼的完整分工見對應平台 dispatch 文件的驗證一節（Claude：`../rules-controller/10-dispatch.md` §5「驗證不自驗」；Codex：`../codex/rules/10-dispatch-codex.md` §6「驗證語意」）。
+3. 驗證方式符合產出風險——機械驗證可自跑但要附輸出，主觀品質、高風險產出、修使用者實際回報的 bug、以及 diff 含外部呼叫、權限請求或不可逆副作用的程式碼要 fresh-context 驗收。**「不可逆副作用」的 canonical 定義**：**一般側**＝程式路徑在正常流程會做、事後可由系統重建或重送的操作（寫後端狀態、清本機進度或快取、覆寫可重算的資料、向作業系統請求 Health／通知等平台權限），走一般驗收；**高風險側**＝決策層級（架構、安全設計、權限模型與存取控制的設計）與無法由系統重建或重送的效果（使用者資料刪除或覆寫、扣款、對外寄送推播或信件），不論是否寫在程式路徑裡。本檔、rules-controller、各 dispatch 文件、agent 合約、派工模板與 skill reference 裡作為高風險門檻的「安全、不可逆、資料遺失」一律指高風險側；同一操作兩側都符合時高風險側優先。**收窄**：使用者當次操作對自己單筆資料的寫入（舊值由使用者自己覆蓋）歸一般側，即使舊值無法由系統重建；刪除、批次寫入、他人資料不在此例外內，照上面兩側判。只含一般側的 feature 不因此升高風險層，其 FAIL 修正後的結案仍依下方「修正與驗收輪次」。誰驗什麼的完整分工見對應平台 dispatch 文件的驗證一節（Claude：`../rules-controller/10-dispatch.md` §5「驗證不自驗」；Codex：`../codex/rules/10-dispatch-codex.md` §6「驗證語意」）。
 
 **補充判準（重構／字串抽取／搬移／更正事實宣稱類任務）**：宣稱完成前，全 repo 搜尋舊引用／字串／路徑無殘留，附指令與結果。搜尋必須含隱藏目錄，否則漏 `.claude/`／`.agents/`／`.gemini/` 殘留、誤判乾淨：Bash 的 `rg` 一律加 `--hidden`（何時已是預設、Grep 工具差異見 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」）。改動範圍常小於實際散佈——entrypoint（如 main.tsx）、設定檔、腳本、**`.github/workflows`／`.github/actions`** 最易漏；release／deploy-only 的 CI 路徑 PR 不會跑，**PR 全綠不代表沒炸**。排除清單只能排內容型目標，設定型（會被執行）不可排除（細節見 `<REPO>/docs/debug-environment-first.md`）。
 
@@ -20,7 +20,7 @@ Dockerfile 的 `RUN`、YAML 裡的 jq 或 SQL——**上層格式 parse 通過�
 那層自己的檢查；跑不了的就明說那一層未驗，不要含混帶過。**哪個語言跑什麼檢查、哪些跑不了，
 canonical 在 `<REPO>/docs/debug-environment-first.md`**，新增的語言寫進那份、不要兩邊各記一份。
 
-**補充判準（修正與驗收輪次）**：首次驗收依既有分工，不另派小型機械工作。驗收後修正：低風險且有確定性檢查能證明 finding 已修、無相關迴歸時，controller 可自行檢查並以「finding→修正→證據」結案；安全、授權、不可逆、重大架構或缺乏可靠機械證據時仍須 fresh-context delta 驗收。文件待實作與證據穩定後集中更新，不逐輪加未驗宣稱；**驗收輪次按產物切開**——可執行宣稱（測試、斷言）在實作當下寫並驗，散文最後一次寫完才驗；同一交付批次中證據已穩定、無個別交付依賴的散文可合併成一次驗收，不得為合批延後已可交付的 issue／PR 或阻塞後續工作，行為承載文件不因此降成散文；平行批次的切片依 `<REPO>/skills/parallel-dispatch/SKILL.md` §5「VALIDATION：切片驗收」各自驗收、收斂即整合，不受此限。
+**補充判準（修正與驗收輪次）**：首次驗收依既有分工，不另派小型機械工作。驗收後修正：低風險且有確定性檢查能證明 finding 已修、無相關迴歸時，controller 可自行檢查並以「finding→修正→證據」結案；安全、權限模型與存取控制的設計、不可逆、重大架構或缺乏可靠機械證據時仍須 fresh-context delta 驗收。文件待實作與證據穩定後集中更新，不逐輪加未驗宣稱；**驗收輪次按產物切開**——可執行宣稱（測試、斷言）在實作當下寫並驗，散文最後一次寫完才驗；同一交付批次中證據已穩定、無個別交付依賴的散文可合併成一次驗收，不得為合批延後已可交付的 issue／PR 或阻塞後續工作，行為承載文件不因此降成散文；平行批次的切片依 `<REPO>/skills/parallel-dispatch/SKILL.md` §5「VALIDATION：切片驗收」各自驗收、收斂即整合，不受此限。
 
 delta 派工須帶原 finding、修正 diff、受影響的原始驗收條件與既有證據；evidence set 範圍、歸因與收斂判定的 canonical 在 `~/.claude/agents/verifier.md` 規則 4（Codex：`../codex/agents/verifier.toml`）。首輪 brief 指定 repo 外的探針落檔路徑，delta brief 附該路徑；除「改既有檢查」的放寬探測外，delta brief 不另指定新探測形狀或開放式找漏洞。修正者（含 controller 自修）對文件新寫或改寫的句子逐句對照權威來源，對新增或修改的測試斷言與守門檢查附實跑會變紅的突變紅／綠輸出（Claude 細節見 `~/.claude/agents/worker.md` 規則 2），兩者證據帶進 delta brief。
 
