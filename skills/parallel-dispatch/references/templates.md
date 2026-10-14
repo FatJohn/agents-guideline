@@ -57,6 +57,7 @@ Dependencies:
 Execution environment（由 adapter 填）:
 - 落地位置: <絕對路徑；隔離時為 worktree>
 - 你是此位置唯一寫入者
+- 需要決策時: 不屬 worker 合約要停下來退回的情形（例如 plan 不完整；抓錯問題核心、遺漏跨檔關係、無法維持必要脈絡這類要換 fresh context 的訊號）就不停：把問題寫進回報的 Issues 欄，繼續做不被該答案擋住的部分；不用互動式選單或等鍵盤回答的工具停住等
 - 可否 commit / rebase: <依 worker 合約：適用隔離例外時原樣貼上該合約的宣告句（Claude 為「本任務在隔離 worktree（isolation: worktree 或 controller 自建 worktree）」），否則寫「禁止」；adapter 只填事實，不做授權判斷>
 - 禁止: 開 PR、開 issue、merge、tracker、刪除非自建檔案；push 見下一行
 - push 授權（Claude 限定；Codex worker 一律禁止 push）: <controller 已取得使用者對該 push 的授權時，明寫授權對象與範圍；空白＝禁止 push>
