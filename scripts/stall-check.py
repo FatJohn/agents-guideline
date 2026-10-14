@@ -13,8 +13,9 @@ session jsonl 算最後一筆訊息距今多久，以及有沒有送出工具呼
   working  有送出工具呼叫但還沒收到 tool_result；outstanding 顯示工具名
   quiet    turn 或 working 的靜默超過 --quiet-min（預設 5 分；subagent cache 也是 5 分）
   no-log   找不到對應的 session jsonl（剛啟動、或 cwd 與 projects 目錄對不上）
-process 配哪個 jsonl：先用 harness 寫的 `~/.claude/sessions/<pid>.json` 的 sessionId（若同目錄有在該檔
-最後一筆之後才開始的檔，視為 `/clear` 開出的新檔改配它——json 會不會隨 /clear 更新未驗證）；
+process 配哪個 jsonl：先用 harness 寫的 `~/.claude/sessions/<pid>.json` 的 sessionId（2026-10-15 以 pty 開
+session 送 `/clear` 實測：json 的 sessionId 會換成新檔；若同目錄仍有在該檔最後一筆之後才開始的檔，
+當作 json 過期、改配那個新檔）；
 沒有 json 就取第一筆訊息不早於 process 啟動（`ps lstart`）−2 分、且最近有動靜的候選檔；再沒有就退回
 該目錄 mtime 最新的未取走檔。`harness` 欄是 sessions json 的 status 與其更新時間，獨立於 jsonl 判定。
 下列 user 訊息不算「輪到模型」而算收尾：local command（`<command-name>`／`<local-command-stdout>`）、
@@ -182,8 +183,8 @@ def pair_logs(procs, pdir):
         if sid:
             f = pdir / f"{sid}.jsonl"
             if f in logs and f not in claimed:
-                # sessions json 在 /clear 之後會不會換 sessionId 未驗證：若有別的檔在 f 最後一筆之後才開始，
-                # 那是 /clear 開出的新檔（動靜必然比 f 新），改配其中最近有動靜的
+                # /clear 後 json 會換 sessionId（2026-10-15 實測）；這段是 json 過期時的備援：若有別的檔在
+                # f 最後一筆之後才開始，那是後來開出的新檔（動靜必然比 f 新），改配其中最近有動靜的
                 f_last = scan(f)[0] or firsts[f]
                 successors = [g for g in logs if g not in claimed and g != f and firsts[g] and f_last and firsts[g] >= f_last]
                 if successors:
