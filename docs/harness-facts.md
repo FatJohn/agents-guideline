@@ -65,7 +65,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 
 ## 常駐內容對 subagent 的可見性、`paths` frontmatter、hook 注入（2026-09-20 實測）
 
-> 實測環境：Claude Code 2.1.278、Windows `FatJohn-PC`，在 scratchpad 臨時專案跑 `claude -p --output-format json`，用帶編號的哨兵字串問模型「context 裡有沒有」。用途：拆 `rules/05-hosts.md` 成 `hosts/<key>.md` 的依據（`skills/maintain-guideline/SKILL.md` §5「單機專屬事實不進 rules/」）。Mac 端只補測了匯入與 token 校準（見下方「Mac 補測」），其餘未在 Mac 實測。
+> 實測環境：Claude Code 2.1.278、Windows `FatJohn-PC`，在 scratchpad 臨時專案跑 `claude -p --output-format json`，用帶編號的哨兵字串問模型「context 裡有沒有」。用途：拆 `rules/05-hosts.md` 成 `hosts/<key>.md` 的依據（`skills/maintain-guideline/SKILL.md` §5「單機專屬事實不進 rules/」）。Mac 端只補測了匯入與 token 校準（見下方「Mac 補測」），2026-10-17 另補測主表 `general-purpose` 與 `Explore` 兩欄（見下方「Mac 補測可見性」），其餘未在 Mac 實測。
 
 | 內容 | 主對話 | `general-purpose`／`worker`（`~/.claude/agents/` 自訂 agent） | `Explore`／`Plan` |
 |---|---|---|---|
@@ -83,7 +83,8 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 - **Mac 補測（2026-09-20，`xushengzhedeMacBook-Pro.local`，`claude -p --model sonnet --output-format json`，scratchpad 空目錄背靠背）**：`@~/.claude/host-facts.md` 匯入在 Mac 成立——symlink 建立前問「有沒有『# 本機事實：』標題」回「無」、建立後引出標題；prompt 56,284 → 56,894，`hosts/macos.md` 1,185 bytes＝610 tokens（**1.94 bytes/token**）。拆分那個 commit 合進來時 Mac 端沒有裝 `host-facts.md`，當天 14:17 之後的 Mac session 都沒有本機事實，是事後 review 才發現的——**改安裝清單的 commit，另一台機器要等人去裝才生效**。
 - 同日常駐 bytes 帳（`CLAUDE.md`＋`rules/00`＋`rules/05`＋host-facts；`git show <rev>:<file> | wc -c`）：當天第一個 commit 之前 11,631 → 拆分前 13,982（同日 `1673f4d` 把 05-hosts 從 2,615 加到 4,317）→ 拆分後 Mac 12,324／Windows 13,389 → 同日再精簡 CLAUDE.md（刪掉與 `hosts/windows.md` 重複的 Windows 專屬 ⚠️ 段、縮檔頭與段標題，4,792 → 3,959）後 Mac 11,491／Windows 12,599 → 第二輪（CLAUDE.md 常駐檔索引列併成一句、只留「用到才讀」表，3,959 → 3,104；`hosts/macos.md` 1,185 → 1,106）後 Mac 10,557／Windows 11,744。**上面「省 303／≈870 tokens」是對拆分前那個當天才長大的基準算的**；對當天開頭算，Mac −1,074 bytes、Windows +113 bytes（Windows 多的是新增的 448／複本安裝事實）。
 - `claude -p --allowed-tools "" '<prompt>'` 會把 prompt 吃進 `--allowed-tools`（可變長參數）而報 `Input must be provided`；prompt 用 stdin（`echo … | claude -p …`）或 `<<<`，或把 `--allowed-tools ""` 放在 prompt 之後。
-- 附帶：`rules-controller/10-dispatch.md` §2「subagent 也會讀到全域 rules」只對 general-purpose／worker 成立，Explore／Plan 不成立——登記為候選（`FatJohn/agents-guideline` issue #3），未動判準。
+- 附帶：`rules-controller/10-dispatch.md` §2「subagent 也會讀到全域 rules」只對 general-purpose／worker 成立，Explore／Plan 不成立——2026-10-17 已改 §2 該句只指 general-purpose／worker（issue #3）。
+- **Mac 補測可見性（2026-10-17，`xushengzhedeMacBook-Pro.local`，scratchpad 空目錄 `claude -p --model sonnet`，主對話派 `Explore` 與 `general-purpose` 各問一次、不准用工具）**：問「有沒有標題含『三條鐵律』的段落」「有沒有以『# 20 — 判斷準則』開頭的內容」「有沒有以『# 本機事實：』開頭的內容」，general-purpose 三題皆「有」且引出 `## 三條鐵律（隨時生效）`，Explore 三題皆「沒有」。上表第一列（全域與專案 `CLAUDE.md`／rules）與 `@import` 那列的 Explore 欄在 Mac 成立；hook 注入各列未在 Mac 重測。
 
 ## controller 專用規則分流（2026-10-12 實測，Mac `xushengzhedeMacBook-Pro.local`，Claude Code 2.1.296）
 
@@ -93,6 +94,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 - 近 7 天（2026-10-05～10-12）本機：subagent transcript 984 個，876 個帶全套注入，累計 assistant turn 63,930；Agent 工具派工計數（主對話 jsonl grep `subagent_type`，可能含重複）verifier 646、worker 622、general-purpose 312、Explore 114、Plan 104、codex-rescue 98、worker-opus 78。
 - 採用方案：`rules-controller/` 由 SessionStart hook（無 matcher）以 stdout 注入主對話；subagent 的原生繼承不動。官方文件（hooks.md「SessionStart」、hooks-guide.md「Re-inject context after compaction」）寫 compaction 後會重跑 `compact` 來源的 SessionStart hook 並把輸出加進 compacted context，較早注入的內容只會被摘要——**本機 compaction 後重注入尚未實測**。Codex 側沒有對應機制，`codex/rules/` 不分流，刻意分版。
 - hook 登記後實測（同日，settings.json 追加 `bash "$HOME/.claude/hooks/controller-context.sh"`，scratchpad 專案 `claude -p --model sonnet`）：主對話 transcript 以 `attachment`（`hook_success`）收到以 `# Contents of /Users/fatjohn/.claude/rules-controller/10-dispatch.md` 開頭的注入，模型能逐字引出該行與其後 `# 10 — 模型調度守則`；派出的自訂 agent transcript 對該標頭 0 命中、對全域 CLAUDE.md 注入 1 命中（原生繼承未受影響）；自訂 agent 首個 request `cache_creation_input_tokens` 由搬移前 19,790 降到 11,402。fresh verifier 獨立重建 probe 專案得到相同結果。
+- **上線後現場量測（2026-10-16，`skills/usage-review` 對本機 jsonl，subagent 首個 request 的 ctx 中位數）**：worker 10-12 33,588 → 10-13 26,299、verifier 34,549 → 25,338、general-purpose 49,304 → 41,081，同一專案（member-auth-workspace）worker＋verifier 34,229 → 24,523；不繼承 rules 的 Explore 同期 14,425 → 15,173 沒動，排除其他來源。10-10 另有一個全類型都降約 5K 的台階（Explore 20,674 → 16,823），那是當日 plugin 整理，不是分流。以 9,000 tokens／request 乘上分流後 4 天 460 個繼承 rules 的 subagent 共 15,896 個 request 的 5m cache write／read 價格估算，約 $10.5／天（$73／週，API 表價等價）。
 
 ## 常用 subagent 類型（`subagent_type`）
 
@@ -107,9 +109,23 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
 - Explore／Plan 的角色系統指示禁止建立或寫入任何檔案（含 `/tmp`、scratchpad、heredoc 重導向）：2026-10-12 以 Explore（haiku）探針要求用 heredoc 寫 scratchpad 一個檔，agent 回「系統指示明確禁止…未執行」，沒有嘗試繞過；Plan 的角色指示在 claude 2.1.296 binary 的 strings 可見同款條文（READ-ONLY planning task、禁止建 /tmp 檔、禁止 `>`／`>>`／heredoc）。要落檔派 general-purpose；Explore／Plan 的回報長度只能靠 brief 的回報欄位控（`../rules-controller/10-dispatch.md` §3）。
+- Explore／Plan 沒有 Agent 工具（2026-10-17，Claude Code 2.1.301）：harness 注入主對話的 agent 類型清單把兩者的工具寫成「All tools except Agent, Artifact, …, Edit, Write, NotebookEdit」，所以它們無法再派 subagent；同版 binary 的 strings 也可見兩者的 `disallowedTools` 含 `Agent`（minify 過，只當旁證）。
 
 ## 固定注入：plugin／MCP／skill 清單
 
 > 2026-10-03 從 `rules/00-environment.md` §3 搬入。理由：§3 常駐區只留動作句與標題；症狀說明與「為什麼不列舉」屬理由。以下原文未改寫。
 
 **症狀**：plugin 與 MCP server 每 session 注入工具清單、skill 描述與絕對化指令；skill 清單本身就是固定成本，跟用不用得到無關。（當下啟用了哪些 plugin 一律現查 `~/.claude/settings.json` 的 `enabledPlugins`，此處刻意不列舉——列了就會過時，而過時的清單比沒有清單更糟。）
+
+**實測常駐量（2026-10-16，Mac `xushengzhedeMacBook-Pro.local`；原始輸出在當次 session 的 scratchpad，未入 repo）**：量法是比首個 request 的 `cache_creation_input_tokens`＋`cache_read_input_tokens`，用 `claude -p --settings '{"enabledPlugins":{…:false}}'` 切換變因，跑前 `env -u` 清掉 `CLAUDE*` 環境變數。
+
+| 情境 | 首個 request tokens |
+|---|---|
+| scratchpad 空目錄 `claude -p --model sonnet` | 34,185 |
+| 同上，全部 plugin 關閉 | 30,380 |
+| 同日互動 session | 62,396 |
+
+- plugin（skill 描述＋hook 注入）合計約 3.8K；單一 plugin 落在 ±1K 雜訊內，remember plugin 的 hook 內容每次不同。
+- 互動 session 比 `-p` 多約 28K，來源是 claude.ai connector 的 MCP 工具定義、互動專用工具與 auto memory 索引；這 28K 未再逐類拆開。
+- rules 那一層看本檔「controller 專用規則分流」：自訂 agent 首個 request 在 `omitClaudeMd` 下 1,242、全套繼承 19,790、分流後 11,402，差額是 `omitClaudeMd` 會丟掉的全部內容：全域 `CLAUDE.md`＋`rules/`＋匯入＋harness 語言設定段，加上該 probe 專案自帶的專案 `CLAUDE.md` 與 `.claude/rules/`。所以它高於全域 rules 層的實際成本，不能整個當成「拆 rules 能省多少」的基準。
+- 同期 30 天 MCP 呼叫數：ClickUp 7,852、Claude Docs 4,784、context7 139，都不是停用候選。檔案 bytes 下降不等於上表數字下降，精簡提案要用同一量法前後比。
