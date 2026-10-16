@@ -14,7 +14,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 
 | 檔案 | 性質 | 可以自行改嗎 |
 |------|------|-------------|
-| `rules/00-environment.md` | 跨機器事實與風險 | ✅ 更新過時事實（附當場驗證與查證日期）；「三大結構性風險」框架不可移除 |
+| `rules/00-environment.md` | 跨機器事實與風險 | ✅ 更新過時事實（附當場驗證與查證日期）；「結構性風險與修法」段（主對話下場做粗活）不可移除 |
 | `rules/05-hosts.md` | 跨機器規則＋`<REPO>` 對照表＋缺檔哨兵 | ✅ 新機器對照行可自行加；哨兵句不可刪（`@import` 缺檔靜默略過，哨兵是唯一偵測） |
 | `hosts/<key>.md` | 單機事實（每台只裝自己那份） | ✅ 新機器可自行建檔；過時事實可更新（附探測日）；標題必須以「# 本機事實：」開頭並含 hostname |
 | `rules-controller/10-dispatch.md`／`rules-controller/20-judgment-controller.md`／`rules/20-judgment.md`／`codex/rules/10-dispatch-codex.md`／`codex/rules/30-delegation-templates-codex.md` | 系統核心 | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |

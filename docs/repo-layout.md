@@ -7,7 +7,7 @@
 | 檔案 | 用途 |
 |------|------|
 | `CLAUDE.md` | 路由表＋三鐵律＋優先權排序（裝在 `~/.claude/`） |
-| `rules/00-environment.md` | 跨機器事實、三大結構性風險與修法 |
+| `rules/00-environment.md` | 跨機器事實、結構性風險（主對話下場做粗活）與修法 |
 | `hosts/<key>.md` | 單機事實（身分、repo 位置、驗證能力、陷阱）；經全域 `CLAUDE.md` 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**；新機器由 AI 照 `docs/new-host.md`「新機器建檔」建檔 |
 | `rules/05-hosts.md` | 跨機器規則、`<REPO>` 對照表、缺檔哨兵（context 裡沒有「# 本機事實」段時怎麼辦） |
 | `rules-controller/10-dispatch.md` | Claude Code 調度：何時派 subagent、派工合約、回報合約、升降級路徑、驗證分工與 rubric 對應 |

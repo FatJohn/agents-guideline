@@ -40,7 +40,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 
 ## 主對話 context 大小怎麼量、cache 何時過期（2026-10-01 實測）
 
-> 窗口 C（2026-09-29 22:51～10-01 09:07）主對話 Opus 5.5 的 session jsonl 量測：1,262 request、$354.64（API 等價）。用途：`../rules/00-environment.md` §1「修法」的 cache 重讀數據（2026-10-03 起 compact 時機改由使用者看 statusline 決定），與 `../rules-controller/10-dispatch.md` §3「Subagent 回報」的回報長度理由。
+> 窗口 C（2026-09-29 22:51～10-01 09:07）主對話 Opus 5.5 的 session jsonl 量測：1,262 request、$354.64（API 等價）。用途：`../rules/00-environment.md`「主對話下場做粗活」修法的 cache 重讀數據（2026-10-03 起 compact 時機改由使用者看 statusline 決定），與 `../rules-controller/10-dispatch.md` §3「Subagent 回報」的回報長度理由。
 
 - **量主對話自己的 context**（2026-10-01 實測可跑，回 175154）：session-id 取 system prompt 裡 scratchpad 路徑倒數第二段的 UUID（末段是 `scratchpad`），再跑下列指令；三項相加與本檔前段 `subagent_tokens` 那條同一算法，取最後一筆 assistant usage。macOS 沒有 `tac`，用 `tail -r`。
 
@@ -116,6 +116,8 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 > 2026-10-03 從 `rules/00-environment.md` §3 搬入。理由：§3 常駐區只留動作句與標題；症狀說明與「為什麼不列舉」屬理由。以下原文未改寫。
 
 **症狀**：plugin 與 MCP server 每 session 注入工具清單、skill 描述與絕對化指令；skill 清單本身就是固定成本，跟用不用得到無關。（當下啟用了哪些 plugin 一律現查 `~/.claude/settings.json` 的 `enabledPlugins`，此處刻意不列舉——列了就會過時，而過時的清單比沒有清單更糟。）
+
+2026-10-17 從 `rules/00-environment.md` 原風險 3「固定注入肥大」搬入（原文未改寫；「抓住優先權排序」那句與全域 CLAUDE.md「優先權排序」段重複，未搬）：deferred MCP 工具只注入名稱——與任務無關的 schema 不要主動 ToolSearch。
 
 **實測常駐量（2026-10-16，Mac `xushengzhedeMacBook-Pro.local`；原始輸出在當次 session 的 scratchpad，未入 repo）**：量法是比首個 request 的 `cache_creation_input_tokens`＋`cache_read_input_tokens`，用 `claude -p --settings '{"enabledPlugins":{…:false}}'` 切換變因，跑前 `env -u` 清掉 `CLAUDE*` 環境變數。
 

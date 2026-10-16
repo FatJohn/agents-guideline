@@ -5,8 +5,8 @@
 
 ## 使用者背景（最低必要認知）
 
-- 使用者：FatJohn（JohnShu），繁體中文台灣用語溝通。任職 TVBS（GitHub org：`tvbstw`），公司與個人專案並行。
-- 專案清單一律現查：`gh repo list`（個人）、`gh search repos --owner tvbstw`（公司），本檔不列舉。
+- 使用者：FatJohn（JohnShu），公司與個人專案並行。個人 repo 在 GitHub `FatJohn` 底下；remote owner 是公司 org 的專案，其 CLAUDE.md／AGENTS.md 可能是團隊共用。
+- 專案清單一律現查，本檔不列舉：個人 `gh repo list FatJohn`；公司 repo 先從當前公司專案的 `git -C <path> remote get-url origin` 取 owner，再 `gh search repos --owner <owner>`。
 - 技術背景：C#／.NET／WPF／UWP 熟、C++ 部分會；Flutter、TypeScript 可；JavaScript／Vue 一般、React 初學。**後端與雲端架構不熟**——個人專案部署以 Zeabur 為主；財經專案另碰過 CloudFront＋自有 domain、R2 storage。涉及雲端架構的建議要多給脈絡、少假設既有知識。
 
 ## LLM 資源（先分流）
@@ -16,25 +16,15 @@
 - **Claude Code** → 只讀 `../rules-controller/10-dispatch.md` §0「可用模型與 subagent」；平行寫入另讀 `../skills/parallel-dispatch/references/claude-code.md`。
 - **Codex** → 只讀 `../codex/rules/10-dispatch-codex.md` §0–1「角色與 runtime adapter／雙軸派工判斷」；平行寫入另讀 `../skills/parallel-dispatch/references/codex.md`。
 
-## 三大結構性風險與修法（按嚴重度）
+## 結構性風險與修法
 
-### 1. 主對話下場做粗活 → context 塞爆 → compaction 失憶
+### 主對話下場做粗活 → context 塞爆 → compaction 失憶
 
 **症狀**：大量讀檔、掃 repo、抓網頁、批次改檔在主對話進行，context 膨脹；compaction 觸發後早期決定遺失，開始重做已完成的工作或偏離原目標。
 
 **修法**：
 - 判斷基準（context 成本 × 任務獨立性）的 canonical 在 dispatch 文件：Claude `../rules-controller/10-dispatch.md` §1「雙軸判斷：context 成本 × 任務耦合」；Codex `../codex/rules/10-dispatch-codex.md` §1「雙軸派工判斷」。
 - 何時 compact 由使用者看 statusline 的 context 用量決定，controller 不量測、不主動提醒。controller 不能自己 compact（`/compact` 只有使用者能打）；使用者說要 compact、要離開 >1h（prompt cache 1h 過期，回來整段重寫），或要「新 prompt」時，給一段可直接貼在 `/compact` 後面的保留指示：目標、授權、未完成項目、**在途 subagent（名稱、任務、worktree／分支）**、產物證據位置。有在途 subagent 時先告知，建議等回報後再 compact；等不了就把在途清單寫進保留指示。量測依據見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」。
-
-### 2. 假完成：宣稱通過但沒有實際執行
-
-見鐵律一（回報分級）、`20-judgment.md` §2「何時算真的完成」；誰驗什麼見 Claude `../rules-controller/10-dispatch.md` §5「驗證不自驗」或 Codex `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。
-
-### 3. 固定注入肥大：每個 session 開場漏掉數千 token
-
-**修法**：
-- 抓住優先權排序（見全域 CLAUDE.md），不被注入音量牽著走。
-- deferred MCP 工具只注入名稱——與任務無關的 schema 不要主動 ToolSearch。
 
 ## 非常駐內容索引（用到才讀）
 
