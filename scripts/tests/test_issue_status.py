@@ -284,6 +284,43 @@ class IssueStatusTests(unittest.TestCase):
         self.assertNotIn(".", rows)
         self.assertNotIn("", rows)
 
+    def add_wt_at(self, path, branch):
+        git(self.repo, "worktree", "add", "-q", "-b", branch, str(path))
+        return path
+
+    def test_nested_slice_worktrees_are_skipped_by_default_with_a_count_line(self):
+        a = self.add_wt("a")
+        s1 = self.add_wt_at(a / ".worktrees" / "slice1", "feat/a-s1")
+        self.add_wt_at(s1 / ".worktrees" / "slice2", "feat/a-s2")  # 巢狀再巢狀也算
+        write_result(a)
+        self.assertEqual(list(self.rows(gh=[])), [self._rel("a")])
+        rc, out, _ = self.run_main(gh=[])
+        lines = out.splitlines()
+        self.assertEqual(len(lines), 2)
+        self.assertTrue(lines[0].startswith(self._rel("a")))
+        self.assertEqual(lines[-1], "略過 2 個巢狀切片 worktree（--include-nested 顯示）")
+        # --json 不加這行，仍是可 parse 的純 JSON
+        rc, out, _ = self.run_main("--json", gh=[])
+        self.assertEqual(len(json.loads(out)), 1)
+        self.assertNotIn("略過", out)
+
+    def test_include_nested_lists_slices_and_prints_no_skip_line(self):
+        a = self.add_wt("a")
+        self.add_wt_at(a / ".worktrees" / "slice1", "feat/a-s1")
+        names = list(self.rows("--include-nested", gh=[]))
+        self.assertEqual(sorted(names), sorted([self._rel("a"), os.path.join(self._rel("a"), ".worktrees", "slice1")]))
+        rc, out, _ = self.run_main("--include-nested", gh=[])
+        self.assertNotIn("略過", out)
+        self.assertEqual(len(out.splitlines()), 2)
+
+    def test_dot_worktrees_child_of_main_worktree_is_not_nested(self):
+        x = self.add_wt_at(self.repo / ".worktrees" / "x", "feat/x")
+        write_result(x)
+        rows = self.rows(gh=[])
+        self.assertEqual(list(rows), [os.path.join(".worktrees", "x")])
+        rc, out, _ = self.run_main(gh=[])
+        self.assertNotIn("略過", out)
+
     def test_worktree_outside_repo_is_named_by_absolute_path(self):
         wt = self.add_wt("a", outside=True)
         rows = self.rows(gh=[])

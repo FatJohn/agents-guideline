@@ -12,7 +12,9 @@ result.md，再拿 git／gh 的事實對照，每個 worktree 輸出一行。它
 任何狀態）。orca 不在或失敗就略過，只少了 linkedIssue 欄。
 
 worktree 列舉用 `git -C <repo> worktree list --porcelain`，涵蓋 Orca 建的 `<repo>/.orca/workspaces/...`
-與 `claude -w` 建的，排除第一筆（main worktree）。
+與 `claude -w` 建的，排除第一筆（main worktree）。預設也略過巢狀切片 worktree：路徑落在另一個 linked
+worktree 的 `.worktrees/` 底下者（issue session 自己開給 worker 的切片，沒有 result.md）；main worktree
+自己的 `<repo>/.worktrees/<x>` 不算巢狀，照列。--include-nested 恢復列出；文字輸出最後一行會寫略過幾個。
 
 狀態規則：
   狀態只來自 result.md 的 Status 欄，合法值：working、blocked、awaiting verification、
@@ -132,6 +134,11 @@ def list_worktrees(repo):
             "branch": ref[len("refs/heads/"):] if ref and ref.startswith("refs/heads/") else None,
         })
     return main, linked
+
+
+def is_nested(path, others):
+    """path 是否落在 others（其他 linked worktree 路徑）之中某一個的 `.worktrees/` 底下。"""
+    return any(o != path and path.startswith(o.rstrip("/") + "/.worktrees/") for o in others)
 
 
 def parse_slug(url):
@@ -350,6 +357,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repo", required=True, help="repo 路徑（main worktree 或任一 linked worktree 皆可）")
     ap.add_argument("--json", action="store_true", help="輸出 JSON 陣列而非每個 worktree 一行")
+    ap.add_argument("--include-nested", action="store_true",
+                    help="也列出巢狀切片 worktree（路徑在另一個 linked worktree 的 .worktrees/ 底下者，預設略過）")
     ap.add_argument("--no-gh", action="store_true",
                     help="跳過 PR 查詢；此時 ready for authorization／merged 一律 unknown「未查 PR」")
     args = ap.parse_args(argv)
@@ -362,15 +371,20 @@ def main(argv=None):
     main_path, linked = listing
     slug = None if args.no_gh else repo_slug(main_path)
     orca = orca_info()
-    rows = [inspect_worktree(wt, main_path, slug, not args.no_gh, orca) for wt in linked]
+    paths = [wt["path"] for wt in linked]
+    shown = linked if args.include_nested else [wt for wt in linked if not is_nested(wt["path"], paths)]
+    skipped = len(linked) - len(shown)
+    rows = [inspect_worktree(wt, main_path, slug, not args.no_gh, orca) for wt in shown]
     if args.json:
         print(json.dumps(rows, ensure_ascii=False, indent=2))
     else:
         text = render_text(rows)
         if text:
             print(text)
-        else:
+        elif not skipped:
             print("issue-status: 沒有 linked worktree", file=sys.stderr)
+        if skipped:
+            print(f"略過 {skipped} 個巢狀切片 worktree（--include-nested 顯示）")
     return 0
 
 
