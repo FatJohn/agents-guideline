@@ -59,7 +59,7 @@ symlink 的好處：session 依規則附加教訓、更新事實時直接改到 
 
 ### SessionStart hook：注入 controller 專用規則（必裝）
 
-`rules-controller/`（`10-dispatch.md` 派工與選 model、`20-judgment-controller.md` 升降級與何時問使用者）只有主對話用得到，但放在 `rules/` 會原封注入每個 worker／verifier／general-purpose subagent。所以它不放在 `~/.claude/rules/`，改由 `hooks/controller-context.sh` 以 SessionStart hook 的 stdout 只注入主對話（subagent 不跑 SessionStart、不繼承），省每個 subagent 的這份固定注入（`rules-controller/` 現有約 21K bytes，依 `docs/harness-facts.md` 實測的約 2 bytes/token 估約 10K tokens）；分流實測見 `docs/harness-facts.md`「controller 專用規則分流」。
+`rules-controller/`（`10-dispatch.md` 派工與選 model、`20-judgment-controller.md` 升降級、驗收後修正分流與三輪回報點、何時問使用者）只有主對話用得到，但放在 `rules/` 會原封注入每個 worker／verifier／general-purpose subagent。所以它不放在 `~/.claude/rules/`，改由 `hooks/controller-context.sh` 以 SessionStart hook 的 stdout 只注入主對話（subagent 不跑 SessionStart、不繼承），省每個 subagent 的這份固定注入（`rules-controller/` 現有約 24K bytes（2026-10-16），依 `docs/harness-facts.md` 實測的約 2 bytes/token 估約 12K tokens）；分流實測見 `docs/harness-facts.md`「controller 專用規則分流」。
 
 - `rules-controller/` 的 symlink 由上方主安裝迴圈建立；`hooks/controller-context.sh` 的 symlink 由下一節「選配」小節的 hook 安裝迴圈一併建立（該迴圈同時處理選配的 `block-ci-edit.sh` 與 `ripgreprc`，只有 `controller-context.sh` 那一行是必裝）。
 - **手動追加**到 `~/.claude/settings.json` 的 `hooks.SessionStart` 陣列（**追加元素，不要取代既有條目**；不設 matcher，官方文件寫 startup／resume／clear／compact 來源都會重跑；compaction 後重注入本機尚未實測，見 `docs/harness-facts.md`「controller 專用規則分流」）：

@@ -13,7 +13,7 @@
 
 ## 工作系統
 
-`~/.claude/rules/*.md`（無 `paths` frontmatter）每 session 全文常駐、與本檔同級，不必再讀：`00-environment`（環境風險、非常駐內容索引）、`05-hosts`（`<REPO>` 對照、缺本機事實時怎麼辦）、`20-judgment`（完成、驗收狀態分流、commit message、文件與註解取捨）、`50-lessons`（活躍教訓；踩坑後在此加一行）。`~/.claude/rules-controller/*.md`（`10-dispatch` 派工與選 model、`20-judgment-controller` 升降級與何時問使用者）由 SessionStart hook 只注入主對話，subagent 不繼承；**context 裡應有一行以 `# Contents of ` 開頭且含 `rules-controller/10-dispatch.md` 的注入，沒有＝hook 未登記，照 `docs/install.md`「SessionStart hook」登記**。**只有每個 session 都需要的內容才放 `rules/`**；用到才讀的放 `skills/`、`rubrics/`、`docs/`（不自動載入）：
+`~/.claude/rules/*.md`（無 `paths` frontmatter）每 session 全文常駐、與本檔同級，不必再讀：`00-environment`（環境風險、非常駐內容索引）、`05-hosts`（`<REPO>` 對照、缺本機事實時怎麼辦）、`20-judgment`（完成、驗收狀態分流、commit message、文件與註解取捨）、`50-lessons`（活躍教訓；踩坑後在此加一行）。`~/.claude/rules-controller/*.md`（`10-dispatch` 派工與選 model、`20-judgment-controller` 升降級、驗收後修正分流與三輪回報點、何時問使用者）由 SessionStart hook 只注入主對話，subagent 不繼承；**context 裡應有一行以 `# Contents of ` 開頭且含 `rules-controller/10-dispatch.md` 的注入，沒有＝hook 未登記，照 `docs/install.md`「SessionStart hook」登記**。**只有每個 session 都需要的內容才放 `rules/`**；用到才讀的放 `skills/`、`rubrics/`、`docs/`（不自動載入）：
 
 | 情境 | 用到才讀 |
 |------|--------|

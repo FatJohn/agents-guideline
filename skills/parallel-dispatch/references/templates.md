@@ -94,7 +94,7 @@ Location: <落地位置絕對路徑、branch、HEAD>
 
 ## Verifier brief（SKILL §5；controller → verifier，首輪與 delta 共用）
 
-語意的 canonical 在 verifier 合約（Claude：`<REPO>/agents/verifier.md` 規則 4；Codex：`<REPO>/codex/agents/verifier.toml`）與 `<REPO>/rules/20-judgment.md` §2「修正與驗收輪次」；本模板只列必帶欄位，不重述職責，缺欄時 verifier 怎麼處理以合約為準。delta 輪漏附探針目錄時，合約要 verifier 依描述重建探針，那段重建就是本模板要省掉的重複工作。
+語意的 canonical 在 verifier 合約（Claude：`<REPO>/agents/verifier.md` 規則 4；Codex：`<REPO>/codex/agents/verifier.toml`）、`<REPO>/rules/20-judgment.md` §2「修正與驗收輪次」（停止端、狀態語意、修正者要求）與 `<REPO>/rules-controller/20-judgment-controller.md` §2「修正與驗收輪次（controller 端）」（delta brief 必帶項與三輪回報點）；本模板只列必帶欄位，不重述職責，缺欄時 verifier 怎麼處理以合約為準。delta 輪漏附探針目錄時，合約要 verifier 依描述重建探針，那段重建就是本模板要省掉的重複工作。
 
 ```text
 輪次: 首輪 | delta 第 <n> 輪（同一產出累計；換 model／role 不重設）

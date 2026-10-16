@@ -1,6 +1,6 @@
 # 20-controller — 判斷準則（controller 專用節）
 
-> 搬自 `rules/20-judgment.md` §1、§3（2026-10-12），原編號保留；由 SessionStart hook 只注入主對話，subagent 不繼承。正反例仍在 `../docs/judgment-rationale.md` 對應標題下。
+> 搬自 `rules/20-judgment.md` §1、§3（2026-10-12）與 §2 補充判準（修正與驗收輪次）的 controller 端（2026-10-16），原編號保留；由 SessionStart hook 只注入主對話，subagent 不繼承。正反例仍在 `../docs/judgment-rationale.md` 對應標題下。
 
 ## 1. 何時該升級能力層
 
@@ -16,6 +16,18 @@
 - 任務需要高影響的架構、安全或不可逆取捨（canonical 高風險側，同上），不只是照明確步驟執行。
 
 註：execution mistake（syntax、漏改、指令拼錯）正確修法明確時可同層補正一次；缺證據先補證據，不靠升級模型猜。**換路的質性訊號**（修法越疊越多層 workaround、同一錯誤訊息在兩種不同修法後原樣出現、新 FAIL 與前一輪同根因只是換層或換形出現、diff 越改越大但驗收達成數不增、想先關掉檢查「之後再回來」）任一成立就換路，不等門檻次數滿；錯誤根因每次不同且在收斂的不算——看根因，不看訊息字面。每輪「照 plan 做了嗎」都 PASS 卻持續冒同根因的新症狀＝plan 缺陷，走重新定義問題，不換更強的執行者模型。具體選項見 Claude：`10-dispatch.md` §4；Codex：`../codex/rules/10-dispatch-codex.md` §5「升降級路徑」。
+
+## 2. 修正與驗收輪次（controller 端）
+
+> 2026-10-16 搬自 `../rules/20-judgment.md` §2 補充判準（修正與驗收輪次），原句未改寫；verifier 與修正者要用的「停止端」、四種狀態語意與修正者要求留在原處，本節只放 controller 的分流與派工決策。正反例在 `../docs/judgment-rationale.md`「§2 補充判準（修正與驗收輪次）」。
+
+首次驗收依既有分工，不另派小型機械工作。驗收後修正：低風險且有確定性檢查能證明 finding 已修、無相關迴歸時，controller 可自行檢查並以「finding→修正→證據」結案；安全、權限模型與存取控制的設計、不可逆、重大架構或缺乏可靠機械證據時仍須 fresh-context delta 驗收。文件待實作與證據穩定後集中更新，不逐輪加未驗宣稱；**驗收輪次按產物切開**——可執行宣稱（測試、斷言）在實作當下寫並驗，散文最後一次寫完才驗；同一交付批次中證據已穩定、無個別交付依賴的散文可合併成一次驗收，不得為合批延後已可交付的 issue／PR 或阻塞後續工作，行為承載文件不因此降成散文；平行批次的切片依 `<REPO>/skills/parallel-dispatch/SKILL.md` §5「VALIDATION：切片驗收」各自驗收、收斂即整合，不受此限。
+
+delta 派工須帶原 finding、修正 diff、受影響的原始驗收條件與既有證據；evidence set 範圍、歸因與收斂判定的 canonical 在 `~/.claude/agents/verifier.md` 規則 4（Codex：`../codex/agents/verifier.toml`）。首輪 brief 指定 repo 外的探針落檔路徑，delta brief 附該路徑；除「改既有檢查」的放寬探測外，delta brief 不另指定新探測形狀或開放式找漏洞。
+
+同一產出第 3 次 fresh 驗收後仍需重派（OPEN／INCONCLUSIVE）：回報輪數、FAIL／UNSURE 性質、
+修正與剩餘項目交使用者決定，不自動開第 4 次；delta 計次，換 model／role 不重設。
+例外：本 session 已明確要求驗到收斂；或回報後使用者明確同意續驗，此時從零重計下一段三輪。
 
 ## 3. 何時該停下來問使用者
 

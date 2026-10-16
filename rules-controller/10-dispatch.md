@@ -101,7 +101,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 首次驗收分工：
 - **文件／主觀品質**：派 fresh-context `verifier`，給產出路徑及驗收條件，逐條 PASS／FAIL／UNSURE；不參與製作。
 - **程式碼機械驗證**：製作者可跑測試、build、lint、實跑、schema，附輸出；讀碼不取代執行證據。
-- **含外部呼叫、權限請求或不可逆副作用的程式碼**：不論風險等級，機械驗證外一律派 fresh-context `verifier` 套 `<REPO>/rubrics/code-change.md` §7「失敗路徑與不可逆副作用」；製作者的測試與突變證據只證 happy path，不得據此結案。「不可逆副作用」與下方「高風險判斷」條「不可逆」的範圍依 `../rules/20-judgment.md` §2 判準第 3 點的 canonical 定義；§7 FAIL 修正後的結案方式依同檔 §2「修正與驗收輪次」。
+- **含外部呼叫、權限請求或不可逆副作用的程式碼**：不論風險等級，機械驗證外一律派 fresh-context `verifier` 套 `<REPO>/rubrics/code-change.md` §7「失敗路徑與不可逆副作用」；製作者的測試與突變證據只證 happy path，不得據此結案。「不可逆副作用」與下方「高風險判斷」條「不可逆」的範圍依 `../rules/20-judgment.md` §2 判準第 3 點的 canonical 定義；§7 FAIL 修正後的結案方式依 `20-judgment-controller.md` §2「修正與驗收輪次（controller 端）」。
 - **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。
 - **高風險判斷**（對外文件、不可逆、架構決策）：加獨立第二意見，可用 codex-rescue 或兩個 agent，分歧交使用者。
 
