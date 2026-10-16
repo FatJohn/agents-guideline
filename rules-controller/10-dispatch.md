@@ -70,7 +70,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 
 - **把已讀過的素材附進 prompt，並要求指令批次化**——diff、行號、關鍵段落、你已跑過的指令輸出直接貼進去並明寫「不要重讀 X」；subagent 是冷啟動，每個它自己去讀的檔與每次串行的小步工具呼叫都是一輪完整推理（實測量級：一次 41 次工具呼叫的 worker 跑了 20 分鐘）。
 - **路徑一律寫絕對路徑**——subagent 的工作目錄認知可能跟你不同，相對路徑會找錯地方。
-- **prompt 開頭明寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」**——subagent 也會讀到全域 rules，不加這句會把「指揮官不下場」套在自己身上、逐層轉包，可遞迴多層。收到「我已再派背景工作」類回報＝未完成，立即糾正。
+- **prompt 開頭明寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」**——`general-purpose`／`worker` 會讀到全域 `CLAUDE.md` 與 `rules/`（含派工授權段與 `00-environment` 結構性風險 1「主對話下場做粗活」），不加這句會把自己當 controller、逐層轉包，可遞迴多層；`Explore`／`Plan` 讀不到這些也沒有 Agent 工具，可省（實測見 `../docs/harness-facts.md`「常駐內容對 subagent 的可見性」與「常用 subagent 類型」）。收到「我已再派背景工作」類回報＝未完成，立即糾正。
 
 要求 subagent **補齊某個格式欄位**（例如每條規則的「不算違規」邊界）時，同時規定「查無來源就留空」——強制欄位一定會被填滿，原檔沒有的邊界會被當場發明。
 
@@ -93,8 +93,8 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 2. **換平台取第二意見**——`codex:codex-rescue`，或派兩個 agent 各自獨立解再比對。
 3. **重新定義問題**——見 `20-judgment-controller.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。設計審查 brief 必含：開頭寫不變量並要求由結構保證、不靠事後檢查；附全部失敗紀錄與其共同形狀並明寫「不要列補丁」；每個候選方案逐一對照已知失敗形狀，判「結構上不可能／仍需檢查」。派 `Plan`（opus）與 `codex:codex-rescue` 各自獨立判斷，分歧交使用者。累計輪數沿用原任務，換 model／role 不重設（`../rules/20-judgment.md` §2「停止端」）。
 
-**重試上限**：同一件事最多兩輪（指同一個問題的修法重試，不含驗收輪次——驗收狀態與回報點見
-`../rules/20-judgment.md` §2「停止端」）。兩輪後還不行代表方向錯了，換方法或問人，不要換個措辭再試第三次。
+**重試上限**：同一件事最多兩輪**無進展**重試（指同一個問題的修法重試，不含驗收輪次——驗收狀態與回報點見
+`../rules/20-judgment.md` §2「停止端」）。有進展的輪次不計；無進展的判定見 `20-judgment-controller.md` §1「何時該升級能力層」，有機械指標時用數字判。兩輪無進展代表方向錯了，換方法或問人，不要換個措辭再試第三次。Codex 端同一口徑，見 `../codex/rules/10-dispatch-codex.md` §5「升降級路徑」。
 
 ## 5. 驗證不自驗（鐵律三）
 
@@ -102,7 +102,7 @@ controller 自行小修的例外**只限**單點、低風險、可機械驗證�
 - **文件／主觀品質**：派 fresh-context `verifier`，給產出路徑及驗收條件，逐條 PASS／FAIL／UNSURE；不參與製作。
 - **程式碼機械驗證**：製作者可跑測試、build、lint、實跑、schema，附輸出；讀碼不取代執行證據。
 - **含外部呼叫、權限請求或不可逆副作用的程式碼**：不論風險等級，機械驗證外一律派 fresh-context `verifier` 套 `<REPO>/rubrics/code-change.md` §7「失敗路徑與不可逆副作用」；製作者的測試與突變證據只證 happy path，不得據此結案。「不可逆副作用」與下方「高風險判斷」條「不可逆」的範圍依 `../rules/20-judgment.md` §2 判準第 3 點的 canonical 定義；§7 FAIL 修正後的結案方式依 `20-judgment-controller.md` §2「修正與驗收輪次（controller 端）」。
-- **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。
+- **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。fresh review 可派一個 fresh-context subagent 執行 `code-review` skill（從 diff 推 bug，不需驗收條件）；它不取代上一條的 §7 verifier 審查，有逐條驗收條件時仍派 `verifier`。
 - **高風險判斷**（對外文件、不可逆、架構決策）：加獨立第二意見，可用 codex-rescue 或兩個 agent，分歧交使用者。
 
 Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`；frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑；真的 fallback 時另帶 `effort: high`（與 verifier frontmatter 相同），否則 effort 落到 session 設定。
