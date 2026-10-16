@@ -21,6 +21,7 @@
 | 記憶機制四層的分工與邊界（寫或讀記憶時） | `docs/memory-layers.md` |
 | 寫驗收條件、或當 verifier 要逐條判品質 | `~/.claude/rubrics/{document-quality,code-change,research-analysis}.md` |
 | 修改 rules 檔、CLAUDE.md、AGENTS.md、agent 定義或 rubric | `maintain-guideline` skill（先讀，內有權限分級） |
+| 往 agents-guideline repo（公開）寫任何內容：docs、hosts 紀錄、lesson、commit message、issue | 不寫非公開專案真名，規則見 `maintain-guideline` skill §3「本 repo 是公開 repo」 |
 | 寫或改長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁），或驗收這類文件 | `writing-principles` skill（原則、判定與檢查腳本） |
 
 ## 三條鐵律（隨時生效）

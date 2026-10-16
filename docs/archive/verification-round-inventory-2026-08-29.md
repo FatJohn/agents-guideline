@@ -1,7 +1,7 @@
 # 驗收輪次盤點 — 為什麼發現幾乎全落在散文
 
-> 調查日：2026-08-29。標的：`tvbstw/web-pulse-portal` PR #371 #372 #373 #374 #376 #377 #378 #380，
-> 對照組 `web-pulse-survey-sdk`、`web-pulse-showcase`。
+> 調查日：2026-08-29。標的：`project-e-portal` PR #371 #372 #373 #374 #376 #377 #378 #380，
+> 對照組 `project-e-sdk`、`project-e-showcase`。
 > 本檔是**盤點與根因判定**，不是判準。要改的判準見文末提案，權限分級照 `skills/maintain-guideline/SKILL.md` §1。
 
 ## 0. 一句話結論
@@ -322,7 +322,7 @@ END{for(k in loc)print "落點",loc[k],k; for(k in typ)print "型別",typ[k],k
 - 沒有任何規則要求它。`create-pr` skill 的內建骨架只有一段 `## Verification`，
   而且明文「選配段上限三段」「篇幅隨變更規模縮放」「拿掉某段不會讓 reviewer 變慢就拿掉」。
 - 讀者只有作者自己與 `gemini-code-assist`（`gh pr view --json reviews` 實查，八個 PR 皆然）。
-  repo docs 內確實有 72 條指向本 repo PR 的連結（`rg -o --hidden 'web-pulse-portal/pull/[0-9]+' docs/ | wc -l`），
+  repo docs 內確實有 72 條指向本 repo PR 的連結（`rg -o --hidden 'project-e-portal/pull/[0-9]+' docs/ | wc -l`），
   所以「沒有人再打開這些 PR」不成立——但那些連結引的是**決策出處**，不是驗收軌跡。
 - **價值 vs 成本**：它保存的軌跡在 commit message 裡已經有一份（`docs(schema): bound the claim in
   the rule's own file, not just its consumers` 這種標題本身就是該輪的結論），而 18/93（19%）的發現落在 body、
@@ -390,9 +390,9 @@ portal 取 `--limit 45` 是為了涵蓋整個架構 review 系列 #334–#380，
 
 | repo | 抓取範圍 | PR 數 | 有 `## 驗收第` 段落的 |
 |---|---|---|---|
-| `web-pulse-survey-sdk` | `--limit 30`（#132–#162，含架構 review 15 刀） | 30 | **0** |
-| `web-pulse-showcase` | `--limit 30`（#34–#63） | 30 | **0** |
-| `web-pulse-portal` | `--limit 45`（#334–#380） | 45 | **8**（#370、#371、#372、#373、#374、#377、#378、#380） |
+| `project-e-sdk` | `--limit 30`（#132–#162，含架構 review 15 刀） | 30 | **0** |
+| `project-e-showcase` | `--limit 30`（#34–#63） | 30 | **0** |
+| `project-e-portal` | `--limit 45`（#334–#380） | 45 | **8**（#370、#371、#372、#373、#374、#377、#378、#380） |
 
 portal 改用 `--limit 30`（＝#349–#380）答案一樣是那 8 個。
 

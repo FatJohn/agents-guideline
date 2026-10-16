@@ -184,7 +184,7 @@
 
 以下 ✅／❌ 於 2026-10-12 從常駐區搬出（使用者決定：常駐範例是在補償舊模型，新模型靠判準與邊界即可照做），原句保留：
 
-> ✅ **正例**：`gh -R tvbstw/web-pulse-portal pr checks 386`——cwd 在哪都問對 repo。
+> ✅ **正例**：`gh -R acme/widgets pr checks 386`——cwd 在哪都問對 repo。
 
 > ❌ **反例**：批次第一行 `cd portal && gh pr checks 386`，第二行 `gh pr checks 165` 沒帶路徑，
 > 在 portal 底下查另一個 repo 的 PR，回「找不到」而那個 exit code 被讀成 CI 失敗。

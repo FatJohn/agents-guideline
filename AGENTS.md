@@ -33,6 +33,7 @@
 | 寫驗收條件、或驗收者要逐條判品質 | `<REPO>/rubrics/` 底下對應產出類型的 `document-quality.md`／`code-change.md`／`research-analysis.md` |
 | 修改 rules 檔、`AGENTS.md`、`CLAUDE.md`、agent 定義或 rubric | `maintain-guideline` skill（或直接讀 `<REPO>/skills/maintain-guideline/SKILL.md`；先讀，內有權限分級） |
 | 踩坑之後 | 在 `<REPO>/rules/50-lessons.md` 加一行（已升級成判準的歷史條目在 `<REPO>/docs/lessons-archive.md`） |
+| 往 `<REPO>`（公開 repo）寫任何內容：docs、hosts 紀錄、lesson、commit message、issue | 不寫非公開專案真名，規則見 `<REPO>/skills/maintain-guideline/SKILL.md` §3「本 repo 是公開 repo」 |
 
 ## 三條鐵律（隨時生效）
 

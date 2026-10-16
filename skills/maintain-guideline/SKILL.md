@@ -20,7 +20,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 | `rules-controller/10-dispatch.md`／`rules-controller/20-judgment-controller.md`／`rules/20-judgment.md`／`codex/rules/10-dispatch-codex.md`／`codex/rules/30-delegation-templates-codex.md` | 系統核心 | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |
 | `skills/maintain-guideline/SKILL.md`（本檔） | 憲法 | ❌ 動之前先問使用者 |
 | `rules/50-lessons.md` | 活躍教訓日誌 | ✅ 隨時可加；升級成判準後移到 `<REPO>/docs/lessons-archive.md` |
-| `docs/lessons-archive.md` | 教訓封存 | ✅ 可加封存條目；**不改寫既有條目原文** |
+| `docs/lessons-archive.md` | 教訓封存 | ✅ 可加封存條目；**不改寫既有條目原文**（唯一例外：把專案真名換成代號，見 §3「本 repo 是公開 repo」） |
 | `rubrics/*.md` | 驗收判準（verifier 讀） | ⚠️ 新增條目可以；修改或刪除既有判準要先問使用者 |
 | `agents/*.md`／`codex/agents/*.toml` | agent 定義（＝角色介面） | ✅ 新角色可加；改既有角色的職責先問 |
 | 全域 CLAUDE.md | 路由 | ⚠️ 只能加/修路由行，不准把長內容塞回去 |
@@ -50,8 +50,10 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 寫進 `<REPO>/rules/50-lessons.md`，一行一條，格式：
 
 ```
-- [YYYY-MM-DD][專案名或 global] 一句情境 → 一句教訓 → 已套用到：{檔名 或「尚未」}
+- [YYYY-MM-DD][標籤] 一句情境 → 一句教訓 → 已套用到：{檔名 或「尚未」}
 ```
+
+- **本 repo 是公開 repo，不寫非公開專案的真名**：外部專案的教訓標技術領域（如 `[flutter]`、`[android]`、`[ci]`、`[dotnet]`）或代號（`project-a`、`project-b`…，新專案依序給下一個；代號對照只留在本機記憶，不進 repo）；本 repo 自身工作的教訓標 `[agents-guideline]`；跨專案通用標 `[global]`。同一規則適用寫進本 repo 的 docs 報表、`hosts/` 紀錄、commit message 與 issue：要指稱外部專案時寫代號或「某 Flutter App 專案」這類描述，範例 repo 用 `acme/widgets`。來源追溯不另建基礎設施：依教訓日期與內容回查 `~/.claude/projects/<專案目錄>/*.jsonl`，受 `cleanupPeriodDays` 保留期限制。
 
 - 「值得寫」的門檻：這個坑會讓下個 session 多花 10 分鐘以上，且從 repo/git log 看不出來。
 - **情境壓在一行、上限 80 字**：活躍條目只留「觸發訊號 → 該怎麼做」，完整事故脈絡留在當時的 PR／commit 或封存檔。
@@ -86,7 +88,7 @@ description: 修改本工作系統本身時使用——`<REPO>/rules/*`、`codex
 - **只在特定情境才用得到的內容不該放 `rules/`**：`rules/` 是無條件常駐區，付的是每個 session 的固定成本。維護協議、驗收 rubric、封存教訓、派工範例都屬於「用到才讀」，放 `skills/`／`rubrics/`／`docs/`。`rules-controller/` 同樣是常駐區，只是只對主對話常駐、subagent 不付這份成本；只有 controller 用得到的規則放這裡。
 - **單機專屬事實不進 `rules/`，放 `<REPO>/hosts/<key>.md`**：由全域 CLAUDE.md 的 `@~/.claude/host-facts.md` 匯入，**每台機器只裝自己那份**（`<REPO>/docs/install.md` 安裝段各連一個；`sync-profile.py` 依平台選檔，`--host-key` 可覆寫）；`rules/05-hosts.md` 只留跨機器規則、`<REPO>` 對照與缺檔哨兵。匯入內容與 rules 同一快取層、`worker`／`general-purpose` 都看得到（`Explore`／`Plan` 本來就看不到 rules），缺檔**靜默略過**——所以 05-hosts 的哨兵句不能拿掉。實測事實見 `<REPO>/docs/harness-facts.md`「常駐內容對 subagent 的可見性」。
   理由：任一 session 只用得到本機那段，另一台機器的段落純浪費，且每派一個 worker／verifier 再付一次；`paths` frontmatter 實測只在 Read 到相符檔之後才載入、絕對路徑 glob 不匹配，做不了機器分流。
-- **新增、改寫或刪除 `rules-controller/10-dispatch.md`／`rules-controller/20-judgment-controller.md`／`rules/20-judgment.md` 的判準內容，觸發條件只有兩種**：(1) 使用者直接要求**修改判準**——只要求 review 不算，review 結果列給使用者，使用者對其中某項說「改」才算該項觸發；(2) `<REPO>/rules/50-lessons.md` 出現新條目，且該條目寫明情境發生在**本 repo 以外的專案 session**（條目標專案名，或標 `[global]` 但情境句寫出是哪個專案的工作）；本 repo 自身工作產生的教訓，要依 §3「踩第二次」才算觸發。**主動對 rules 做 review、瘦身掃描**這類沒有事故在前的「可以更好」不算觸發，登記為候選、等下一次觸發時一併處理。候選（含使用者要求 review 後未表態要改的項目）登記在本 repo 的 GitHub issue，標題前綴 `candidate:`；開之前先 `gh -R FatJohn/agents-guideline issue list --search 'candidate:'` 查重，已有就補在該 issue 下，不進 `rules/`。
+- **新增、改寫或刪除 `rules-controller/10-dispatch.md`／`rules-controller/20-judgment-controller.md`／`rules/20-judgment.md` 的判準內容，觸發條件只有兩種**：(1) 使用者直接要求**修改判準**——只要求 review 不算，review 結果列給使用者，使用者對其中某項說「改」才算該項觸發；(2) `<REPO>/rules/50-lessons.md` 出現新條目，且該條目寫明情境發生在**本 repo 以外的專案 session**（標籤是領域標籤或代號，或標 `[global]` 但情境句寫出是外部專案的工作；本 repo 自身工作的教訓一律標 `[agents-guideline]`，見 §3）；本 repo 自身工作產生的教訓，要依 §3「踩第二次」才算觸發。**主動對 rules 做 review、瘦身掃描**這類沒有事故在前的「可以更好」不算觸發，登記為候選、等下一次觸發時一併處理。候選（含使用者要求 review 後未表態要改的項目）登記在本 repo 的 GitHub issue，標題前綴 `candidate:`；開之前先 `gh -R FatJohn/agents-guideline issue list --search 'candidate:'` 查重，已有就補在該 issue 下，不進 `rules/`。
   **不受本條限制**（照原有流程直接做）：(a) 已觸發的修改，其驗收輪次中 verifier 的發現——不論 `OPEN`、`INCONCLUSIVE` 或 `PROSE-ONLY`——照 `<REPO>/rules/20-judgment.md` §2 停止端處理（`OPEN` 依風險分流低風險機械結案或 fresh delta、`INCONCLUSIVE` 先補證、`PROSE-ONLY` 修完 read-back 後停止）；(b) 搬移或改名後的路徑更新與斷鏈修正（本檔 §6）；(c) `00`／`05` 的事實更新。本條只管**要不要開一輪修改**，不管已開的那一輪怎麼收。
   理由：制度自審很容易變成最大的維護成本來源，而制度的目的是服務真實專案。
 - **常駐判準的格式**：`<REPO>/rules/20-judgment.md` 每條判準／補充判準的正文**四句以內、約 400 bytes**——觸發情境、要做什麼、不算違規、指向（可省）；✅／❌ 寫在 `<REPO>/docs/judgment-rationale.md` 對應標題下。訂條理由、事故脈絡、修辭句、與鄰條的分工說明一律寫進 `<REPO>/docs/judgment-rationale.md` 對應標題下（原句搬入，不改寫），常駐區不留。依本條把理由句搬出常駐正文屬「搬移」，不算下方「整檔重寫」。**400 bytes 是目標不是門檻**：機制事實、指令、數字與「不算違規」邊界砍不動而超標**不算違規**，回報實際 bytes 即可——砍到邊界句才是違規。

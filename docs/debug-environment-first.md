@@ -36,7 +36,7 @@
     要單獨跑那個指令，或用 `${PIPESTATUS[0]}`（bash）／`$pipestatus[1]`（zsh）。`set -e` 同樣不管 pipeline
     中段（`bash -c 'set -e; false | tail -n1; echo reached'` 會印出 reached），當閘門的指令不要接 `| tail`。
     另外 push 後立刻 `gh pr checks <n> --watch`，check 尚未註冊時回「no checks reported」且 exit 0，`&&` 接的
-    merge 就在 CI 跑完前按下去了（macroeconomics-report 2026-09-04 事故觀察值，未在乾淨環境重現；gh help 只記載
+    merge 就在 CI 跑完前按下去了（project-c 2026-09-04 事故觀察值，未在乾淨環境重現；gh help 只記載
     pending 為 exit 8）——先確認 check 已註冊再 watch，或改用 `gh run watch <run-id> --exit-status`。
     `<REPO>/skills/create-pr/SKILL.md` §2.8 只留一句指向這裡。
   - **拿歷史資料列去推「現行設定會怎麼跑」**：那批列反映的是**寫入當時**的設定。要先查現行設定，
@@ -103,7 +103,7 @@ jq 或 SQL——上層格式 parse 通過**不算**驗過被嵌的那一層。
 - 其他跑不了的：明說那一層未驗，不要用「上層 parse 過了」含混帶過。
 
 失敗現場（2026-08-23）：YAML parse 過、測試全綠、CI 也綠，而那個 workflow 每天 cron 都是
-bash syntax error，六條告警全滅。macroeconomics-report 的 workflows bash 區塊已加常設守衛，
+bash syntax error，六條告警全滅。project-c 的 workflows bash 區塊已加常設守衛，
 缺口剩 Dockerfile／husky／jq 與其他 repo。
 
 ## Bash 覆蓋沒有保護（Write 工具有）
