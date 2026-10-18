@@ -229,6 +229,8 @@
 
 > ❌ **反例**：PR title 是中文就直接 `gh pr merge --squash`——歷史第一行從此中文無 prefix，事後只能重寫共享歷史。
 
+「不算違規」邊界（2026-10-17 使用者同意加入）的訂條理由：release-please 開的 Release PR 標題 `chore(main): release x.y.z` 本身已是合格的英文 Conventional Commit；release-please 依 PR 標題與 `autorelease: pending` 標籤找回自己的 Release PR（其原始碼 `src/manifest.ts`），用 `-t` 改成別的標題後它可能找不到 Release PR，後果未實測。不帶 `-t` merge 後 squash commit 標題為 `chore(main): release x.y.z (#N)` 且 Release 建出，已在某 iOS SDK repo 實測（2026-10-17，release-please 17.11.2）。例外寫成兩個條件同時成立（標題已合格、repo 文件明寫不覆寫），避免 agent 只憑流程描述自行推論。
+
 ## §7 現況證據與規格權威分工
 
 以下為 2026-09-09 歷史背景；現行判準已於 2026-09-14 經使用者同意改為現況證據與規格權威分工，以 rules/20-judgment.md §7 為準。

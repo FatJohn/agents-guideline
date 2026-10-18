@@ -66,7 +66,7 @@ Markdown 不自動算散文——不改變行為的排版／語氣才算，改�
 
 **判準**：commit message（subject 與 body）全英文，subject 符合 Conventional Commits——`type: 小寫祈使句`，scope 可省略（`type(scope):` 同樣合格），type 限 `build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test`。對話、PR title 與 body、程式註解、issue 仍是繁體中文。
 
-PR title 依 `create-pr` skill 用中文不加 prefix，而 `gh pr merge --squash` 預設拿 PR title 當 commit 標題，所以 squash merge 一律用 `-t` 覆寫成本節格式；指令與後果見 `<REPO>/skills/create-pr/SKILL.md` §2.8。
+PR title 依 `create-pr` skill 用中文不加 prefix，而 `gh pr merge --squash` 預設拿 PR title 當 commit 標題，所以 squash merge 一律用 `-t` 覆寫成本節格式；指令與後果見 `<REPO>/skills/create-pr/SKILL.md` §2.8。**不算違規**：PR title 本身已符合本節格式（例如 release-please 開的 Release PR `chore(main): release x.y.z`），且 repo 文件規定 merge 時不覆寫標題，照 repo 文件不加 `-t`。
 
 ## 7. 現況證據與規格權威分工
 

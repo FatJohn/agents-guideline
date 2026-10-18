@@ -195,6 +195,8 @@ gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
 
 漏掉的後果：合併後的歷史第一行從此是中文、無 type prefix，事後只能重寫共享歷史。
 
+**不加 `-t` 的例外**（PR title 已合格且 repo 文件規定不覆寫，如 release-please 的 Release PR）：判準與邊界見 `<REPO>/rules/20-judgment.md` §6「不算違規」。
+
 **merge 前的 CI 閘門**：先確認 check 已註冊再 `gh pr checks --watch`（或改用 `gh run watch <run-id> --exit-status`），閘門指令不接 `| tail`；陷阱細節與實例見 `<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」那條。
 
 ## 3. 完整輸出範例
