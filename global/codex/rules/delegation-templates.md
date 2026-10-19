@@ -1,4 +1,4 @@
-# 30C — Codex 派工 prompt 模板
+# Codex 派工 prompt 模板
 
 > 讀者：Codex 主對話。派 subagent 時複製對應模板，把【】填滿。
 > 【】欄位是必填；填不出驗收條件就先釐清，不要派工。

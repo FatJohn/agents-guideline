@@ -1,4 +1,4 @@
-# 10C — Codex 模型調度守則
+# Codex 模型調度守則
 
 > 讀者：Codex 主對話（controller）。每次要派工、選模型或驗收之前照著做。
 > 本檔是 `<REPO>/global/shared/skills/dispatch/SKILL.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
