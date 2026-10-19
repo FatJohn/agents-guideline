@@ -1,7 +1,7 @@
-"""Tests for skills/usage-review/scripts/report.py (normalised JSON -> cost / behaviour tables).
+"""Tests for .claude/skills/usage-review/scripts/report.py (normalised JSON -> cost / behaviour tables).
 
 The fixture is a hand-written data dict in the schema_version 1 shape (see
-skills/usage-review/references/schema.md). Everything in it is invented: fictional slugs, ids,
+.claude/skills/usage-review/references/schema.md). Everything in it is invented: fictional slugs, ids,
 dates (2031) and models; every cost_raw is a hand-computed literal, checked against the pricing
 formula once in test_fixture_costs_match_pricing_formula so a typo cannot hide behind the report.
 
@@ -25,7 +25,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = REPO_ROOT / "skills" / "usage-review" / "scripts"
+SCRIPTS = REPO_ROOT / ".claude" / "skills" / "usage-review" / "scripts"
 
 
 def _load(name: str, path: Path):

@@ -22,7 +22,7 @@ def link_target(path: Path) -> Path:
     """Where a link points, without opening it.
 
     ``Path.resolve`` opens the target, which fails outright on a host where
-    reparse points cannot be traversed (see ``hosts/windows.md``).
+    reparse points cannot be traversed (see ``global/shared/hosts/windows.md``).
     """
 
     return sync_codex_agents._link_target(path)
@@ -45,6 +45,16 @@ class SyncTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name)
         return temporary, root / "source", root / "profile" / "agents"
+
+    def test_default_source_is_the_repository_codex_agents_directory(self) -> None:
+        self.assertEqual(sync_codex_agents.DEFAULT_SOURCE, REPO_ROOT / "global" / "codex" / "agents")
+        expected = sorted(path.stem for path in (REPO_ROOT / "global" / "codex" / "agents").glob("*.toml"))
+        self.assertIn("worker", expected)
+        self.assertIn("verifier", expected)
+
+        roles = sync_codex_agents.load_roles(sync_codex_agents.DEFAULT_SOURCE)
+
+        self.assertEqual(sorted(role.name for role in roles), expected)
 
     def test_first_install_uses_regular_files_and_leaves_unrelated_names(self) -> None:
         temporary, source, destination = self.make_dirs()

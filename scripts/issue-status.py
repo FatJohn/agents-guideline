@@ -2,7 +2,7 @@
 """一次列出某個 repo 每個 issue worktree 的狀態，給「盤點 session」取代反覆 `orca terminal read`。
 
 用途：issue session 把交付包寫在 `<worktree>/.worktrees/result.md`（欄位見
-`skills/parallel-dispatch/references/templates.md`「Issue session result」）。這支腳本讀每個 worktree 的
+`global/shared/skills/parallel-dispatch/references/templates.md`「Issue session result」）。這支腳本讀每個 worktree 的
 result.md，再拿 git／gh 的事實對照，每個 worktree 輸出一行。它只是彙整 result.md 與 git／gh 事實，不是
 完成證據：要宣稱完成、要 merge，仍要看 PR、CI 與 verifier 的回報本身。
 
@@ -94,7 +94,7 @@ def git(path, *args):
 
 def parse_result(text):
     """result.md -> {欄位名: 值}。一行可有多欄；同名欄取第一次出現；缺的欄位不在 dict 裡。
-    不在標題處停下：實際的 result.md 會在 `##` 備註段落之後才出現 Blocker／Merged 欄（2026-10-17 實見）；
+    不在標題處停下：實際的 result.md 會在 `##` 備註段落之後才出現 Blocker／Merged 欄；
     key 只認行首或兩個以上空白之後，所以備註裡的 `- Blocker: ...` 條列不會被誤抓。"""
     fields = {}
     for line in text.splitlines():

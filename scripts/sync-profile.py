@@ -4,13 +4,20 @@
 The repository is the source of truth.  ``docs/install.md`` installs the same set as
 symlinks, which is the preferred layout because a repo edit takes effect with no
 further step.  This script exists for hosts where a symlinked profile silently
-fails to load: ``hosts/windows.md`` records ``FatJohn-PC``, where opening any
-path behind a reparse point returns ``ERROR_UNTRUSTED_MOUNT_POINT`` (os error
-448) while ``LinkType``/``Target`` still read back green.
+fails to load: ``global/shared/hosts/windows.md`` records ``FatJohn-PC``, where
+opening any path behind a reparse point returns ``ERROR_UNTRUSTED_MOUNT_POINT``
+(os error 448) while ``LinkType``/``Target`` still read back green.
 
 Because a symlinked entry can look installed and still be unreadable, ``--apply``
 finishes by opening every destination file and comparing bytes.  A link-shaped
 read-back is not evidence here.
+
+Entries a v1 install left behind (``~/.claude/rules-controller``, the old
+``rules/*.md`` files, the ``maintain-guideline``/``usage-review``/``session-handoff``
+skills, the retired ``worker-opus`` agent) are detected and listed, in the dry-run
+and again after ``--apply``.  They are never removed by this script;
+``docs/install.md`` section "從 v1 升級" has the removal commands.  ``--prune``
+still removes the symlink-shaped ones that point into this repository.
 
 The command previews by default and only writes with ``--apply``.
 """
@@ -35,21 +42,35 @@ class SyncError(ValueError):
     """A safe, user-actionable synchronization error."""
 
 
-# ``platform.system()`` -> the ``hosts/<key>.md`` that machine class installs as
-# ``~/.claude/host-facts.md``.  Only the current machine's file is installed;
-# the global CLAUDE.md imports it with ``@~/.claude/host-facts.md``.
+# ``platform.system()`` -> the ``global/shared/hosts/<key>.md`` that machine class
+# installs as ``~/.claude/host-facts.md``.  Only the current machine's file is
+# installed; the global CLAUDE.md imports it with ``@~/.claude/host-facts.md``.
 HOST_KEYS = {"Darwin": "macos", "Windows": "windows"}
+
+# Skills under global/shared/skills/ that land in both ~/.claude/skills and
+# ~/.agents/skills.  The repo-only .claude/skills are not installed.
+SHARED_SKILLS = (
+    "dispatch",
+    "handoff",
+    "git-commit",
+    "create-pr",
+    "parallel-dispatch",
+    "writing-principles",
+)
+
+# Files a v1 install put in ~/.claude/rules.
+LEGACY_RULE_FILES = ("00-environment.md", "05-hosts.md", "20-judgment.md", "50-lessons.md")
 
 
 def detect_host_key() -> str:
-    """Pick ``hosts/<key>.md`` for this platform, or explain what to pass."""
+    """Pick ``global/shared/hosts/<key>.md`` for this platform, or explain what to pass."""
 
     system = platform.system()
     try:
         return HOST_KEYS[system]
     except KeyError:
         raise SyncError(
-            f"no hosts/<key>.md mapping for platform {system!r}; pass --host-key "
+            f"no global/shared/hosts/<key>.md mapping for platform {system!r}; pass --host-key "
             f"(known: {', '.join(sorted(HOST_KEYS.values()))})"
         ) from None
 
@@ -58,13 +79,13 @@ _HOST_KEY_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 
 
 def _validate_host_key(host_key: str, repo: Path) -> None:
-    """Reject a key that cannot safely become a ``hosts/<key>.md`` filename.
+    """Reject a key that cannot safely become a ``<key>.md`` filename under the hosts directory.
 
-    ``host_key`` is interpolated into ``repo / "hosts" / f"{host_key}.md"`` and
-    the result is installed as ``~/.claude/host-facts.md``.  Without this check
-    a value like ``"../CLAUDE"`` or an absolute path is accepted unmodified and
-    quietly resolves outside ``hosts/``, installing an arbitrary repo file (or
-    nothing at all) as the machine's facts.
+    ``host_key`` is interpolated into ``repo / "global" / "shared" / "hosts" /
+    f"{host_key}.md"`` and the result is installed as ``~/.claude/host-facts.md``.
+    Without this check a value like ``"../CLAUDE"`` or an absolute path is accepted
+    unmodified and quietly resolves outside ``hosts/``, installing an arbitrary repo
+    file (or nothing at all) as the machine's facts.
     """
 
     if not _HOST_KEY_PATTERN.match(host_key):
@@ -73,10 +94,10 @@ def _validate_host_key(host_key: str, repo: Path) -> None:
             f"{_HOST_KEY_PATTERN.pattern!r} (lowercase letters, digits, '-', '_'; "
             "must start with a letter or digit)"
         )
-    facts_file = repo / "hosts" / f"{host_key}.md"
+    facts_file = repo / "global" / "shared" / "hosts" / f"{host_key}.md"
     if not facts_file.is_file():
         raise SyncError(
-            f"missing {facts_file}; create hosts/{host_key}.md or pass a "
+            f"missing {facts_file}; create global/shared/hosts/{host_key}.md or pass a "
             "different --host-key"
         )
 
@@ -125,44 +146,79 @@ def default_mappings(
 ) -> list[Mapping]:
     """The same set docs/install.md installs as symlinks, as regular files.
 
-    ``hosts/<host_key>.md`` is the one per-machine file; the other machines'
-    files stay in the repository and never reach the profile.
-    ``codex/agents/*.toml`` is deliberately absent: ``sync-codex-agents.py``
+    ``global/shared/hosts/<host_key>.md`` is the one per-machine file; the other
+    machines' files stay in the repository and never reach the profile.
+    ``global/codex/agents/*.toml`` is deliberately absent: ``sync-codex-agents.py``
     already owns that directory and validates the TOML before writing.
+    ``.claude/skills`` (maintain-guideline, usage-review) is repo-only and never
+    installed.
     """
 
+    claude = repo / "global" / "claude"
+    shared = repo / "global" / "shared"
     claude_skills = claude_home / "skills"
     agents_skills = agents_home / "skills"
-    shared_skills = ("maintain-guideline", "create-pr", "parallel-dispatch", "writing-principles")
-    # usage-review only parses Claude Code session jsonl, so docs/install.md
-    # leaves it out of the Codex (~/.agents/skills) lists.
-    claude_only_skills = ("usage-review",)
 
     mappings = [
-        Mapping(repo / "CLAUDE.md", claude_home / "CLAUDE.md", "file"),
-        Mapping(repo / "hosts" / f"{host_key}.md", claude_home / "host-facts.md", "file"),
-        Mapping(repo / "rules", claude_home / "rules", "tree"),
-        Mapping(repo / "rules-controller", claude_home / "rules-controller", "tree"),
-        Mapping(repo / "rubrics", claude_home / "rubrics", "tree"),
-        Mapping(repo / "agents" / "worker.md", claude_home / "agents" / "worker.md", "file"),
-        Mapping(repo / "agents" / "verifier.md", claude_home / "agents" / "verifier.md", "file"),
-        # Files only: wiring them into ~/.claude/settings.json (hook entry,
+        Mapping(claude / "CLAUDE.md", claude_home / "CLAUDE.md", "file"),
+        Mapping(shared / "hosts" / f"{host_key}.md", claude_home / "host-facts.md", "file"),
+        Mapping(shared / "rules", claude_home / "rules", "tree"),
+        # Injected into the main conversation by the SessionStart hook, see
+        # docs/install.md; it is deliberately outside ~/.claude/rules.
+        Mapping(claude / "route-card.md", claude_home / "route-card.md", "file"),
+        Mapping(shared / "rubrics", claude_home / "rubrics", "tree"),
+        Mapping(claude / "agents" / "worker.md", claude_home / "agents" / "worker.md", "file"),
+        Mapping(claude / "agents" / "verifier.md", claude_home / "agents" / "verifier.md", "file"),
+        # Files only: wiring them into ~/.claude/settings.json (hook entries,
         # RIPGREP_CONFIG_PATH) stays manual, see docs/install.md.
-        Mapping(repo / "hooks", claude_home / "hooks", "tree"),
-        Mapping(repo / "config" / "ripgreprc", claude_home / "ripgreprc", "file"),
-        Mapping(repo / "AGENTS.md", codex_home / "AGENTS.md", "file"),
-        Mapping(
-            repo / "codex" / "skills" / "session-handoff",
-            agents_skills / "session-handoff",
-            "tree",
-        ),
+        Mapping(claude / "hooks", claude_home / "hooks", "tree"),
+        Mapping(claude / "config" / "ripgreprc", claude_home / "ripgreprc", "file"),
+        Mapping(repo / "global" / "codex" / "AGENTS.md", codex_home / "AGENTS.md", "file"),
     ]
-    for name in shared_skills:
-        mappings.append(Mapping(repo / "skills" / name, claude_skills / name, "tree"))
-        mappings.append(Mapping(repo / "skills" / name, agents_skills / name, "tree"))
-    for name in claude_only_skills:
-        mappings.append(Mapping(repo / "skills" / name, claude_skills / name, "tree"))
+    for name in SHARED_SKILLS:
+        mappings.append(Mapping(shared / "skills" / name, claude_skills / name, "tree"))
+        mappings.append(Mapping(shared / "skills" / name, agents_skills / name, "tree"))
     return mappings
+
+
+def legacy_paths(*, claude_home: Path, agents_home: Path) -> list[Path]:
+    """Entries a v1 install put in the profile that the current layout no longer has.
+
+    The old ``rules/*.md`` files matter most: ``~/.claude/rules`` is loaded into
+    every session, so a stale ``20-judgment.md`` would sit next to the new
+    ``judgment.md``.
+    """
+
+    return [
+        claude_home / "rules-controller",
+        *(claude_home / "rules" / name for name in LEGACY_RULE_FILES),
+        claude_home / "skills" / "maintain-guideline",
+        claude_home / "skills" / "usage-review",
+        claude_home / "agents" / "worker-opus.md",
+        agents_home / "skills" / "maintain-guideline",
+        agents_home / "skills" / "session-handoff",
+    ]
+
+
+def find_legacy(
+    *, claude_home: Path, agents_home: Path, skip: set[Path] | None = None
+) -> list[Path]:
+    """The legacy entries that exist now, minus any this run already prunes."""
+
+    skip = skip or set()
+    return [
+        path
+        for path in legacy_paths(claude_home=claude_home, agents_home=agents_home)
+        if path not in skip and _lkind(path) is not None
+    ]
+
+
+def print_legacy(found: list[Path]) -> None:
+    if not found:
+        return
+    print("legacy v1 entries found (not removed by this script; see docs/install.md 從 v1 升級):")
+    for path in found:
+        print(f"  legacy: {path}")
 
 
 def _lkind(path: Path) -> str | None:
@@ -787,6 +843,9 @@ def sync(
         print_preview(operations, apply=False)
         if migrating:
             print("note: --apply of this plan requires --replace-symlinks")
+        # A pending prune already lists its own removals; do not list them twice.
+        pruning = {operation.destination for operation in operations if operation.action == "prune"}
+        print_legacy(find_legacy(claude_home=claude_home, agents_home=agents_home, skip=pruning))
         return operations
 
     if migrating and not replace_symlinks:
@@ -833,6 +892,7 @@ def sync(
     if transaction and transaction.backups:
         print(f"backup directory: {transaction.backup_root}")
     print(f"read-back: {len([o for o in operations if o.action != 'prune' and o.action != 'migrate-tree'])} file(s) opened and byte-identical")
+    print_legacy(find_legacy(claude_home=claude_home, agents_home=agents_home))
     return operations
 
 
@@ -846,7 +906,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--host-key",
         help=(
-            "which hosts/<key>.md to install as ~/.claude/host-facts.md; "
+            "which global/shared/hosts/<key>.md to install as ~/.claude/host-facts.md; "
             "default: detected from the platform (Darwin=macos, Windows=windows)"
         ),
     )

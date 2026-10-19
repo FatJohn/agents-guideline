@@ -1,8 +1,8 @@
 #!/bin/bash
 # Offline assertions for block-ci-edit.sh (synthetic PreToolUse stdin, no claude needed).
 # usage: bash tests/test-block-ci-edit.sh [path/to/block-ci-edit.sh]
-# default: ../hooks/block-ci-edit.sh relative to this file. Needs bash + jq.
-HOOK=${1:-$(dirname "$0")/../hooks/block-ci-edit.sh}
+# default: ../global/claude/hooks/block-ci-edit.sh relative to this file. Needs bash + jq.
+HOOK=${1:-$(dirname "$0")/../global/claude/hooks/block-ci-edit.sh}
 fail=0
 t(){ # name expected_exit json
   printf '%s' "$3" | bash "$HOOK" >/dev/null 2>&1; got=$?

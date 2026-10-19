@@ -6,6 +6,7 @@ import contextlib
 import importlib.util
 import io
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -33,37 +34,48 @@ def can_symlink(directory: Path) -> bool:
     return True
 
 
+SHARED_SKILLS = ("dispatch", "handoff", "git-commit", "create-pr", "parallel-dispatch", "writing-principles")
+
+
 def build_repo(root: Path) -> Path:
     """A miniature repository with the same shape the mappings expect."""
 
     repo = root / "repo"
-    (repo / "rules").mkdir(parents=True)
-    (repo / "rules-controller").mkdir(parents=True)
-    (repo / "rubrics").mkdir(parents=True)
-    (repo / "agents").mkdir(parents=True)
-    (repo / "codex" / "skills" / "session-handoff").mkdir(parents=True)
-    for name in ("maintain-guideline", "create-pr", "parallel-dispatch", "writing-principles", "usage-review"):
-        (repo / "skills" / name).mkdir(parents=True)
-        (repo / "skills" / name / "SKILL.md").write_text(f"# {name}\n", encoding="utf-8")
+    claude = repo / "global" / "claude"
+    shared = repo / "global" / "shared"
+    for directory in (
+        claude / "agents",
+        claude / "hooks",
+        claude / "config",
+        repo / "global" / "codex",
+        shared / "rules",
+        shared / "rubrics",
+        shared / "hosts",
+    ):
+        directory.mkdir(parents=True)
+    for name in SHARED_SKILLS:
+        (shared / "skills" / name).mkdir(parents=True)
+        (shared / "skills" / name / "SKILL.md").write_text(f"# {name}\n", encoding="utf-8")
+    # Repo-only skills: present in the repository, never installed.
+    for name in ("maintain-guideline", "usage-review"):
+        (repo / ".claude" / "skills" / name).mkdir(parents=True)
+        (repo / ".claude" / "skills" / name / "SKILL.md").write_text(f"# {name}\n", encoding="utf-8")
 
-    (repo / "CLAUDE.md").write_text("# CLAUDE\n", encoding="utf-8")
-    (repo / "AGENTS.md").write_text("# AGENTS\n", encoding="utf-8")
-    (repo / "rules" / "00-environment.md").write_text("# env\n", encoding="utf-8")
-    (repo / "rules" / "05-hosts.md").write_text("# hosts\n", encoding="utf-8")
-    (repo / "rules-controller" / "10-dispatch.md").write_text("# dispatch\n", encoding="utf-8")
-    (repo / "hosts").mkdir(parents=True)
-    (repo / "hosts" / "macos.md").write_text("# mac\n", encoding="utf-8")
-    (repo / "hosts" / "windows.md").write_text("# win\n", encoding="utf-8")
-    (repo / "rubrics" / "code-change.md").write_text("# code change\n", encoding="utf-8")
-    (repo / "agents" / "worker.md").write_text("# worker\n", encoding="utf-8")
-    (repo / "agents" / "verifier.md").write_text("# verifier\n", encoding="utf-8")
-    (repo / "hooks").mkdir(parents=True)
-    (repo / "hooks" / "block-ci-edit.sh").write_text("#!/bin/bash\n# hook\n", encoding="utf-8")
-    (repo / "config").mkdir(parents=True)
-    (repo / "config" / "ripgreprc").write_text("--hidden\n", encoding="utf-8")
-    (repo / "codex" / "skills" / "session-handoff" / "SKILL.md").write_text(
-        "# handoff\n", encoding="utf-8"
-    )
+    (repo / "CLAUDE.md").write_text("# repo CLAUDE\n", encoding="utf-8")
+    (repo / "AGENTS.md").write_text("# repo AGENTS\n", encoding="utf-8")
+    (claude / "CLAUDE.md").write_text("# CLAUDE\n", encoding="utf-8")
+    (claude / "route-card.md").write_text("# route card\n", encoding="utf-8")
+    (repo / "global" / "codex" / "AGENTS.md").write_text("# AGENTS\n", encoding="utf-8")
+    (shared / "rules" / "judgment.md").write_text("# judgment\n", encoding="utf-8")
+    (shared / "hosts" / "macos.md").write_text("# mac\n", encoding="utf-8")
+    (shared / "hosts" / "windows.md").write_text("# win\n", encoding="utf-8")
+    (shared / "rubrics" / "code-change.md").write_text("# code change\n", encoding="utf-8")
+    (shared / "rubrics" / "document-quality.md").write_text("# document quality\n", encoding="utf-8")
+    (claude / "agents" / "worker.md").write_text("# worker\n", encoding="utf-8")
+    (claude / "agents" / "verifier.md").write_text("# verifier\n", encoding="utf-8")
+    (claude / "hooks" / "block-ci-edit.sh").write_text("#!/bin/bash\n# hook\n", encoding="utf-8")
+    (claude / "hooks" / "controller-context.sh").write_text("#!/bin/bash\n# context\n", encoding="utf-8")
+    (claude / "config" / "ripgreprc").write_text("--hidden\n", encoding="utf-8")
     return repo
 
 
@@ -73,6 +85,8 @@ class SyncProfileTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.repo = build_repo(self.root)
+        self.src_claude = self.repo / "global" / "claude"
+        self.src_shared = self.repo / "global" / "shared"
         self.claude = self.root / "profile" / ".claude"
         self.codex = self.root / "profile" / ".codex"
         self.agents = self.root / "profile" / ".agents"
@@ -103,43 +117,49 @@ class SyncProfileTests(unittest.TestCase):
     def test_first_install_writes_regular_files(self) -> None:
         self.run_sync(apply=True)
 
-        installed = self.claude / "rules" / "00-environment.md"
+        installed = self.claude / "rules" / "judgment.md"
         self.assertTrue(installed.is_file())
         self.assertFalse(installed.is_symlink())
-        self.assertEqual(installed.read_text(encoding="utf-8"), "# env\n")
+        self.assertEqual(installed.read_text(encoding="utf-8"), "# judgment\n")
 
         # The tree root must be a real directory, not a link.
         self.assertTrue((self.claude / "rules").is_dir())
         self.assertFalse((self.claude / "rules").is_symlink())
 
-        # Both platforms get their entry point and the shared skills.
+        # Both platforms get their own entry point (not the repo's project spec)
+        # and the six shared skills.
         self.assertEqual((self.claude / "CLAUDE.md").read_text(encoding="utf-8"), "# CLAUDE\n")
         self.assertEqual((self.codex / "AGENTS.md").read_text(encoding="utf-8"), "# AGENTS\n")
-        self.assertTrue((self.agents / "skills" / "session-handoff" / "SKILL.md").is_file())
-        for name in ("maintain-guideline", "create-pr", "parallel-dispatch", "writing-principles"):
+        for name in SHARED_SKILLS:
             self.assertTrue((self.claude / "skills" / name / "SKILL.md").is_file())
             self.assertTrue((self.agents / "skills" / name / "SKILL.md").is_file())
-        # usage-review is Claude-only: docs/install.md does not put it under ~/.agents/skills.
-        self.assertTrue((self.claude / "skills" / "usage-review" / "SKILL.md").is_file())
-        self.assertFalse((self.agents / "skills" / "usage-review").exists())
+        # The repo-only skills (.claude/skills) and the retired session-handoff
+        # never reach either profile.
+        for name in ("maintain-guideline", "usage-review", "session-handoff"):
+            self.assertFalse((self.claude / "skills" / name).exists())
+            self.assertFalse((self.agents / "skills" / name).exists())
 
         # worker.md is the entry docs/install.md's symlink install has been missing.
         self.assertEqual((self.claude / "agents" / "worker.md").read_text(encoding="utf-8"), "# worker\n")
+        self.assertEqual((self.claude / "agents" / "verifier.md").read_text(encoding="utf-8"), "# verifier\n")
+        self.assertEqual(
+            (self.claude / "rubrics" / "code-change.md").read_text(encoding="utf-8"), "# code change\n"
+        )
 
-    def test_rules_controller_is_installed_as_a_tree(self) -> None:
+    def test_route_card_is_installed_as_a_single_file(self) -> None:
         self.run_sync(apply=True)
 
-        installed = self.claude / "rules-controller" / "10-dispatch.md"
-        self.assertTrue(installed.is_file())
-        self.assertFalse(installed.is_symlink())
-        self.assertEqual(installed.read_text(encoding="utf-8"), "# dispatch\n")
+        card = self.claude / "route-card.md"
+        self.assertTrue(card.is_file())
+        self.assertFalse(card.is_symlink())
+        self.assertEqual(card.read_text(encoding="utf-8"), "# route card\n")
 
-        # The tree root must be a real directory, not a link.
-        self.assertTrue((self.claude / "rules-controller").is_dir())
-        self.assertFalse((self.claude / "rules-controller").is_symlink())
-        # It is its own tree: nothing leaks into (or out of) ~/.claude/rules.
-        self.assertFalse((self.claude / "rules" / "10-dispatch.md").exists())
-        self.assertFalse((self.claude / "rules-controller" / "00-environment.md").exists())
+        # The card is injected by the SessionStart hook, so it must stay out of
+        # ~/.claude/rules (which every session, subagents included, loads), and the
+        # v1 rules-controller directory must not come back.
+        self.assertFalse((self.claude / "rules" / "route-card.md").exists())
+        self.assertFalse((self.claude / "rules-controller").exists())
+        self.assertEqual(sorted(path.name for path in (self.claude / "rules").iterdir()), ["judgment.md"])
 
     def test_hook_and_ripgreprc_are_installed_as_regular_files(self) -> None:
         self.run_sync(apply=True)
@@ -156,10 +176,18 @@ class SyncProfileTests(unittest.TestCase):
         self.assertEqual(ripgreprc.read_text(encoding="utf-8"), "--hidden\n")
 
     def test_missing_hook_source_is_refused_before_writing(self) -> None:
-        (self.repo / "hooks" / "block-ci-edit.sh").unlink()
+        shutil.rmtree(self.src_claude / "hooks")
 
         with self.assertRaises(sync_profile.SyncError):
             self.run_sync(apply=True)
+        self.assertFalse(self.claude.exists())
+
+    def test_missing_route_card_source_is_refused_before_writing(self) -> None:
+        (self.src_claude / "route-card.md").unlink()
+
+        with self.assertRaises(sync_profile.SyncError) as caught:
+            self.run_sync(apply=True)
+        self.assertIn("route-card.md", str(caught.exception))
         self.assertFalse(self.claude.exists())
 
     def test_host_facts_installs_only_this_machines_file(self) -> None:
@@ -174,13 +202,13 @@ class SyncProfileTests(unittest.TestCase):
         self.assertNotIn("# mac", facts.read_text(encoding="utf-8"))
 
     def test_unknown_host_key_is_refused_before_writing(self) -> None:
-        # "amiga" is a well-formed key; it is refused because hosts/amiga.md
-        # does not exist, which must read as a different error than a
+        # "amiga" is a well-formed key; it is refused because
+        # global/shared/hosts/amiga.md does not exist, which must read as a different error than a
         # malformed key (see test_invalid_host_key_format_is_refused...).
         with self.assertRaises(sync_profile.SyncError) as caught:
             self.run_sync(apply=True, host_key="amiga")
         self.assertIn("missing", str(caught.exception))
-        self.assertIn("hosts/amiga.md", str(caught.exception))
+        self.assertIn("global/shared/hosts/amiga.md", str(caught.exception))
         self.assertFalse(self.claude.exists())
 
     def test_invalid_host_key_format_is_refused_before_writing(self) -> None:
@@ -195,7 +223,7 @@ class SyncProfileTests(unittest.TestCase):
                 self.assertFalse(self.agents.exists())
 
     def test_custom_host_key_can_install(self) -> None:
-        (self.repo / "hosts" / "linuxbox.md").write_text("# linux\n", encoding="utf-8")
+        (self.src_shared / "hosts" / "linuxbox.md").write_text("# linux\n", encoding="utf-8")
 
         self.run_sync(apply=True, host_key="linuxbox")
 
@@ -222,7 +250,7 @@ class SyncProfileTests(unittest.TestCase):
     def test_directory_symlink_root_is_replaced_by_a_real_directory(self) -> None:
         self.require_symlinks()
         (self.claude).mkdir(parents=True)
-        os.symlink(self.repo / "rules", self.claude / "rules", target_is_directory=True)
+        os.symlink(self.src_shared / "rules", self.claude / "rules", target_is_directory=True)
         self.assertTrue((self.claude / "rules").is_symlink())
 
         self.run_sync(apply=True, replace_symlinks=True)
@@ -230,22 +258,25 @@ class SyncProfileTests(unittest.TestCase):
         self.assertFalse((self.claude / "rules").is_symlink())
         self.assertTrue((self.claude / "rules").is_dir())
         self.assertEqual(
-            (self.claude / "rules" / "00-environment.md").read_text(encoding="utf-8"), "# env\n"
+            (self.claude / "rules" / "judgment.md").read_text(encoding="utf-8"), "# judgment\n"
         )
 
     def test_owned_tree_link_migrates_every_child_without_following_old_root(self) -> None:
         self.require_symlinks()
         (self.claude).mkdir(parents=True)
-        os.symlink(self.repo / "rules", self.claude / "rules", target_is_directory=True)
+        os.symlink(self.src_shared / "rubrics", self.claude / "rubrics", target_is_directory=True)
 
         operations = self.run_sync(apply=True, replace_symlinks=True)
 
         self.assertEqual(
-            [operation.action for operation in operations if operation.destination.parent == self.claude / "rules"],
+            [operation.action for operation in operations if operation.destination.parent == self.claude / "rubrics"],
             ["install", "install"],
         )
-        self.assertFalse((self.claude / "rules").is_symlink())
-        self.assertEqual((self.claude / "rules" / "05-hosts.md").read_text(encoding="utf-8"), "# hosts\n")
+        self.assertFalse((self.claude / "rubrics").is_symlink())
+        self.assertEqual(
+            (self.claude / "rubrics" / "document-quality.md").read_text(encoding="utf-8"),
+            "# document quality\n",
+        )
 
     def test_foreign_tree_redirect_is_refused_before_any_write(self) -> None:
         self.require_symlinks()
@@ -273,11 +304,11 @@ class SyncProfileTests(unittest.TestCase):
             self.run_sync(apply=True)
         self.assertIn("destination ancestor is a redirect", str(caught.exception))
         self.assertTrue((self.claude / "skills").is_symlink())
-        self.assertFalse((elsewhere / "maintain-guideline" / "SKILL.md").exists())
+        self.assertFalse((elsewhere / "dispatch" / "SKILL.md").exists())
 
     def test_nested_tree_redirect_is_refused_before_any_write(self) -> None:
         self.require_symlinks()
-        source = self.repo / "skills" / "create-pr" / "references"
+        source = self.src_shared / "skills" / "create-pr" / "references"
         source.mkdir()
         (source / "guide.md").write_text("guide\n", encoding="utf-8")
         destination = self.claude / "skills" / "create-pr" / "references"
@@ -295,7 +326,7 @@ class SyncProfileTests(unittest.TestCase):
     def test_repo_file_symlink_is_replaced_and_backed_up(self) -> None:
         self.require_symlinks()
         (self.claude).mkdir(parents=True)
-        os.symlink(self.repo / "CLAUDE.md", self.claude / "CLAUDE.md")
+        os.symlink(self.src_claude / "CLAUDE.md", self.claude / "CLAUDE.md")
 
         self.run_sync(apply=True, replace_symlinks=True)
 
@@ -335,7 +366,7 @@ class SyncProfileTests(unittest.TestCase):
         self.claude.mkdir(parents=True)
         # ``resolve`` is /private/var on macOS while this stored target retains
         # the /var spelling used by temporary test paths.
-        os.symlink(self.repo / "CLAUDE.md", self.claude / "CLAUDE.md")
+        os.symlink(self.src_claude / "CLAUDE.md", self.claude / "CLAUDE.md")
 
         self.run_sync(apply=True, replace_symlinks=True)
 
@@ -358,7 +389,7 @@ class SyncProfileTests(unittest.TestCase):
         agents_dir = self.claude / "agents"
         agents_dir.mkdir(parents=True)
         # A link this repo's installer created, for a role since sunset.
-        os.symlink(self.repo / "agents" / "retired.md", agents_dir / "retired.md")
+        os.symlink(self.src_claude / "agents" / "retired.md", agents_dir / "retired.md")
         # Someone else's link, and a real file of the user's own.
         outside = self.root / "outside.md"
         outside.write_text("theirs\n", encoding="utf-8")
@@ -376,15 +407,14 @@ class SyncProfileTests(unittest.TestCase):
         self.require_symlinks()
         agents_dir = self.claude / "agents"
         agents_dir.mkdir(parents=True)
-        os.symlink(self.repo / "agents" / "retired.md", agents_dir / "retired.md")
+        os.symlink(self.src_claude / "agents" / "retired.md", agents_dir / "retired.md")
 
         self.run_sync(apply=True)
 
         self.assertTrue((agents_dir / "retired.md").is_symlink())
 
     def test_missing_source_is_refused_before_writing(self) -> None:
-        (self.repo / "rules" / "00-environment.md").unlink()
-        (self.repo / "rules" / "05-hosts.md").unlink()
+        (self.src_shared / "rules" / "judgment.md").unlink()
 
         with self.assertRaises(sync_profile.SyncError):
             self.run_sync(apply=True)
@@ -398,15 +428,15 @@ class SyncProfileTests(unittest.TestCase):
         for child in rules.iterdir():
             child.unlink()
         rules.rmdir()
-        os.symlink(self.repo / "rules", rules, target_is_directory=True)
+        os.symlink(self.src_shared / "rules", rules, target_is_directory=True)
         retired = self.claude / "agents" / "retired.md"
-        os.symlink(self.repo / "agents" / "retired.md", retired)
+        os.symlink(self.src_claude / "agents" / "retired.md", retired)
         return retired
 
     def _assert_mixed_transaction_restored(self, retired: Path) -> None:
         self.assertEqual((self.claude / "CLAUDE.md").read_text(encoding="utf-8"), "# personal\n")
         self.assertTrue((self.claude / "rules").is_symlink())
-        self.assertEqual(os.readlink(self.claude / "rules"), str(self.repo / "rules"))
+        self.assertEqual(os.readlink(self.claude / "rules"), str(self.src_shared / "rules"))
         self.assertTrue(retired.is_symlink())
         # No stray staging file from an interrupted write is left behind.
         self.assertEqual(list(self.claude.rglob(".*.tmp")), [])
@@ -421,7 +451,8 @@ class SyncProfileTests(unittest.TestCase):
         def fail_later(destination, content, created_directories):
             nonlocal calls
             calls += 1
-            if calls == 3:
+            # Write 1 is the CLAUDE.md update, write 2 is rules/judgment.md.
+            if calls == 2:
                 raise OSError("injected write failure")
             return original(destination, content, created_directories)
 
@@ -473,7 +504,7 @@ class SyncProfileTests(unittest.TestCase):
         def fail_and_occupy(destination, content, created_directories):
             nonlocal calls
             calls += 1
-            if calls == 3:
+            if calls == 2:
                 # Simulate something else occupying a path rollback will try
                 # to restore, so rollback itself fails and the original
                 # failure must not be lost behind "rollback failed".
@@ -524,7 +555,7 @@ class SyncProfileTests(unittest.TestCase):
     def test_symlink_migration_without_flag_is_refused_before_any_write(self) -> None:
         self.require_symlinks()
         self.claude.mkdir(parents=True)
-        os.symlink(self.repo / "CLAUDE.md", self.claude / "CLAUDE.md")
+        os.symlink(self.src_claude / "CLAUDE.md", self.claude / "CLAUDE.md")
 
         with self.assertRaises(sync_profile.SyncError) as caught:
             self.run_sync(apply=True)
@@ -535,7 +566,7 @@ class SyncProfileTests(unittest.TestCase):
     def test_symlink_migration_with_flag_matches_existing_behavior(self) -> None:
         self.require_symlinks()
         self.claude.mkdir(parents=True)
-        os.symlink(self.repo / "CLAUDE.md", self.claude / "CLAUDE.md")
+        os.symlink(self.src_claude / "CLAUDE.md", self.claude / "CLAUDE.md")
 
         self.run_sync(apply=True, replace_symlinks=True)
 
@@ -545,7 +576,7 @@ class SyncProfileTests(unittest.TestCase):
     def test_dry_run_hints_replace_symlinks_when_migration_pending(self) -> None:
         self.require_symlinks()
         self.claude.mkdir(parents=True)
-        os.symlink(self.repo / "CLAUDE.md", self.claude / "CLAUDE.md")
+        os.symlink(self.src_claude / "CLAUDE.md", self.claude / "CLAUDE.md")
 
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
@@ -590,6 +621,78 @@ class SyncProfileTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn("mode: apply", output)
         self.assertIn(f"update regular file: {self.claude / 'CLAUDE.md'}", output)
+
+
+    def run_sync_output(self, **kwargs) -> str:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            self.run_sync(**kwargs)
+        return stdout.getvalue()
+
+    def make_v1_leftovers(self) -> list[Path]:
+        """What a v1 install left in the profile; returns the entries to be listed."""
+
+        listed = [
+            self.claude / "rules-controller",
+            self.claude / "rules" / "00-environment.md",
+            self.claude / "rules" / "05-hosts.md",
+            self.claude / "rules" / "20-judgment.md",
+            self.claude / "rules" / "50-lessons.md",
+            self.claude / "skills" / "maintain-guideline",
+            self.claude / "skills" / "usage-review",
+            self.claude / "agents" / "worker-opus.md",
+            self.agents / "skills" / "maintain-guideline",
+            self.agents / "skills" / "session-handoff",
+        ]
+        for path in listed:
+            if path.name.endswith(".md"):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("# v1\n", encoding="utf-8")
+            else:
+                path.mkdir(parents=True)
+                (path / "SKILL.md").write_text("# v1\n", encoding="utf-8")
+        return listed
+
+    def test_dry_run_lists_v1_leftovers_and_removes_nothing(self) -> None:
+        listed = self.make_v1_leftovers()
+
+        output = self.run_sync_output()
+
+        for path in listed:
+            self.assertIn(f"legacy: {path}", output)
+            self.assertTrue(path.exists())
+
+    def test_apply_lists_v1_leftovers_and_removes_nothing(self) -> None:
+        listed = self.make_v1_leftovers()
+
+        output = self.run_sync_output(apply=True)
+
+        for path in listed:
+            self.assertIn(f"legacy: {path}", output)
+            self.assertTrue(path.exists())
+        # The new rules file is installed next to the stale one; the script does not choose between them.
+        self.assertTrue((self.claude / "rules" / "judgment.md").is_file())
+        self.assertTrue((self.claude / "rules" / "20-judgment.md").is_file())
+
+    def test_clean_profile_prints_no_legacy_notice(self) -> None:
+        self.assertNotIn("legacy", self.run_sync_output())
+        self.assertNotIn("legacy", self.run_sync_output(apply=True))
+        self.assertNotIn("legacy", self.run_sync_output(apply=True))
+
+    def test_prune_removes_a_v1_link_and_does_not_list_it_twice(self) -> None:
+        self.require_symlinks()
+        self.claude.mkdir(parents=True)
+        stale = self.claude / "rules-controller"
+        os.symlink(self.repo / "rules-controller", stale, target_is_directory=True)
+
+        preview = self.run_sync_output(prune=True)
+        self.assertIn(f"remove stale link into this repo: {stale}", preview)
+        self.assertNotIn(f"legacy: {stale}", preview)
+        self.assertTrue(stale.is_symlink())
+
+        applied = self.run_sync_output(apply=True, prune=True)
+        self.assertFalse(stale.is_symlink())
+        self.assertNotIn("legacy", applied)
 
 
 if __name__ == "__main__":

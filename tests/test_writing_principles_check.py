@@ -1,4 +1,4 @@
-"""Assertions for skills/writing-principles/scripts/check_docs.py.
+"""Assertions for global/shared/skills/writing-principles/scripts/check_docs.py.
 
 The fixtures under tests/fixtures/writing-principles are the red/green evidence for
 every machine-checked principle: ``pass/`` must stay clean, ``fail/`` has one file per
@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCRIPT = REPO_ROOT / "skills" / "writing-principles" / "scripts" / "check_docs.py"
+SCRIPT = REPO_ROOT / "global" / "shared" / "skills" / "writing-principles" / "scripts" / "check_docs.py"
 FIXTURES = REPO_ROOT / "tests" / "fixtures" / "writing-principles"
 PASS_DIR = FIXTURES / "pass"
 FAIL_DIR = FIXTURES / "fail"
