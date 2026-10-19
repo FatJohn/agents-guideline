@@ -1,5 +1,6 @@
 # Rubric — 研究／分析產出
 
+> 本 rubric 由 verifier 合約引用（`~/.claude/agents/verifier.md`；Codex：`<REPO>/global/codex/agents/verifier.toml`），寫驗收條件時也可對照。
 > 用途：驗收查證、調研、盤點、比較分析類產出的預設判準。
 > 判定方式：逐條 PASS／FAIL／UNSURE，每個 FAIL 附 `檔案:行號` 或引用位置。
 

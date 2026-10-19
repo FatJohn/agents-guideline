@@ -1,7 +1,8 @@
 # Rubric — 文件品質
 
+> 本 rubric 由 verifier 合約引用（`~/.claude/agents/verifier.md`；Codex：`<REPO>/global/codex/agents/verifier.toml`），寫驗收條件時也可對照。
 > 用途：Claude／Codex 的 `verifier` 驗收文件類產出時共用的預設判準；派工者寫驗收條件時可直接引用本檔路徑，不必重抄。本檔不指定平台角色、model 或 effort。
-> **本檔是清單不是擴權**：找碴範圍與收斂標記受平台 verifier 合約約束（Claude：`<REPO>/agents/verifier.md`；Codex：`<REPO>/codex/agents/verifier.toml`／`<REPO>/codex/agents/sol_verifier.toml`）；行為承載產物與散文的分類 canonical 在 `<REPO>/rules/20-judgment.md` §2「停止端」。
+> **本檔是清單不是擴權**：找碴範圍與收斂標記受平台 verifier 合約約束（Claude：`<REPO>/global/claude/agents/verifier.md`；Codex：`<REPO>/global/codex/agents/verifier.toml`／`<REPO>/global/codex/agents/sol_verifier.toml`）；行為承載產物與散文的分類 canonical 在 `<REPO>/global/shared/rules/judgment.md` 7「驗收的停止端」。
 > 判定方式：逐條 PASS／FAIL／UNSURE，每個 FAIL 附 `檔案:行號`。
 
 ## 1. 讀者能不能行動（三個必答題）
@@ -42,5 +43,5 @@
 
 ## 6. 長存文件的寫作原則（README、接入指南、設計說明、流程、參考頁、wiki 頁）
 
-- 產出屬於 `<REPO>/skills/writing-principles/SKILL.md`「何時用／不用」的「用」範圍時，照該 skill「原則與判定」逐條判：機械項自己重跑 `python3 <REPO>/skills/writing-principles/scripts/check_docs.py --repo <目標 repo>`（設定與 `--exclude` 依派工者附的清單），`SUMMARY` 行貼進回報，派工者附的輸出只當線索；`[verifier]` 項各抽樣 5 處。派工者未說明的 `--exclude` 與 `<!-- allow-time-word -->` 逐條判 FAIL。
+- 產出屬於 `<REPO>/global/shared/skills/writing-principles/SKILL.md`「何時用／不用」的「用」範圍時，照該 skill「原則與判定」逐條判：機械項自己重跑 `python3 <REPO>/global/shared/skills/writing-principles/scripts/check_docs.py --repo <目標 repo>`（設定與 `--exclude` 依派工者附的清單），`SUMMARY` 行貼進回報，派工者附的輸出只當線索；`[verifier]` 項各抽樣 5 處。派工者未說明的 `--exclude` 與 `<!-- allow-time-word -->` 逐條判 FAIL。
 - 不屬於該範圍（程式註解、commit、PR、issue、ADR、CHANGELOG、本系統 rules／agents／skills）時本節標 N/A，不得套用。

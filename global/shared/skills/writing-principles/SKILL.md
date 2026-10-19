@@ -154,12 +154,12 @@ allowed-tools: Bash(python3:*), Bash(git:*), Read, Grep, Glob
 
 ```markdown
 <!-- 改寫前 -->
-# api-login-web
+# acme-login-web
 
 目前登入頁已接上社群登入，Apple 按鈕暫時維持 disabled（細節見[這裡](docs/flow.md)）。
 
 <!-- 改寫後 -->
-# api-login-web
+# acme-login-web
 
 讀者：開發者、SRE
 型別：入口
