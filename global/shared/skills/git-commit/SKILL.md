@@ -5,9 +5,9 @@ description: 寫 git commit message 或 squash merge 標題時使用：commit �
 
 # git-commit — commit message 的固定格式
 
-專案 `CLAUDE.md`／`AGENTS.md`／`CONTRIBUTING.md` 有自己的 commit 或註解慣例時以專案為準；沒有明文時看既有慣例（見下）；都沒有才用本格式。
+專案 `CLAUDE.md`／`AGENTS.md`／`CONTRIBUTING.md` 有自己的 commit 慣例時以專案為準；沒有明文時看既有慣例（見下）；都沒有才用本格式。
 
-commit message（subject 與 body）全英文，subject 符合 Conventional Commits：`type: 小寫祈使句`，scope 可省略（`type(scope):` 同樣合格），type 限 `build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test`。對話與 issue 仍是繁體中文；PR title 與 body 依 `create-pr` skill 2.2「repo 規定與既有慣例」；程式註解預設繁體中文，但 repo 既有註解以英文為主時跟隨英文。
+commit message（subject 與 body）全英文，subject 符合 Conventional Commits：`type: 小寫祈使句`，scope 可省略（`type(scope):` 同樣合格），type 限 `build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test`。對話與 issue 仍是繁體中文；PR title 與 body 依 `create-pr` skill 2.2「repo 規定與既有慣例」。本 skill 不管程式註解的語言。
 
 例：`fix: reject empty token in refresh flow`、`feat(auth): add token rotation`。
 
@@ -18,12 +18,9 @@ commit message（subject 與 body）全英文，subject 符合 Conventional Comm
 ```bash
 # commit 標題慣例：最近 20 個非 merge commit 的標題
 git log --no-merges -n 20 --format=%s
-# 註解語言：含 CJK 的註解行數 vs 全部註解行數（以 Go 的 // 為例，其他語言換註解符號）
-git grep -cP '^\s*//.*[\x{4e00}-\x{9fff}]' -- '*.go' | awk -F: '{s+=$2} END{print s+0}'
-git grep -c '^\s*//' -- '*.go' | awk -F: '{s+=$2} END{print s+0}'
 ```
 
-判準：過半是哪一種就跟隨哪一種；樣本不足（commit < 5、註解 < 20 行）或看不出多數，視為無慣例，用本 skill 預設。
+判準：過半是哪一種格式就跟隨哪一種；樣本不足（commit < 5）或看不出多數，視為無慣例，用本 skill 預設。
 
 ## squash merge
 

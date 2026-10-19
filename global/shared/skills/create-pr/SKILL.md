@@ -76,9 +76,9 @@ find .github docs . -maxdepth 1 -iname 'pull_request_template*' 2>/dev/null
 - **命中多筆**（例如 `docs/` 與 `.github/` 各有一份，或一個檔加一個目錄）→ 把清單列給使用者選一份，不要自己挑；命中含目錄時一併把目錄內的檔案展開進選單。GitHub 在多位置並存時採用哪一份未見官方明文，猜錯會套錯骨架。
 - **什麼都沒命中** → 直接用 2.6 的內建骨架，不必問使用者，**也不要順手幫該 repo 新增 template 檔**——那是改動對方的協作慣例，超出「開一個 PR」的授權範圍。
 
-**repo 規定與既有慣例**：PR 標題與描述的語言、標題格式，程式註解語言，是否一律先開 draft，開 PR 前要過的檢查，merge 時機與 review 流程，這五件事 repo 有自己的規定時以 repo 為準。前兩件（標題／描述語言與格式、註解語言）沒明文時再看既有慣例；後三件（draft、開 PR 前的檢查、merge／review 流程）只看 repo 文件，文件沒寫就用預設。依序判斷：
+**repo 規定與既有慣例**：PR 標題與描述的語言、標題格式，是否一律先開 draft，開 PR 前要過的檢查，merge 時機與 review 流程，這四件事 repo 有自己的規定時以 repo 為準。第一件（標題／描述語言與格式）沒明文時再看既有慣例；後三件（draft、開 PR 前的檢查、merge／review 流程）只看 repo 文件，文件沒寫就用預設。依序判斷：
 
-1. 先讀 repo 文件（`AGENTS.md`／`CLAUDE.md`／`CONTRIBUTING.md`／PR template）裡關於這五件事的規定。有明文就照明文。
+1. 先讀 repo 文件（`AGENTS.md`／`CLAUDE.md`／`CONTRIBUTING.md`／PR template）裡關於這四件事的規定。有明文就照明文。
 2. 沒明文再看既有慣例。PR 標題看最近 merged PR 的標題，排除 bot：
 
    ```bash
@@ -86,7 +86,7 @@ find .github docs . -maxdepth 1 -iname 'pull_request_template*' 2>/dev/null
    gh pr list --state merged -L 10 --json title,author -q '.[] | select(.author.is_bot | not) | .title'
    ```
 
-   判準：排除 bot 後的標題多數（過半）是英文就用英文，其中多數是 Conventional Commits（`type:`／`type(scope):` 開頭）就跟隨該格式，否則照多數的寫法；多數是中文就用中文；數量不足 3 筆或混雜看不出多數，視為無慣例。描述語言跟標題同語言（標題照慣例用英文時描述也用英文），repo 文件另有規定時照文件。程式註解語言的判法見 `~/.claude/skills/git-commit/SKILL.md`「既有慣例怎麼判」。
+   判準：排除 bot 後的標題多數（過半）是英文就用英文，其中多數是 Conventional Commits（`type:`／`type(scope):` 開頭）就跟隨該格式，否則照多數的寫法；多數是中文就用中文；數量不足 3 筆或混雜看不出多數，視為無慣例。描述語言跟標題同語言（標題照慣例用英文時描述也用英文），repo 文件另有規定時照文件。
 3. 都沒有 → 照下列預設（即本 skill 原本的做法）。
 4. 使用者當下明確要求的語言或格式永遠最優先。
 
