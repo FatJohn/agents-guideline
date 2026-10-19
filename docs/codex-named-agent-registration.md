@@ -10,7 +10,7 @@
 | 11 個角色安裝到 `~/.codex/agents/` | destination 與 repo source bytes identical |
 | 早期單次 `-c` 註冊 | 可行；當時 `config_file` 指向 physical source file |
 
-目前採用 `scripts/sync-codex-agents.py`：預設只 dry-run，`--apply` 將 `codex/agents/*.toml` 安裝成 destination 的 regular files；repo 更新後用 `--apply --update`，差異檔案或已知 source symlink 會先備份到 `agents` 目錄外的唯一資料夾。foreign symlink、directory、invalid source 與未加 `--update` 的差異 regular file 都在寫入前失敗。這個同步器只處理 Codex agent TOML；`AGENTS.md`、skills 與 Claude 安裝路徑的 symlink 維持原方式。
+目前採用 `scripts/sync-codex-agents.py`：預設只 dry-run，`--apply` 將 `global/codex/agents/*.toml` 安裝成 destination 的 regular files；repo 更新後用 `--apply --update`，差異檔案或已知 source symlink 會先備份到 `agents` 目錄外的唯一資料夾。foreign symlink、directory、invalid source 與未加 `--update` 的差異 regular file 都在寫入前失敗。這個同步器只處理 Codex agent TOML；`AGENTS.md`、skills 與 Claude 安裝路徑的 symlink 維持原方式。
 
 ```bash
 python3 scripts/sync-codex-agents.py --destination "$HOME/.codex/agents"

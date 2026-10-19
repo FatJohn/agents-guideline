@@ -1,4 +1,5 @@
 # 獨立 issue 分 session 試行（2026-10）
+> 本檔是歷史紀錄，引用的是重構前的檔案路徑；對照見 `docs/repo-layout.md`。
 
 > 承接 `rules/10-dispatch.md` §1「互相獨立的 issue 一個 issue 一個頂層 session」與 `skills/parallel-dispatch/SKILL.md` §1「先分流」。本檔記錄改規則當時的量測與試行方法；結論是**待試行的假設**，不是已證實的節省。
 

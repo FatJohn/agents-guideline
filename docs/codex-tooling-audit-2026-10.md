@@ -1,4 +1,5 @@
 # Codex tooling audit（2026-10-11）
+> 本檔是歷史紀錄，引用的是重構前的檔案路徑；對照見 `docs/repo-layout.md`。
 
 > 查證環境：macOS `xushengzhedeMacBook-Pro.local`；`codex-cli 0.162.1`。本文件把第一輪盤點的數字標成「調整前 baseline」；第二輪已批准的 config 調整、CLI read-back 與仍待刷新項目分開記錄。數字不可直接當成調整後的 CLI 或桌面 catalog。
 > 本次文件只記現況、可追溯操作與未驗證項；不把 metadata bytes 當 token 或實際注入量，也不宣稱 token 節省。

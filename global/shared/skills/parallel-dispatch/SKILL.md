@@ -65,9 +65,9 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 
 **Foundation 先落地**：多片共用的地基（套件清單、共用型別／schema、router／DI／export 的 registry、測試設定、migration 序號）先由 controller 或一個序列片做完並 **commit 到 base 或 integration branch**，graph 記下 foundation SHA，之後才 fan out；不得讓兩片各自補同一份地基——這已知會造成 merge conflict。記下 foundation SHA 後即可 fan out，不必等該 commit 的 PR、CI 或 merge。
 
-**批次上限**：預設一批 **3** 片（假設；已知樣本只有 2026-09-12 一批 3 片，見 `<REPO>/docs/harness-facts.md` `isolation: worktree` 條的「成本量級」句，4 片無樣本），最多 4 片且要寫出理由（每片獨立且 review 量可承受）；不滾動補位；下一批須等本批整合完成（§7）。平行是有成本的資源：每多一個 worker 就多一份 context 複製、一個要 review 的 diff、一次整合風險；而驗收與整合本身是序列的，多開 worker 不會讓瓶頸變快（`<REPO>/docs/judgment-rationale.md`「§2 補充判準（修正與驗收輪次）」：實作占 wall time 10–16%、驗收＋修正 85%）。
+**批次上限**：預設一批 **3** 片（假設；已知樣本只有一批 3 片，見 `<REPO>/docs/harness-facts.md` `isolation: worktree` 條的「成本量級」句，4 片無樣本），最多 4 片且要寫出理由（每片獨立且 review 量可承受）；不滾動補位；下一批須等本批整合完成（§7）。平行是有成本的資源：每多一個 worker 就多一份 context 複製、一個要 review 的 diff、一次整合風險；而驗收與整合本身是序列的，多開 worker 不會讓瓶頸變快（`<REPO>/docs/judgment-rationale.md`「§2 補充判準（修正與驗收輪次）」：實作占 wall time 10–16%、驗收＋修正 85%）。
 
-**單片尺寸評估**：依交付內容、依賴關係、驗收邊界與可交接性估量，不用單一 counter 當硬上限或品質門檻。**單片 context 約 300k** 目前只作**折衷提醒值（非實測，n=1）**（理由見 `<REPO>/docs/judgment-rationale.md`「2026-09-22 project-a session review」段）；若預估或實際明顯超過，重評進度、剩餘工作、context、重讀與 handoff 成本，再決定續用、交接、序列或重切；多 commit 的單片以 commit 邊界作交接點優先；不得為了湊計數拆開原本有依賴的片。counter 的量法依 adapter，**優先用 agent 交回時的 context 大小**（Claude：完成通知 `<usage>` 的 `subagent_tokens`，見 `references/claude-code.md`「counter」列），工具呼叫數只是輔助；沒有可靠 counter 就標 `unknown`，不可從文字猜，也不阻擋派工。量測限制與後續方法見 `<REPO>/docs/dispatch-cost-review-2026-09-17.md`。同一批切片中預估最大片超過中位片約 2 倍時，先評估能否再切大片或合併小片，因為並行波次牆鐘由最長片決定（2026-09-29 review：最長／中位 1.71×，P75 2.27×）；切不開就維持並在 graph 註明。
+**單片尺寸評估**：依交付內容、依賴關係、驗收邊界與可交接性估量，不用單一 counter 當硬上限或品質門檻。**單片 context 約 300k** 目前只作**折衷提醒值（非實測，n=1）**（理由見 `<REPO>/docs/judgment-rationale.md`「project-a session review：Explore 前置與單片 context 提醒的理由」段）；若預估或實際明顯超過，重評進度、剩餘工作、context、重讀與 handoff 成本，再決定續用、交接、序列或重切；多 commit 的單片以 commit 邊界作交接點優先；不得為了湊計數拆開原本有依賴的片。counter 的量法依 adapter，**優先用 agent 交回時的 context 大小**（Claude：完成通知 `<usage>` 的 `subagent_tokens`，見 `references/claude-code.md`「counter」列），工具呼叫數只是輔助；沒有可靠 counter 就標 `unknown`，不可從文字猜，也不阻擋派工。量測限制與後續方法見 `<REPO>/docs/dispatch-cost-review-*.md`。同一批切片中預估最大片超過中位片約 2 倍時，先評估能否再切大片或合併小片，因為並行波次牆鐘由最長片決定（最長／中位 1.71×，P75 2.27×，見 `<REPO>/docs/worker-sonnet55-trial-2026-09.md`「質性 review」）；切不開就維持並在 graph 註明。
 
 **Ownership**（每份 brief 必填）：objective、scope、允許路徑、禁止路徑或子系統、依賴、預期輸出、驗證命令、完成定義。允許路徑以 repo 相對路徑寫，實際落地位置由 adapter 決定（`references/worktree.md`）。目標是**兩個 worker 不會同時改同一檔**，做不到就序列。三條硬規則：
 - **共用觸點不得有兩個 owner**：lockfile、registry／index 檔、generated artifact、migration 序號、changelog 這類單檔熱點，要嘛指定唯一 owner，要嘛留給 integrator 在 §6 統一改，要嘛改成每片一個 fragment 由整合時合併。沒有 owner 的路徑任何片都不准改。
@@ -111,7 +111,7 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 7. 建暫存 integration tree／branch（`references/worktree.md`），跑完整測試／lint／typecheck／build；記錄 base SHA、每片 HEAD、integration tree／commit 與結果。任何 base、切片 HEAD 或 integration 內容變動都使受影響證據失效，必須重驗。
 8. 逐片 merge（PR 或直接 merge 依專案流程）前，以**當前 base 加該候選片**建 integration gate 跑受影響的完整檢查；base 有 auto deploy 時這個中間狀態不可只由全批最終 tree 代替。不要拿全批最終 tree 比較第一片 merge，否則會把後續合法切片誤判為失效。
 9. §3 語意風險任一成立才派一名 fresh verifier，只驗片與片的互動及合併後的執行環境（fresh checkout、CI job 順序、產物依賴），不重驗已通過的切片條件；驗收者在 integration tree 的乾淨環境執行。無風險時最終證據只需 integration tree 的完整測試。驗收 prompt 裡的測試數、新增條數由 controller 現查（如 `git grep -c`），不抄 worker 自報。
-10. 必要時要求修正。**判準**：預設派 fresh worker，但這是可調預設——若修正小且獨立、原 worker 理解正確，且沒有膨脹或反覆重讀跡象，可依累積現況續用同一 worker，不以工具呼叫數單獨決定；膨脹以 adapter 的 context 大小訊號判斷（Claude：`subagent_tokens`），context 已大就派 fresh，續用成本高於 fresh，數字見 `<REPO>/docs/judgment-rationale.md`「2026-09-22 parallel-dispatch skill fable review 落地」段；若能力不足，沿用升級路徑，fresh 不取代升級。**交接必附**：原 finding、修正 diff、受影響驗收條件與既有證據、原 brief、ownership、invariants、slice 絕對路徑、branch、base SHA、candidate／checkpoint SHA、dirty 狀態；先 stop/read-back 再移 ownership。同一 worktree 可序列接手；新 worktree 必須從已核對的 candidate checkpoint 建立並 read-back，不可只從 controller HEAD 假定有候選改動。修正後依停止端分流機械結案或 fresh delta。
+10. 必要時要求修正。**判準**：預設派 fresh worker，但這是可調預設——若修正小且獨立、原 worker 理解正確，且沒有膨脹或反覆重讀跡象，可依累積現況續用同一 worker，不以工具呼叫數單獨決定；膨脹以 adapter 的 context 大小訊號判斷（Claude：`subagent_tokens`），context 已大就派 fresh，續用成本高於 fresh，數字見 `<REPO>/docs/judgment-rationale.md`「parallel-dispatch skill fable review 落地」段；若能力不足，沿用升級路徑，fresh 不取代升級。**交接必附**：原 finding、修正 diff、受影響驗收條件與既有證據、原 brief、ownership、invariants、slice 絕對路徑、branch、base SHA、candidate／checkpoint SHA、dirty 狀態；先 stop/read-back 再移 ownership。同一 worktree 可序列接手；新 worktree 必須從已核對的 candidate checkpoint 建立並 read-back，不可只從 controller HEAD 假定有候選改動。修正後依停止端分流機械結案或 fresh delta。
 
 **收斂即整合，不等整批**：§3 語意風險判定為無的片，一收斂（`CONVERGED`，或 `PROSE-ONLY` 修完 read-back）就單獨走第 7–8 步 merge 或開 PR，不等同批其他片；只有判定有語意風險的片才等它互動的對象一起做第 9 步。早 merge 前第 2 步的交集稽核改用**其他片 brief 的允許路徑**對本片實際改動檔取交集（非空就停）；其餘片完成後，再以實際改動檔補跑一次完整交集。§7 的全批最終驗證照做。
 
@@ -123,7 +123,7 @@ merge／push 一律由 controller 依當次 session 授權執行（worker 的 pu
 
 **已整合才算完成**：accepted 的改動要在目標 base 上看得到（`git log <base-start>..<base-now>` 有它）。併不回去時不得暗示完成——status board 列出每片所在的 branch 與 HEAD、確切 blocker、已跑的驗證與缺口、下一步要跑的指令，交給使用者決定。
 
-最後回報 status board 終版（`references/templates.md`）：拆了什麼、各片狀態、整合證據、量測（elapsed、等待驗收時間、重工次數、可取得時的 tokens、整合或驗收發現的缺陷）。**沒有序列 baseline 不宣稱加速。** 成本或 effort 比較時用 `<REPO>/docs/dispatch-cost-review-2026-09-17.md`「後續量測方法」，平常無須做額外重算。
+最後回報 status board 終版（`references/templates.md`）：拆了什麼、各片狀態、整合證據、量測（elapsed、等待驗收時間、重工次數、可取得時的 tokens、整合或驗收發現的缺陷）。**沒有序列 baseline 不宣稱加速。** 成本或 effort 比較時用 `<REPO>/docs/dispatch-cost-review-*.md`「後續量測方法」，平常無須做額外重算。
 
 ## §8 失敗處理與 re-plan
 
@@ -134,7 +134,7 @@ plan → execute → new information → re-plan（回 §3）→ execute
 | 情境 | 處理 |
 |---|---|
 | worker 卡住／回報 blocked | 缺權限或外部依賴 → 該片退出本批，其餘繼續；缺脈絡 → 補 brief 一次，仍卡就換 fresh context 重做 |
-| worker 停滯（還在跑，但落地位置的 `git status --short`／`diff --stat` 兩次 read-back 無變化；**第一次 Edit 前的探索段不計**） | 進度以 git 可見改動為準，不以 log 或輸出活動為準；探索段＝落地位置出現第一個 git 改動之前，這段不判停滯（能查狀態的 adapter 可用活動訊號確認它還活著，但活動不算進度）；兩次 read-back 的間隔門檻未實測、依經驗調整（理由見 `<REPO>/docs/judgment-rationale.md`「2026-09-22 parallel-dispatch skill fable review 落地」段）；stop 該 worker，補脈絡一次或換 fresh context |
+| worker 停滯（還在跑，但落地位置的 `git status --short`／`diff --stat` 兩次 read-back 無變化；**第一次 Edit 前的探索段不計**） | 進度以 git 可見改動為準，不以 log 或輸出活動為準；探索段＝落地位置出現第一個 git 改動之前，這段不判停滯（能查狀態的 adapter 可用活動訊號確認它還活著，但活動不算進度）；兩次 read-back 的間隔門檻未實測、依經驗調整（理由見 `<REPO>/docs/judgment-rationale.md`「parallel-dispatch skill fable review 落地」段）；stop 該 worker，補脈絡一次或換 fresh context |
 | agent failure（崩潰、逾時、回報不成形） | 以 read-back 判斷落地位置的實際狀態；有可用進度就從該 HEAD 續派，否則重派；不採信中斷前的自述 |
 | 逾時或 stop 之後要重派 | timeout 只是記帳：除非 adapter 的 stop 已確認 process 結束，視為它仍可能在寫。**同一落地位置／ownership 不得出現第二個寫入者**——確認不了就換新 worktree 重派，舊位置的晚到輸出一律忽略 |
 | 已 merge 的片事後發現壞 | revert 該片（§6），其餘片不動；依賴它的下游片證據失效重驗 |

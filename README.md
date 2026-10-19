@@ -8,29 +8,29 @@ English | [繁體中文](README.zh-TW.md)
 
 ### Positioning
 
-A working system that takes effect once installed into `~/.claude/` or `~/.codex/`: model-dispatch rules, judgment criteria, acceptance rubrics, an acceptance agent, and a maintenance protocol. Goal: let different coding agents produce verifiable work at a steady quality in this environment.
+A working system that takes effect once installed into `~/.claude/` or `~/.codex/`: a minimal global entry point per platform, model-dispatch and handoff skills, judgment criteria, acceptance rubrics and agent definitions, all under `global/`. The maintenance protocol stays in this repo as a repo-only skill. Goal: let different coding agents produce verifiable work at a steady quality in this environment.
 
 ### Design background and writing principles
 
-Background: built in one pass on 2026-07-06 by a top-tier model (Fable 5) for all later sessions to reuse. The structure borrows from `goad-dot-claude`. Machine differences are isolated in `hosts/<key>.md` (each machine installs only its own file; a macOS main machine plus a Windows desktop, and a new machine is probed and given a file by an AI; the `<REPO>` mapping table is in `rules/05-hosts.md`).
+Background: built in one pass on 2026-07-06 by a top-tier model (Fable 5) for all later sessions to reuse. The structure borrows from `goad-dot-claude`. Machine differences are isolated in `global/shared/hosts/<key>.md` (each machine installs only its own file; a macOS main machine plus a Windows desktop, and a new machine is probed and given a file by an AI; how to find `<REPO>` is in the Bootstrap section of each global entry point).
 
-Writing principles (revised 2026-07-25 per [the context-engineering guide for Claude 5 generation models](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models)): **write this environment's gotchas and authorization boundaries, not generic ways of working.** Judgment the model already has is not written as a decision tree; self-documenting interfaces (agent definitions) get no fill-in-the-blank examples; each rule keeps exactly one canonical location; only content needed at the start of every job goes into the always-loaded `rules/`. The principle is "fewer rules means a stronger model", not "more rules means safer".
+Writing principles (revised 2026-07-25 per [the context-engineering guide for Claude 5 generation models](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models)): **write this environment's gotchas and authorization boundaries, not generic ways of working.** Judgment the model already has is not written as a decision tree; self-documenting interfaces (agent definitions) get no fill-in-the-blank examples; each rule keeps exactly one canonical location; only content needed at the start of every job stays always-loaded (the global entry point and one rule file, `judgment.md`). The principle is "fewer rules means a stronger model", not "more rules means safer".
 
 ### Always-loaded vs read-on-demand
 
-⚠️ **`~/.claude/rules/` is an unconditionally always-loaded area**: Claude Code loads every `*.md` there that has no `paths` frontmatter in full at the start of each session, a fixed context cost paid by every session. So only content needed at the start of every job goes in `rules/`; long content used only in specific situations goes in `skills/` (maintenance protocol), `rubrics/` (acceptance criteria) or `docs/` (archives and situational reference), and those three directories are **not auto-loaded**.
+⚠️ **`~/.claude/rules/` is an unconditionally always-loaded area**: Claude Code loads every `*.md` there that has no `paths` frontmatter in full at the start of each session, a fixed context cost paid by every session. So the only rule file installed there is `global/shared/rules/judgment.md`, which holds just what every job needs. Long content used only in specific situations is read on demand: skills (`dispatch`, `handoff`, `git-commit` and others) load when their description matches, the controller route card (`global/claude/route-card.md`) is injected only into the main conversation by a SessionStart hook, and rubrics and `docs/` are **not auto-loaded**.
 
 ### Three iron laws
 
 1. **No completion claim without evidence** (test output / CI link / read-back result). Every report is graded: verified (with evidence) / pending CI / unverified.
 2. **Outbound or irreversible actions need explicit authorization in this session**: sending messages or email, merging a PR, pushing a shared branch, publishing, deleting or overwriting files you did not create. When already authorized explicitly in this session, act without asking again. Authorization is valid per occasion and per target and must not be generalized into standing policy.
-3. **No self-verification**: acceptance goes to a fresh-context acceptance agent, never to an agent that inherited the producer's context. Details: Claude `rules-controller/10-dispatch.md` §5「驗證不自驗」; Codex `codex/rules/10-dispatch-codex.md` §6「驗證語意」.
+3. **No self-verification**: acceptance goes to a fresh-context acceptance agent, never to an agent that inherited the producer's context. Details: Claude `global/shared/skills/dispatch/SKILL.md` §6「驗證不自驗」; Codex `global/codex/rules/dispatch.md` §6「驗證語意」.
 
 ### Known degradation modes and prevention (maintainers must read)
 
 1. **Ritual death**: templates are copied but acceptance criteria become empty words → test: could another agent decide pass or fail from that sentence alone; a verifier FAILs vague criteria on sight
-2. **Bloat death**: every pitfall gets stuffed into the rules → lessons go only into `rules/50-lessons.md`; promoting one to an official criterion follows the `maintain-guideline` skill's process; line/byte thresholds trigger slimming; once promoted, move the lesson into `docs/lessons-archive.md` so the same thing never takes two places in the always-loaded area
-3. **Always-loaded-area bloat death**: long content used only in specific situations is put in `rules/` → every session pays a fixed cost. Test: is this content needed at the start of every job? If not, put it in `skills/`／`rubrics/`／`docs/`
+2. **Bloat death**: every pitfall gets stuffed into the rules → lessons go only into `docs/lessons.md` (kept in this repo, not installed globally); promoting one to an official criterion follows the `maintain-guideline` skill's process; line/byte thresholds trigger slimming; once promoted, move the lesson into `docs/lessons-archive.md` so the same thing never takes two places
+3. **Always-loaded-area bloat death**: long content used only in specific situations is put in the always-loaded area → every session pays a fixed cost. Test: is this content needed at the start of every job? If not, put it in a skill, a rubric or `docs/`
 4. **Over-specification death**: decision trees hard-coded for judgments the model already makes, fill-in-the-blank examples attached to self-documenting interfaces → rules conflict and the model burns extra reasoning. The sunset clause (`maintain-guideline` skill §5) is the cure: is a rule about "a gotcha of this environment" or "a generic way of working"? Delete the latter
 5. **Staleness death**: model names or tool parameters change and the docs don't follow, so the whole system loses credibility → facts carry a verification date, are re-checked after 90 days, and a rotten one is fixed as it is found
 6. **Broken-link death**: a file is renamed and routing points to a path that no longer exists → `rg` for references before renaming; a broken link is P0
@@ -44,12 +44,12 @@ Decomposition, templates and fresh-context acceptance raise **execution quality*
 
 Full steps (including post-install verification and caveats) are in [`docs/install.md`](docs/install.md). Pick by platform and privilege:
 
-- **Claude Code, macOS/Linux**: Claude Code on macOS/Linux; symlink install, the repo is the single source of truth and edits take effect immediately.
-- **Codex, macOS/Linux**: Codex on macOS/Linux; `AGENTS.md` and skills are symlinks, agent TOML files are written as regular files by a sync script.
+- **Claude Code, macOS/Linux**: Claude Code on macOS/Linux; symlink install from `global/`, the repo is the single source of truth and edits take effect immediately.
+- **Codex, macOS/Linux**: Codex on macOS/Linux; `AGENTS.md` and skills are symlinks from `global/`, agent TOML files are written as regular files by a sync script.
 - **Windows (PowerShell)**: Windows; run in an administrator PowerShell, which installs both Claude Code and Codex.
 - **Regular-file sync**: machines that cannot elevate; `scripts/sync-profile.py` writes regular-file copies, and the sync must be re-run after every repo change.
 
-For a new machine (no file for it in `hosts/`), probe it and create its file by following 「新機器建檔」 in [`docs/new-host.md`](docs/new-host.md). `docs/install.md`, `docs/new-host.md` and `docs/repo-layout.md` exist in Chinese only, since agents and rules cite them.
+For a new machine (no file for it in `global/shared/hosts/`), probe it and create its file by following 「新機器建檔」 in [`docs/new-host.md`](docs/new-host.md). `docs/install.md`, `docs/new-host.md` and `docs/repo-layout.md` exist in Chinese only, since agents and rules cite them.
 
 ## Directory map
 
@@ -57,12 +57,11 @@ Per-file purposes are in 「檔案結構」 of [`docs/repo-layout.md`](docs/repo
 
 | Path | Purpose |
 |------|---------|
-| `CLAUDE.md`, `AGENTS.md` | Global entry points (one each for Claude Code and Codex): routing and iron laws only |
-| `rules/` | **Auto-loaded every session (always-loaded)**: only rules needed at the start of every job |
-| `rules-controller/` | **Controller-only always-loaded rules**: injected into the main conversation only by a SessionStart hook, not inherited by subagents (dispatch, escalation and when-to-ask rules) |
-| `hosts/` | Per-machine facts `hosts/<key>.md`; imported via the global `CLAUDE.md`, also always-loaded, each machine installs only its own file |
-| `skills/`, `rubrics/`, `docs/` | **Read on demand, not auto-loaded**: maintenance protocol and shared skills, acceptance criteria, situational reference |
-| `agents/` | Claude Code agent definitions: `worker`, `verifier` |
-| `codex/` | Codex-specific: dispatch rules and delegation templates, agent TOML, skills |
-| `hooks/`, `config/` | Claude Code hooks (`controller-context.sh`, a required SessionStart hook that injects `rules-controller/`; `block-ci-edit.sh`, optional, blocks main-conversation edits to CI config) and ripgrep defaults (`--hidden` for Bash `rg`); install steps in [`docs/install.md`](docs/install.md) |
-| `scripts/`, `tests/` | Install sync scripts, the sunset-review measurement script, and tests |
+| `CLAUDE.md`, `AGENTS.md` | This repo's own project spec (how to maintain this repo), not the global entry points |
+| `global/` | Everything that is installed into `~/.claude`, `~/.codex` and `~/.agents`; the rest of the repo stays in the repo |
+| `global/claude/` | Claude Code only: the global entry `CLAUDE.md`; `route-card.md` (injected into the main conversation only, by a SessionStart hook, not inherited by subagents); agent definitions `agents/worker.md` and `verifier.md`; Claude Code hooks (`hooks/controller-context.sh`, a required SessionStart hook that injects `route-card.md`; `hooks/block-ci-edit.sh`, optional, blocks main-conversation edits to CI config) and ripgrep defaults (`config/ripgreprc`, `--hidden` for Bash `rg`); install steps in [`docs/install.md`](docs/install.md) |
+| `global/codex/` | Codex only: the global entry `AGENTS.md`; `rules/dispatch.md` and `rules/delegation-templates.md` (dispatch rules and prompt templates); `agents/*.toml` (agent definitions) |
+| `global/shared/` | Shared by both platforms: `rules/judgment.md` (the always-loaded judgment criteria), `skills/` (`dispatch`, `handoff`, `git-commit`, `create-pr`, `parallel-dispatch`, `writing-principles`), `rubrics/` (acceptance criteria, read by the verifier), `hosts/<key>.md` (per-machine facts; imported via the global `CLAUDE.md`, each machine installs only its own file) |
+| `.claude/skills/` | Repo-only skills, not installed globally: `maintain-guideline`, `usage-review` |
+| `docs/` | **Read on demand, not auto-loaded**: install guides, design notes, rationale, history, and the lessons log `lessons.md` |
+| `scripts/`, `tests/` | Install sync scripts, usage-measurement scripts, and tests |

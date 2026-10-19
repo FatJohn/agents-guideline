@@ -1,4 +1,5 @@
 # 教訓封存（已升級成正式判準的歷史條目）
+> 本檔是歷史紀錄，引用的是重構前的檔案路徑；對照見 `docs/repo-layout.md`。
 
 > 這些教訓的內容已經被正式判準或 agent 定義承接，故從常駐的 `rules/50-lessons.md` 移出，避免同一件事在每個 session 的 context 裡佔兩份位置。**原文保留不改寫**，作為判準的來歷證據；例外是專案真名換成代號，依 `skills/maintain-guideline/SKILL.md` §3「本 repo 是公開 repo」（2026-10-17 起，對照不進 repo）。
 > 本檔不在 `~/.claude/rules/` 底下，不會自動載入；要查某條判準為什麼存在時再讀。

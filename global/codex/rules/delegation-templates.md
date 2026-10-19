@@ -6,11 +6,11 @@
 ## 通用規則
 
 - 所有必要脈絡與路徑都寫進 prompt；路徑一律使用絕對路徑。
-- 回報與證據依 `<REPO>/codex/rules/10-dispatch-codex.md` §4「回報與證據合約」；只列 brief 指定的 controller 下一步決策欄位。
-- 素材與批次查證依 `<REPO>/codex/rules/10-dispatch-codex.md` §3「素材與批次查證」；本檔不重述。
+- 回報與證據依 `<REPO>/global/codex/rules/dispatch.md` §4「回報與證據合約」；只列 brief 指定的 controller 下一步決策欄位。
+- 素材與批次查證依 `<REPO>/global/codex/rules/dispatch.md` §3「素材與批次查證」；本檔不重述。
 - prompt 開頭必須禁止遞迴 spawn：subagent 親自完成，不得再派 subagent。
 - 以下 A–L 每一個 code block 都是完整的 logical-role contract；實際派送時，先把一次性的 adapter envelope 貼在對應 code block 前。`logical role`、`actual agent_type`、model／effort、runtime evidence 與 permission contract 缺一不可；不因使用 generic `default` 而刪減 A–L 內容。
-- A–L 內「你是 `<role>`」是 logical role 標籤，不是 runtime 身份。child 的 `actual agent_type` 依 `10-dispatch-codex.md` §0 的 named-first → `default` fallback 決定；direct CLI review 填 `direct CLI process`，generic child 不得自稱 custom role。
+- A–L 內「你是 `<role>`」是 logical role 標籤，不是 runtime 身份。child 的 `actual agent_type` 依 `dispatch.md` §0 的 named-first → `default` fallback 決定；direct CLI review 填 `direct CLI process`，generic child 不得自稱 custom role。
 - `pro_worker` 沒有另一份重複模板：它重用 D 的 worker contract，把 logical role 改為 `pro_worker`，依 §0 改用 Terra/high，並附觸發 higher-complexity route 的 signals 與證據；execution mistake 可補正一次，若 Terra 抓錯核心、遺漏跨模組關係或能力不足就立即停止並建議 Sol/medium，原因不明且兩次無進展也停止，停止時附逐輪嘗試表。
 
 ### Adapter envelope（A–L 共用前綴）
@@ -23,8 +23,8 @@ recursion boundary: subagent 親自完成；不得再 spawn subagent
 logical role: 【A–L 對應角色；這是任務語意，不是 runtime 身份】
 actual agent_type: 【named role／default／direct CLI process；依當前 surface 實際選中值】
 fork context: 【none／正整數／不適用；generic spawn override model／effort 時不得用 full-history fork】
-requested model: 【實際 model id，例如 gpt-5.6-luna；依 10-dispatch-codex.md §0 mapping】
-requested effort: 【實際 effort，例如 max；依 10-dispatch-codex.md §0 mapping】
+requested model: 【實際 model id，例如 gpt-5.6-luna；依 dispatch.md §0 mapping】
+requested effort: 【實際 effort，例如 max；依 dispatch.md §0 mapping】
 runtime evidence: 【工具宣告值／runtime 已驗證／runtime 未驗證；附 surface、child metadata 或 CLI header 來源】
 logical permission contract: 【read-only／workspace-write；允許行為、working tree 與絕對路徑範圍】
 runtime permission evidence: 【named metadata／CLI header／繼承父 session／runtime 未驗證；實際 sandbox 與 approval 來源】
@@ -33,7 +33,7 @@ authorization boundary: 【controller 已授權的動作；對外或不可逆動
 
 `actual agent_type=default` 時，完整 logical-role contract 仍照貼；沒有 child metadata 時 runtime evidence 必須保留「runtime 未驗證」。generic spawn surface 沒有 sandbox override 時，runtime permission evidence 寫「繼承父 session」；寫入角色須先證明父權限涵蓋 approved scope（verifier 類只需父 runtime 至少 workspace-write，其寫入範圍僅 repo 外探針目錄，由合約約束；父 runtime 為 read-only 時改走 direct CLI（`--sandbox workspace-write`）或停止），reviewer 等 read-only 角色則只有父 runtime 已是 read-only 時可派，否則改走 direct CLI 或停止。不得把 prompt 內的 read-only 自稱或事後 read-back 當作 sandbox 證據。若使用 `codex exec --ephemeral --sandbox <read-only｜workspace-write>`（reviewer 等唯讀角色用 read-only，verifier 類用 workspace-write）走 direct CLI review，該 process 是單體 fresh reviewer，可在指定 model／effort、sandbox 與完整 contract 都有 runtime 證據時完成獨立驗收（包含 Sol/high）；回報標 `direct CLI fallback`，不能把 generic child 或 direct CLI 稱為 custom role。缺任一身份／權限證據只能標「runtime 未驗證」，不能正式結案。
 
-首輪驗收依原有首次驗收分工獨立完成，高風險沒有豁免。若是 finding 後的 delta，prompt 必須填入原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據；delta 的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，不主動設計或執行新的探測形狀。固定 evidence set 內，任何結果若直接使受影響的原始驗收條件不成立，即使 base 也失敗，仍列 FAIL／OPEN；該條件不能判 PASS，也不得標 `CONVERGED`。只有與受影響的原始驗收條件無關、且不是修正 diff 引入的 base 既有／旁支問題，才列後續事項、不擋本次收斂。修正 diff 引入的缺陷仍列 FAIL，歸因要對 base 重跑同一探針。修正 diff 本身又放寬既有檢查時，依 `<REPO>/rules/20-judgment.md` §2「改既有檢查／過濾／驗證規則」照做對抗性探測（不受上述「不主動設計或執行新的探測形狀」限制）。
+首輪驗收依原有首次驗收分工獨立完成，高風險沒有豁免。若是 finding 後的 delta，prompt 必須填入原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據；delta 的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，不主動設計或執行新的探測形狀。固定 evidence set 內，任何結果若直接使受影響的原始驗收條件不成立，即使 base 也失敗，仍列 FAIL／OPEN；該條件不能判 PASS，也不得標 `CONVERGED`。只有與受影響的原始驗收條件無關、且不是修正 diff 引入的 base 既有／旁支問題，才列後續事項、不擋本次收斂。修正 diff 引入的缺陷仍列 FAIL，歸因要對 base 重跑同一探針。修正 diff 本身又放寬既有檢查時，依 `<REPO>/global/shared/rules/judgment.md` 第 10 條「改既有檢查」照做對抗性探測（不受上述「不主動設計或執行新的探測形狀」限制）。
 verifier 回報狀態使用 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`；必要條件有 `UNSURE` 時為 `INCONCLUSIVE`，`OPEN` 依風險分流而非自動要求 fresh delta。`PROSE-ONLY` 修完並 read-back 後停止；三輪回報點依同一產出計數，換 model／role 不重設。
 
 ## A. 搜尋／掃描（角色：scanner）
@@ -46,7 +46,7 @@ verifier 回報狀態使用 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`
 範圍：【絕對路徑、包含與排除項】。
 限制：read-only；禁止寫檔、任何 git 修改操作與對外動作。若需跨檔推理、架構／安全判斷，或結果不可機械驗證，停止並回報「升級 explorer」。
 驗收條件：每一筆附來源（檔案:行號或 URL）與一行結果；找不到時回報 0 筆及查過的關鍵字。
-回報格式：依 `<REPO>/codex/rules/10-dispatch-codex.md` §4，列出查證來源、分級與 brief 指定的決策欄位；長清單由父任務落檔。
+回報格式：依 `<REPO>/global/codex/rules/dispatch.md` §4，列出查證來源、分級與 brief 指定的決策欄位；長清單由父任務落檔。
 ```
 
 ## B. Repo 內探索（角色：explorer；執行路徑、跨檔關係與影響範圍）
@@ -60,7 +60,7 @@ verifier 回報狀態使用 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`
 限制：完全 read-only；禁止寫檔、git 修改與對外動作。高風險判斷交給 planner；已抓對問題但推理不足可提高 Terra effort fresh retry 一次，抓錯核心、遺漏跨模組關係或無法維持必要脈絡則直接回報升級 `escalation_planner/Sol medium`。
 方法：追查 repo 內執行路徑與跨檔關係；每個結論附檔案:行號；查不到標記「未查證」並列出查過的位置。
 驗收條件：每個子問題都有「答案＋來源」或「未查證＋查過哪裡」。
-回報格式：結論先行，依 `<REPO>/codex/rules/10-dispatch-codex.md` §4 分級並附每個子問題的來源；長內容由父任務落檔，explorer 不落檔。
+回報格式：結論先行，依 `<REPO>/global/codex/rules/dispatch.md` §4 分級並附每個子問題的來源；長內容由父任務落檔，explorer 不落檔。
 ```
 
 ## C. 規劃（角色：planner；Terra/high/read-only）
@@ -74,7 +74,7 @@ verifier 回報狀態使用 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`
 限制：完全 read-only；不得寫檔、branch、stash、commit、push 或對外動作。只能辨識 scope clarification 問題，不代替 controller 和使用者做最後決策。
 方法：實查執行路徑與既有慣例，列出 affected files/modules、invariants、failure modes、rollback strategy、implementation phases、validation commands 與 completion criteria。
 驗收條件：每個規劃項目都有來源或明確假設；所有 phase 都有可執行的驗證命令與完成判準；若 Terra high 已抓對問題但推理不足，可提高 effort fresh retry 一次；若是能力／脈絡理解不足則回報升級 `escalation_planner/Sol medium`。
-回報格式：結論先行，依 `<REPO>/codex/rules/10-dispatch-codex.md` §4 分級；列出未決問題供 controller 釐清。
+回報格式：結論先行，依 `<REPO>/global/codex/rules/dispatch.md` §4 分級；列出未決問題供 controller 釐清。
 ```
 
 ## D. 實作（角色：worker；Luna/max/workspace-write）
@@ -88,8 +88,8 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
 寫入所有權：【絕對路徑清單】；禁止修改清單外檔案。
 限制：先核對 approved plan 已含必填項且未決問題均已解決或列為禁止範圍；不完整就停止並交回 controller，禁止邊做邊補 plan。最小必要變更；不改【禁止範圍】；不新增依賴除非必要。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；若任務需要對外或不可逆動作，立即停止並回報 controller，由 controller 決定授權與後續路徑。
-機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。失敗重試時每輪當下記一列逐輪嘗試表（欄位見 `<REPO>/codex/rules/10-dispatch-codex.md` §5「升降級路徑」），停止回報時附上；有機械指標時無進展依 `<REPO>/rules-controller/20-judgment-controller.md` §1 數字判定。
-回報格式：依 `<REPO>/codex/rules/10-dispatch-codex.md` §4，列出改動檔案、驗證指令與輸出關鍵行、偏離 prompt 的決定。
+機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。失敗重試時每輪當下記一列逐輪嘗試表（欄位見 `<REPO>/global/codex/rules/dispatch.md` §5「升降級路徑」），停止回報時附上；有機械指標時無進展依 `<REPO>/global/shared/skills/dispatch/SKILL.md` §5「升級判準」數字判定。
+回報格式：依 `<REPO>/global/codex/rules/dispatch.md` §4，列出改動檔案、驗證指令與輸出關鍵行、偏離 prompt 的決定。
 ```
 
 ## E. 重構（角色：worker；Luna/max/workspace-write）
@@ -104,7 +104,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 寫入所有權：【絕對路徑清單】；禁止修改清單外檔案。
 限制：先核對 approved plan 已含必填項且未決問題均已解決或列為禁止範圍；不完整就停止並交回 controller。一次一小步；發現需順便修 bug 時停下回報。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；若任務需要對外或不可逆動作，立即停止並回報 controller，由 controller 決定授權與後續路徑。
 機械驗證：(1) 重構前跑【測試指令】記錄基準；(2) 重構後同一指令結果一致；(3) 對外介面與輸出格式不變。
-回報格式：依 `<REPO>/codex/rules/10-dispatch-codex.md` §4，列出改動摘要、前後輸出對照與發現但未修改的問題。
+回報格式：依 `<REPO>/global/codex/rules/dispatch.md` §4，列出改動摘要、前後輸出對照與發現但未修改的問題。
 ```
 
 ## F. 外部研究／查證（角色：explorer，read-only；官方文件、版本事實與來源查證）
@@ -118,7 +118,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 限制：read-only，不寫檔、不做對外動作；高風險判斷交回 controller；需要規劃升級時，已抓對問題但推理不足可提高 Terra effort 一次，模型能力／脈絡理解不足則使用 `escalation_planner/Sol medium`。
 方法：每個結論附 URL 或 檔案:行號；查不到標「未查證」，不得以訓練記憶充當查證結果。
 驗收條件：每個子項都有「答案＋來源」或「未查證＋查過哪裡」。
-回報格式：結論先行，依 `<REPO>/codex/rules/10-dispatch-codex.md` §4 分級並附 URL／檔案來源；不落檔，長內容由父任務整理。
+回報格式：結論先行，依 `<REPO>/global/codex/rules/dispatch.md` §4 分級並附 URL／檔案來源；不落檔，長內容由父任務整理。
 ```
 
 ## G. 一般 review（角色：reviewer；Terra/high/read-only）
@@ -133,8 +133,8 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 1.【需求與 plan 是否落地】
 2.【測試／靜態檢查／實跑證據是否足夠】
 3.【是否有規則衝突、行為回歸、路徑錯誤或缺漏的測試】
-限制：遇到一般文件或一般驗收，停止並回報「升級 verifier/Terra high」；遇到安全、不可逆、重大架構／安全判斷或正式高風險驗收，停止並回報「升級 sol_verifier/Sol high」（「不可逆」依 `<REPO>/rules/20-judgment.md` §2 判準第 3 點 的 canonical 定義，一般側操作照 `<REPO>/rubrics/code-change.md` §7 審完、不升級）；不得自行修正。
-回報格式：依 `<REPO>/codex/rules/10-dispatch-codex.md` §4，逐條判定並附證據位置與最大未解風險。
+限制：遇到一般文件或一般驗收，停止並回報「升級 verifier/Terra high」；遇到安全、不可逆、重大架構／安全判斷或正式高風險驗收，停止並回報「升級 sol_verifier/Sol high」（「不可逆」依 `<REPO>/global/shared/rules/judgment.md` 第 2 條「不可逆副作用的定義」的 canonical 定義，一般側操作照 `<REPO>/global/shared/rubrics/code-change.md` §7 審完、不升級）；不得自行修正。
+回報格式：依 `<REPO>/global/codex/rules/dispatch.md` §4，逐條判定並附證據位置與最大未解風險。
 ```
 
 ## H. 規劃升級（角色：escalation_planner；Sol/medium/read-only）
@@ -148,7 +148,7 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 輸入證據：原始需求【】；目前 plan【】；相關 diff【】；完整探索／失敗輸出【】；已嘗試 hypotheses【】。
 限制：完全 read-only；不得寫檔、branch、stash、commit、push、對外動作或替 controller 做授權決策。先建立並回報 root cause、假設、affected files、invariants、failure modes、rollback strategy、implementation phases、validation commands 與 completion criteria。
 驗收條件：plan 可由適當 tier 的 worker 直接執行；每個關鍵判斷有來源或明確標示假設；Sol medium 仍顯示能力不足時停止並交回 controller，由 controller 顯式決定是否使用 Sol high。
-回報格式：先列 root cause 與策略，再列 plan、證據與未決問題；分級依 `<REPO>/codex/rules/10-dispatch-codex.md` §4。
+回報格式：先列 root cause 與策略，再列 plan、證據與未決問題；分級依 `<REPO>/global/codex/rules/dispatch.md` §4。
 ```
 
 ## I. 升級實作（角色：escalation_worker；Sol/medium/workspace-write）
@@ -161,9 +161,9 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
 輸入證據：原始需求【】；approved plan【】；Terra 實作者的相關 diff【】；Terra root cause 報告與能力不足判定【】；原因不明但達兩次無進展上限時，另附完整失敗輸出與已嘗試 hypotheses＋逐輪嘗試表【】。
 限制：先分析並回報 root cause 與修正策略，再編輯；只修改【絕對路徑清單】。禁止 branch、stash、commit、push、對外動作與不可逆範圍擴張；若仍需要新的授權或不可逆決策，停止交回 controller。
-失敗處理：先分 execution mistake、reasoning 不足、model／context 理解不足與 evidence／environment 不足；execution mistake 可補正一次，原因不明且兩次無進展就停止，停止時附逐輪嘗試表（欄位見 `<REPO>/codex/rules/10-dispatch-codex.md` §5「升降級路徑」）。只有 Sol medium 的 capability／context 確認不足，或新證據顯示 exceptional high-risk，才交回 controller 決定是否升 Sol high。
+失敗處理：先分 execution mistake、reasoning 不足、model／context 理解不足與 evidence／environment 不足；execution mistake 可補正一次，原因不明且兩次無進展就停止，停止時附逐輪嘗試表（欄位見 `<REPO>/global/codex/rules/dispatch.md` §5「升降級路徑」）。只有 Sol medium 的 capability／context 確認不足，或新證據顯示 exceptional high-risk，才交回 controller 決定是否升 Sol high。
 機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。完成後實際執行並附輸出。
-回報格式：先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目；分級依 `<REPO>/codex/rules/10-dispatch-codex.md` §4。
+回報格式：先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目；分級依 `<REPO>/global/codex/rules/dispatch.md` §4。
 ```
 
 ## J. 一般驗收（角色：verifier；Terra/high/workspace-write，只寫 repo 外探針目錄）
@@ -179,8 +179,8 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 2.【條件二】
 3.【條件三】
 額外脈絡：【原始需求、風險、禁止修改範圍、已知驗證證據】。
-找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/rules/20-judgment.md` §2「停止端」。純措辭、語氣與行文品味不算缺陷。
-回報格式：第一行標 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN` 並附下一步（`PROSE-ONLY`→修完 read-back 結案，不再派 verifier），再列逐條判定、證據位置、缺口與風險；分級依 `<REPO>/codex/rules/10-dispatch-codex.md` §4。`INCONCLUSIVE` 要列缺少的證據；`OPEN` 要說明是低風險機械結案或需 fresh delta 的哪一種路徑。
+找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」。純措辭、語氣與行文品味不算缺陷。
+回報格式：第一行標 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN` 並附下一步（`PROSE-ONLY`→修完 read-back 結案，不再派 verifier），再列逐條判定、證據位置、缺口與風險；分級依 `<REPO>/global/codex/rules/dispatch.md` §4。`INCONCLUSIVE` 要列缺少的證據；`OPEN` 要說明是低風險機械結案或需 fresh delta 的哪一種路徑。
 ```
 
 ## K. Recovery 實作（角色：recovery_worker；Terra/high/workspace-write）
@@ -193,9 +193,9 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 工作目錄：使用【目前 working tree／獨立 worktree 絕對路徑】。
 輸入證據：原始需求【】；approved plan【】；標準實作者相關 diff【】；對應門檻證據【能力／脈絡入口：抓錯核心或遺漏關係的證據；未明失敗入口：兩次完整測試／錯誤輸出＋已嘗試 hypotheses＋逐輪嘗試表】。
 限制：先分析並回報 root cause 與修正策略，再編輯；只修改【絕對路徑清單】；遵循既有 invariants、rollback strategy 與 completion criteria。禁止 branch、stash、commit、push、發訊息、寄信、merge、發佈、刪除或覆蓋非自己建立的檔案，以及其他對外或不可逆動作；需要這些動作時交回 controller。
-機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。execution mistake 且修法明確時可補正一次；建立 root cause 後確認 Terra 能力不足，或原因不明且兩次無進展時，停止並回報應升級 `escalation_worker/Sol medium`，回報時附逐輪嘗試表（欄位見 `<REPO>/codex/rules/10-dispatch-codex.md` §5「升降級路徑」）。其他仍可可靠收斂的失敗繼續依 approved plan 修復。
+機械驗證：【test／build／lint／實跑／schema 指令與預期結果】。execution mistake 且修法明確時可補正一次；建立 root cause 後確認 Terra 能力不足，或原因不明且兩次無進展時，停止並回報應升級 `escalation_worker/Sol medium`，回報時附逐輪嘗試表（欄位見 `<REPO>/global/codex/rules/dispatch.md` §5「升降級路徑」）。其他仍可可靠收斂的失敗繼續依 approved plan 修復。
 驗收條件：root cause 可由對應門檻證據支持；修正符合 approved plan；相關驗證通過或明確分級未驗證；不擴大寫入範圍。
-回報格式：先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目；分級依 `<REPO>/codex/rules/10-dispatch-codex.md` §4。
+回報格式：先列 root cause，再列改動檔案、驗證指令與輸出關鍵行、未完成項目；分級依 `<REPO>/global/codex/rules/dispatch.md` §4。
 ```
 
 ## L. 高風險驗收（角色：sol_verifier；Sol/high/workspace-write，只寫 repo 外探針目錄）
@@ -211,8 +211,8 @@ approved plan：【affected files、寫入所有權、invariants、implementatio
 2.【invariants、failure modes、rollback strategy 與驗證證據是否完整】
 3.【是否存在安全漏洞、不可逆的高風險決策、重大架構假設，或會讓讀者採取錯誤高風險行動的語意缺陷】
 限制：唯一可寫的是 repo 外的探針目錄（父任務指定；未指定時在 `$TMPDIR` 下新建）；禁止修改受驗產物或任何 repo 內檔案、branch、stash、commit、push、發訊息、寄信、merge、發佈或其他對外動作。執行測試／build 產生且 git 未追蹤或被 ignore 的可再生副產物（如 `__pycache__`、`bin/`／`obj/`、build 輸出）不算違反本條；不得 `git add`、`git clean` 或刪改它們。tracked 檔（含 lockfile、snapshot）被改動不在此例外。若證據不足標 UNSURE，不替製作者腦補；每個 FAIL 附 `檔案:行號` 與一行理由。
-找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/rules/20-judgment.md` §2「停止端」。純措辭、語氣與行文品味不算缺陷。
-回報格式：第一行標 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN` 並附下一步（`PROSE-ONLY`→修完 read-back 結案，不再派 verifier），再列逐條判定、證據與最大風險；分級依 `<REPO>/codex/rules/10-dispatch-codex.md` §4。高風險 delta 必須確認原始 finding、修正 diff、受影響原始驗收條件與既有證據都已提供；缺任一項標 `INCONCLUSIVE`。
+找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」。純措辭、語氣與行文品味不算缺陷。
+回報格式：第一行標 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN` 並附下一步（`PROSE-ONLY`→修完 read-back 結案，不再派 verifier），再列逐條判定、證據與最大風險；分級依 `<REPO>/global/codex/rules/dispatch.md` §4。高風險 delta 必須確認原始 finding、修正 diff、受影響原始驗收條件與既有證據都已提供；缺任一項標 `INCONCLUSIVE`。
 ```
 
-一般文件與一般驗收使用 `verifier/Terra high`；只有安全、不可逆、重大架構或正式高風險驗收才使用 `sol_verifier/Sol high`（「不可逆」依 `<REPO>/rules/20-judgment.md` §2 判準第 3 點 的 canonical 定義）。Sol 實作／規劃升級先從 medium 開始；high 是 exceptional route，xhigh／max 只在 high 仍無法收斂且有證據時由 controller 顯式決定。
+一般文件與一般驗收使用 `verifier/Terra high`；只有安全、不可逆、重大架構或正式高風險驗收才使用 `sol_verifier/Sol high`（「不可逆」依 `<REPO>/global/shared/rules/judgment.md` 第 2 條「不可逆副作用的定義」的 canonical 定義）。Sol 實作／規劃升級先從 medium 開始；high 是 exceptional route，xhigh／max 只在 high 仍無法收斂且有證據時由 controller 顯式決定。
