@@ -125,8 +125,17 @@ session 交接卡（所在位置、已完成、待檢查、下一步、風險／
 
 **記憶機制有沒有更好的選擇？** 四層不變（事件史、精選記憶、交接檔、repo 文件）。可改善的是交接檔統一成 handoff skill 的 session 卡（兩平台同一格式），以及決定 B 的私有 repo 承接「不能公開但要跨機器」的那層。
 
-## 7. 基線與量測（執行時填）
+## 7. 基線與量測
 
-- 固定注入：`claude -p --model sonnet` 空目錄首 request（前／後）：
-- 常駐 bytes：Claude shared／controller（前／後）：
-- verifier 首輪 OPEN 率與重派次數（haiku 掃描、verifier medium 實驗，兩週後用 `usage-review` 量）：
+| 量測 | v1（main @ 51b04f2） | v2（@ 本檔 commit） | 差 |
+|---|---:|---:|---:|
+| `claude -p --model sonnet` 空目錄首 request 總輸入 tokens（含 SessionStart hook 注入，transcript 內可見注入標記） | 36,886（write 25,674＋read 11,210） | 31,782（write 20,570＋read 11,210） | −5,104（−14%） |
+| Claude 常駐 bytes：入口＋rules＋host | 22,294 | 11,628（CLAUDE 1,869＋judgment 8,744＋host 1,015） | −48% |
+| hook 注入 bytes | 25,016（rules-controller 兩檔） | 2,440（route-card） | −90% |
+| 按需載入（派工時才付） | 0 | dispatch skill 25,361 | 新增 |
+| Codex `codex exec` 讀新 `AGENTS.md`（Luna low） | — | 11,264 tokens，三題答對 | 可用 |
+
+- 量法：`env -u CLAUDE* claude -p "reply with the single word ok" --model sonnet`，讀該 session jsonl 第一筆 assistant 的 `usage`。兩次都在空目錄，無專案 CLAUDE.md。
+- 待兩週後用 `usage-review` 量：主對話首 request 中位、subagent 首 request 中位、verifier 首輪 OPEN 率（verifier effort medium 與 Explore haiku 兩個實驗）、dispatch skill 在多少比例的 session 被載入。
+- 步 6 的 `scripts/install.sh` 未另建：`docs/install.md` 的 bash 區塊即安裝器，已在暫時 HOME 與本機實跑。
+- 已知未決：Codex 端 `~/.agents/skills/handoff` 已有同名的第三方 skill（`disable-model-invocation: true`），本 repo 的 `handoff` 在 Codex 端未安裝，Claude 端正常。
