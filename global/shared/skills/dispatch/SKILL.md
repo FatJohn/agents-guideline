@@ -73,7 +73,7 @@ Agent 工具有逐次 `effort` 參數，但派 `worker`／`verifier` 不帶（�
 
 - **把已讀過的素材附進 prompt，並要求指令批次化**：diff、行號、關鍵段落、你已跑過的指令輸出直接貼進去並明寫「不要重讀 X」。subagent 是冷啟動，每個它自己去讀的檔與每次串行的小步工具呼叫都是一輪完整推理，會把牆鐘拉長。
 - **路徑一律寫絕對路徑**：subagent 的工作目錄認知可能跟你不同，相對路徑會找錯地方。
-- **prompt 開頭明寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」**：`general-purpose`／`worker` 會讀到全域 `CLAUDE.md` 與 `rules/`（含派工授權段），不加這句會把自己當 controller、逐層轉包，可遞迴多層；`Explore`／`Plan` 讀不到這些也沒有 Agent 工具，可省（見 `<REPO>/docs/harness-facts.md`「常駐內容對 subagent 的可見性」）。收到「我已再派背景工作」類回報＝未完成，立即糾正。
+- **prompt 開頭明寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」**：`general-purpose`／`worker` 會讀到全域 `CLAUDE.md`（含路由表）與 `~/.claude/rules/`，不加這句會把自己當 controller、逐層轉包，可遞迴多層；`Explore`／`Plan` 讀不到這些也沒有 Agent 工具，可省（見 `<REPO>/docs/harness-facts.md`「常駐內容對 subagent 的可見性」）。收到「我已再派背景工作」類回報＝未完成，立即糾正。
 
 要求 subagent **補齊某個格式欄位**（例如每條規則的「不算違規」邊界）時，同時規定「查無來源就留空」：強制欄位一定會被填滿，原檔沒有的邊界會被當場發明。
 

@@ -79,7 +79,7 @@
 
 ### writing-principles
 - 這個是可以放在全域
-- 裡面的範例 `api-login-web` 要換掉名稱
+- 裡面的範例 `acme-login-web` 要換掉名稱
 
 
 ### session-handoff

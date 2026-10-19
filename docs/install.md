@@ -82,7 +82,7 @@ symlink 的好處：session 依規則更新事實、寫教訓時直接改到 rep
 
 ### 選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定
 
-兩個檔（`hooks/block-ci-edit.sh`、`ripgreprc`）已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效（本 repo 不管理 `settings.json`）。三段合併用的片段（含上面的 SessionStart）收在 `<REPO>/global/claude/settings.snippets.json`，**逐段併入既有設定，不要整檔覆蓋**。
+兩個檔（`hooks/block-ci-edit.sh`、`ripgreprc`）已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效（本 repo 不管理 `settings.json`）。三段合併用的片段（含上面的 SessionStart）收在 `<REPO>/global/claude/settings.snippets.json`，**逐段併入既有設定，不要整檔覆蓋**。片段另含頂層 `language`（`繁體中文台灣用語`）：Claude 端的回覆語言只由這個設定承接，入口不再寫語言段，新機器漏設就會掉回預設語言。
 
 - `hooks/block-ci-edit.sh`：Claude Code `PreToolUse` hook。**主對話**（hook 收到的 stdin 沒有 `agent_id`）用 Edit／Write／MultiEdit／NotebookEdit 改路徑含 `.github/workflows/` 或 `.github/actions/` 的檔會被擋（exit 2，訊息要求改派 worker）；subagent（有 `agent_id`）與其他路徑一律放行。把 dispatch skill §1『何時派工』「自行小修的例外」那條「CI／release 設定不屬小修例外」變成機械擋板。
 - `ripgreprc`：讓 **Bash 裡的 `rg`** 預設 `--hidden` 並排除 `.git`，對應 `global/shared/rules/judgment.md` 3『殘留掃描』。Claude Code 的 Grep 工具本來就搜隱藏目錄（不搜 `.git`），也不讀 `RIPGREP_CONFIG_PATH`，所以這份設定只影響 Bash 的 `rg`。

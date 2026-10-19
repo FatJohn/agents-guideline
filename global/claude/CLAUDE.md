@@ -1,6 +1,6 @@
 # 全域入口（Claude Code）
 
-來源 `<REPO>/global/claude/CLAUDE.md`，symlink 裝在 `~/.claude/CLAUDE.md`；skill 在 `~/.claude/skills/<name>/`。回覆語言由 `settings.json` 的 `language` 承接。
+來源 `<REPO>/global/claude/CLAUDE.md`，symlink 裝在 `~/.claude/CLAUDE.md`；skill 在 `~/.claude/skills/<name>/`。回覆語言由 `settings.json` 的 `language` 承接（值在 `<REPO>/global/claude/settings.snippets.json`）；技術名詞與程式碼保持原文。
 
 @~/.claude/host-facts.md
 

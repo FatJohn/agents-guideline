@@ -83,7 +83,7 @@ session 交接卡（所在位置、已完成、待檢查、下一步、風險／
 
 **git-commit skill**（新）：`rules/20-judgment.md` §6 整段搬入；專案規格有自己的慣例時以專案為準。`create-pr` §2.8 指向它。
 
-**writing-principles**：範例 `api-login-web` 改中性名稱；其餘不動。
+**writing-principles**：範例 `acme-login-web` 改中性名稱；其餘不動。
 
 **parallel-dispatch**：路徑更新；定位改寫為「跨 agent 平台（Claude、Codex）與 Orca 多 session 的切分與整合」。Claude Desktop 的 nested sessions 不改變它的適用性（見 §6）。
 

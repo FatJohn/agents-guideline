@@ -1,6 +1,6 @@
 # 判準各條的來歷與理由
 
-> 常駐區只留判準與不算違規邊界（格式規則見 `<REPO>/.claude/skills/maintain-guideline/SKILL.md` §5「瘦身協議」）。訂條理由、事故脈絡、修辭句、鄰條分工與 ✅／❌ 正反例從常駐區搬到這裡，**原句保留不改寫**；舊 `§` 章節的標題與重構前 `rules/20-judgment.md` 的節名／補充判準名一一對應。要查「這條為什麼存在」時再讀，不會自動載入。例外：檔尾「2026-09-21 session review：非 20-judgment 檔的調整理由」一節收 `global/claude/agents/worker.md`、dispatch skill、全域 `CLAUDE.md` 的理由，以及 dispatch skill、`global/claude/agents/verifier.md` 搬出的 ✅／❌（該節是重構前寫的，節內的檔名是當時的路徑）。
+> 常駐區只留判準與不算違規邊界（格式規則見 `<REPO>/.claude/skills/maintain-guideline/SKILL.md` §5「瘦身協議」）。訂條理由、事故脈絡、修辭句、鄰條分工與 ✅／❌ 正反例從常駐區搬到這裡，**原句保留不改寫**；舊 `§` 章節的標題與重構前 `rules/20-judgment.md` 的節名／補充判準名一一對應。要查「這條為什麼存在」時再讀，不會自動載入。例外：檔尾「2026-09-21 session review：非 20-judgment 檔的調整理由」一節收 `global/claude/agents/worker.md`、dispatch skill、全域 `CLAUDE.md` 的理由，以及 dispatch skill、`global/claude/agents/verifier.md` 搬出的 ✅／❌（該節是重構前寫的，節內的檔名是當時的路徑）。 各章節內引用的 `rules/`、`rules-controller/` 等舊路徑是重構前原句，刻意不更新；新位置對照見 `<REPO>/docs/repo-layout.md`。
 
 > 新版常駐規則 `global/shared/rules/judgment.md` 已改寫成 15 條編號規則（改寫計畫見 `<REPO>/docs/restructure-plan-2026-10-19.md` §2–§3）；各條的訂條理由與從常駐區移出的原句，收在本檔檔尾與新條目同名的 `## N. 標題` 章節，與下方舊 `§` 章節並存、舊章節原文不動。舊編號對應如下，舊引用可由此找到新位置。
 

@@ -35,7 +35,8 @@ class SettingsSnippetsTests(unittest.TestCase):
     def test_only_the_documented_settings_are_present(self) -> None:
         data = snippets()
 
-        self.assertEqual(sorted(data), ["env", "hooks"])
+        self.assertEqual(sorted(data), ["env", "hooks", "language"])
+        self.assertEqual(data["language"], "繁體中文台灣用語")
         self.assertEqual(sorted(data["env"]), ["RIPGREP_CONFIG_PATH"])
         self.assertEqual(sorted(data["hooks"]), ["PreToolUse", "SessionStart"])
         self.assertEqual(data["hooks"]["PreToolUse"][0]["matcher"], "Edit|Write|MultiEdit|NotebookEdit")

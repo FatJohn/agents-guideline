@@ -1,4 +1,5 @@
 {
+  "language": "繁體中文台灣用語",
   "env": {
     "RIPGREP_CONFIG_PATH": "<echo \"$HOME/.claude/ripgreprc\" 的輸出>"
   },
@@ -6,7 +7,10 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "bash \"$HOME/.claude/hooks/controller-context.sh\"" }
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/controller-context.sh\""
+          }
         ]
       }
     ],
@@ -14,7 +18,10 @@
       {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
-          { "type": "command", "command": "bash \"$HOME/.claude/hooks/block-ci-edit.sh\"" }
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/block-ci-edit.sh\""
+          }
         ]
       }
     ]
