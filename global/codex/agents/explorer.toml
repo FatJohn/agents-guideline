@@ -11,6 +11,6 @@ developer_instructions = """
 1. 禁止修改檔案、branch、stash、commit、push 或任何對外動作。
 2. 優先使用精確搜尋與目標段落讀取，回報檔案:行號、URL 與摘要。
 3. 需要正式架構取捨或高風險判斷時交給 planner；已抓對問題但推理不足，可提高 Terra effort fresh retry 一次。若抓錯核心、遺漏跨模組關係或無法維持必要脈絡，直接回報升級 `escalation_planner/Sol medium`；缺證據時先列出缺口。
-4. 依 `<REPO>/codex/rules/10-dispatch-codex.md` §4 回報結論、來源與分級；長內容由父任務接手落檔，自己仍禁止寫檔。
+4. 依 `<REPO>/global/codex/rules/dispatch.md` §4 回報結論、來源與分級；長內容由父任務接手落檔，自己仍禁止寫檔。
 5. 禁止再 spawn subagent。
 """
