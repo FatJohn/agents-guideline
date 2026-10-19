@@ -1,13 +1,13 @@
 # Adapter：Codex 同 session subagent
 
-配合 [../SKILL.md](../SKILL.md) §9 的 adapter 契約使用；只提供 launch、follow-up、query status、collect、stop、workspace 與角色分流，不改變 SKILL 任何一步。Claude worker 合約的隔離 worktree 例外（`<REPO>/agents/worker.md` 規則 5）不適用於 Codex worker（`<REPO>/codex/agents/worker.toml` 禁止 commit）。
+配合 [../SKILL.md](../SKILL.md) §9 的 adapter 契約使用；只提供 launch、follow-up、query status、collect、stop、workspace 與角色分流，不改變 SKILL 任何一步。Claude worker 合約的隔離 worktree 例外（`~/.claude/agents/worker.md` 規則 5）不適用於 Codex worker（`<REPO>/global/codex/agents/worker.toml` 禁止 commit）。
 
 | 契約項目 | 本 adapter 的做法 |
 |---|---|
-| launch | Codex controller 依 `<REPO>/codex/rules/10-dispatch-codex.md` §3 三件套，用當前 surface 的 `spawn_agent` 每片派一個 subagent；prompt 的工作目錄欄指定該片 worktree 絕對路徑與絕對寫入所有權。subagent 在 controller session 內跑，沒有獨立 terminal |
+| launch | Codex controller 依 `<REPO>/global/codex/rules/dispatch.md` §3 三件套，用當前 surface 的 `spawn_agent` 每片派一個 subagent；prompt 的工作目錄欄指定該片 worktree 絕對路徑與絕對寫入所有權。subagent 在 controller session 內跑，沒有獨立 terminal |
 | workspace | **controller 先建**每片獨立 worktree 與 integration worktree（指令見 `worktree.md`「所有權與路徑」），Codex 沒有自動隔離機制 |
 | query status | 用當前 surface 的 `list_agents` 看 thread 狀態，再以 `git worktree list`、`git -C <wt> status --short`、`git -C <wt> diff`、`git -C <wt> rev-parse HEAD`、`git -C <wt> branch --show-current` read-back；thread 狀態只是執行線索，git 才是產物證據 |
-| follow-up | 依 [../SKILL.md](../SKILL.md) §6 第 10 步與 `<REPO>/rules/20-judgment.md`「停止端」判斷 fresh／continue；帶原 brief、ownership、invariants、finding、current diff、受影響條件與既有證據。continue 用 `send_message`／`followup_task`；fresh 可在已 read-back 的同 worktree 序列接手，或由 controller 從已核對 candidate checkpoint 建新 worktree。Codex 有可靠 counter 才記錄，否則標 `unknown`，不可由文字估數，也不阻擋派工。 |
+| follow-up | 依 [../SKILL.md](../SKILL.md) §6 第 10 步與 `~/.claude/rules/judgment.md` 7『驗收的停止端』判斷 fresh／continue；帶原 brief、ownership、invariants、finding、current diff、受影響條件與既有證據。continue 用 `send_message`／`followup_task`；fresh 可在已 read-back 的同 worktree 序列接手，或由 controller 從已核對 candidate checkpoint 建新 worktree。Codex 有可靠 counter 才記錄，否則標 `unknown`，不可由文字估數，也不阻擋派工。 |
 | collect | 用 `wait_agent` 等 mailbox／final-status 通知，從該 agent 的 final response 收 worker report（含路徑、HEAD 與驗證輸出關鍵行）；長輸出落檔到 brief 指定的 `<log-dir>` |
 | stop | 用當前 surface 的 `interrupt_agent` 中止該 agent turn，再以 `list_agents` 確認不再 running；最後 read-back `git -C <wt> status --short` 與 `rev-parse HEAD`。工具不存在或狀態確認不了時，依 SKILL §8 視為仍可能在寫，不重用該 worktree |
 
@@ -19,7 +19,7 @@
 
 ## 驗收角色分流
 
-切片驗收用 `verifier/Terra high`；安全、不可逆、重大架構或正式高風險切片用 `sol_verifier/Sol high`（「不可逆」依 `<REPO>/rules/20-judgment.md` §2 判準第 3 點 的 canonical 定義，只含一般側操作的切片不算）。SKILL §6 第 9 步的整合驗收同樣依此分流，僅該階段限於整合互動；切片驗收仍須核對該片全部驗收條件。兩者依 `<REPO>/codex/rules/10-dispatch-codex.md` §6「驗證語意」保持 fresh-context，只寫 repo 外探針目錄；修正收斂依 `<REPO>/rules/20-judgment.md` §2「停止端」。
+切片驗收用 `verifier/Terra high`；安全、不可逆、重大架構或正式高風險切片用 `sol_verifier/Sol high`（「不可逆」依 `~/.claude/rules/judgment.md` 2『不可逆副作用的定義』，只含一般側操作的切片不算）。SKILL §6 第 9 步的整合驗收同樣依此分流，僅該階段限於整合互動；切片驗收仍須核對該片全部驗收條件。兩者依 `<REPO>/global/codex/rules/dispatch.md` §6「驗證語意」保持 fresh-context，只寫 repo 外探針目錄；修正收斂依 `~/.claude/rules/judgment.md` 7『驗收的停止端』。
 
 ## 清理
 

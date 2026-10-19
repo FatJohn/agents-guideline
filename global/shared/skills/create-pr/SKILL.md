@@ -187,7 +187,7 @@ rm -f "$PR_BODY_FILE"
 
 ### 2.8 merge 時的標題覆寫
 
-`gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題，而本 skill 規定 PR title 用中文且不加 prefix——與 `<REPO>/rules/20-judgment.md` §6「commit message 的固定格式」要求的英文 Conventional Commits 直接衝突。所以 squash merge 一律要用 `-t` 覆寫標題：
+`gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題，而本 skill 規定 PR title 用中文且不加 prefix——與 `~/.claude/skills/git-commit/SKILL.md` 要求的英文 Conventional Commits 直接衝突。所以 squash merge 一律要用 `-t` 覆寫標題：
 
 ```bash
 gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
@@ -195,7 +195,7 @@ gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
 
 漏掉的後果：合併後的歷史第一行從此是中文、無 type prefix，事後只能重寫共享歷史。
 
-**不加 `-t` 的例外**（PR title 已合格且 repo 文件規定不覆寫，如 release-please 的 Release PR）：判準與邊界見 `<REPO>/rules/20-judgment.md` §6「不算違規」。
+**不加 `-t` 的例外**（PR title 已合格且 repo 文件規定不覆寫，如 release-please 的 Release PR）：判準與邊界見 `~/.claude/skills/git-commit/SKILL.md`「squash merge」段的「不算違規」。
 
 **merge 前的 CI 閘門**：先確認 check 已註冊再 `gh pr checks --watch`（或改用 `gh run watch <run-id> --exit-status`），閘門指令不接 `| tail`；陷阱細節與實例見 `<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」那條。
 

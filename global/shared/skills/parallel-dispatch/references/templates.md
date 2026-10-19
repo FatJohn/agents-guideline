@@ -29,6 +29,8 @@ graph 旁附重疊矩陣（片 × 預估路徑，含測試與 fixture）與語�
 
 ## Worker brief（SKILL §3–§4；controller → worker）
 
+通用欄位的定義與必備性在 `~/.claude/skills/handoff/SKILL.md` §1『brief 卡』，本模板只補切片專用欄位（ownership、依賴、Execution environment）。欄位對照：Objective＝目標與動機、Read first＝已附素材、Scope／Ownership＝Scope、Execution environment 的「落地位置」與「唯一寫入者」＝single-writer、Validation commands＝Validation commands、Done when＝驗收條件、Report format＝回報格式。Scope 在此以落地位置（絕對路徑）為根寫 repo 相對路徑，因為同一份 ownership 要套在各片 worktree。
+
 Objective 與 Expected output 只寫 WHAT；branch 名、commit 訊息、push／PR 指示一律不進這兩欄，只由 adapter 填在 Execution environment（SKILL §3「brief 只描述 WHAT」）。
 
 ```text
@@ -77,6 +79,8 @@ Report format: 依「Worker report」；長輸出落檔 <log-dir>/<slice>-<name>
 
 ## Worker report（SKILL §4；worker → controller）
 
+通用欄位依 `~/.claude/skills/handoff/SKILL.md` §2『回報卡』：Files changed＝改動檔案、Summary＝完成狀態、Validation 與突變證據＝驗證、Issues＝未完成、分級＝分級；本模板補切片欄位 Status、Integration notes、Commit、Location。
+
 ```text
 Status: completed | blocked | failed
 Summary: <做了什麼；只寫 controller 決定下一步需要的>
@@ -94,7 +98,7 @@ Location: <落地位置絕對路徑、branch、HEAD>
 
 ## Verifier brief（SKILL §5；controller → verifier，首輪與 delta 共用）
 
-語意的 canonical 在 verifier 合約（Claude：`<REPO>/agents/verifier.md` 規則 4；Codex：`<REPO>/codex/agents/verifier.toml`）、`<REPO>/rules/20-judgment.md` §2「修正與驗收輪次」（停止端、狀態語意、修正者要求）與 `<REPO>/rules-controller/20-judgment-controller.md` §2「修正與驗收輪次（controller 端）」（delta brief 必帶項與三輪回報點）；本模板只列必帶欄位，不重述職責，缺欄時 verifier 怎麼處理以合約為準。delta 輪漏附探針目錄時，合約要 verifier 依描述重建探針，那段重建就是本模板要省掉的重複工作。
+語意的 canonical 在 verifier 合約（Claude：`~/.claude/agents/verifier.md` 規則 4；Codex：`<REPO>/global/codex/agents/verifier.toml`）、`~/.claude/rules/judgment.md` 6『修正者的證據』與 7『驗收的停止端』（停止端、狀態語意、修正者要求）與 `~/.claude/skills/dispatch/SKILL.md` §7『修正與驗收輪次』（delta brief 必帶項與三輪回報點）；通用欄位（驗收條件、絕對路徑、探針目錄）同 handoff §1『brief 卡』；本模板只列必帶欄位，不重述職責，缺欄時 verifier 怎麼處理以合約為準。delta 輪漏附探針目錄時，合約要 verifier 依描述重建探針，那段重建就是本模板要省掉的重複工作。
 
 ```text
 輪次: 首輪 | delta 第 <n> 輪（同一產出累計；換 model／role 不重設）
@@ -107,12 +111,12 @@ rubric: <document-quality | code-change | research-analysis；可省，省略時
 修正 diff: <diff 或 commit 範圍>
 受影響的原始驗收條件: <條號>
 既有證據: <首輪探針檔、測試輸出路徑；修正者對新寫句子的逐句對照與對新斷言的突變紅／綠輸出>
-放寬既有檢查: <否 | 是——是則依 20-judgment §2「改既有檢查／過濾／驗證規則」另做對抗性探測>
+放寬既有檢查: <否 | 是——是則依 `~/.claude/rules/judgment.md` 10『改既有檢查』另做對抗性探測>
 ```
 
-delta 輪的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，不另開放找新漏洞；輪數上限與回報點照 `<REPO>/rules/20-judgment.md` §2「停止端」，本模板不另設輪數。
+delta 輪的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，不另開放找新漏洞；輪數上限與回報點照 `~/.claude/skills/dispatch/SKILL.md` §7『修正與驗收輪次』，本模板不另設輪數。
 
-verifier 回報第一行＝狀態＋下一步（Claude：`<REPO>/agents/verifier.md` 規則 6；Codex：`<REPO>/codex/agents/verifier.toml`）；controller 照下一步走，`PROSE-ONLY` 不派 delta。
+verifier 回報格式＝`~/.claude/skills/handoff/SKILL.md` §3『verifier 判定卡』，第一行為狀態＋下一步（Claude：`~/.claude/agents/verifier.md` 規則 6；Codex：`<REPO>/global/codex/agents/verifier.toml`）；controller 照下一步走，`PROSE-ONLY` 不派 delta。
 
 ## Issue session result（`cli.md`「盤點 session 與 issue session」collect；issue session → 盤點 session）
 

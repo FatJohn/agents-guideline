@@ -6,7 +6,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Read, Grep, Glob
 
 # Parallel Dispatch — 平行開發的 orchestration
 
-本 skill 只管 **orchestration strategy**：值不值得拆、怎麼拆、誰擁有什麼、怎麼驗、怎麼整合。它**不是** workspace／terminal／process manager。`<REPO>` 依全域 `CLAUDE.md`／`AGENTS.md` 的 bootstrap 解出；本檔承接 Claude `<REPO>/rules-controller/10-dispatch.md` 與 Codex `<REPO>/codex/rules/10-dispatch-codex.md`，是切分與整合的 canonical；驗收沿用 rules。
+本 skill 只管 **orchestration strategy**：值不值得拆、怎麼拆、誰擁有什麼、怎麼驗、怎麼整合。它**不是** workspace／terminal／process manager。`<REPO>` 依全域 `CLAUDE.md`／`AGENTS.md` 的 bootstrap 解出；本檔承接 Claude `~/.claude/skills/dispatch/SKILL.md` 與 Codex `<REPO>/global/codex/rules/dispatch.md`，是切分與整合的 canonical；驗收沿用 dispatch skill §6『驗證不自驗』與 §7『修正與驗收輪次』。
 
 四個概念彼此獨立，不得互相等同：
 
@@ -90,10 +90,10 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 
 ## §5 VALIDATION：切片驗收
 
-每片完成即進行獨立 fresh-context 驗收與必要 CI，不等同批其他片。驗收者依平台 dispatch 的角色分流（adapter 寫明）。首輪自行設計探針、不抄 brief 的 Validation commands（例：brief 寫 `dotnet test`，verifier 另做「把新格式的 MAC 表改壞一個 byte，讀取要拒絕」這種 brief 沒列的突變）；delta 輪依 `<REPO>/rules-controller/20-judgment-controller.md` §2「修正與驗收輪次（controller 端）」重跑原探針加修正 diff 的迴歸探針，不換形狀；首輪與 delta 的 brief 欄位見 `references/templates.md`「Verifier brief」。驗收並確認「移除或固定該交付的輸出／訊息／綁定時有檢查會紅」（`<REPO>/rubrics/code-change.md`「交付的價值要被測試守住」）。修正後依 `<REPO>/rules/20-judgment.md` §2「停止端」處理，三輪回報點照計。
+每片完成即進行獨立 fresh-context 驗收與必要 CI，不等同批其他片。驗收者依平台 dispatch 的角色分流（adapter 寫明）。首輪自行設計探針、不抄 brief 的 Validation commands（例：brief 寫 `dotnet test`，verifier 另做「把新格式的 MAC 表改壞一個 byte，讀取要拒絕」這種 brief 沒列的突變）；delta 輪依 `~/.claude/skills/dispatch/SKILL.md` §7『修正與驗收輪次』重跑原探針加修正 diff 的迴歸探針，不換形狀；首輪與 delta 的 brief 欄位見 `references/templates.md`「Verifier brief」。驗收並確認「移除或固定該交付的輸出／訊息／綁定時有檢查會紅」（`~/.claude/rubrics/code-change.md`「交付的價值要被測試守住」）。修正後依 `~/.claude/rules/judgment.md` 7『驗收的停止端』處理，三輪回報點照計。
 
 - CI `skipping` 不算通過；endpoint／timeout 類錯誤僅在同一 SHA 重跑一次轉綠時記為 flake，否則當真失敗；CI 重跑次數與原因記在 PR。
-- 改既有檢查、過濾或驗證規則的片，動手前依 `<REPO>/rules/20-judgment.md` §2「改既有檢查／過濾／驗證規則」凍結行為基線。
+- 改既有檢查、過濾或驗證規則的片，動手前依 `~/.claude/rules/judgment.md` 10『改既有檢查』凍結行為基線。
 - controller 自己做 tamper／探針時，先以替換計數 `== 1` 或 `git diff --stat` 證明改動真的發生，再讀測試結果。
 
 **Pattern B 在此比較**：在各自乾淨的落地位置跑**同一組**測試與檢查，依 §3 寫死的準則列表比較，結論給使用者（表格：方案 × 準則）。只有 winner 進 §6；落選方案的 worktree 依 `references/worktree.md` 清理（本次自建的可直接清，非自建的要授權）。選不出來就是準則寫得不夠，回 §3 補準則，不擲硬幣。
@@ -115,7 +115,7 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 
 **收斂即整合，不等整批**：§3 語意風險判定為無的片，一收斂（`CONVERGED`，或 `PROSE-ONLY` 修完 read-back）就單獨走第 7–8 步 merge 或開 PR，不等同批其他片；只有判定有語意風險的片才等它互動的對象一起做第 9 步。早 merge 前第 2 步的交集稽核改用**其他片 brief 的允許路徑**對本片實際改動檔取交集（非空就停）；其餘片完成後，再以實際改動檔補跑一次完整交集。§7 的全批最終驗證照做。
 
-merge／push 一律由 controller 依當次 session 授權執行（worker 的 push 例外依 `<REPO>/agents/worker.md` 規則 5，仍須 brief 明文寫出使用者授權）；本 skill 不授權任何對外或不可逆動作。每次 merge 後比對實際 merge 結果的 tree 與該次候選 integration tree，記錄 merge SHA 並確認 required CI；不一致就停下一次 merge，先查明並重驗。某片 merge 後才發現壞：revert **該片**的 merge（或其 squash commit），其餘片不動，不整批回退；受影響證據依第 7 步作廢重驗。
+merge／push 一律由 controller 依當次 session 授權執行（worker 的 push 例外依 `~/.claude/agents/worker.md` 規則 5，仍須 brief 明文寫出使用者授權）；本 skill 不授權任何對外或不可逆動作。每次 merge 後比對實際 merge 結果的 tree 與該次候選 integration tree，記錄 merge SHA 並確認 required CI；不一致就停下一次 merge，先查明並重驗。某片 merge 後才發現壞：revert **該片**的 merge（或其 squash commit），其餘片不動，不整批回退；受影響證據依第 7 步作廢重驗。
 
 ## §7 FINAL VALIDATION 與 RESULT
 
@@ -144,7 +144,7 @@ plan → execute → new information → re-plan（回 §3）→ execute
 | merge conflict | 純文字依 adapter；語意衝突依 §6 第 6 步；同一衝突兩輪未解就重切 |
 | worker 發現 decomposition 不合理 | 視為新資訊，回 §3 重切；已通過的片保留證據，只重驗受影響範圍 |
 
-**re-plan 規則**：切片清單、ownership 或比較準則有變就重過 checkpoint 2；ownership 與 brief 未變、且已綁定 SHA 的片保留證據；brief 被改的片證據作廢；foundation 或 base 變動＝全批依 §6 第 7 步重驗。re-plan 只重驗受影響的片，不因 re-plan 本身讓其他證據失效。同一件事的重試上限沿用平台 dispatch（Claude `<REPO>/rules-controller/10-dispatch.md` §4、Codex `<REPO>/codex/rules/10-dispatch-codex.md` §5），兩輪後換方法或問人。
+**re-plan 規則**：切片清單、ownership 或比較準則有變就重過 checkpoint 2；ownership 與 brief 未變、且已綁定 SHA 的片保留證據；brief 被改的片證據作廢；foundation 或 base 變動＝全批依 §6 第 7 步重驗。re-plan 只重驗受影響的片，不因 re-plan 本身讓其他證據失效。同一件事的重試上限沿用平台 dispatch（Claude `~/.claude/skills/dispatch/SKILL.md` §5『升降級』、Codex `<REPO>/global/codex/rules/dispatch.md` §5『升降級路徑』），兩輪後換方法或問人。
 
 ## §9 Human-in-the-loop 與 execution adapter
 
@@ -154,6 +154,6 @@ plan → execute → new information → re-plan（回 §3）→ execute
 
 ## §10 邊界
 
-不做：跳過重疊矩陣或 ownership 分析；滾動補位；每次 merge 通知所有 worker rebase；把切分拆成另一個 skill；讓 worker 取得 tracker／push／merge 的隱含授權；把 git 無 conflict 當語意安全；Pattern B 合併多個方案；為了用某個 workspace 工具而改變上述任何一步；在 worktree 之間用複製檔案代替 git 合併。也不用其他 skill 內建、沒有整合步驟的多輪 review 流程取代 §5–§7——既有 fresh verifier 合約與 `<REPO>/rules/20-judgment.md` §2「停止端」已承接其驗收目的。
+不做：跳過重疊矩陣或 ownership 分析；滾動補位；每次 merge 通知所有 worker rebase；把切分拆成另一個 skill；讓 worker 取得 tracker／push／merge 的隱含授權；把 git 無 conflict 當語意安全；Pattern B 合併多個方案；為了用某個 workspace 工具而改變上述任何一步；在 worktree 之間用複製檔案代替 git 合併。也不用其他 skill 內建、沒有整合步驟的多輪 review 流程取代 §5–§7——既有 fresh verifier 合約與 `~/.claude/rules/judgment.md` 7『驗收的停止端』已承接其驗收目的。
 
 **刻意不做（屬 framework 層，不進本 skill）**：清單與理由見 `<REPO>/docs/parallel-dispatch-design.md`「刻意不做」。
