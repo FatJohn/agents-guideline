@@ -8,6 +8,7 @@
 - [2026-10-09][android] 用桌面 JDK／Robolectric 當「Android 會拒絕 X」的證據，host 底線、IPv6 zone 判定與裝置 libcore 不同 → Android 解析行為要在裝置上實跑（自起 read-only AVD），或讀 `~/Library/Android/sdk/sources/android-*/` 的 libcore 原始碼，並注意不同 API 版本可能不一致 → 已套用到：尚未
 - [2026-10-10][macos] macOS 上 probe 目錄名只差大小寫會互相覆蓋（APFS 不分大小寫） → 產生後核對目錄數＝預期數，命名不靠大小寫區分 → 已套用到：尚未
 - [2026-10-10][lsp] LSP findReferences 冷啟動（Kotlin／Swift／TS）或 cwd 在專案上層目錄時，只回宣告本身、空結果或報錯 → 不算無引用證據，用 Grep 交叉確認 → 已套用到：尚未
+- [2026-10-19][agents-guideline] README 把 rubric 讀者、常駐範圍、分級標籤抄成固定句，來源改了 check_docs 不會紅，英文版是精簡翻譯更易落後 → 改 judgment／agent 合約／安裝對應時順手 grep 兩份 README 同一事實並同步，中英一起改 → 已套用到：尚未
 
 ## 交接欄
 
