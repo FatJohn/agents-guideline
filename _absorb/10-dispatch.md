@@ -1,0 +1,114 @@
+# 10 — 模型調度守則
+
+> 讀者：主對話（指揮官）。每次要派工、選模型之前照著做。
+> 本檔事實的查證日與時效規則統一記在 `../rules/00-environment.md` 開頭。
+> 本檔在 `rules-controller/`，由 SessionStart hook 只注入主對話，subagent 不繼承；worker／verifier 要查本檔時用 Read 讀 `~/.claude/rules-controller/10-dispatch.md`。
+
+## 0. 可用模型與 subagent（查證過，不要憑印象改）
+
+**Agent 工具的 `model` 參數**只接受 harness 每 session 注入的 alias enum（`haiku`／`sonnet`／`opus`／`fable`）；完整 model ID 與 `inherit` 只能寫在 agent frontmatter 的 `model` 欄。alias→實際型號的對照在 `../docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」。
+
+**執行者預設**：一般實作與文件產出使用 `worker`（Sonnet 5.5 層；2026-09-29 切換，2026-10-05 使用者確認轉為正式方案）。
+呼叫時不帶 `model`，model 與 effort 由 `agents/worker.md` frontmatter 決定。
+Agent 工具有逐次 `effort` 參數，但派 `worker`／`verifier` 不帶（帶了會蓋過其 frontmatter）；沒有 frontmatter effort 的車道（`general-purpose` 等）只在本檔或使用者要求固定 effort 時才帶，見下方「車道備註」。規劃／複雜度升級與驗收另依 §1／§4／§5。
+模型升級鏈為 Sonnet → Opus → Fable，不代表必須依次嘗試；Haiku 不作預設或 fallback。
+
+**車道備註**：`general-purpose`（全工具）是 worker 升級或需要 opus／fable 時改派的車道，須顯式指定 model；使用者當次指定 Opus 執行時也派這條（`model: opus`、`effort: medium`，使用者當次指定別的 effort 時從其指定；brief 要求照 `~/.claude/agents/worker.md` 合約。不帶 `effort` 依 session 設定（不可當常數），見 `../docs/harness-facts.md`「沒有 frontmatter effort 的 subagent」）；`worker`（呼叫方式見上方「執行者預設」）與 `verifier` 是本系統自帶角色，派工前讀 `~/.claude/agents/<角色>.md` 合約（verifier 顯式 `model: opus`，升 fable 見 §5；派 verifier 時只需提供該檔要求的素材，不必重述其職責）；簡化剛改過的程式碼用內建 `simplify` skill；`codex:codex-rescue` 是外部模型（GPT 系，Codex 訂閱，不占 Claude 配額）備用車道，第二意見或整包委派用。`Explore`／`Plan` 等類型的職責見 `../docs/harness-facts.md`「常用 subagent 類型」。
+
+## 1. 雙軸判斷：context 成本 × 任務耦合
+
+符合任一條件時優先派 subagent：任務可獨立且主對話只需結論；原始輸出量大且後續不需反覆引用；有互不依賴子任務可安全平行；需要 fresh-context 驗收。
+
+探索與決策需即時互動時留在主對話；實際寫入僅適用下方小修例外。無法隔離就序列派工，不改成多個寫入者。
+
+**互相獨立的 issue（各自可單獨交付、不必一起整合）一個 issue 一個頂層 session，不由同一個 controller 平行扛**：本 session 只做盤點，每個 issue 各開一個 session，依 `~/.claude/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」開出（理由與量測見 `<REPO>/docs/issue-session-trial-2026-10.md`）。issue session 的 brief 逐字引用使用者在盤點 session 對該 issue 的授權時，視同該 session 已授權，範圍以引文為限、上限 push feature branch＋開 PR，細節見上述 cli.md 該段「授權」條。一個 issue 交付後要換主題，開新 session，不在大 context 上接新主題。同一 issue／功能內準備讓 ≥2 個各需寫入的切片平行（含 spec 尚未切分、要先判斷能不能切時）→ 先讀 `~/.claude/skills/parallel-dispatch/SKILL.md`，該 skill 承載切分判準、派工、整合驗收流程（worktree 與 terminal 只是 adapter 層）。
+
+| 工作 | 派給 | model |
+|------|------|-------|
+| 掃 repo、找出「哪些檔案有 X」 | Explore | sonnet |
+| 讀多份長文件並總結 | general-purpose | sonnet |
+| 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用） | sonnet |
+| 批次機械性改檔（同 pattern 套 N 個檔） | worker | frontmatter（不帶 model） |
+| 實作一個功能、修 bug、重構 | worker | frontmatter（不帶 model；複雜度訊號成立才升級，見 §4） |
+| 撰寫或修改一般文件／規則段落 | worker | frontmatter（不帶 model；僅驗收交 verifier，見 §5） |
+| 設計實作方案、架構取捨 | Plan | opus |
+| 跨檔推理、一般高難度 review | general-purpose | opus |
+
+這張表只列日常派工。升級怎麼做見 §4，驗收要派給誰見 §5。
+
+## Controller 工作迴圈（worker 標準流程）
+
+一般實作與一般文件的標準路徑，四步、不預設疊多輪 review：
+
+1. controller 核定完整 plan（目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題）。核定時若本波有 ≥2 個互相獨立的 issue，依 §1 改做盤點、每個 issue 各開一個 session，本 session 不兼任其中任何一個；同一 issue 內有 ≥2 個 ownership 不相交的切片時，先依 §1「雙軸判斷」的平行入口判斷能不能切，不預設序列。單一 issue 的 plan 預估要動 ≥2 個模組，或 phases 涵蓋整個功能一片到底時，同樣先評估 ownership 不相交、可獨立交付的切法，值不值得切仍依 `~/.claude/skills/parallel-dispatch/SKILL.md` §2「值不值得」；切不出來或不值得平行就維持單片，或依同檔「單片尺寸評估」比較冷啟動、context、重讀與交接成本後選序列交接，不以工具呼叫數或預估分鐘數強制切分。**核定前要有要動的檔案清單、關鍵段落（本輪已讀的附原文；未讀的附 `檔案:行號範圍` 讓執行者自讀）與既有測試結構**，依 §2「把已讀過的素材附進 prompt」附進 brief，不讓執行者自己從零探索；同時用這份清單估單片 context（觸發序列交接的參考值見「單片尺寸評估」）。素材由誰拿：預設派 `Explore`；只有**兩項同時成立**才由 controller 自己拿——(a) 檔案清單與測試結構能從一次批次 `rg`／`ls` 的輸出直接得出，不必再讀檔內容去找；(b) 要附的關鍵段落全在本輪已讀進主對話 context 的檔裡。任一不成立（要讀還沒讀過的檔才找得到清單或段落、測試結構不明）就派 `Explore`，不讓主對話為了找素材讀檔（`../rules/00-environment.md`「主對話下場做粗活」）。**不算違規**：改動範圍已知且 controller 手上就有素材（單檔修正且該檔本輪已讀、延續同一 session 剛讀過的檔），即 (a)(b) 同時成立，直接核定；下述不變量前置仍適用。**修正要對所有執行路徑或時序都成立（同一條件要在多個呼叫點處理、非同步／並行交錯、多處讀寫同一份狀態），或以新增檢查閘門作為修補手段時**，plan 先寫出不變量（修完後要由結構保證成立的條件），再派 `Plan`（opus）與 `codex:codex-rescue`（不可用時改派第二個獨立 agent）各自獨立出方案並互相比對；只靠事後檢查補洞的方案不核定。**不算違規**：只改單一路徑、結果不依賴其他路徑或執行順序的修正。
+2. 派 `worker`（single-writer）依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
+3. controller read-back 實際檔案／指令輸出，不採信 worker 自述。read-back 用有界輸出（`git diff --stat`、`sed -n a,bp`、`grep -c`、`wc`、`head -n`）只讀判定所需的行；全文與大 diff 留給 verifier 看或落檔，不整段讀進主對話。
+4. 依 §5「驗證不自驗」既有風險分流選**一次** review 或 verifier；修正後依 `../rules/20-judgment.md` §2「停止端」機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `../skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
+
+controller 自行小修的例外**只限**單點、低風險、可機械驗證、scope 無歧義的修正（如打字錯誤、單一路徑修正）；涉及授權、安全、架構取捨或主觀品質的文件一律走上面四步，不得用「順手改一下」跳過。修 verifier finding 的自修同樣適用 `../rules/20-judgment.md` §2「修正與驗收輪次」對修正者的要求。會被執行的 CI／release 設定（`.github/workflows`、`.github/actions` 等）不屬小修例外，一律走上面四步；已依 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」裝好 hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open）；沒裝的環境與 Bash 改檔都不經 hook，仍靠本條。
+
+## 工作目錄與背景任務安全
+
+- 同一 working tree 同時只能有一個寫入者。
+- 平行寫入的 subagent 必須設定 `isolation: worktree`；若仍共用 working tree，即使檔案不重疊也只能序列寫入。
+- controller 自建的 worktree 預設放 `<repo>/.worktrees/<片名>`；位置、忽略方式與例外見 `~/.claude/skills/parallel-dispatch/references/worktree.md`「所有權與路徑」。
+- 需要其結果才能繼續的 blocking 任務不得只依賴可能因休眠中斷的背景執行。
+- Subagent 回報不等於實際狀態；controller 必須 read-back `git status`、`git stash list`、diff、commit 與驗證輸出。
+- **唯讀角色也受影響**：verifier／Explore 與寫入者共用 working tree 時，它的**唯讀結論**
+  （檔案內容、路徑與指令是否存在）仍可信，但**任何跑測試／build 取得的數字**都被污染——
+  工作區在它量測期間被改動過。要嘛等它跑完再動手，要嘛給它 `isolation: worktree`。
+
+## 2. 派工合約
+
+每個 subagent prompt 必含三段，缺一段就是不合格的派工：
+
+1. **目標與動機**——要達成什麼、為什麼（subagent 看不到主對話，脈絡要自帶：相關檔案、使用者原話、已知限制）。
+2. **驗收條件**——可機械判定的完成定義，自我檢查見 `../rules/20-judgment.md` §4，正反例見 `../docs/judgment-rationale.md`。填不出驗收條件代表你還沒想清楚要什麼，先想再派。
+3. **回報格式**——規定回哪些欄位（預設合約見 §3）。
+
+三個非顯然的必要條件（漏掉會出事，不是風格建議）：
+
+- **把已讀過的素材附進 prompt，並要求指令批次化**——diff、行號、關鍵段落、你已跑過的指令輸出直接貼進去並明寫「不要重讀 X」；subagent 是冷啟動，每個它自己去讀的檔與每次串行的小步工具呼叫都是一輪完整推理（實測量級：一次 41 次工具呼叫的 worker 跑了 20 分鐘）。
+- **路徑一律寫絕對路徑**——subagent 的工作目錄認知可能跟你不同，相對路徑會找錯地方。
+- **prompt 開頭明寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」**——`general-purpose`／`worker` 會讀到全域 `CLAUDE.md` 與 `rules/`（含派工授權段與 `00-environment`「主對話下場做粗活」），不加這句會把自己當 controller、逐層轉包，可遞迴多層；`Explore`／`Plan` 讀不到這些也沒有 Agent 工具，可省（實測見 `../docs/harness-facts.md`「常駐內容對 subagent 的可見性」與「常用 subagent 類型」）。收到「我已再派背景工作」類回報＝未完成，立即糾正。
+
+要求 subagent **補齊某個格式欄位**（例如每條規則的「不算違規」邊界）時，同時規定「查無來源就留空」——強制欄位一定會被填滿，原檔沒有的邊界會被當場發明。
+
+## 3. 回報合約
+
+**派工揭露（controller → 使用者）**：派工當下只講**指定的 agent 名稱與任務摘要**（「派 Explore 掃 repo」）；實際派送不是指定的 named role 就在名稱後標 `fallback` 並簡述差異，建立失敗回報「`<agent>` 未建立」與 runtime 原因。model／effort 與制度出處平常不報，被問到、runtime 不一致、unsupported／unavailable 或稽核時才展開——怎麼答（報呼叫參數、註明 runtime 未驗證）見 `../docs/harness-facts.md`「被問到 model／effort 時怎麼答」。主對話自己做時，只有**符合 §1 任一派工條件卻仍不派**才要交代。Codex 端 `../codex/rules/10-dispatch-codex.md` §3 用同一套揭露。
+
+**Subagent 回報：**
+
+- Subagent 只回**結論與證據**（檔案:行號、指令輸出關鍵行），不回原始內容傾倒。
+- 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接依 `../docs/memory-layers.md`「顯式交接檔」條。
+- 回報長度以 controller 下一步決策需要的資訊為準；大 diff、完整清單、全文等長產物落檔（`.md` 檔名不以 report／summary／findings／analysis 開頭，否則 harness 擋 subagent 寫入，見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），回報附路徑與摘要（驗收的逐條判定屬決策資訊，留在回報內）。長度靠 brief 的回報格式只列 controller 下一步決策要用的欄位，欄位以外一律落檔附路徑。要縮時先砍原始內容傾倒與重複敘述，不砍決策所需證據。唯讀角色（Explore／Plan）的角色指示禁止寫檔（含 heredoc，2026-10-12 探針實測，見 `../docs/harness-facts.md`「常用 subagent 類型」），長度只能靠 brief 控：要它回「結論＋檔案:行號範圍」，不要回原文段落；worker brief 寫「讀 X 第 a–b 行」由執行者自讀；真要原文落檔改派 general-purpose（sonnet）寫到指定路徑。附進 brief 的素材本身不計長度。
+- 回報必須分級：**已驗證（附證據）／待 CI／未驗證**（鐵律一）。
+
+## 4. 升降級路徑
+
+升級**門檻**（幾次失敗、什麼算高風險）的 canonical 在 `20-judgment-controller.md` §1。門檻成立後怎麼做，只有三條路，一律附上完整失敗軌跡（逐輪嘗試表：執行者每輪當下記一列、不事後重建；欄位為改了什麼｜跑了什麼指令｜輸出關鍵行或指標值｜改動仍在工作樹或已回退｜為什麼判定失敗）：
+
+1. **換 fresh context 重做**——`worker` 失敗時改派新的 general-purpose（`model: opus`，高風險用 `fable`），把失敗軌跡當輸入，要求它先建立 root cause 再動手，不要沿用失敗者的假設。適用能力或脈絡理解不足（execution mistake 依 `20-judgment-controller.md` §1 同層補正）；plan 缺陷（`20-judgment-controller.md` §1「換路的質性訊號」）走第 3 條，換模型無效。
+2. **換平台取第二意見**——`codex:codex-rescue`，或派兩個 agent 各自獨立解再比對。
+3. **重新定義問題**——見 `20-judgment-controller.md` §1「換路的質性訊號」；訊號出現時，加能力層不會有用。設計審查 brief 必含：開頭寫不變量並要求由結構保證、不靠事後檢查；附全部失敗紀錄與其共同形狀並明寫「不要列補丁」；每個候選方案逐一對照已知失敗形狀，判「結構上不可能／仍需檢查」。派 `Plan`（opus）與 `codex:codex-rescue` 各自獨立判斷，分歧交使用者。累計輪數沿用原任務，換 model／role 不重設（`../rules/20-judgment.md` §2「停止端」）。
+
+**重試上限**：同一件事最多兩輪**無進展**重試（指同一個問題的修法重試，不含驗收輪次——驗收狀態與回報點見
+`../rules/20-judgment.md` §2「停止端」）。有進展的輪次不計；無進展的判定見 `20-judgment-controller.md` §1「何時該升級能力層」，有機械指標時用數字判。兩輪無進展代表方向錯了，換方法或問人，不要換個措辭再試第三次。Codex 端同一口徑，見 `../codex/rules/10-dispatch-codex.md` §5「升降級路徑」。
+
+## 5. 驗證不自驗（鐵律三）
+
+首次驗收分工：
+- **文件／主觀品質**：派 fresh-context `verifier`，給產出路徑及驗收條件，逐條 PASS／FAIL／UNSURE；不參與製作。
+- **程式碼機械驗證**：製作者可跑測試、build、lint、實跑、schema，附輸出；讀碼不取代執行證據。
+- **含外部呼叫、權限請求或不可逆副作用的程式碼**：不論風險等級，機械驗證外一律派 fresh-context `verifier` 套 `<REPO>/rubrics/code-change.md` §7「失敗路徑與不可逆副作用」；製作者的測試與突變證據只證 happy path，不得據此結案。「不可逆副作用」與下方「高風險判斷」條「不可逆」的範圍依 `../rules/20-judgment.md` §2 判準第 3 點的 canonical 定義；§7 FAIL 修正後的結案方式依 `20-judgment-controller.md` §2「修正與驗收輪次（controller 端）」。
+- **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。fresh review 可派一個 fresh-context subagent 執行 `code-review` skill（從 diff 推 bug，不需驗收條件）；它不取代上一條的 §7 verifier 審查，有逐條驗收條件時仍派 `verifier`。
+- **高風險判斷**（對外文件、不可逆、架構決策）：加獨立第二意見，可用 codex-rescue 或兩個 agent，分歧交使用者。
+
+Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`；frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑；真的 fallback 時另帶 `effort: high`（與 verifier frontmatter 相同），否則 effort 落到 session 設定。
+改用 `model: fable` 前，說明訊號（清單見 `<REPO>/docs/verification-policy-history.md`「fable 升檔訊號」）與證據並取得當次同意。使用者當次直接指定 fable 不必再問；無訊號仍可提議，但要明說沒有訊號及判斷理由。Codex 刻意維持 `sol_verifier/Sol high`，見 `../codex/rules/10-dispatch-codex.md` §6「驗證語意」。歷史理由見 `<REPO>/docs/verification-policy-history.md`。
+
+「第二個現場」是取樣，不是本次必修清單；verifier 交回的 N 個實例清單同樣是取樣——逐個修完之前先問
+「是什麼產生它們」，再決定修哪一層。範圍內依 `../rules/20-judgment.md` §2「停止端」修正分流；
+範圍外不擴修，登記該 repo issue 並附連結（對外授權仍依鐵律二，未授權先保留待登記項目）。
+連續兩輪發現都在範圍外就停手回報，不把下一批工作塞進本次。

@@ -1,0 +1,3 @@
+# Scripts and configs executed by bash/rg must stay LF even on Windows checkouts with autocrlf.
+*.sh text eol=lf
+config/ripgreprc text eol=lf

@@ -1,0 +1,46 @@
+# Rubric — 文件品質
+
+> 用途：Claude／Codex 的 `verifier` 驗收文件類產出時共用的預設判準；派工者寫驗收條件時可直接引用本檔路徑，不必重抄。本檔不指定平台角色、model 或 effort。
+> **本檔是清單不是擴權**：找碴範圍與收斂標記受平台 verifier 合約約束（Claude：`<REPO>/agents/verifier.md`；Codex：`<REPO>/codex/agents/verifier.toml`／`<REPO>/codex/agents/sol_verifier.toml`）；行為承載產物與散文的分類 canonical 在 `<REPO>/rules/20-judgment.md` §2「停止端」。
+> 判定方式：逐條 PASS／FAIL／UNSURE，每個 FAIL 附 `檔案:行號`。
+
+## 1. 讀者能不能行動（三個必答題）
+
+驗收者讀完產出後必須能自己答出，答不出即 FAIL：
+
+1. 這份文件要讀者**做什麼**？
+2. 判斷標準是什麼——什麼情況算過、什麼情況算不過？
+3. 跟著做會不會遇到**指代不明**的地方（「上面提到的門檻」「前述做法」找不到對應）？
+
+## 2. 路徑與指令真實性
+
+- 文件內出現的每個檔案路徑、目錄、指令、工具名、agent 名，用所在平台可用的等價工具**實查**，不憑閱讀判斷；例如 POSIX 用 `ls`／`command -v`／`rg`，PowerShell 用 `Test-Path`／`Get-Command`／`Select-String`。
+- 指向其他文件的章節引用（§N、小節標題）必須實際存在於該檔。
+- 文件會過時，repo 不會——衝突時以 repo 現況為準，並把差異列為 FAIL。
+- **「有機制擋著」的宣稱要查三件事才准寫**：rule/gate 的 severity、閾值的實際數字、跑它的 script 有沒有讓 warning 變成失敗。
+  假的機械化宣稱比不寫更糟——後人會信任它而不自查，或「順手修好」config 而推翻刻意決策。
+- **引用「既有慣例／現有實作」前，確認它在讀者會看到的那棵樹上**：查在自己的工作分支、卻寫成既有事實，
+  是同一個病灶的時間差變種。若來源尚未 merge，文件要嘛自帶完整定義，要嘛註明「來源在 PR #N、尚未 merge」。
+- **可執行片段要原樣複製出檔案實跑**：code span 裡的指令常帶著撰寫當時的跳脫（python／shell 各疊一層），
+  只讀渲染結果完全看不出來，使用者複製出去才發現直接報錯。渲染正常 ≠ 可執行。
+
+## 3. 內部一致性
+
+- 同一件事在本檔或相關檔內是否有兩種互相矛盾的說法。
+- 是否存在「一邊要求 X、另一邊要求 non-X」的衝突指示（這類衝突會讓執行者多耗推理，屬 FAIL 不屬風格問題）。
+- 是否有規則寫了但沒有任何一處說明何時觸發。
+- **同檔的範例要逐條回頭核對本檔剛寫的判準**：判準表與它自己的範例互相矛盾是高頻失誤，通讀一遍抓不到，
+  要拿範例一條一條去對判準。
+
+## 4. 冗餘
+
+- 同一條規則是否在多處重述。canonical 位置以外的重述應改為指向；發現重述列為 FAIL 並指出應保留哪一處。
+
+## 5. 開放題（必答）
+
+「這份產出最大的風險是什麼？」——不得回答「沒有風險」。
+
+## 6. 長存文件的寫作原則（README、接入指南、設計說明、流程、參考頁、wiki 頁）
+
+- 產出屬於 `<REPO>/skills/writing-principles/SKILL.md`「何時用／不用」的「用」範圍時，照該 skill「原則與判定」逐條判：機械項自己重跑 `python3 <REPO>/skills/writing-principles/scripts/check_docs.py --repo <目標 repo>`（設定與 `--exclude` 依派工者附的清單），`SUMMARY` 行貼進回報，派工者附的輸出只當線索；`[verifier]` 項各抽樣 5 處。派工者未說明的 `--exclude` 與 `<!-- allow-time-word -->` 逐條判 FAIL。
+- 不屬於該範圍（程式註解、commit、PR、issue、ADR、CHANGELOG、本系統 rules／agents／skills）時本節標 N/A，不得套用。

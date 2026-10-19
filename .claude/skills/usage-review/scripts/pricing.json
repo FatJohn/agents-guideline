@@ -1,0 +1,28 @@
+{
+  "pricing_version": 1,
+  "unit": "USD per million tokens",
+  "note": "Prices are a local snapshot taken from the Anthropic API pricing table (verified date per entry). They are not an invoice: subscription plans, discounts, batch and fast-mode pricing are not modelled. A model that matches no entry is reported as unpriced (cost null), never as zero. Override with --pricing <path>.",
+  "cache_write_multiplier": {"5m": 1.25, "1h": 2.0},
+  "models": [
+    {"match": "claude-opus-5-5",   "input": 4,    "output": 20, "cache_read": 0.20, "verified": "2026-10-06"},
+    {"match": "claude-opus-5",     "input": 5,    "output": 25, "cache_read": 0.50, "verified": "2026-10-06"},
+    {"match": "claude-opus-4-8",   "input": 5,    "output": 25, "cache_read": 0.50, "verified": "2026-10-06"},
+    {"match": "claude-opus-4-7",   "input": 5,    "output": 25, "cache_read": 0.50, "verified": "2026-10-06"},
+    {"match": "claude-opus-4-6",   "input": 5,    "output": 25, "cache_read": 0.50, "verified": "2026-10-06"},
+    {"match": "claude-sonnet-5-5", "input": 2,    "output": 10, "cache_read": 0.20, "verified": "2026-10-06"},
+    {"match": "claude-sonnet-5",   "input": 2,    "output": 10, "cache_read": 0.20, "verified": "2026-10-06"},
+    {"match": "claude-sonnet-4-6", "input": 3,    "output": 15, "cache_read": 0.30, "verified": "2026-10-06"},
+    {"match": "claude-fable-5-1",  "input": 10,   "output": 50, "cache_read": 0.25, "verified": "2026-10-06"},
+    {"match": "claude-fable-5",    "input": 10,   "output": 50, "cache_read": 0.25, "verified": "2026-10-06"},
+    {"match": "claude-haiku-5-5",  "input": 0.10, "output": 0.50, "cache_read": 0.01, "verified": "2026-10-06"},
+    {"match": "claude-haiku-4-5",  "input": 1,    "output": 5,  "cache_read": 0.10, "verified": "2026-10-06"}
+  ],
+  "output_correction": {
+    "note": "Heuristic calibrated on one machine, off by default (--output-correction). The jsonl records usage taken at the start of the stream, so output_tokens is under-recorded for some models (observed: Opus 5.5 about 2/3 short, Sonnet 5.5 about an order of magnitude short). The rules below are not an official figure; always read cost_raw and cost_est side by side.",
+    "rules": [
+      {"family": "opus",   "add_tokens": 680},
+      {"family": "fable",  "add_tokens": 680},
+      {"family": "sonnet", "min_visible_chars_ratio": 0.9}
+    ]
+  }
+}
