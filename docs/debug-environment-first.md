@@ -1,20 +1,20 @@
-> 2026-09-02 從 `skills/debug-environment-first/SKILL.md` 降為文件：近 45 天以 Skill 工具叫用 1 次、直接 Read 約 50 次，它實際上被當參考文件用，skill 身分只多付每 session 的 description 注入。內容原文未改寫；下文提到「本 skill」「搬進 skills/」處為當時歷史。
+> 本檔原是 skill：近 45 天以 Skill 工具叫用 1 次、直接 Read 約 50 次，它實際上被當參考文件用，skill 身分只多付每 session 的 description 注入，所以降為文件、直接讀檔。內容原文未改寫；下文提到「本 skill」「搬進 skills/」處為當時歷史。
 > 何時讀：除錯或量測結果看起來不對時；報出任何量測數字或訂任何門檻之前；改完帶內嵌程式碼的設定檔之後（GitHub Actions 的 `run:`、Dockerfile、husky hook、YAML 裡的 jq）。
 
 # 除錯前先驗證環境（訊號常在 shell，不在程式）
 
-> `<REPO>/rules/20-judgment.md` §5「除錯前先驗證環境」只留判準與指向；細節在這裡，只在除錯時才需要讀。
+> `<REPO>/global/shared/rules/judgment.md` 第 13 條「除錯前先驗環境」只留判準與指向；細節在這裡，只在除錯時才需要讀。
 
 **判準**：遇到 HTTP 錯誤、port 相關異常、或指令輸出與預期不符時，在提出任何「程式碼有 bug」的假設之前，先花 30 秒驗證環境事實並回報：
 
 - `pwd` 與目標 repo 是否一致（多 clone／多 worktree 環境特別容易站錯目錄）。**但別靠 `cd` 修**
-  ——見下方「指令自己綁定目標」，那是 `<REPO>/rules/20-judgment.md` §2 同名判準的細節 canonical。
+  ——見下方「指令自己綁定目標」，那是 `<REPO>/global/shared/rules/judgment.md` 第 11 條「指令自己綁定目標」的細節 canonical。
 - 目標 port 被誰佔用（`lsof -i :<port>`）；跑著的 server 是不是本 repo、本分支起的（看啟動時間或 build 產物）。
 - `git status --short && git log --oneline -3` 用新指令重新確認分支與 merge 狀態——不從舊的 scrollback 推斷。
 - **per-file lint hook 會在多步編輯的中間態報假 error**：有 PostToolUse per-file lint hook 時，把「加 import」與「加使用處」拆成兩次 Edit，中間那次必被判 `unused-imports`。兩者併在同一次 Edit（或先改使用處再加 import）；真假存疑一律補跑一次完整 lint 確認，不要照著假 error 改程式。
 - 輸出像亂碼或被截斷時，先懷疑 shell quoting（zsh 會展開 `===`、吃掉 backtick），多行或含特殊字元的內容改用 quoted heredoc（`<<'EOF'`）重跑一次，再解讀結果。
 - **量測方法要先自證，再拿它的結果下結論**——「壞了」與「我量錯了」長得一樣。
-  這是 `<REPO>/rules/20-judgment.md` §2「補充判準（把可證偽宣稱寫下來之前）」的細節 canonical：
+  這是 `<REPO>/global/shared/rules/judgment.md` 第 8 條「可證偽宣稱」的細節 canonical：
   常駐區只留判準，**新增的陷阱一律寫進這裡**，不要在兩邊各記一份。
   兩個場合都會踩，而**報數字時比除錯時貴**——除錯時錯的量測只是多繞一圈，報數字時錯的量測
   會被寫進 PR、判準與告警門檻，之後每個人都照著那個數字做決定。
@@ -38,7 +38,7 @@
     另外 push 後立刻 `gh pr checks <n> --watch`，check 尚未註冊時回「no checks reported」且 exit 0，`&&` 接的
     merge 就在 CI 跑完前按下去了（project-c 2026-09-04 事故觀察值，未在乾淨環境重現；gh help 只記載
     pending 為 exit 8）——先確認 check 已註冊再 watch，或改用 `gh run watch <run-id> --exit-status`。
-    `<REPO>/skills/create-pr/SKILL.md` §2.8 只留一句指向這裡。
+    `<REPO>/global/shared/skills/create-pr/SKILL.md` §2.8 只留一句指向這裡。
   - **拿歷史資料列去推「現行設定會怎麼跑」**：那批列反映的是**寫入當時**的設定。要先查現行設定，
     設定換過的來源必須實打一次現行的那條路徑才算數。
   - **沿用別處量出來的門檻而不重量**：窗、cap、firing rate 都與該 pipeline 的節奏綁死。
@@ -58,7 +58,7 @@
     跑那條路徑比往上讀更快也更準。
   - **拿「預設會跳過某些目標」的工具當成「我搜過了」的證據**：`rg` 預設不掃隱藏目錄，
     `.github/` 要另外抓（`rg --hidden` 或直接指定路徑）。這與
-    `<REPO>/rules/20-judgment.md` §2「補充判準（重構／字串抽取／搬移／更正事實宣稱類任務）」
+    `<REPO>/global/shared/rules/judgment.md` 第 3 條「殘留掃描」
     是同一件事的兩半：那條說要搜，這條說你的搜可能是假陰性。
   - **殘留掃描的排除清單只能排內容型目標**（記憶快照之類的資料）；**設定型**檔案（會被執行或讀取的
     `launch.json`、hook、workflow）即使與快照同目錄也不可排除——整個 `.claude/` 排掉會連指向已刪
@@ -70,7 +70,7 @@
 
 ## 指令自己綁定目標（cwd 會漂）
 
-`<REPO>/rules/20-judgment.md` §2「補充判準（指令要自己綁定目標，不要靠 cwd）」的細節；判準留
+`<REPO>/global/shared/rules/judgment.md` 第 11 條「指令自己綁定目標」的細節；判準留
 在常駐區，**新踩到的工具寫進這裡**。
 
 | 工具 | 綁定方式 | read-back |
@@ -90,7 +90,7 @@
 
 ## 內嵌程式碼要驗到被嵌的那一層
 
-判準常駐在 `<REPO>/rules/20-judgment.md` §2「補充判準（驗證要驗到被嵌的那一層）」；這裡是
+判準在 `<REPO>/global/shared/rules/judgment.md` 第 5 條「驗到被嵌的那一層」；這裡是
 細節 canonical，**新增的語言與檢查方式一律寫進這裡**（2026-08-23 從常駐區搬入）。
 
 設定檔內嵌別的語言時——GitHub Actions 的 `run:`、Dockerfile 的 `RUN`、husky hook、YAML 裡的

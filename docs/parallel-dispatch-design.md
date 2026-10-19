@@ -1,6 +1,6 @@
 # parallel-dispatch 設計說明
 
-> 非常駐內容：架構說明與刻意不做的理由，用到才讀。判準與邊界仍在 `<REPO>/skills/parallel-dispatch/SKILL.md`。
+> 非常駐內容：架構說明與刻意不做的理由，用到才讀。判準與邊界仍在 `<REPO>/global/shared/skills/parallel-dispatch/SKILL.md`。
 
 ## Adapter 契約
 
