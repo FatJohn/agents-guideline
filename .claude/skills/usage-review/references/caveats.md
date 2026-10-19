@@ -106,7 +106,7 @@
     現象：唯讀 verifier／Explore 與寫入者共用同一個 working tree 時，工作區在量測期間被改動。
     影響：同時間跑測試或 build 取得的耗時與 token 數會被交錯污染，單看一個 agent 的牆鐘會失真。
     處理：人工；比較牆鐘（`agents` 的 first/last）時，注意同時間有哪些 agent 在跑。
-    出處：`rules-controller/10-dispatch.md`「工作目錄與背景任務安全」一節（唯讀角色也受影響）。
+    出處：`<REPO>/global/shared/skills/dispatch/SKILL.md` §9『工作目錄與背景任務安全』（唯讀角色也受影響）。
 
 20. **啟發式分類要標示**
     現象：verifier 判定 regex、`bash_writes_heuristic`、`out_est`、`humans[].kind` 都是依文字樣式猜的。

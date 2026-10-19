@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-DEFAULT_SOURCE = Path(__file__).resolve().parent.parent / "codex" / "agents"
+DEFAULT_SOURCE = Path(__file__).resolve().parent.parent / "global" / "codex" / "agents"
 DEFAULT_DESTINATION = Path.home() / ".codex" / "agents"
 
 
@@ -132,9 +132,10 @@ def _link_target(path: Path) -> Path | None:
     """Read a link's stored target without following it.
 
     Resolving instead would open the target, which fails outright on a host
-    where reparse points cannot be traversed (see ``hosts/windows.md``), and
-    would also reject a link whose target has since been deleted -- exactly the
-    stale entries this command needs to migrate.
+    where reparse points cannot be traversed (see
+    ``global/shared/hosts/windows.md``), and would also reject a link whose
+    target has since been deleted -- exactly the stale entries this command
+    needs to migrate.
     """
 
     try:
@@ -360,7 +361,7 @@ def sync(source: Path, destination: Path, *, apply: bool = False, update: bool =
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Preview or install codex/agents/*.toml as regular files."
+        description="Preview or install global/codex/agents/*.toml as regular files."
     )
     parser.add_argument(
         "--destination",

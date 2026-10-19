@@ -1,4 +1,4 @@
-"""Tests for skills/usage-review/scripts/extract.py (jsonl -> normalised JSON).
+"""Tests for .claude/skills/usage-review/scripts/extract.py (jsonl -> normalised JSON).
 
 All fixtures are invented: fictional slug, session ids, dates (2031) and models.
 """
@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS = REPO_ROOT / "skills" / "usage-review" / "scripts"
+SCRIPTS = REPO_ROOT / ".claude" / "skills" / "usage-review" / "scripts"
 
 
 def _load(name: str, filename: str):

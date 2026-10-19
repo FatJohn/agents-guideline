@@ -1,10 +1,10 @@
 #!/bin/bash
 # Offline assertions for config/ripgreprc. Builds its own fixture.
 # usage: bash tests/test-ripgreprc.sh [path/to/ripgreprc] [fixture-dir]
-# defaults: ../config/ripgreprc relative to this file; a fresh mktemp -d fixture
+# defaults: ../global/claude/config/ripgreprc relative to this file; a fresh mktemp -d fixture
 # that is removed on exit (a fixture dir passed in by the caller is never deleted).
 # Needs: bash, rg, git.
-RC=${1:-$(dirname "$0")/../config/ripgreprc}
+RC=${1:-$(dirname "$0")/../global/claude/config/ripgreprc}
 D=${2:-}
 if [ -z "$D" ]; then
   D=$(mktemp -d) || exit 2

@@ -1,4 +1,4 @@
-"""Run the shell-level assertions for hooks/block-ci-edit.sh, hooks/controller-context.sh and config/ripgreprc.
+"""Run the shell-level assertions for global/claude/hooks/block-ci-edit.sh, global/claude/hooks/controller-context.sh and global/claude/config/ripgreprc.
 
 The scripts under tests/ build synthetic input (hook stdin JSON, a throwaway
 fixture tree) and need no Claude Code or network.  They are wrapped here so
@@ -60,7 +60,7 @@ class ControllerContextHookTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(count_lines(result.stdout, "FAIL"), 0, result.stdout)
         # A script that prints nothing and exits 0 must not pass.
-        self.assertGreaterEqual(count_lines(result.stdout, "PASS"), 10, result.stdout)
+        self.assertGreaterEqual(count_lines(result.stdout, "PASS"), 12, result.stdout)
         self.assertIn("failures=0", result.stdout)
 
 
@@ -72,7 +72,7 @@ class RipgreprcTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as fixture:
             result = run_script(
-                "test-ripgreprc.sh", str(REPO_ROOT / "config" / "ripgreprc"), fixture
+                "test-ripgreprc.sh", str(REPO_ROOT / "global" / "claude" / "config" / "ripgreprc"), fixture
             )
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
