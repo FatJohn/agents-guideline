@@ -1,0 +1,22 @@
+{
+  "env": {
+    "RIPGREP_CONFIG_PATH": "<echo \"$HOME/.claude/ripgreprc\" 的輸出>"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash \"$HOME/.claude/hooks/controller-context.sh\"" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          { "type": "command", "command": "bash \"$HOME/.claude/hooks/block-ci-edit.sh\"" }
+        ]
+      }
+    ]
+  }
+}

@@ -17,7 +17,7 @@ allowed-tools: Bash(python3:*), Read, Grep, Glob
 
 ## 流程（兩步）
 
-`<SK>` 指本 skill 的目錄（安裝後通常是 `~/.claude/skills/usage-review`）。
+`<SK>` 指本 skill 的目錄（`<REPO>/.claude/skills/usage-review`，在本 repo 開工時由專案層載入，不裝進全域）。
 
 ```bash
 # 1. 正規化（窗口以事件時間為界；--since 不帶 offset 時依 --tz 解讀，省略 --tz＝系統本地時區）
