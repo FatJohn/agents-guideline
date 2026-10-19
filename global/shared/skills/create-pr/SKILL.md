@@ -6,7 +6,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Bash(find:*), Bash(ls:*), Bash(test:*), 
 
 # Create PR
 
-分析 branch 變更、生成描述、建立 Pull Request。適用任何 repo；先偵測該 repo 的 base branch 與 PR template 再生成，不假設特定 stack。**PR 標題與描述預設一律使用繁體中文台灣用語（技術名詞與程式碼識別字保留原文）；標題採一句摘要主題，不用 Conventional Commits 或任何 prefix。**
+分析 branch 變更、生成描述、建立 Pull Request。適用任何 repo；先偵測該 repo 的 base branch 與 PR template 再生成，不假設特定 stack。**PR 標題與描述預設使用繁體中文台灣用語（技術名詞與程式碼識別字保留原文），標題採一句摘要主題、不用 Conventional Commits 或任何 prefix；但 repo 的 `AGENTS.md`／`CLAUDE.md`／`CONTRIBUTING.md` 或既有慣例另有規定時以 repo 為準，判法見 2.2「repo 規定與既有慣例」。**
 
 ## 1. 核心原則
 
@@ -49,7 +49,7 @@ Good -- 同一概念的變更聚合描述：
 
 檢查使用者是否有提供 PR 目的。有的話以目的為主軸串連所有變更；沒有的話從 diff 推斷。
 
-建議使用者在開 PR 前先跑該 repo 的檢查慣例（lint / type-check / test，或專案自帶的 pre-commit skill）；本 skill 不主動代跑，避免重複工作。
+建議使用者在開 PR 前先跑該 repo 的檢查慣例（lint / type-check / test，或專案自帶的 pre-commit skill）；本 skill 不主動代跑，避免重複工作。repo 文件把測試、lint 或 code review 通過列為開 PR 的前置條件時，這段「不代跑」不適用：開 PR 前先確認那些閘門已通過並附證據（測試與 lint 附實跑輸出，code review 附 review 紀錄或結果連結），未通過或拿不出證據就不開、回報缺哪一項。
 
 ### 2.2 偵測 repo 慣例
 
@@ -76,10 +76,24 @@ find .github docs . -maxdepth 1 -iname 'pull_request_template*' 2>/dev/null
 - **命中多筆**（例如 `docs/` 與 `.github/` 各有一份，或一個檔加一個目錄）→ 把清單列給使用者選一份，不要自己挑；命中含目錄時一併把目錄內的檔案展開進選單。GitHub 在多位置並存時採用哪一份未見官方明文，猜錯會套錯骨架。
 - **什麼都沒命中** → 直接用 2.6 的內建骨架，不必問使用者，**也不要順手幫該 repo 新增 template 檔**——那是改動對方的協作慣例，超出「開一個 PR」的授權範圍。
 
-title 風格與語言不必偵測、不跟隨 repo 近期慣例，一律照下列固定規則：
+**repo 規定與既有慣例**：PR 標題與描述的語言、標題格式，程式註解語言，是否一律先開 draft，開 PR 前要過的檢查，merge 時機與 review 流程，這五件事 repo 有自己的規定時以 repo 為準。前兩件（標題／描述語言與格式、註解語言）沒明文時再看既有慣例；後三件（draft、開 PR 前的檢查、merge／review 流程）只看 repo 文件，文件沒寫就用預設。依序判斷：
 
-- **title 風格（固定）**：一句簡潔摘要主題，直接描述這個 PR 做了什麼，**不用 Conventional Commits（`feat:`／`fix(scope):` 等）、也不加 ticket 或任何 prefix**。
-- **語言（固定）**：PR 標題與描述一律使用**繁體中文台灣用語**，技術名詞與程式碼識別字（class／method／API 名等）保留原文。唯一例外：使用者當下明確要求改用其他語言時才跟隨。
+1. 先讀 repo 文件（`AGENTS.md`／`CLAUDE.md`／`CONTRIBUTING.md`／PR template）裡關於這五件事的規定。有明文就照明文。
+2. 沒明文再看既有慣例。PR 標題看最近 merged PR 的標題，排除 bot：
+
+   ```bash
+   # 最近 10 個 merged PR 的標題；排除 bot（release-please、dependabot、renovate 等）
+   gh pr list --state merged -L 10 --json title,author -q '.[] | select(.author.is_bot | not) | .title'
+   ```
+
+   判準：排除 bot 後的標題多數（過半）是英文就用英文，其中多數是 Conventional Commits（`type:`／`type(scope):` 開頭）就跟隨該格式，否則照多數的寫法；多數是中文就用中文；數量不足 3 筆或混雜看不出多數，視為無慣例。描述語言跟標題同語言（標題照慣例用英文時描述也用英文），repo 文件另有規定時照文件。程式註解語言的判法見 `~/.claude/skills/git-commit/SKILL.md`「既有慣例怎麼判」。
+3. 都沒有 → 照下列預設（即本 skill 原本的做法）。
+4. 使用者當下明確要求的語言或格式永遠最優先。
+
+無 repo 規定與既有慣例時的預設：
+
+- **title 風格（預設）**：一句簡潔摘要主題，直接描述這個 PR 做了什麼，**不用 Conventional Commits（`feat:`／`fix(scope):` 等）、也不加 ticket 或任何 prefix**。
+- **語言（預設）**：PR 標題與描述一律使用**繁體中文台灣用語**，技術名詞與程式碼識別字（class／method／API 名等）保留原文。例外：repo 規定或既有慣例、使用者當下要求時才改用其他語言或格式。
 
 使用者指定 base branch 時，改設 `BASE="<使用者指定的名稱>"`，並先驗證名稱合法（白名單字元＋確認為實際存在的 ref），避免 shell injection：
 
@@ -161,7 +175,7 @@ git diff --name-only "origin/$BASE"...HEAD
 ### 2.7 確認並建立 PR
 
 1. 展示建議的 Title、Base Branch、PR Body 完整預覽。
-2. 取得使用者明確同意後才執行（建立 PR 是對外動作；使用者猶豫時可建議 `--draft`）：
+2. 取得使用者明確同意後才執行（建立 PR 是對外動作；repo 規定一律先開 draft 時 `gh pr create` 加 `--draft`；沒規定時預設 ready，使用者猶豫時可建議 `--draft`）：
 
 ```bash
 # 推送 branch（第一次推送加 -u 建立 tracking）
@@ -174,20 +188,21 @@ cat > "$PR_BODY_FILE" << 'PR_BODY_EOF'
 （實際的 PR body 內容）
 PR_BODY_EOF
 
+# repo 規定 draft 時加 --draft
 gh pr create --title "（實際的 PR title）" --base "$BASE" --body-file "$PR_BODY_FILE"
 
 rm -f "$PR_BODY_FILE"
 ```
 
 3. 輸出 PR URL。
-4. 開完 PR 後**一次**問使用者「CI 全綠後是否直接 merge」（使用者在這次請求裡已明說過「綠了就 merge」之類就不必再問）：
+4. 開完 PR 後，先看 repo 文件有沒有規定 review 流程。規定了（例如 draft → bot review → ready → 人 review，或寫明不自動授權 merge）時**不問這題**，停在 PR URL 並指出 repo 流程的下一步；沒規定時才**一次**問使用者「CI 全綠後是否直接 merge」（使用者在這次請求裡已明說過「綠了就 merge」之類就不必再問）：
    - 同意：只對**這個 PR**，CI 全綠後照 §2.8 merge（含 `-t` 覆寫標題與 CI 閘門），不再停下來問；CI 沒全綠就不 merge，回報原因。
    - 不同意或沒答覆：停在 PR URL，不 merge。
    - 授權只限這個 PR，不延伸到其他 PR 或之後的 PR（鐵律二逐次逐對象）。
 
 ### 2.8 merge 時的標題覆寫
 
-`gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題，而本 skill 規定 PR title 用中文且不加 prefix——與 `~/.claude/skills/git-commit/SKILL.md` 要求的英文 Conventional Commits 直接衝突。所以 squash merge 一律要用 `-t` 覆寫標題：
+`gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題，而本 skill 預設 PR title 用中文且不加 prefix——與 `~/.claude/skills/git-commit/SKILL.md` 要求的英文 Conventional Commits 直接衝突。所以 squash merge 一律要用 `-t` 覆寫標題：
 
 ```bash
 gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
@@ -195,7 +210,7 @@ gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
 
 漏掉的後果：合併後的歷史第一行從此是中文、無 type prefix，事後只能重寫共享歷史。
 
-**不加 `-t` 的例外**（PR title 已合格且 repo 文件規定不覆寫，如 release-please 的 Release PR）：判準與邊界見 `~/.claude/skills/git-commit/SKILL.md`「squash merge」段的「不算違規」。
+**不加 `-t` 的例外**（PR title 已合格且 repo 文件規定不覆寫，如 release-please 的 Release PR；或 repo 慣例是英文 Conventional Commits 而 PR title 已照 2.2 跟隨，title 已合格，同屬此例外）：判準與邊界見 `~/.claude/skills/git-commit/SKILL.md`「squash merge」段的「不算違規」。
 
 **merge 前的 CI 閘門**：先確認 check 已註冊再 `gh pr checks --watch`（或改用 `gh run watch <run-id> --exit-status`），閘門指令不接 `| tail`；陷阱細節與實例見 `<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」那條。
 
