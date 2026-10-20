@@ -13,8 +13,8 @@
 | 實作、修 bug、重構、批次改檔、一般文件 | `worker`，不帶 model／effort |
 | 設計與架構取捨 | `Plan`，opus |
 | 跨檔推理、高難度 review | `general-purpose`，opus |
-| 驗收 | `verifier`，顯式 `model: opus`，不帶 effort |
-| 程式碼 diff 的 fresh review | 派 fresh subagent 執行內建 `code-review` skill |
+| 驗收 | `verifier`，顯式 `model: opus`，不帶 effort。所有文件（含規則、agent／skill 定義）交回後、merge／轉 ready 前一律派；程式碼依 dispatch skill §6 分流，含外部呼叫、權限請求或不可逆副作用的一律派，高風險或使用者回報 bug 的一律派並另加 fresh review。專案規則只寫 code-review 時仍適用 |
+| 程式碼 diff 的 fresh review | 派 fresh subagent 執行內建 `code-review` skill；是 verifier 的加項不是替代。修 finding 後依 dispatch skill §7 風險分流再驗 |
 
 ## Brief
 必含三段：目標與動機、驗收條件、回報格式。另三項缺一會出事：附已讀素材並要求指令批次化；路徑一律絕對路徑；開頭寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」（`Explore`／`Plan` 沒有 Agent 工具，可省）。格式見 `~/.claude/skills/handoff/SKILL.md` §1。

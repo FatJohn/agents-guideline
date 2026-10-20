@@ -48,8 +48,8 @@
 | 實作、修 bug、重構、批次改檔、一般文件 | `worker` |
 | 設計與架構取捨 | `Plan`，opus |
 | 跨檔推理、高難度 review | `general-purpose`，opus |
-| 驗收 | `verifier`，`model: opus` |
-| 程式碼 diff 的 fresh review | fresh subagent 跑內建 `code-review` skill |
+| 驗收 | `verifier`，`model: opus`；所有文件 merge／轉 ready 前一律派，程式碼依 dispatch skill §6 分流，專案規則只寫 code-review 時仍適用 |
+| 程式碼 diff 的 fresh review | fresh subagent 跑內建 `code-review` skill；是 verifier 的加項不是替代，修 finding 後依 dispatch skill §7 再驗 |
 
 ### 六條邊界
 
