@@ -55,7 +55,7 @@ Delegation table (abridged from `global/claude/route-card.md`):
 | Design and architecture trade-offs | `Plan`, opus |
 | Cross-file reasoning, hard reviews | `general-purpose`, opus |
 | Acceptance | `verifier`, `model: opus`; always for any document before merge or ready, code by dispatch skill §6 tiers, still applies when project rules name only code-review |
-| Fresh review of a code diff | Fresh subagent running `code-review` skill; adds to `verifier`, never replaces it; after fixing findings, re-verify per dispatch skill §7 |
+| Fresh review of a code diff | Fresh subagent running `code-review` skill, never the main conversation itself; adds to `verifier`, never replaces it; after fixing findings, re-verify per dispatch skill §7 |
 
 ### Six boundaries
 
