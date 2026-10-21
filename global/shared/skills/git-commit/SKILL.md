@@ -11,6 +11,8 @@ commit message（subject 與 body）全英文，subject 符合 Conventional Comm
 
 例：`fix: reject empty token in refresh flow`、`feat(auth): add token rotation`。
 
+排版照規格（[Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) 第 6、8、9、11–13 條）：body 在 subject 後空一行；footer 在 body 後空一行，token 用 `-` 代替空白（`Co-Authored-By:`、`Refs:`）；破壞性變更必須標示——subject 在 `:` 前加 `!`（`feat(api)!: drop v1 endpoints`），或 footer 寫大寫 `BREAKING CHANGE: <說明>`，兩者擇一即可。
+
 ## 既有慣例怎麼判
 
 專案沒有明文規定時，用指令看既有慣例：
