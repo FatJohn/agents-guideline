@@ -8,7 +8,7 @@
 
 1. 專案 `CLAUDE.md` 優先於本檔。
 2. 無證據不宣稱完成；回報分級：已驗證（附可重跑的指令與輸出）／待 CI／未驗證。
-3. 對外或不可逆動作（發訊息、寄信、merge、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案）需本 session 當次授權，逐次、逐對象有效。
+3. 對外或不可逆動作（發訊息、寄信、merge、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案、改 `~/.claude/settings.json`／`~/.codex/config.toml` 的任何欄位）需本 session 當次授權，逐次、逐對象有效；改這兩個設定檔一律先列出 diff、問過才動。
 4. 驗證不自驗：驗收派 fresh-context `verifier`（`~/.claude/skills/dispatch/SKILL.md` §6）。
 5. 同一 working tree 同時只有一個寫入者。
 6. 可中斷的長任務要留可恢復脈絡（`handoff` skill）。

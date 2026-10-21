@@ -76,3 +76,4 @@
 - [2026-09-30][global] 不收斂任務換 worker-opus 後驗收輪數從零算、升級 prompt 寫「照做，不要自行換方向」 → 換 model／role 輪數續算，升級 prompt 必要求先建立 root cause；規則原文已有，缺的是派工當下照做 → 已套用到：rules/20-judgment.md §2「停止端」（換 model／role 不重設）與 rules/10-dispatch.md §4 第 1、3 條（先建立 root cause、輪數沿用）——原文已涵蓋（2026-10-03 封存）
 - [2026-10-19][global] 全域 skill 寫死 PR 標題語言、draft、代跑檢查、問 merge，與團隊 repo 的規定或既有慣例衝突，skill 內文沒有讓位出口 → skill 要明寫「repo 規定或既有慣例優先」並附判斷慣例的指令 → 已套用到：global/shared/skills/create-pr/SKILL.md 2.2、global/shared/skills/git-commit/SKILL.md
 - [2026-10-20][global] v2 上線後 controller 把專案規則的 code-review 門當完整流程，沒派 verifier 就 merge → dispatch skill 沒人載入，必經步驟寫進路由卡，不放只靠模型主動載入的 skill → 已套用到：`global/claude/route-card.md`（2026-10-20 封存，同次修改落地）
+- [2026-10-21][global] Claude 分三次（9/2 soft_deny、10/7 autoMode.allow、10/21 allow）在 session 裡補使用者 settings.json 的權限規則，互相拉扯、分類器時好時壞 → 改使用者的 `~/.claude/settings.json`／`~/.codex/config.toml` 要先列 diff 問過 → 已套用到：global/claude/CLAUDE.md、global/codex/AGENTS.md 邊界 3

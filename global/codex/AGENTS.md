@@ -6,7 +6,7 @@
 
 1. 專案 `AGENTS.md`（含 `AGENTS.override.md`）優先於本檔。
 2. 無證據不宣稱完成；回報分級：已驗證（附可重跑的指令與輸出）／待 CI／未驗證。
-3. 對外或不可逆動作（發訊息、寄信、merge、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案）需本 session 當次授權，逐次、逐對象有效。
+3. 對外或不可逆動作（發訊息、寄信、merge、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案、改 `~/.claude/settings.json`／`~/.codex/config.toml` 的任何欄位）需本 session 當次授權，逐次、逐對象有效；改這兩個設定檔一律先列出 diff、問過才動。
 4. 驗證不自驗：一般驗收派 `verifier`，高風險派 `sol_verifier`；不可用時依 `<REPO>/global/codex/rules/dispatch.md` §0 adapter 取 fallback，如實標 generic／direct CLI，不冒稱 custom role。必要證據不足不宣稱完成。
 5. 同一 working tree 同時只有一個寫入者。
 6. 可中斷的長任務要留可恢復脈絡（`handoff` skill）。
