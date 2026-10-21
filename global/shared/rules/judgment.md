@@ -12,7 +12,7 @@
 
 ## 3. 殘留掃描
 
-重構、字串抽取、搬移、更正事實宣稱類任務，宣稱完成前全 repo 搜尋舊引用／字串／路徑，附指令與結果，須無殘留。搜尋須含隱藏目錄（`.claude/`／`.agents/`／`.gemini/`）：Bash 的 `rg` 一律加 `--hidden`（預設值與 Grep 工具差異見 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」）。entrypoint、設定檔、腳本、`.github/workflows`／`.github/actions` 最易漏，release／deploy-only 的 CI 路徑 PR 不會跑，PR 全綠不代表沒炸。排除清單只能排內容型目標，設定型（會被執行）不可排除；細節見 `<REPO>/docs/debug-environment-first.md`。
+重構、字串抽取、搬移、更正事實宣稱類任務，宣稱完成前全 repo 搜尋舊引用／字串／路徑，附指令與結果，須無殘留。搜尋須含隱藏目錄（`.claude/`／`.agents/`／`.gemini/`）：Bash 搜尋檔案內容（含計數、管線）一律用 `rg` 不用 `grep`，且 `rg` 一律加 `--hidden`（預設值與 Grep 工具差異見 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」）。entrypoint、設定檔、腳本、`.github/workflows`／`.github/actions` 最易漏，release／deploy-only 的 CI 路徑 PR 不會跑，PR 全綠不代表沒炸。排除清單只能排內容型目標，設定型（會被執行）不可排除；細節見 `<REPO>/docs/debug-environment-first.md`。
 
 ## 4. 未驗證的意思
 

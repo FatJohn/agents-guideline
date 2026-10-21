@@ -41,7 +41,7 @@ description: 派工與驗收的完整機制：何時派 subagent、角色與 mod
    - 素材：核定前要有要動的檔案清單、關鍵段落（本輪已讀的附原文；未讀的附 `檔案:行號範圍` 讓執行者自讀）與既有測試結構，依 §3 附進 brief，不讓執行者從零探索；同時用這份清單估單片 context。素材預設派 `Explore` 拿；只有**兩項同時成立**才由 controller 自己拿：(a) 檔案清單與測試結構能從一次批次 `rg`／`ls` 的輸出直接得出，不必再讀檔內容去找；(b) 要附的關鍵段落全在本輪已讀進主對話 context 的檔裡。任一不成立就派 `Explore`，不讓主對話為了找素材讀檔（見 §10）。不算違規：改動範圍已知且手上就有素材（單檔修正且該檔本輪已讀、延續同一 session 剛讀過的檔），即 (a)(b) 同時成立，直接核定；下述不變量前置仍適用。
    - 不變量前置：修正要對所有執行路徑或時序都成立（同一條件要在多個呼叫點處理、非同步／並行交錯、多處讀寫同一份狀態），或以新增檢查閘門作為修補手段時，plan 先寫出不變量（修完後要由結構保證成立的條件），再派 `Plan`（opus）與 `codex:codex-rescue`（不可用時改派第二個獨立 agent）各自獨立出方案並互相比對；只靠事後檢查補洞的方案不核定。不算違規：只改單一路徑、結果不依賴其他路徑或執行順序的修正。
 2. **派 `worker`（single-writer）** 依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
-3. **controller read-back** 實際檔案與指令輸出，不採信 worker 自述。用有界輸出（`git diff --stat`、`sed -n a,bp`、`grep -c`、`wc`、`head -n`）只讀判定所需的行；全文與大 diff 留給 verifier 或落檔。
+3. **controller read-back** 實際檔案與指令輸出，不採信 worker 自述。用有界輸出（`git diff --stat`、`sed -n a,bp`、`rg -c`、`wc`、`head -n`）只讀判定所需的行；全文與大 diff 留給 verifier 或落檔。
 4. **依 §6 風險分流選一次 review 或 verifier**；修正後依 §7 機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `~/.claude/skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
 
 ### 自行小修的例外

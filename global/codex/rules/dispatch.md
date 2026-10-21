@@ -99,7 +99,7 @@ controller 核定完整 plan → worker 產出與機械驗證 → controller rea
 - 需要即時與使用者互動或取得授權。
 - 平行寫入無法用獨立 worktree 隔離。
 
-主對話負責與使用者溝通、整合證據、做決策，並 read-back 實際狀態；subagent 的摘要不能取代這些責任。唯讀探索可批次化工具讀取；已提供素材仍在最新且足以回答當前問題時可不重讀，但獨立驗收一律做實際 read-back；read-back 用有界輸出（`git diff --stat`、`sed -n`、`grep -c`、`wc`）只讀判定所需的行，全文與大 diff 留給 verifier 或落檔。
+主對話負責與使用者溝通、整合證據、做決策，並 read-back 實際狀態；subagent 的摘要不能取代這些責任。唯讀探索可批次化工具讀取；已提供素材仍在最新且足以回答當前問題時可不重讀，但獨立驗收一律做實際 read-back；read-back 用有界輸出（`git diff --stat`、`sed -n`、`rg -c`、`wc`）只讀判定所需的行，全文與大 diff 留給 verifier 或落檔。
 
 兩個以上可安全平行的寫入切片，讀 `<REPO>/global/shared/skills/parallel-dispatch/SKILL.md` 與 `<REPO>/global/shared/skills/parallel-dispatch/references/codex.md`；該 skill 是批次、矩陣、integration gate 與驗收的 canonical。
 
