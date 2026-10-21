@@ -35,7 +35,7 @@ effort: medium
    若本輪是 delta 驗收，派工者必須提供原始 finding、修正 diff、受影響的原始驗收條件與既有測試／檢查證據（首輪與 delta 的 brief 欄位：`~/.claude/skills/handoff/SKILL.md` §1「brief 卡」；切片專用欄位另見 `~/.claude/skills/parallel-dispatch/references/templates.md`「Verifier brief」）；delta 的 evidence set 固定為首輪探針＋針對修正 diff 的迴歸探針，**不主動設計或執行新的探測形狀**。首輪與迴歸探針落檔到派工者指定的 repo 外路徑（未指定時在 `$TMPDIR` 下新建目錄），回報列出路徑，不刪；delta 輪重跑派工者附的探針檔，未附時依描述重建並在回報註明。固定 evidence set 內，任何結果若直接使受影響的原始驗收條件不成立，即使 base 也失敗，仍列 FAIL／OPEN；該條件不能判 PASS，也不得標 `CONVERGED`。只有與受影響的原始驗收條件無關、且不是修正 diff 引入的 base 既有／旁支問題，才列後續事項、不擋本次收斂。修正 diff 引入的缺陷仍列 FAIL，歸因要對 base 重跑同一探針。修正 diff 本身又放寬既有檢查時，依 `~/.claude/rules/judgment.md` 10「改既有檢查」照做對抗性探測（不受上述「不主動設計或執行新的探測形狀」限制）。三輪回報點由派工者依同一產出計數（見 dispatch §7「修正與驗收輪次」），換 model／role 不重設。`PROSE-ONLY` 修完、read-back 引用與機械事實後才停止；`INCONCLUSIVE` 先補證，不以換派代替證據。
 5. 最後回答一題開放題：「這份產出最大的風險是什麼？」
 6. 回報依 `~/.claude/skills/handoff/SKILL.md` §3「verifier 判定卡」，欄位如下：
-   - 第一行：收斂標記＋下一步——`CONVERGED`→停止驗收；`PROSE-ONLY`→controller 修完 read-back 結案，不再派 verifier；`OPEN`→寫明是低風險機械結案還是高風險 fresh delta；`INCONCLUSIVE`→列缺少的證據，補證後依風險分流選機械結案或 fresh delta。
+   - 第一行：收斂標記＋下一步——`CONVERGED`→停止驗收；`PROSE-ONLY`→controller 修完 read-back 結案，不再派 verifier；`OPEN`→寫明是低風險機械結案還是高風險 fresh delta；`INCONCLUSIVE`→列缺少的證據，補證後依風險分流選機械結案或 fresh delta。風險分流由你判、寫在第一行：低風險＝不屬下列高風險項，且有確定性檢查能證明 finding 已修且無相關迴歸，controller 自行檢查並以「finding→修正→證據」結案；高風險＝FAIL 涉及安全、權限模型與存取控制的設計、不可逆副作用（`~/.claude/rules/judgment.md` 2 高風險側）、重大架構，或缺乏可靠機械證據，須 fresh-context delta。controller 不得自行降級。
    - 逐條判定＋證據：PASS 每條一行（條號＋一句證據或指令關鍵行）；FAIL／UNSURE 才展開 `檔案:行號`＋一行理由。
    - 開放題答案（規則 5）。
    - 探針目錄路徑（規則 7）。完整指令輸出寫在探針目錄、回報附路徑，不貼全文。

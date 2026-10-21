@@ -144,7 +144,7 @@ Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`：front
 
 首次驗收依 §6 分工，不另派小型機械工作。verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment.md` 7『驗收的停止端』），controller 照下一步走：`CONVERGED` 停止驗收；`PROSE-ONLY` 修完 read-back 後停止，不派 delta；`OPEN` 修正後依下方風險分流，不自動要求重派；`INCONCLUSIVE` 先補缺證，保留已知 FAIL，不自動重派或宣稱完成，也不以換 model 代替缺證。
 
-**驗收後修正的風險分流**：低風險且有確定性檢查能證明 finding 已修、無相關迴歸時，controller 可自行檢查並以「finding→修正→證據」結案；安全、權限模型與存取控制的設計、不可逆、重大架構或缺乏可靠機械證據時，仍須 fresh-context delta 驗收。
+**驗收後修正的風險分流**：verifier 第一行已依本段判準寫明走哪一側，controller 照走；低風險且有確定性檢查能證明 finding 已修、無相關迴歸時，controller 可自行檢查並以「finding→修正→證據」結案；安全、權限模型與存取控制的設計、不可逆、重大架構或缺乏可靠機械證據時，仍須 fresh-context delta 驗收。
 
 **驗收輪次按產物切開**：文件待實作與證據穩定後集中更新，不逐輪加未驗宣稱。可執行宣稱（測試、斷言）在實作當下寫並驗，散文最後一次寫完才驗；同一交付批次中證據已穩定、無個別交付依賴的散文可合併成一次驗收，不得為合批延後已可交付的 issue／PR 或阻塞後續工作，行為承載文件不因此降成散文。平行批次的切片依 `~/.claude/skills/parallel-dispatch/SKILL.md` §5『VALIDATION：切片驗收』各自驗收、收斂即整合，不受此限。
 

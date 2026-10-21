@@ -57,7 +57,7 @@ verifier → controller。第一行固定：
 探針目錄：<repo 外絕對路徑>
 ```
 
-- 下一步：`CONVERGED`→停止驗收；`PROSE-ONLY`→controller 修完 read-back 結案，不再派 verifier；`OPEN`→寫明低風險機械結案或高風險 fresh delta；`INCONCLUSIVE`→列缺少的證據，補證後依風險分流。狀態語意見 `~/.claude/rules/judgment.md` 7『驗收的停止端』。
+- 下一步：`CONVERGED`→停止驗收；`PROSE-ONLY`→controller 修完 read-back 結案，不再派 verifier；`OPEN`→寫明低風險機械結案或高風險 fresh delta；`INCONCLUSIVE`→列缺少的證據，補證後依風險分流。風險分流由verifier判、寫在第一行：低風險＝不屬下列高風險項，且有確定性檢查能證明 finding 已修且無相關迴歸，controller 自行檢查並以「finding→修正→證據」結案；高風險＝FAIL 涉及安全、權限模型與存取控制的設計、不可逆副作用（`~/.claude/rules/judgment.md` 2 高風險側）、重大架構，或缺乏可靠機械證據，須 fresh-context delta。controller 不得自行降級。狀態語意見 `~/.claude/rules/judgment.md` 7『驗收的停止端』。
 - PASS 每條一行（條號＋一句證據或指令關鍵行）；FAIL 與 UNSURE 才展開 `檔案:行號` 與一行理由。完整指令輸出寫進探針目錄，不貼全文。
 
 ## 4. session 交接卡
