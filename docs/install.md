@@ -138,6 +138,39 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 - `RIPGREP_CONFIG_PATH` 寫 Windows 路徑，建議正斜線：`C:/Users/<user>/.claude/ripgreprc`（`rg` 是原生 exe，推測讀不懂 MSYS 的 `/c/Users/...`）。另外該機 `rg` 走 `WinGet\Links` symlink，Git Bash 開不了（見 `docs/hosts-detail.md`），ripgreprc 目前沒有東西可影響，hook 可先裝。
 - 該機的 `settings.json` 要自己加同樣兩段。
 
+### 選配：自動放行 `$HOME/Projects/` 底下的 `git -C` 清理指令
+
+`hooks/allow-git-c-projects.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。目的：permission 規則寫成 `Bash(git -C * worktree remove *)`、`Bash(git -C * branch -D *)` 時，Claude Code 啟動會警告子指令前的 `*` 也放行任意 option（例如 `git -C -c core.pager=...`、`--exec-path`），連 `git -C /Users/<user>/Projects/* ...` 也一樣報，逐 repo 寫確切路徑又太多條。這個 `PreToolUse` hook 是自己實作的嚴格版「`~/Projects` 前綴規則」：形狀全部符合才回 `permissionDecision: allow`，其餘一律不表態（exit 0、無輸出），交回正常 permission 流程。
+
+放行條件（全部成立）：
+
+- `tool_name` 是 `Bash`，command 去掉頭尾空白後只含 `A-Za-z0-9 _ . / : @ % + = ,` 與 `-`。
+- 以空白切 token，恰為 `git -C <path> worktree remove <arg>…` 或 `git -C <path> branch -D <arg>…`，至少一個 `<arg>`，每個 `<arg>` 都不以 `-` 開頭。
+- `<path>` 以 `$HOME/Projects/` 開頭（絕對路徑）、其後的餘段不能只由 `.` 與 `/` 組成（`Projects/`、`Projects/.`、`Projects/./` 本身不放行）、沒有 `..` 段，且 `[ -d ]` 為真。
+
+不放行（交回正常流程）的形狀：`;`、`&&`、`||`、`|`、反引號、`$`、`(`、換行、`>`、`<`、`#`、引號、反斜線、`~`、萬用字元；`-C<path>` 黏寫、`-c`、`--git-dir`、`--exec-path` 等任何其他 option 或前綴；路徑不存在、在 `$HOME/Projects/` 外、就是 `$HOME/Projects/` 本身（含 `.`、`./`）或含 `..`；`--force`、`-f` 等以 `-` 開頭的參數，所以 settings `deny` 裡的 `git worktree remove --force*` 不會被繞過（官方文件寫明 hook 回 allow 後 deny／ask 規則仍會評估，hook 輸出格式見腳本檔頭註解）。
+
+**追加**到既有的 `hooks.PreToolUse` 陣列（不要取代 `block-ci-edit` 或其他元素；片段同樣收在 `<REPO>/global/claude/settings.snippets.json`）：
+
+```json
+{
+  "matcher": "Bash",
+  "hooks": [
+    { "type": "command", "command": "bash \"$HOME/.claude/hooks/allow-git-c-projects.sh\"" }
+  ]
+}
+```
+
+裝完驗證（離線、需要 `jq`）：`bash tests/test-allow-git-c-projects.sh ~/.claude/hooks/allow-git-c-projects.sh`。設環境變數 `GIT_C_ALLOW_LOG=/path/to/file` 會逐筆 append 決定與原因（平常不設）。
+
+**已知限制**：
+
+- 只比對字串：不解析 symlink，`$HOME/Projects/` 底下指向別處的 symlink 目錄仍會放行；放行的是「對該目錄跑這兩個指令」，不是「該目錄是 git repo」。`<arg>` 只檢查不以 `-` 開頭，不檢查它指向哪裡。
+- 路徑含空白、非 ASCII 或上述字元集以外的字元，一律不表態（會跳 prompt），不會誤放行。
+- 會被略過：`claude --bare`、`--setting-sources` 不含 user、`disableAllHooks`；略過時等於沒裝，指令回到正常 permission 流程。
+- fail-open 語意：`jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1（非阻擋錯誤，stderr 顯示 `auto-allow is INACTIVE`／`did not run`），不給 allow，工具照正常 permission 流程；不會因此多放行。
+- 不和 `permissions.allow` 互斥：已有的 allow 規則照常生效，這個 hook 只多一條放行路徑。
+
 ## 安裝 Codex
 
 macOS／Linux，symlink 版。

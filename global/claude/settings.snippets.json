@@ -23,6 +23,15 @@
             "command": "bash \"$HOME/.claude/hooks/block-ci-edit.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/allow-git-c-projects.sh\""
+          }
+        ]
       }
     ]
   }

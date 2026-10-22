@@ -49,7 +49,7 @@ class SettingsSnippetsTests(unittest.TestCase):
             for hook in entry["hooks"]
         ]
 
-        self.assertEqual(len(commands), 2)
+        self.assertEqual(len(commands), 3)
         for command in commands:
             match = HOOK_COMMAND.match(command)
             self.assertIsNotNone(match, command)
@@ -62,6 +62,7 @@ class SettingsSnippetsTests(unittest.TestCase):
         self.assertIn({"env": data["env"]}, blocks)
         self.assertIn(data["hooks"]["SessionStart"][0], blocks)
         self.assertIn(data["hooks"]["PreToolUse"][0], blocks)
+        self.assertIn(data["hooks"]["PreToolUse"][1], blocks)
 
 
 if __name__ == "__main__":
