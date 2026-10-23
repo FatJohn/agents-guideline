@@ -77,3 +77,4 @@
 - [2026-10-19][global] 全域 skill 寫死 PR 標題語言、draft、代跑檢查、問 merge，與團隊 repo 的規定或既有慣例衝突，skill 內文沒有讓位出口 → skill 要明寫「repo 規定或既有慣例優先」並附判斷慣例的指令 → 已套用到：global/shared/skills/create-pr/SKILL.md 2.2、global/shared/skills/git-commit/SKILL.md
 - [2026-10-20][global] v2 上線後 controller 把專案規則的 code-review 門當完整流程，沒派 verifier 就 merge → dispatch skill 沒人載入，必經步驟寫進路由卡，不放只靠模型主動載入的 skill → 已套用到：`global/claude/route-card.md`（2026-10-20 封存，同次修改落地）
 - [2026-10-21][global] Claude 分三次（9/2 soft_deny、10/7 autoMode.allow、10/21 allow）在 session 裡補使用者 settings.json 的權限規則，互相拉扯、分類器時好時壞 → 改使用者的 `~/.claude/settings.json`／`~/.codex/config.toml` 要先列 diff 問過 → 已套用到：global/claude/CLAUDE.md、global/codex/AGENTS.md 邊界 3
+- [2026-10-23][global] `gh -R x pr merge … && … | tail` 對不上 allow 前綴規則、整串掉進分類器被擋（10 天 20/1046 次） → `-R` 放子命令後、寫入類 gh 指令單獨一個 Bash 呼叫、不用 `--delete-branch` → 已套用到：judgment §11、create-pr §2.8、debug-environment-first「gh 指令的 permission 形狀」

@@ -49,7 +49,7 @@
 
 ## 11. 指令自己綁定目標
 
-巢狀 clone、workspace 底下的子 repo、多專案並存時，cwd 不是可靠的定位方式：git／gh／pnpm 一律逐指令綁定（`git -C <path>`、`gh -R <owner/repo>`、`pnpm -C <path>`）。理由與 read-back 指令見 `<REPO>/docs/debug-environment-first.md`「指令自己綁定目標」。
+巢狀 clone、workspace 底下的子 repo、多專案並存時，cwd 不是可靠的定位方式：git／gh／pnpm 一律逐指令綁定（`git -C <path>`、`gh pr view <n> -R <owner/repo>`、`pnpm -C <path>`）。gh 的 `-R` 放子命令之後；寫入類 gh 指令（merge／ready／comment／create／edit／review／workflow run）一條一個 Bash 呼叫，不接 `$()`、不與別的指令串 `&&`，否則對不上 permission 前綴規則、整串掉進分類器被擋。理由與 read-back 指令見 `<REPO>/docs/debug-environment-first.md`「指令自己綁定目標」。
 
 ## 12. 驗收條件要能被判定
 

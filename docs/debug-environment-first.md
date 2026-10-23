@@ -76,7 +76,7 @@
 | 工具 | 綁定方式 | read-back |
 |---|---|---|
 | git | `git -C <絕對路徑> …` | `git -C <path> rev-parse --show-toplevel` |
-| gh | `gh -R <owner/repo> …`（`pr`／`issue`／`run` 都吃） | 回應裡的 repo 欄位，或 `gh repo view <owner/repo> --json nameWithOwner`（**`repo view` 不吃 `-R`**，倉庫名走位置引數） |
+| gh | `gh pr view <n> -R <owner/repo>`（`pr`／`issue`／`run` 都吃；`-R` 放子命令之後，理由見下方「gh 指令的 permission 形狀」） | 回應裡的 repo 欄位，或 `gh repo view <owner/repo> --json nameWithOwner`（**`repo view` 不吃 `-R`**，倉庫名走位置引數） |
 | pnpm | `pnpm -C <路徑> …`（workspace 內另可 `--filter <pkg>`） | `pnpm -C <path> exec pwd` |
 | rg／find | 路徑當引數傳，不要靠 cwd | 命中路徑本身 |
 
@@ -87,6 +87,15 @@
   「你站錯地方了」。
 - 對外或破壞性指令（push／merge／commit --amend／reset）做完一律 read-back 上表右欄那條，
   確認打到的是預期的 repo 與 commit，再回報。
+
+### gh 指令的 permission 形狀
+
+Claude Code 的 `Bash(gh pr merge:*)` 這類 allow 規則是**前綴比對**，複合指令要**每一段**都命中 allow 規則才放行（`$()` 裡的指令也算一段，量到的含 `$()` 案例全被擋）；沒命中就整串交給 auto mode 分類器，分類器預設 soft_deny 含「Merge Without Review」，量到的案例裡整串只要有 `pr merge`，同串的 `pr view`／`pr ready` 也一起被擋。2026-10-13～10-23 量到 1,046 次 gh 呼叫被擋 20 次，16 次是 `gh -R <owner/repo> pr merge …` 這種 `-R` 在子命令前的寫法（對不上 `gh pr merge` 前綴），其餘是 `&& … | tail` 串接與 `$(gh api …)`。
+
+- `-R <owner/repo>` 放在子命令之後：`gh pr merge <n> -R <owner/repo> --squash -t "…"`。
+- 寫入類指令（merge／ready／comment／create／edit／review／workflow run）一條一個 Bash 呼叫；要看結果另開一次 `gh pr view … -R <owner/repo>`。
+- 唯讀指令可以接 `| head`／`| tail`／`| jq`（主力 Mac 的 allow 清單有這三個；本 repo 不管理 `settings.json`，別台機器先看自己的清單），不要接 `$()`。
+- 回覆 PR 留言用 `gh pr comment <n> -R <owner/repo> --body "…"`，不用 `gh api -X POST …/replies`（`gh api` 讀寫不分，不在 allow 清單，見 `<REPO>/docs/install.md`）。
 
 ## 內嵌程式碼要驗到被嵌的那一層
 

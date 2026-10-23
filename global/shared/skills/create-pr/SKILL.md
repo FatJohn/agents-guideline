@@ -205,10 +205,12 @@ rm -f "$PR_BODY_FILE"
 `gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題，而本 skill 預設 PR title 用中文且不加 prefix——與 `~/.claude/skills/git-commit/SKILL.md` 要求的英文 Conventional Commits 直接衝突。所以 squash merge 一律要用 `-t` 覆寫標題：
 
 ```bash
-gh pr merge <n> --squash -t "type(scope): 英文描述 (#<n>)" --delete-branch
+gh pr merge <n> -R <owner/repo> --squash -t "type(scope): 英文描述 (#<n>)"
 ```
 
 漏掉的後果：合併後的歷史第一行從此是中文、無 type prefix，事後只能重寫共享歷史。
+
+不加 `--delete-branch`：它會讓 stacked 在其上的 PR 被 GitHub 自動關閉且無法 reopen（`<REPO>/docs/lessons-archive.md` 2026-07-08）；遠端分支留給 repo 的自動清理或使用者自己刪。merge 指令單獨一個 Bash 呼叫、`-R` 放子命令之後，理由見 `<REPO>/docs/debug-environment-first.md`「gh 指令的 permission 形狀」。
 
 **不加 `-t` 的例外**（PR title 已合格且 repo 文件規定不覆寫，如 release-please 的 Release PR；或 repo 慣例是英文 Conventional Commits 而 PR title 已照 2.2 跟隨，title 已合格，同屬此例外）：判準與邊界見 `~/.claude/skills/git-commit/SKILL.md`「squash merge」段的「不算違規」。
 
