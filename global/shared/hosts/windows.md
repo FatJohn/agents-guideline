@@ -2,6 +2,7 @@
 
 探測日：2026-09-20
 
+- 個人專案放在 `D:\Projects\FatJohn\`（2026-09-23 起；原本在 `E:\` 根層，E: 槽已不存在）。
 - `<REPO>` 是 `D:\Projects\FatJohn\agents-guideline`。**全域設定是 `<REPO>/scripts/sync-profile.py` 同步過去的實體檔複本**（`~/.claude`、`~/.codex`、`~/.agents` 三處；Codex agent TOML 另由 `sync-codex-agents.py` 管）；正解是用 admin 建 symlink，下次重建時改回去。
   - **改了 repo 不會自動生效**：動完 `global/` 底下任何檔，要跑 `python "D:/Projects/FatJohn/agents-guideline/scripts/sync-profile.py" --apply --update`（加 `--prune` 清掉已 sunset 的舊項），否則讀到的規則和跑起來的規則不一樣。
   - 副作用：`readlink ~/.claude/CLAUDE.md`、`~/.codex/AGENTS.md` 回空（已是實體檔）。

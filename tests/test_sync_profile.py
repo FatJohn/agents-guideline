@@ -636,6 +636,7 @@ class SyncProfileTests(unittest.TestCase):
             self.claude / "rules-controller",
             self.claude / "rules" / "00-environment.md",
             self.claude / "rules" / "05-hosts.md",
+            self.claude / "rules" / "10-dispatch.md",
             self.claude / "rules" / "20-judgment.md",
             self.claude / "rules" / "50-lessons.md",
             self.claude / "skills" / "maintain-guideline",

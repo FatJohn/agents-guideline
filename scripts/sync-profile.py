@@ -59,7 +59,7 @@ SHARED_SKILLS = (
 )
 
 # Files a v1 install put in ~/.claude/rules.
-LEGACY_RULE_FILES = ("00-environment.md", "05-hosts.md", "20-judgment.md", "50-lessons.md")
+LEGACY_RULE_FILES = ("00-environment.md", "05-hosts.md", "10-dispatch.md", "20-judgment.md", "50-lessons.md")
 
 
 def detect_host_key() -> str:

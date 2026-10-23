@@ -326,7 +326,7 @@ v1 是舊目錄結構（repo 根目錄的 `rules/`、`rules-controller/`、`skil
 | 舊安裝 | 處理 |
 |---|---|
 | `~/.claude/rules-controller` | 移除（內容已併入 dispatch skill 與 `route-card.md`） |
-| `~/.claude/rules/{00-environment,05-hosts,20-judgment,50-lessons}.md` | 移除 |
+| `~/.claude/rules/{00-environment,05-hosts,10-dispatch,20-judgment,50-lessons}.md` | 移除 |
 | `~/.claude/skills/{maintain-guideline,usage-review}` | 移除（改為 repo-only） |
 | `~/.agents/skills/{maintain-guideline,session-handoff}` | 移除（`session-handoff` 由 `handoff` skill 取代） |
 | `~/.claude/agents/worker-opus.md` | 移除（`worker-opus` 車道已刪） |
