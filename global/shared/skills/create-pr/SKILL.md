@@ -195,10 +195,9 @@ rm -f "$PR_BODY_FILE"
 ```
 
 3. 輸出 PR URL。
-4. 開完 PR 後，先看 repo 文件有沒有規定 review 流程。規定了（例如 draft → bot review → ready → 人 review，或寫明不自動授權 merge）時**不問這題**，停在 PR URL 並指出 repo 流程的下一步；沒規定時才**一次**問使用者「CI 全綠後是否直接 merge」（使用者在這次請求裡已明說過「綠了就 merge」之類就不必再問）：
-   - 同意：只對**這個 PR**，CI 全綠後照 §2.8 merge（含 `-t` 覆寫標題與 CI 閘門），不再停下來問；CI 沒全綠就不 merge，回報原因。
-   - 不同意或沒答覆：停在 PR URL，不 merge。
-   - 授權只限這個 PR，不延伸到其他 PR 或之後的 PR（鐵律二逐次逐對象）。
+4. 開完 PR 後停在 PR URL 回報，**預設不等 CI、不等 bot review（Gemini、Copilot 等）、不問「CI 全綠後是否直接 merge」**。要不要等、要不要先處理 review，由使用者在下 merge 指令時決定：使用者說「merge」就在當下照 §2.8 merge；使用者明說「綠了再 merge」「等 review 處理完」才等。repo 文件規定了 review 流程（例如 draft → bot review → ready）時，照專案規格開成 draft 並在回報指出流程的下一步，但等待本身仍由使用者決定，不自動掛著等 bot。
+   - 使用者的 merge 指令只限這個 PR，不延伸到其他 PR 或之後的 PR（鐵律二逐次逐對象）。
+   - 為什麼不等：等 CI 與 bot review 的牆鐘常超過整個改動本身，而 CI 紅了很快就看得到、使用者會自己下修正指令；見 `<REPO>/docs/lessons-archive.md` 2026-10-23。
 
 ### 2.8 merge 時的標題覆寫
 
@@ -214,7 +213,7 @@ gh pr merge <n> -R <owner/repo> --squash -t "type(scope): 英文描述 (#<n>)"
 
 **不加 `-t` 的例外**（PR title 已合格且 repo 文件規定不覆寫，如 release-please 的 Release PR；或 repo 慣例是英文 Conventional Commits 而 PR title 已照 2.2 跟隨，title 已合格，同屬此例外）：判準與邊界見 `~/.claude/skills/git-commit/SKILL.md`「squash merge」段的「不算違規」。
 
-**merge 前的 CI 閘門**：先確認 check 已註冊再 `gh pr checks --watch`（或改用 `gh run watch <run-id> --exit-status`），閘門指令不接 `| tail`；陷阱細節與實例見 `<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」那條。
+**merge 時不等 CI**：使用者說 merge 就 merge，不先等 check 跑完；branch protection 擋下時回報 `gh` 的錯誤原文，不自行等到綠再重試。merge 後 read-back 一次 `gh pr view <n> -R <owner/repo> --json state,mergeCommit` 即結束，不等 main 上的 run。只有使用者明說「綠了再 merge」才用 **CI 閘門**：先確認 check 已註冊再 `gh pr checks --watch`（或改用 `gh run watch <run-id> --exit-status`），閘門指令不接 `| tail`；陷阱細節與實例見 `<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」那條。
 
 ## 3. 完整輸出範例
 

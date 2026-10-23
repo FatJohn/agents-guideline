@@ -26,7 +26,7 @@
 
 ## CI 等待與 PR
 
-同一批多個 PR 的 CI 等待合併成一個背景指令（逐指令在子命令後加 `-R <owner/repo>` 綁定），以背景完成通知或 `Monitor` 收斂後只讀一次彙總輸出；不要每個 PR 各自 `sleep` 輪詢或反覆讀背景輸出——每讀一次都是一次完整主對話 context 重讀。`gh pr checks --watch` 在 check 未註冊時會回「no checks reported」且 exit 0 的陷阱見 `<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」那條。
+預設不等 CI 與 bot review，開完 PR 即回報，等待由使用者在下 merge 時決定（`~/.claude/skills/create-pr/SKILL.md` §2 第 4 步）。使用者明確要求等時才適用本段：同一批多個 PR 的 CI 等待合併成一個背景指令（逐指令在子命令後加 `-R <owner/repo>` 綁定），以背景完成通知或 `Monitor` 收斂後只讀一次彙總輸出；不要每個 PR 各自 `sleep` 輪詢或反覆讀背景輸出——每讀一次都是一次完整主對話 context 重讀。`gh pr checks --watch` 在 check 未註冊時會回「no checks reported」且 exit 0 的陷阱見 `<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」那條。
 
 ## 清理
 

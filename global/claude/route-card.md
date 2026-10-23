@@ -13,7 +13,7 @@
 | 實作、修 bug、重構、批次改檔、一般文件 | `worker`，不帶 model／effort |
 | 設計與架構取捨 | `Plan`，opus |
 | 跨檔推理、高難度 review | `general-purpose`，opus |
-| 驗收 | `verifier`，顯式 `model: opus`，不帶 effort。所有文件（含規則、agent／skill 定義）交回後、merge／轉 ready 前一律派；程式碼依 dispatch skill §6 分流，含外部呼叫、權限請求或不可逆副作用的一律派，高風險或使用者回報 bug 的一律派並另加 fresh review。專案規則只寫 code-review 時仍適用 |
+| 驗收 | `verifier`，顯式 `model: opus`，不帶 effort。先依 dispatch skill §6『先定深度再派』定級：低風險小改的文件派 verifier 做 read-back 級、程式碼只派 code-review 不派 verifier；其餘文件（含規則、agent／skill 定義）交回後、merge／轉 ready 前一律派，程式碼依 §6 分流，含外部呼叫、權限請求或不可逆副作用的一律派，高風險或使用者回報 bug 的一律派並另加 fresh review。專案規則只寫 code-review 時仍適用 |
 | 程式碼 diff 的 fresh review | 派 fresh subagent 執行內建 `code-review` skill，主對話不自跑 `Skill(code-review)`（帶著主對話 context，不算 fresh）；是 verifier 的加項不是替代。修 finding 後依 dispatch skill §7 風險分流再驗 |
 
 ## Brief

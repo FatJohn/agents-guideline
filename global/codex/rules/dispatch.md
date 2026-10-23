@@ -158,6 +158,7 @@ controller 應在 brief 附上仍有效的 diff、檔案行號／段落與測試
 
 ## 6. 驗證語意（鐵律三）
 
+- **先定深度再派**：低風險小改＝同時成立：文件只改數句（事實更正、連結、措辭）或程式碼只改單點素材／設定／字串／幾行邏輯；不含外部呼叫、權限請求或不可逆副作用（`<REPO>/global/shared/rules/judgment.md` 第 2 條）；不屬 judgment 第 1 條的高風險產出（含並行、資料一致性、安全相關的邏輯，即使只有幾行）；不是使用者回報的 bug；製作者已附機械檢查輸出。走輕量路徑：文件派 `verifier` 做 read-back 級（逐句對照來源、跑 repo 的文件檢查腳本、查引用存在，brief 寫明不跑 repo 全套驗證）；程式碼由製作者機械驗證＋一次 fresh-context `reviewer`，不派 `verifier`。各級通用：製作者已附全套測試／build／lint 輸出時，verifier 只重跑判定所需的受影響 spec、檢查腳本與自己的探針，全套交 CI；多引擎、多模式、多環境的探測只在驗收條件明列時做；brief 附全套輸出的路徑並列出受影響的 spec，verifier 據此決定重跑範圍。判準與 Claude 端同步：`<REPO>/global/shared/skills/dispatch/SKILL.md` §6『先定深度再派』。
 - 主觀判斷、一般文件與一般驗收依原有首次驗收分工交給獨立 fresh-context `verifier/Terra high` read-back，逐條判 PASS/FAIL/UNSURE；安全、不可逆、重大架構與正式高風險產出改用獨立 fresh-context `sol_verifier/Sol high`。named role unavailable 時依 §0 direct CLI review branch，指定 model／effort、強制對應 sandbox（verifier 類 workspace-write＋完整同角色 contract、只寫 repo 外探針目錄；reviewer 等 read-only）並貼完整同角色 contract；證據完整即可作有效獨立驗收，身份仍標 generic／direct CLI，不冒稱 custom。
 - 一般程式碼 review 可由 fresh-context `reviewer` 執行；它發現一般文件問題升級 `verifier`，發現高風險或正式驗收問題升級 `sol_verifier`。
 - 測試、build、lint、實跑與 schema 驗證可由製作者執行，但回報必須附指令與輸出證據。

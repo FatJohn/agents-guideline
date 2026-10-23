@@ -129,7 +129,7 @@ Worktree: <絕對路徑>    Branch: <branch>
 Base SHA: <sha>    Candidate SHA: <HEAD；未 commit 寫 uncommitted>    Dirty: <git status --short 行數；0＝乾淨>
 Files changed: <已 commit：git diff --name-only <base>...HEAD；uncommitted：git status --short＋git diff --name-only，不能拿 HEAD diff 判零；碰到 brief 列的共用觸點或禁止路徑的另標>
 Verification: <CONVERGED | PROSE-ONLY | OPEN | INCONCLUSIVE @<sha>；修正輪數 <n>；探針目錄路徑；未派寫「未驗收」>
-PR / CI: <PR 連結；required CI 狀態與對應 SHA；無 PR 寫「無」>
+PR / CI: <PR 連結；寫 result.md 當下 `gh pr checks` 一次讀到的 required CI 狀態與對應 SHA，不等它跑完；無 PR 寫「無」>
 Cross-issue risk: <共用觸點、base 變動、與其他 issue 互踩；無則「無」>
 Pending authorization: <待使用者在本 issue session 親口授權的動作；無則「無」>
 Blocker: <一句；無則「無」>
