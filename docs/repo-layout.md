@@ -38,7 +38,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/claude/agents/verifier.md` | fresh-context 驗收者：含「找碴範圍」與收斂標記；高風險驗收用同一個角色，派工一律顯式 `model: opus`（升 `fable` 的條件見 dispatch skill §6『驗證不自驗』） |
 | `global/claude/hooks/controller-context.sh` | SessionStart hook，把 `route-card.md` 注入主對話；卡片不存在就靜默略過 |
 | `global/claude/hooks/block-ci-edit.sh` | PreToolUse hook，擋主對話用 Edit／Write 改 `.github/workflows` 與 `.github/actions`（選配） |
-| `global/claude/hooks/allow-git-c-projects.sh` | PreToolUse hook，對 `$HOME/Projects/` 底下嚴格形狀的 `git -C <path> worktree remove`／`branch -D` 回 allow，其餘不表態（選配） |
+| `global/claude/hooks/allow-git-c-projects.sh` | PreToolUse hook，對 `$HOME/Projects/`（或 `GIT_C_ALLOW_ROOT` 指定的根目錄）底下嚴格形狀的 `git -C <path> worktree remove`／`branch -D` 回 allow，其餘不表態（選配） |
 | `global/claude/config/ripgreprc` | 讓 Bash 的 `rg` 預設 `--hidden` 並排除 `.git`（選配） |
 | `global/claude/settings.snippets.json` | 要手動併入 `~/.claude/settings.json` 的 hook 與 `env` 片段，不整檔覆蓋 |
 

@@ -138,17 +138,17 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 - `RIPGREP_CONFIG_PATH` 寫 Windows 路徑，建議正斜線：`C:/Users/<user>/.claude/ripgreprc`（`rg` 是原生 exe，推測讀不懂 MSYS 的 `/c/Users/...`）。另外該機 `rg` 走 `WinGet\Links` symlink，Git Bash 開不了（見 `docs/hosts-detail.md`），ripgreprc 目前沒有東西可影響，hook 可先裝。
 - 該機的 `settings.json` 要自己加同樣兩段。
 
-### 選配：自動放行 `$HOME/Projects/` 底下的 `git -C` 清理指令
+### 選配：自動放行專案根目錄（預設 `$HOME/Projects/`）底下的 `git -C` 清理指令
 
-`hooks/allow-git-c-projects.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。目的：permission 規則寫成 `Bash(git -C * worktree remove *)`、`Bash(git -C * branch -D *)` 時，Claude Code 啟動會警告子指令前的 `*` 也放行任意 option（例如 `git -C -c core.pager=...`、`--exec-path`），連 `git -C /Users/<user>/Projects/* ...` 也一樣報，逐 repo 寫確切路徑又太多條。這個 `PreToolUse` hook 是自己實作的嚴格版「`~/Projects` 前綴規則」：形狀全部符合才回 `permissionDecision: allow`，其餘一律不表態（exit 0、無輸出），交回正常 permission 流程。
+`hooks/allow-git-c-projects.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。目的：permission 規則寫成 `Bash(git -C * worktree remove *)`、`Bash(git -C * branch -D *)` 時，Claude Code 啟動會警告子指令前的 `*` 也放行任意 option（例如 `git -C -c core.pager=...`、`--exec-path`），連 `git -C /Users/<user>/Projects/* ...` 也一樣報，逐 repo 寫確切路徑又太多條。這個 `PreToolUse` hook 是自己實作的嚴格版「專案根目錄前綴規則」（根目錄預設 `$HOME/Projects`，可用 `GIT_C_ALLOW_ROOT` 改，見下）：形狀全部符合才回 `permissionDecision: allow`，其餘一律不表態（exit 0、無輸出），交回正常 permission 流程。
 
 放行條件（全部成立）：
 
 - `tool_name` 是 `Bash`，command 去掉頭尾空白後只含 `A-Za-z0-9 _ . / : @ % + = ,` 與 `-`。
 - 以空白切 token，恰為 `git -C <path> worktree remove <arg>…` 或 `git -C <path> branch -D <arg>…`，至少一個 `<arg>`，每個 `<arg>` 都不以 `-` 開頭。
-- `<path>` 以 `$HOME/Projects/` 開頭（絕對路徑）、其後的餘段不能只由 `.` 與 `/` 組成（`Projects/`、`Projects/.`、`Projects/./` 本身不放行）、沒有 `..` 段，且 `[ -d ]` 為真。
+- `<path>` 以 `<root>/` 開頭（絕對路徑；`<root>` 預設 `$HOME/Projects`）、其後的餘段不能只由 `.` 與 `/` 組成（`<root>/`、`<root>/.`、`<root>/./` 本身不放行）、沒有 `..` 段，且 `[ -d ]` 為真。
 
-不放行（交回正常流程）的形狀：`;`、`&&`、`||`、`|`、反引號、`$`、`(`、換行、`>`、`<`、`#`、引號、反斜線、`~`、萬用字元；`-C<path>` 黏寫、`-c`、`--git-dir`、`--exec-path` 等任何其他 option 或前綴；路徑不存在、在 `$HOME/Projects/` 外、就是 `$HOME/Projects/` 本身（含 `.`、`./`）或含 `..`；`--force`、`-f` 等以 `-` 開頭的參數，所以 settings `deny` 裡的 `git worktree remove --force*` 不會被繞過（官方文件寫明 hook 回 allow 後 deny／ask 規則仍會評估，hook 輸出格式見腳本檔頭註解）。
+不放行（交回正常流程）的形狀：`;`、`&&`、`||`、`|`、反引號、`$`、`(`、換行、`>`、`<`、`#`、引號、反斜線、`~`、萬用字元；`-C<path>` 黏寫、`-c`、`--git-dir`、`--exec-path` 等任何其他 option 或前綴；路徑不存在、在 `<root>/` 外、就是 `<root>/` 本身（含 `.`、`./`）或含 `..`；`--force`、`-f` 等以 `-` 開頭的參數，所以 settings `deny` 裡的 `git worktree remove --force*` 不會被繞過（官方文件寫明 hook 回 allow 後 deny／ask 規則仍會評估，hook 輸出格式見腳本檔頭註解）。
 
 **追加**到既有的 `hooks.PreToolUse` 陣列（不要取代 `block-ci-edit` 或其他元素；片段同樣收在 `<REPO>/global/claude/settings.snippets.json`）：
 
@@ -161,11 +161,22 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 }
 ```
 
-裝完驗證（離線、需要 `jq`）：`bash tests/test-allow-git-c-projects.sh ~/.claude/hooks/allow-git-c-projects.sh`。設環境變數 `GIT_C_ALLOW_LOG=/path/to/file` 會逐筆 append 決定與原因（平常不設）。
+裝完驗證（離線、需要 `jq`）：`bash tests/test-allow-git-c-projects.sh ~/.claude/hooks/allow-git-c-projects.sh`。設環境變數 `GIT_C_ALLOW_LOG=/path/to/file` 會逐筆 append 決定與原因（平常不設）；每行最後的 `root=default|env|default-invalid-env` 標示 `<root>` 來自預設、`GIT_C_ALLOW_ROOT`，或 `GIT_C_ALLOW_ROOT` 不合規而退回預設。
+
+**改專案根目錄：`GIT_C_ALLOW_ROOT`**。專案不在 `$HOME/Projects`（例如 Windows 的 `D:/Projects`）時，在 `~/.claude/settings.json` 的 `env` 設這個變數；它**取代**預設根目錄（不是再加一個），所以設了之後 `$HOME/Projects/` 底下不再自動放行。
+
+```json
+"env": { "GIT_C_ALLOW_ROOT": "D:/Projects" }
+```
+
+- 沒設或設成空字串：根目錄是 `${HOME%/}/Projects`，行為與沒有這個變數時完全相同（macOS 不必改任何東西）。
+- 有設：先去掉結尾的 `/`，再全部成立才採用：只含 `A-Za-z0-9 _ . / : @ % + = ,` 與 `-`（不能有空白、反斜線、`~`、`$`）；是絕對路徑（以 `/` 開頭，或以 `X:/` 開頭，`X` 是磁碟機代號）；沒有 `..` 段也沒有 `.` 段；去掉開頭的 `/` 或 `X:/` 後還有內容（`/`、`//`、`C:/`、`C:` 都不行）。**任一不成立就退回預設根目錄**（不是關掉 hook，也不會放寬）。
+- 路徑是純字串比對：`<path>` 要和 `GIT_C_ALLOW_ROOT` 用同一種寫法。Windows 上設 `D:/Projects` 時，指令裡寫 `git -C D:/Projects/foo ...` 才放行；`D:\Projects\foo`（反斜線）和 `/d/Projects/foo` 寫法一律不表態、會跳出確認，不會誤放行。`GIT_C_ALLOW_ROOT` 本身寫成 `D:\Projects`（反斜線）會退回預設根目錄；寫成 `/d/Projects` 則被當成一般 POSIX 絕對路徑採用，指令也要用 `/d/Projects/...` 才放行。
+- 離線測試涵蓋：有效根目錄取代預設根目錄、根目錄本身／`.`／`..` 不放行、結尾 `/` 等同不帶、無效值（`/`、`//`、相對路徑、含 `..` 或 `.` 段、含空白、`C:`、`C:/`、反斜線）退回預設、`C:/...` 寫法與 `/c/...` 寫法的差別（機器上有 `cygpath` 時才跑，否則印 `SKIP`），以及 audit log 的 `root=` 欄位。
 
 **已知限制**：
 
-- 只比對字串：不解析 symlink，`$HOME/Projects/` 底下指向別處的 symlink 目錄仍會放行；放行的是「對該目錄跑這兩個指令」，不是「該目錄是 git repo」。`<arg>` 只檢查不以 `-` 開頭，不檢查它指向哪裡。
+- 只比對字串：不解析 symlink，`<root>/` 底下指向別處的 symlink 目錄仍會放行；放行的是「對該目錄跑這兩個指令」，不是「該目錄是 git repo」。`<arg>` 只檢查不以 `-` 開頭，不檢查它指向哪裡。
 - 路徑含空白、非 ASCII 或上述字元集以外的字元，一律不表態（會跳 prompt），不會誤放行。
 - 會被略過：`claude --bare`、`--setting-sources` 不含 user、`disableAllHooks`；略過時等於沒裝，指令回到正常 permission 流程。
 - fail-open 語意：`jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1（非阻擋錯誤，stderr 顯示 `auto-allow is INACTIVE`／`did not run`），不給 allow，工具照正常 permission 流程；不會因此多放行。

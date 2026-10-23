@@ -3,10 +3,13 @@
 # usage: bash tests/test-allow-git-c-projects.sh [path/to/allow-git-c-projects.sh]
 # default: ../global/claude/hooks/allow-git-c-projects.sh relative to this file. Needs bash + jq.
 HOOK=${1:-$(dirname "$0")/../global/claude/hooks/allow-git-c-projects.sh}
-case "$HOOK" in /*) ;; *) HOOK="$PWD/$HOOK" ;; esac
+# a Windows path (C:/... or C:\...) is absolute too; do not prefix $PWD to it
+case "$HOOK" in /*|[A-Za-z]:[/\\]*) ;; *) HOOK="$PWD/$HOOK" ;; esac
+# the existing cases run with the root override unset, whatever the caller exports
+unset GIT_C_ALLOW_ROOT
 TMPHOME=$(mktemp -d "${TMPDIR:-/tmp}/allowgitc.XXXXXX") || exit 1
 trap 'rm -rf "$TMPHOME"' EXIT
-mkdir -p "$TMPHOME/Projects/foo" "$TMPHOME/outside"
+mkdir -p "$TMPHOME/Projects/foo" "$TMPHOME/outside" "$TMPHOME/alt/foo"
 H=$TMPHOME
 fail=0
 cmdjson(){ jq -nc --arg c "$1" '{tool_name:"Bash",tool_input:{command:$c}}'; }
@@ -29,6 +32,19 @@ tl(){
 }
 # c name want command
 c(){ t "$1" "$2" "$(cmdjson "$3")"; }
+# ce root name want command: like c with GIT_C_ALLOW_ROOT=root for the hook
+ce(){ export GIT_C_ALLOW_ROOT="$1"; c "[ROOT=$1] $2" "$3" "$4"; unset GIT_C_ALLOW_ROOT; }
+# lg root command: print the root= field of the audit log line the hook writes
+lg(){
+  rm -f "$TMPHOME/audit.log"
+  if [ -n "$1" ]; then export GIT_C_ALLOW_ROOT="$1"; fi
+  printf '%s' "$(cmdjson "$2")" | HOME="$H" GIT_C_ALLOW_LOG="$TMPHOME/audit.log" bash "$HOOK" >/dev/null 2>&1
+  unset GIT_C_ALLOW_ROOT
+  sed -n 's/.* root=//p' "$TMPHOME/audit.log"
+}
+check_log(){ # name want got
+  if [ "$3" = "$2" ]; then echo "PASS log  $1 -> $2"; else echo "FAIL log got=$3 want=$2  $1"; fail=$((fail+1)); fi
+}
 
 c "worktree remove -> allow"            allow "git -C $H/Projects/foo worktree remove $H/Projects/foo/.wt/a"
 c "branch -D -> allow"                  allow "git -C $H/Projects/foo branch -D feature/x"
@@ -72,4 +88,55 @@ t "tool_name Edit -> skip"              skip  "$(jq -nc --arg c "git -C $H/Proje
 t "missing tool_input -> skip"          skip  '{"tool_name":"Bash"}'
 t "garbage stdin -> fail-open exit 1"   exit1 'not json'
 t "empty stdin -> fail-open exit 1"     exit1 ''
+
+# --- GIT_C_ALLOW_ROOT: replaces $HOME/Projects (valid values), else falls back to it ---
+A="$H/alt"
+WT="worktree remove a"
+ce "$A" "worktree remove under env root -> allow" allow "git -C $A/foo worktree remove $A/foo/.wt/a"
+ce "$A" "branch -D under env root -> allow"       allow "git -C $A/foo branch -D feature/x"
+ce "$A" "env root is replaced, not added -> skip" skip  "git -C $H/Projects/foo $WT"
+ce "$A" "env root itself -> skip"                 skip  "git -C $A $WT"
+ce "$A" "env root/ itself -> skip"                skip  "git -C $A/ $WT"
+ce "$A" "env root/. -> skip"                      skip  "git -C $A/. branch -D a"
+ce "$A" "env root/foo/../.. -> skip"              skip  "git -C $A/foo/../.. $WT"
+ce "$A" "env root, nonexistent dir -> skip"       skip  "git -C $A/nope $WT"
+ce "$A" "env root, --force arg -> skip"           skip  "git -C $A/foo worktree remove --force a"
+ce "$A" "env root, outside dir -> skip"           skip  "git -C $H/outside $WT"
+ce "$A/" "env root with trailing / = without -> allow" allow "git -C $A/foo branch -D a"
+ce "$A/" "env root with trailing / still replaces -> skip" skip "git -C $H/Projects/foo branch -D a"
+ce "$A//" "env root with trailing // -> allow"    allow "git -C $A/foo branch -D a"
+# empty = unset
+ce "" "empty env -> default root allow"           allow "git -C $H/Projects/foo branch -D a"
+ce "" "empty env -> alt not allowed"              skip  "git -C $A/foo branch -D a"
+# invalid values fall back to the default root (they do not disable the hook, nor widen it)
+for bad in "/" "//" "relative/x" "$A/../alt" "$A/./alt" "$H/al t" "C:" "C:/" "C:\\x" "D:\\Projects" "~/alt" "$A/.." "$A/." "/." "$A\$x" "$H/alt;id" "-C"; do
+  ce "$bad" "invalid env falls back: default root allow" allow "git -C $H/Projects/foo branch -D a"
+  ce "$bad" "invalid env falls back: alt skip"           skip  "git -C $A/foo branch -D a"
+done
+# invalid root '/' must not turn the whole filesystem into an allowed root
+ce "/" "env '/' does not allow /tmp-like dirs" skip "git -C $H/outside branch -D a"
+# audit log records where the root came from
+check_log "default root"      default             "$(lg "" "git -C $H/Projects/foo branch -D a")"
+check_log "valid env root"    env                 "$(lg "$A" "git -C $A/foo branch -D a")"
+check_log "invalid env root"  default-invalid-env "$(lg "$A/../alt" "git -C $H/Projects/foo branch -D a")"
+# Windows-style root (C:/...): only where cygpath can spell the temp dir that way
+if command -v cygpath >/dev/null 2>&1; then
+  M=$(cygpath -m "$A")
+  case "$M" in
+    [A-Za-z]:/*)
+      drive=$(printf '%s' "${M%%:*}" | tr 'A-Z' 'a-z')
+      U="/$drive/${M#?:/}"
+      ce "$M" "drive-letter root, same spelling -> allow"  allow "git -C $M/foo branch -D a"
+      ce "$M" "drive-letter root, /c/ spelling -> skip"    skip  "git -C $U/foo branch -D a"
+      ce "$U" "/c/ spelling root, /c/ spelling -> allow"   allow "git -C $U/foo branch -D a"
+      ce "$U" "/c/ spelling root, C:/ spelling -> skip"    skip  "git -C $M/foo branch -D a"
+      ce "$M" "drive-letter root, root itself -> skip"     skip  "git -C $M $WT"
+      ce "$M" "drive-letter root, .. -> skip"              skip  "git -C $M/foo/../foo $WT"
+      check_log "drive-letter env root" env "$(lg "$M" "git -C $M/foo branch -D a")"
+      ;;
+    *) echo "SKIP drive-letter root (cygpath -m gave $M)" ;;
+  esac
+else
+  echo "SKIP drive-letter root (no cygpath)"
+fi
 echo "failures=$fail"; [ "$fail" = 0 ]
