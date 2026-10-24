@@ -11,7 +11,7 @@ description: 派工與驗收的完整機制：何時派 subagent、角色與 mod
 
 ### 必派條件
 
-預設 controller 在主對話自己做，實作與文件都算。下列任一成立才派 subagent；§3 派工合約與 §4 回報合約只對派出的工作生效。
+預設 controller 在主對話自己做，實作與文件都算。下列任一成立才派 subagent；§3 派工合約只對派出的工作生效；§4 回報合約對派出的工作生效，另含自做時的一句交代規則。
 
 1. **context 膨脹**：(a) 要讀進來的原始內容之後不會逐行再引用，且超過 10 個本輪未讀的檔，或含網頁、完整 log、測試／build 全量輸出：派 `Explore` 或 `general-purpose`，只拿結論；(b) 主對話 context ≥300K（量法見 §10）且 plan 還有未做的實作 phase：剩下的 phase 依 §3 寫 brief 派 `worker`。
 2. **平行且用完即丟**：≥2 個子任務彼此不讀對方的輸出、可以同時跑，且回主對話的只要結論（獨立研究路徑、分頭掃不同目錄、ownership 不相交的寫入切片）。寫入切片依 §9 用 `isolation: worktree`，切法依 `~/.claude/skills/parallel-dispatch/SKILL.md`。
