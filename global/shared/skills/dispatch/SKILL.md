@@ -9,9 +9,16 @@ description: 派工與驗收的完整機制：何時派 subagent、角色與 mod
 
 ## 1. 何時派工
 
-### 雙軸判斷
+### 必派條件
 
-符合任一條件時優先派 subagent：任務可獨立且主對話只需結論；原始輸出量大且後續不需反覆引用；有互不依賴的子任務可安全平行；需要 fresh-context 驗收。探索與決策需即時互動時留在主對話；實際寫入僅適用「自行小修的例外」。無法隔離就序列派工，不改成多個寫入者。
+預設 controller 在主對話自己做，實作與文件都算。下列任一成立才派 subagent；§3 派工合約與 §4 回報合約只對派出的工作生效。
+
+1. **context 膨脹**：(a) 要讀進來的原始內容之後不會逐行再引用，且超過 10 個本輪未讀的檔，或含網頁、完整 log、測試／build 全量輸出：派 `Explore` 或 `general-purpose`，只拿結論；(b) 主對話 context ≥300K（量法見 §10）且 plan 還有未做的實作 phase：剩下的 phase 依 §3 寫 brief 派 `worker`。
+2. **平行且用完即丟**：≥2 個子任務彼此不讀對方的輸出、可以同時跑，且回主對話的只要結論（獨立研究路徑、分頭掃不同目錄、ownership 不相交的寫入切片）。寫入切片依 §9 用 `isolation: worktree`，切法依 `~/.claude/skills/parallel-dispatch/SKILL.md`。
+3. **工具或指示衝突**：(a) 改會被執行的 CI／release 設定（見「controller 自做的邊界」）；(b) 要用主對話以外的 model：使用者當次指定、§5 升級、`codex:codex-rescue` 第二意見。
+4. **黑箱驗收**：§6 規定的 verifier 與 fresh `code-review` 照派，不因預設自做而省。
+
+不構成派工理由：「任務可獨立」「主對話只需結論」、按工作類型分（實作、文件、測試各派一個）。無法隔離就序列，不改成多個寫入者。
 
 ### 一個 issue 一個 session
 
@@ -21,38 +28,40 @@ description: 派工與驗收的完整機制：何時派 subagent、角色與 mod
 
 ### 日常派工表
 
+下表只在上面必派條件成立時查。
+
 | 工作 | 派給 | model |
 |------|------|-------|
 | 掃 repo、找出「哪些檔案有 X」、整理清單 | Explore | haiku（實驗中，對照 verifier 首輪 OPEN 率與重派次數，量法見 `usage-review` skill） |
 | 讀多份長文件並總結 | general-purpose | sonnet |
 | 查網頁、抓文件 | general-purpose（`WebSearch`／`WebFetch` 在 subagent 內用） | sonnet |
-| 批次機械性改檔（同 pattern 套 N 個檔） | worker | frontmatter（不帶 model） |
-| 實作一個功能、修 bug、重構 | worker | frontmatter（不帶 model；複雜度訊號成立才升級，見 §5） |
-| 撰寫或修改一般文件／規則段落 | worker | frontmatter（不帶 model；僅驗收交 verifier，見 §6） |
+| 批次機械性改檔（同 pattern 套 N 個檔） | worker | frontmatter（不帶 model；§1 條件 1–3 成立時） |
+| 實作一個功能、修 bug、重構 | worker | frontmatter（不帶 model；§1 條件 1–3 成立時；複雜度訊號成立才升級，見 §5） |
+| 撰寫或修改一般文件／規則段落 | worker | frontmatter（不帶 model；§1 條件 1–3 成立時；驗收交 verifier，見 §6） |
 | 設計實作方案、架構取捨 | Plan | opus |
 | 跨檔推理、一般高難度 review | general-purpose | opus |
 
 ### Controller 工作迴圈
 
-一般實作與一般文件的標準路徑，四步、不預設疊多輪 review：
+一般實作與一般文件的標準路徑，四步、不預設疊多輪 review；第 2 步預設 controller 自做：
 
-1. **核定完整 plan**：目標、絕對 scope、single-writer、invariants、phases、validation、completion criteria，無未決問題。
+1. **核定 plan**：自做時至少寫下目標、絕對 scope、validation commands 與可判定的驗收條件（`~/.claude/rules/judgment.md` 12），寫在第一次改檔之前，第 4 步的驗收 brief 逐字沿用；要派 `worker` 時另補 single-writer、invariants、phases、completion criteria（`~/.claude/agents/worker.md`「前置條件」），且無未決問題。
    - 分流：本波有 ≥2 個互相獨立的 issue，依上一節改做盤點，本 session 不兼任其中任何一個。同一 issue 內有 ≥2 個 ownership 不相交的切片，先判斷能不能切，不預設序列。單一 issue 的 plan 預估要動 ≥2 個模組，或 phases 涵蓋整個功能一片到底時，同樣先評估 ownership 不相交、可獨立交付的切法，值不值得切依 `~/.claude/skills/parallel-dispatch/SKILL.md` §2「值不值得」；切不出來或不值得平行就維持單片，或依同檔「單片尺寸評估」比較冷啟動、context、重讀與交接成本後選序列交接，不以工具呼叫數或預估分鐘數強制切分。
-   - 素材：核定前要有要動的檔案清單、關鍵段落（本輪已讀的附原文；未讀的附 `檔案:行號範圍` 讓執行者自讀）與既有測試結構，依 §3 附進 brief，不讓執行者從零探索；同時用這份清單估單片 context。素材預設派 `Explore` 拿；只有**兩項同時成立**才由 controller 自己拿：(a) 檔案清單與測試結構能從一次批次 `rg`／`ls` 的輸出直接得出，不必再讀檔內容去找；(b) 要附的關鍵段落全在本輪已讀進主對話 context 的檔裡。任一不成立就派 `Explore`，不讓主對話為了找素材讀檔（見 §10）。不算違規：改動範圍已知且手上就有素材（單檔修正且該檔本輪已讀、延續同一 session 剛讀過的檔），即 (a)(b) 同時成立，直接核定；下述不變量前置仍適用。
+   - 素材（只在要派 worker 時）：核定前要有要動的檔案清單、關鍵段落（本輪已讀的附原文；未讀的附 `檔案:行號範圍` 讓執行者自讀）與既有測試結構，依 §3 附進 brief，不讓執行者從零探索；同時用這份清單估單片 context。素材預設派 `Explore` 拿；只有**兩項同時成立**才由 controller 自己拿：(a) 檔案清單與測試結構能從一次批次 `rg`／`ls` 的輸出直接得出，不必再讀檔內容去找；(b) 要附的關鍵段落全在本輪已讀進主對話 context 的檔裡。任一不成立就派 `Explore`，不讓主對話為了找素材讀檔（見 §10）。不算違規：改動範圍已知且手上就有素材（單檔修正且該檔本輪已讀、延續同一 session 剛讀過的檔），即 (a)(b) 同時成立，直接核定；下述不變量前置仍適用。自做時直接讀要改的檔；為了找檔而要讀的量超過 §1 條件 1(a) 就派 `Explore`。
    - 不變量前置：修正要對所有執行路徑或時序都成立（同一條件要在多個呼叫點處理、非同步／並行交錯、多處讀寫同一份狀態），或以新增檢查閘門作為修補手段時，plan 先寫出不變量（修完後要由結構保證成立的條件），再派 `Plan`（opus）與 `codex:codex-rescue`（不可用時改派第二個獨立 agent）各自獨立出方案並互相比對；只靠事後檢查補洞的方案不核定。不算違規：只改單一路徑、結果不依賴其他路徑或執行順序的修正。
-2. **派 `worker`（single-writer）** 依 plan 產出並執行機械驗證；有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
-3. **controller read-back** 實際檔案與指令輸出，不採信 worker 自述。用有界輸出（`git diff --stat`、`sed -n a,bp`、`rg -c`、`wc`、`head -n`）只讀判定所需的行；全文與大 diff 留給 verifier 或落檔。
-4. **依 §6 風險分流選一次 review 或 verifier**；修正後依 §7 機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。一般修正交接預設帶 finding＋修正 diff 派 fresh `worker`；是否續用同一 worker 依 `~/.claude/skills/parallel-dispatch/SKILL.md` §6 第 10 步的可調判斷，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
+2. **產出與機械驗證**：controller 自做，照 `~/.claude/agents/worker.md` 規則 2（validation 與突變紅／綠）、規則 9（可證偽宣稱）留證據；§1 條件 1–3 成立時改派 `worker`（single-writer），有界的同一交付批次可用同一個 worker 跑完多個 phase，不必每個子步驟另開一個。
+3. **派出時 controller read-back** 實際檔案與指令輸出，不採信 worker 自述。用有界輸出（`git diff --stat`、`sed -n a,bp`、`rg -c`、`wc`、`head -n`）只讀判定所需的行；全文與大 diff 留給 verifier 或落檔。自做時本步就是第 2 步的指令輸出。
+4. **依 §6 風險分流選一次 review 或 verifier**；修正後依 §7 機械結案（低風險）或 fresh delta（高風險），不自動再疊第二輪 review。修正預設 controller 自做（`~/.claude/rules/judgment.md` 6）；原產出是派出的 worker 做的，才依 `~/.claude/skills/parallel-dispatch/SKILL.md` §6 第 10 步決定續用同一 worker 或帶 finding＋修正 diff 派 fresh `worker`，該步是 canonical，不在此重複條件。這不是每次修正都強制套用 parallel-dispatch 全流程。
 
-### 自行小修的例外
+### controller 自做的邊界
 
-controller 自行小修**只限**單點、低風險、可機械驗證、scope 無歧義的修正（如打字錯誤、單一路徑修正）；涉及授權、安全、架構取捨或主觀品質的文件一律走上面四步，不得用「順手改一下」跳過。修 verifier finding 的自修同樣適用 `~/.claude/rules/judgment.md` 6『修正者的證據』。會被執行的 CI／release 設定（`.github/workflows`、`.github/actions` 等）不屬小修例外，一律走四步；已依 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」裝好 hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open）；沒裝的環境與 Bash 改檔都不經 hook，仍靠本條。
+自做不改變驗收：自做的產出照 §6 定深度與派驗收，「是 controller 自己改的」「只是順手改一下」都不構成降級或跳過第 1 步驗收條件的理由。修 verifier finding 的自修適用 `~/.claude/rules/judgment.md` 6『修正者的證據』。會被執行的 CI／release 設定（`.github/workflows`、`.github/actions` 等）不自做，一律寫 brief 派 `worker`；已依 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」裝好 hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open）；沒裝的環境與 Bash 改檔都不經 hook，仍靠本條。
 
 ## 2. 角色與模型
 
 Agent 工具的 `model` 參數只接受 harness 每 session 注入的 alias enum（`haiku`／`sonnet`／`opus`／`fable`）；完整 model ID 與 `inherit` 只能寫在 agent frontmatter 的 `model` 欄。alias 對照見 `<REPO>/docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」。
 
-- `worker`：一般實作與文件產出的預設執行者。不帶 `model`、`effort`，由 `~/.claude/agents/worker.md` frontmatter 決定。
+- `worker`：§1 必派條件成立時的實作與文件執行者。不帶 `model`、`effort`，由 `~/.claude/agents/worker.md` frontmatter 決定。
 - `verifier`：fresh-context 驗收。顯式 `model: opus`、不帶 `effort`；升 fable 見 §6。
 - `general-purpose`（全工具）：worker 升級或需要 opus／fable 時改派，使用者當次指定 Opus 執行時也派這條；須顯式指定 model，用 opus 時帶 `effort: medium`（使用者當次指定別的 effort 時從其指定）。brief 要求照 worker 合約。
 - `Explore`／`Plan`：唯讀掃描與規劃；職責與限制見 `<REPO>/docs/harness-facts.md`「常用 subagent 類型」。
@@ -79,7 +88,7 @@ Agent 工具有逐次 `effort` 參數，但派 `worker`／`verifier` 不帶（�
 
 ## 4. 回報合約
 
-**派工揭露（controller → 使用者）**：派工當下只講**指定的 agent 名稱與任務摘要**（「派 Explore 掃 repo」）；實際派送不是指定的 named role 就在名稱後標 `fallback` 並簡述差異，建立失敗回報「`<agent>` 未建立」與 runtime 原因。model／effort 與制度出處平常不報，被問到、runtime 不一致、unsupported／unavailable 或稽核時才展開，怎麼答見 `<REPO>/docs/harness-facts.md`「被問到 model／effort 時怎麼答」。主對話自己做時，只有**符合 §1 任一派工條件卻仍不派**才要交代。Codex 端 `<REPO>/global/codex/rules/dispatch.md` §3 用同一套揭露。
+**派工揭露（controller → 使用者）**：派工當下只講**指定的 agent 名稱與任務摘要**（「派 Explore 掃 repo」）；實際派送不是指定的 named role 就在名稱後標 `fallback` 並簡述差異，建立失敗回報「`<agent>` 未建立」與 runtime 原因。model／effort 與制度出處平常不報，被問到、runtime 不一致、unsupported／unavailable 或稽核時才展開，怎麼答見 `<REPO>/docs/harness-facts.md`「被問到 model／effort 時怎麼答」。自做本身不必交代；**符合 §1 必派條件卻仍自做**時才要交代理由。Codex 端 `<REPO>/global/codex/rules/dispatch.md` §3 用同一套揭露。
 
 **Subagent 回報**，固定格式見 `~/.claude/skills/handoff/SKILL.md` §2『回報卡』與 §3『verifier 判定卡』：
 
@@ -178,12 +187,12 @@ Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`：front
 - Subagent 回報不等於實際狀態；controller 必須 read-back `git status`、`git stash list`、diff、commit 與驗證輸出。
 - **唯讀角色也受影響**：verifier／Explore 與寫入者共用 working tree 時，它的唯讀結論（檔案內容、路徑與指令是否存在）仍可信，但任何跑測試／build 取得的數字都被污染，因為工作區在它量測期間被改動過。要嘛等它跑完再動手，要嘛給它 `isolation: worktree`。
 
-## 10. 主對話不做粗活
+## 10. 主對話 context 管理
 
 **症狀**：大量讀檔、掃 repo、抓網頁、批次改檔在主對話進行，context 膨脹；compaction 觸發後早期決定遺失，開始重做已完成的工作或偏離原目標。
 
 **修法**：
 
-- 判斷基準是 §1 雙軸判斷；找素材也適用（§1 工作迴圈的素材 (a)(b) 條件）。
-- 何時 compact 由使用者看 statusline 的 context 用量決定，controller 不量測、不主動提醒。controller 不能自己 compact（`/compact` 只有使用者能打）。
+- 判斷基準是 §1 必派條件 1。controller 看不到 statusline，要自己量：用 `<REPO>/docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」的 jq 指令，取最後一筆 usage 的三項和。每個實作 phase 開始前、打算一次讀入 ≥5 個未讀檔前各量一次；≥300K 依 §1 條件 1(b) 把剩下的 phase 派出。
+- 何時 compact 由使用者決定，controller 不主動提醒。controller 不能自己 compact（`/compact` 只有使用者能打）。
 - 使用者說要 compact、要離開 >1h（prompt cache 1h 過期，回來整段重寫），或要「新 prompt」時，給一段可直接貼在 `/compact` 後面的**保留指示**，內容是 `~/.claude/skills/handoff/SKILL.md` §4『session 交接卡』的精簡版：目標、授權、未完成項目、**在途 subagent（名稱、任務、worktree／分支）**、產物證據位置。有在途 subagent 時先告知，建議等回報後再 compact；等不了就把在途清單寫進保留指示。量測依據見 `<REPO>/docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」。
