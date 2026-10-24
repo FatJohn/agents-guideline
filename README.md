@@ -39,9 +39,9 @@ The route card stays out of that area, and subagents do not inherit it.
 
 ### Role model: controller, worker, verifier
 
-The main conversation is the controller: it plans, delegates, checks and reports, while separate roles implement and verify.
+The main conversation is the controller: it plans, implements, checks and reports, delegating only when a mandatory condition holds, while verification always goes to a separate role.
 
-- Controller (main conversation): no grunt work; it edits itself only for single-point, low-risk, mechanically verifiable fixes with a clear scope, never CI or release config.
+- Controller (main conversation): does the work itself by default; delegates only when condition 1, 2 or 3 holds (context, parallelism, tool conflict), and never edits CI or release config itself (always a worker).
 - `worker`: starts only from an approved plan the controller signed off; a missing plan is sent back.
 - `verifier`: fresh context, judges only, never produces.
 
@@ -51,7 +51,7 @@ Delegation table (abridged from `global/claude/route-card.md`):
 |---|---|
 | Scan the repo, find files with X, build a list | `Explore`, `model: haiku` |
 | Read long documents, browse the web | `general-purpose`, sonnet |
-| Implement, fix bugs, refactor, batch edits, docs | `worker` |
+| Implement, fix bugs, refactor, batch edits, docs (conditions 1-3) | `worker` |
 | Design and architecture trade-offs | `Plan`, opus |
 | Cross-file reasoning, hard reviews | `general-purpose`, opus |
 | Acceptance | `verifier`, `model: opus`; always for any document before merge or ready, code by dispatch skill §6 tiers, still applies when project rules name only code-review |
@@ -158,7 +158,7 @@ Codex uses three tiers, Luna, Terra and Sol, from low to high. The escalation ru
 | `scanner` | Low-risk read-only scans: lists, classification, checks | `gpt-5.6-luna` | `medium` |
 | `explorer` | Read-only exploration, cross-file tracing, research | `gpt-5.6-terra` | `medium` |
 | `planner` | Read-only planning: scope, risks, invariants, phases | `gpt-5.6-terra` | `high` |
-| `worker` | Standard implementer; needs a complete approved plan | `gpt-5.6-luna` | `max` |
+| `worker` | Condition-triggered implementer; needs a complete approved plan | `gpt-5.6-luna` | `max` |
 | `pro_worker` | Implementation with known complexity signals | `gpt-5.6-terra` | `high` |
 | `recovery_worker` | Takes over after Luna falls short or fails twice | `gpt-5.6-terra` | `high` |
 | `reviewer` | Read-only adversarial review in a fresh context | `gpt-5.6-terra` | `high` |

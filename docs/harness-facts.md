@@ -38,7 +38,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 
 ## 主對話 context 大小怎麼量、cache 何時過期（2026-10-01 實測）
 
-> 窗口 C（2026-09-29 22:51～10-01 09:07）主對話 Opus 5.5 的 session jsonl 量測：1,262 request、$354.64（API 等價）。用途：`<REPO>/global/shared/skills/dispatch/SKILL.md` §10「主對話不做粗活」修法的 cache 重讀數據（compact 時機由使用者看 statusline 決定），與 §4「回報合約」的回報長度理由。
+> 窗口 C（2026-09-29 22:51～10-01 09:07）主對話 Opus 5.5 的 session jsonl 量測：1,262 request、$354.64（API 等價）。用途：`<REPO>/global/shared/skills/dispatch/SKILL.md` §10「主對話 context 管理」修法的 cache 重讀數據（compact 時機由使用者決定；controller 自己量 context 的指令在本節下方），與 §4「回報合約」的回報長度理由。
 
 - **量主對話自己的 context**（2026-10-01 實測可跑，回 175154）：session-id 取 system prompt 裡 scratchpad 路徑倒數第二段的 UUID（末段是 `scratchpad`），再跑下列指令；三項相加與本檔前段 `subagent_tokens` 那條同一算法，取最後一筆 assistant usage。macOS 沒有 `tac`，用 `tail -r`。
 
