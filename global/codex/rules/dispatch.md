@@ -63,7 +63,7 @@ unavailable 時，這條 direct CLI 是有效的獨立 fallback，包含指定 S
 快速看六個 complexity signals：scope／檔案與模組廣度、subsystem 數量、dependency 與既有 code 理解量、ambiguity／debug search space、architecture／correctness／security judgment、既有失敗證據。任務名稱只提供背景，不決定 tier。
 
 - **Simple／mechanical**：可明確描述且可機械驗證，使用 Luna low／medium（如 `scanner`）或留在主對話。
-- **Normal development**：需求清楚、scope 有界的一般 feature、bug fix、refactor、test、UI／API 修改，以及一般文件／規則段落撰寫，預設 controller 在主對話自做；必派條件成立時派 `worker/Luna max`；controller 可自行核定完整 plan，不強制先派 Terra planner；機械驗證由 worker 執行，獨立驗收依 §6 分工。
+- **Normal development**：需求清楚、scope 有界的一般 feature、bug fix、refactor、test、UI／API 修改，以及一般文件／規則段落撰寫，預設 controller 在主對話自做；必派條件成立時派 `worker/Luna max`；controller 可自行核定完整 plan，不強制先派 Terra planner；機械驗證由執行者執行（自做時為 controller），獨立驗收依 §6 分工。
 - **Higher complexity／large-context reasoning**：上述 signals 有一項很強或多項同時成立，使用 Terra；探索可 medium，規劃、實作 recovery 與重要 review 用 high。已有充分證據時可預先派 `pro_worker/Terra high`。
 - **Very difficult／high judgment**：Terra 已確認模型能力不足，或任務本身是高影響且需要跨 subsystem judgment，使用 Sol medium。
 - **Exceptional difficulty**：Sol medium 仍顯示能力不足、或錯誤代價極高且可說明 high 的邊際價值，才使用 Sol high。xhigh／max 不設固定 route，僅在 high 仍無法收斂且 controller 有證據時顯式使用；Ultra 不是一般 coding route。
@@ -81,7 +81,7 @@ Reasoning effort 只回答「同一模型需要思考多深」：問題已理解
 
 ### Controller 工作迴圈
 
-controller 核定 plan（自做時至少目標、scope、validation 與可判定的驗收條件，寫在第一次改檔前，驗收 prompt 逐字沿用）→ controller 自做，或依必派條件派 worker 產出與機械驗證 → 派出時 controller read-back → 依 §6 選擇需要的 review／驗收，不額外疊 spec／quality／verifier 儀式；高風險 §6 的 reviewer＋sol_verifier 分工仍保留。修正依共用 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」分流。同一有界交付批次可由同一 worker 完成。自做不改變 §6 驗收：自己改的產出照 §6 派 verifier／reviewer，不因自做降級；會被執行的 CI／release 設定不自做，一律派 worker。所有 child 直接完成收到的任務，不再套此 controller 流程遞迴派工。
+controller 核定 plan（自做時至少目標、scope、validation 與可判定的驗收條件，寫在第一次改檔前，驗收 prompt 逐字沿用）→ controller 自做（照 `<REPO>/global/codex/agents/worker.toml` 規則 3、7 留 validation 輸出與突變紅／綠證據），或依必派條件派 worker 產出與機械驗證 → 派出時 controller read-back → 依 §6 選擇需要的 review／驗收，不額外疊 spec／quality／verifier 儀式；高風險 §6 的 reviewer＋sol_verifier 分工仍保留。修正依共用 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」分流。同一有界交付批次可由同一 worker 完成。自做不改變 §6 驗收：自己改的產出照 §6 派 verifier／reviewer，不因自做降級；會被執行的 CI／release 設定不自做，一律派 worker。所有 child 直接完成收到的任務，不再套此 controller 流程遞迴派工。
 
 核定 plan 時，若本波有多個互相獨立的 issue（各自可單獨交付、不必一起整合），一個 issue 一個頂層 session，依 `<REPO>/global/shared/skills/parallel-dispatch/SKILL.md` §1「先分流」與 `<REPO>/global/shared/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」，本 session 只做盤點、不兼任其中任何一個；若單一 issue 跨模組／涵蓋完整功能，先依 `<REPO>/global/shared/skills/parallel-dispatch/SKILL.md` §2「值不值得」與同檔「單片尺寸評估」評估可獨立交付的切片，不預設序列；切不出來或不值得平行就維持單片或序列交接，不以工具呼叫數或預估分鐘數強制切分。worktree 建立、checkpoint 與 worker 禁 commit 依 `<REPO>/global/shared/skills/parallel-dispatch/references/codex.md`，不在此重抄。
 
