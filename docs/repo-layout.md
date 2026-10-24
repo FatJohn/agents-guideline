@@ -25,7 +25,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 
 | 檔案 | 用途 |
 |------|------|
-| `global/shared/skills/dispatch/SKILL.md` | 派工、驗收與升降級：何時派工、角色與模型、派工合約、回報合約、升降級、驗證不自驗、修正與驗收輪次、何時問使用者、工作目錄安全、主對話不做粗活 |
+| `global/shared/skills/dispatch/SKILL.md` | 派工、驗收與升降級：何時派工、角色與模型、派工合約、回報合約、升降級、驗證不自驗、修正與驗收輪次、何時問使用者、工作目錄安全、主對話 context 管理 |
 | `global/shared/skills/handoff/SKILL.md` | 四張固定卡：brief 卡、回報卡、verifier 判定卡、session 交接卡 |
 | `global/shared/skills/git-commit/SKILL.md` | commit message 固定格式與 squash merge 標題；專案規格有自己的慣例時以專案為準 |
 | `global/shared/skills/create-pr/SKILL.md` | 分析 branch 變更並準備 Pull Request |

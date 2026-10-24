@@ -33,9 +33,9 @@
 
 ### 角色模型：controller／worker／verifier
 
-主對話是 controller，只規劃、派工、核對與回報；實作與驗收交給獨立角色。
+主對話是 controller，規劃、實作、核對與回報；只在必派條件成立時派工，驗收一律交獨立角色。
 
-- controller（主對話）：不下場做粗活；自行動手只限單點、低風險、可機械驗證、scope 無歧義的修正，CI 與 release 設定不算。
+- controller（主對話）：預設自己做；條件 1–3（context、平行、工具衝突）成立才派，CI 與 release 設定一律派 worker。
 - `worker`：只在 controller 核定完整的 approved plan 後動工，缺 plan 退回。
 - `verifier`：fresh-context，只判定不製作。
 
@@ -45,7 +45,7 @@
 |---|---|
 | 掃 repo、找哪些檔有 X、整理清單 | `Explore`，`model: haiku` |
 | 讀多份長文件、查網頁 | `general-purpose`，sonnet |
-| 實作、修 bug、重構、批次改檔、一般文件 | `worker` |
+| 實作、修 bug、重構、批次改檔、一般文件（條件 1–3） | `worker` |
 | 設計與架構取捨 | `Plan`，opus |
 | 跨檔推理、高難度 review | `general-purpose`，opus |
 | 驗收 | `verifier`，`model: opus`；所有文件 merge／轉 ready 前一律派，程式碼依 dispatch skill §6 分流，專案規則只寫 code-review 時仍適用 |
@@ -150,7 +150,7 @@ Codex 用 Luna、Terra、Sol 三個由低到高的層級。升級規則（Luna �
 | `scanner` | 低風險唯讀掃描：精確清單、分類、格式檢查、結構化抽取 | `gpt-5.6-luna` | `medium` |
 | `explorer` | 唯讀探索：repo 探索、跨檔追蹤、文件研究、影響範圍 | `gpt-5.6-terra` | `medium` |
 | `planner` | 唯讀規劃：scope、風險、invariants、階段與驗證條件 | `gpt-5.6-terra` | `high` |
-| `worker` | 標準實作者：approved plan 完整後依 phases 修改、跑機械驗證 | `gpt-5.6-luna` | `max` |
+| `worker` | 條件觸發的實作者：approved plan 完整後依 phases 修改、跑機械驗證 | `gpt-5.6-luna` | `max` |
 | `pro_worker` | 複雜實作：已有跨模組、高 ambiguity 證據時首次即用 | `gpt-5.6-terra` | `high` |
 | `recovery_worker` | recovery 實作：Luna 能力不足或兩次未明失敗後接手 | `gpt-5.6-terra` | `high` |
 | `reviewer` | 唯讀 reviewer：fresh context 對一般實作做對抗式 review | `gpt-5.6-terra` | `high` |
