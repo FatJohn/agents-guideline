@@ -22,7 +22,7 @@
 
 `scanner` 使用 Luna 做低風險、可機械驗證的唯讀工作；一般實作使用 `worker/Luna max`。若開工前已有多 subsystem、依賴關係密集、脈絡量大、需求高 ambiguity 或 architecture judgment 等證據，可直接使用 `pro_worker/Terra high`，不必先犧牲一次 Luna 嘗試；失敗後的 Terra 路徑則使用 `recovery_worker/Terra high`。`planner`、`explorer`、`reviewer`、`escalation_planner` 是 read-only；`verifier`、`sol_verifier` 的 sandbox 是 workspace-write，合約只許寫 repo 外探針目錄（探針落檔用），repo 內一律不寫，controller 事後 read-back `git status`／`git stash list`。一般文件的驗收使用 `verifier/Terra high`；安全、不可逆、重大架構與正式高風險驗收使用 `sol_verifier/Sol high`。Sol 升級實作與規劃先從 medium 開始，只有 exceptional difficulty 才提高 effort；所有 verifier 只找碴與判定，不製作也不修正產物。
 
-**別名與主對話邊界**：Luna＝`gpt-5.6-luna`、Terra＝`gpt-5.6-terra`、Sol＝`gpt-5.6-sol`。主對話的靜態預設不在本檔寫死，設定預設讀 `~/.codex/config.toml`，當前 model／effort 以 runtime metadata 或 CLI header 為準。這個主 session 事實不改 logical routing table，通常 coding 仍依本表派 `worker/Luna max`，使用者也可在 UI 或 CLI 為特定任務明確選擇其他 model／effort。global instruction 不能在已啟動的主對話中自動切換主 agent，只能指導 delegated agent、direct CLI，或下一個 session 的選擇。當前 runtime 若已是較強主 agent，仍按本表把可獨立工作派給能可靠完成的最低 tier；不要把可能過期的 `~/.codex/models_cache.json` 當 runtime 證據。
+**別名與主對話邊界**：Luna＝`gpt-5.6-luna`、Terra＝`gpt-5.6-terra`、Sol＝`gpt-5.6-sol`。主對話的靜態預設不在本檔寫死，設定預設讀 `~/.codex/config.toml`，當前 model／effort 以 runtime metadata 或 CLI header 為準。這個主 session 事實不改 logical routing table，派工時（必派條件見 §1）仍依本表選 `worker/Luna max`，使用者也可在 UI 或 CLI 為特定任務明確選擇其他 model／effort。global instruction 不能在已啟動的主對話中自動切換主 agent，只能指導 delegated agent、direct CLI，或下一個 session 的選擇。當前 runtime 若已是較強主 agent，需要派出的工作仍按本表派給能可靠完成的最低 tier；不要把可能過期的 `~/.codex/models_cache.json` 當 runtime 證據。
 
 角色名稱使用底線，因目前 `spawn_agent.task_name` 只接受小寫英數與底線。安裝 `~/.codex/agents/*.toml` 與 runtime 選中角色是兩件事：派工前先看當前 surface 是否明確提供 `agent_type` 與該角色的 model／effort metadata。可選中時，把 surface metadata 當作「工具宣告值」記進 adapter envelope；若回傳或 child metadata 另有實際 runtime model／effort，再一併 read-back。surface 沒有角色選擇入口、role 不符或 runtime 證據與宣告不一致時，不得假裝 custom role 已套用；依下方 adapter 改用 `default`，或標記「模型／effort 未驗證」後停止該 routing。
 
@@ -52,26 +52,26 @@ unavailable 時，這條 direct CLI 是有效的獨立 fallback，包含指定 S
 `direct CLI fallback`／generic 身份。若 header、sandbox 或完整 logical-role contract 缺任一項，只能
 補強證據並標「runtime 未驗證」，不能正式結案。
 
-## 1. 雙軸派工判斷
+## 1. 派工判斷
 
-派工同時看兩軸：**任務獨立性**（能否只靠完整 prompt 獨立完成）與**脈絡／輸出成本**（原始內容是否會淹沒主對話、後續是否需要全文）。角色選擇再依風險與可機械驗證程度決定。
+預設 controller 在主對話自己做；是否派出看下方「必派條件」，不看任務是否可獨立。派出後角色選擇再依風險與可機械驗證程度決定。
 
 ### 預設 workflow 與最低模型原則
 
-使用「能可靠完成該階段的最低 model tier」，優化 **total cost to success**：reasoning tokens、重讀 repo、tool calls、錯誤修改、retry 與人工修正都算成本。只在任務開始、scope 明顯改變或一次嘗試失敗後重判路由，不在每個步驟反覆做模型分析。model tier 與 reasoning effort 分開判斷；高 tier 不自動配高 effort，小模型也不自動配 max。
+使用「能可靠完成該階段的最低 model tier」，優化 **total cost to success**：reasoning tokens、重讀 repo、tool calls、錯誤修改、retry 與人工修正都算成本。只在任務開始、scope 明顯改變或一次嘗試失敗後重判路由，不在每個步驟反覆做模型分析。model tier 與 reasoning effort 分開判斷；高 tier 不自動配高 effort，小模型也不自動配 max。本原則決定派出的工作用哪個 tier，本身不構成把工作派出的理由；派不派看下方必派條件。
 
 快速看六個 complexity signals：scope／檔案與模組廣度、subsystem 數量、dependency 與既有 code 理解量、ambiguity／debug search space、architecture／correctness／security judgment、既有失敗證據。任務名稱只提供背景，不決定 tier。
 
 - **Simple／mechanical**：可明確描述且可機械驗證，使用 Luna low／medium（如 `scanner`）或留在主對話。
-- **Normal development**：需求清楚、scope 有界的一般 feature、bug fix、refactor、test、UI／API 修改，以及一般文件／規則段落撰寫，使用 `worker/Luna max`；controller 可自行核定完整 plan，不強制先派 Terra planner；機械驗證由 worker 執行，獨立驗收依 §6 分工。
+- **Normal development**：需求清楚、scope 有界的一般 feature、bug fix、refactor、test、UI／API 修改，以及一般文件／規則段落撰寫，預設 controller 在主對話自做；必派條件成立時派 `worker/Luna max`；controller 可自行核定完整 plan，不強制先派 Terra planner；機械驗證由 worker 執行，獨立驗收依 §6 分工。
 - **Higher complexity／large-context reasoning**：上述 signals 有一項很強或多項同時成立，使用 Terra；探索可 medium，規劃、實作 recovery 與重要 review 用 high。已有充分證據時可預先派 `pro_worker/Terra high`。
 - **Very difficult／high judgment**：Terra 已確認模型能力不足，或任務本身是高影響且需要跨 subsystem judgment，使用 Sol medium。
 - **Exceptional difficulty**：Sol medium 仍顯示能力不足、或錯誤代價極高且可說明 high 的邊際價值，才使用 Sol high。xhigh／max 不設固定 route，僅在 high 仍無法收斂且 controller 有證據時顯式使用；Ultra 不是一般 coding route。
 
 Reasoning effort 只回答「同一模型需要思考多深」：問題已理解但推理鏈不夠完整，可提高一級 effort 並 fresh retry 一次；若 root cause、跨模組關係或需求模型本身理解錯誤，應升 model tier，而不是持續加 effort。
 
-- 寫入預設派 worker；只有下方 Controller 工作迴圈的小修例外可留在主對話。
-- 一般實作由 controller 核定 approved plan 後派 `worker/Luna max`；只有 complexity signals 支持時才加入 `planner/Terra high`、`pro_worker/Terra high` 或 `reviewer/Terra high`（例外：diff 含外部呼叫、權限請求或不可逆副作用時依 §6 一律加 `reviewer`）。
+- 寫入預設 controller 自做；必派條件成立時才派 worker（complexity signals 支持時改 pro_worker）。
+- 要派出的一般實作由 controller 核定 approved plan 後派 `worker/Luna max`；只有 complexity signals 支持時才加入 `planner/Terra high`、`pro_worker/Terra high` 或 `reviewer/Terra high`（例外：diff 含外部呼叫、權限請求或不可逆副作用時依 §6 一律加 `reviewer`）。
 - `planner` 只檢查 repo、列出未決問題與提出 plan；controller 負責和使用者釐清 scope、取得授權、做最後決策。
 - controller 只有在 plan 已列出 affected files、寫入所有權、invariants、implementation phases、validation commands 與 completion criteria，且未決問題均已解決或明確交由 worker 不得碰觸時，才可標為 approved plan 並派 `worker`。缺任一項就留在規劃階段，不得用高 effort 取代清楚 plan。
 - `worker` 依 approved plan 分階段實作、執行測試／靜態檢查並修復一般失敗；不得自行擴大範圍或執行對外動作。
@@ -79,22 +79,24 @@ Reasoning effort 只回答「同一模型需要思考多深」：問題已理解
 - 若 planner 的 Terra high 已抓對問題但推理仍不足，可 fresh-context 提高 Terra effort 一次；若它誤判核心、遺漏跨模組關係或無法承載必要脈絡，直接進入 `escalation_planner/Sol medium`。
 - retry／escalation 依 §5 的失敗原因處理；兩次失敗是未能判明原因時的硬上限，不是每條路都必須先浪費兩次。
 
-### Controller 工作迴圈（worker 標準流程）
+### Controller 工作迴圈
 
-controller 核定完整 plan → worker 產出與機械驗證 → controller read-back → 依 §6 選擇需要的 review／驗收，不額外疊 spec／quality／verifier 儀式；高風險 §6 的 reviewer＋sol_verifier 分工仍保留。修正依共用 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」分流。同一有界交付批次可由同一 worker 完成。主對話小修只限單點、低風險、可機械驗證、scope 無歧義；授權、安全、架構或主觀文件不適用。所有 child 直接完成收到的任務，不再套此 controller 流程遞迴派工。
+controller 核定 plan（自做時至少目標、scope、validation 與可判定的驗收條件，寫在第一次改檔前，驗收 prompt 逐字沿用）→ controller 自做，或依必派條件派 worker 產出與機械驗證 → 派出時 controller read-back → 依 §6 選擇需要的 review／驗收，不額外疊 spec／quality／verifier 儀式；高風險 §6 的 reviewer＋sol_verifier 分工仍保留。修正依共用 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」分流。同一有界交付批次可由同一 worker 完成。自做不改變 §6 驗收：自己改的產出照 §6 派 verifier／reviewer，不因自做降級；會被執行的 CI／release 設定不自做，一律派 worker。所有 child 直接完成收到的任務，不再套此 controller 流程遞迴派工。
 
 核定 plan 時，若本波有多個互相獨立的 issue（各自可單獨交付、不必一起整合），一個 issue 一個頂層 session，依 `<REPO>/global/shared/skills/parallel-dispatch/SKILL.md` §1「先分流」與 `<REPO>/global/shared/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」，本 session 只做盤點、不兼任其中任何一個；若單一 issue 跨模組／涵蓋完整功能，先依 `<REPO>/global/shared/skills/parallel-dispatch/SKILL.md` §2「值不值得」與同檔「單片尺寸評估」評估可獨立交付的切片，不預設序列；切不出來或不值得平行就維持單片或序列交接，不以工具呼叫數或預估分鐘數強制切分。worktree 建立、checkpoint 與 worker 禁 commit 依 `<REPO>/global/shared/skills/parallel-dispatch/references/codex.md`，不在此重抄。
 
-優先派 subagent：
+必派條件（任一成立才派，否則 controller 自做）：
 
-- 任務可獨立，且主對話只需要結論與證據。
-- 輸出量大，後續決策不需要把全文帶回主對話。
-- 有兩個以上互不依賴、可安全平行的子任務。
-- 需要 fresh-context 或對抗式驗收。
+1. **context**：(a) 要讀進來的原始內容之後不會逐行再引用，且超過 10 個本輪未讀的檔，或含網頁、完整 log、測試／build 全量輸出：派 `explorer` 或 `scanner`，只拿結論；(b) 主對話 context ≥300K 且 plan 還有未做的實作 phase：剩下的 phase 派 `worker`。runtime 有 context 用量指示就用它；沒有時以「本 session 已 compact 過」代替（未驗證的代替訊號；`<REPO>/docs/codex-tooling-audit-2026-10.md` 未記載 Codex 的 context 用量量法）。
+2. **平行且用完即丟**：≥2 個子任務彼此不讀對方的輸出、可以同時跑，且回主對話的只要結論。
+3. **工具或指示衝突**：改會被執行的 CI／release 設定；需要主對話以外的 tier（使用者指定、§5 升級、complexity signals 判為 Higher complexity 以上而主對話不是該 tier）。
+4. **黑箱驗收**：§6 的 verifier、reviewer、`sol_verifier` 照派。
+
+不構成派工理由：任務可獨立、只需結論、按工作類型分。
 
 留在主對話：
 
-- 探索或決策與當下脈絡高度耦合；寫入仍只適用上方小修例外。
+- 探索或決策與當下脈絡高度耦合。
 - 需要頻繁讀寫共享可變狀態。
 - 需要即時與使用者互動或取得授權。
 - 平行寫入無法用獨立 worktree 隔離。
