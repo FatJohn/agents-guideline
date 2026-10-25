@@ -4,9 +4,9 @@
 
 ## 必派條件（dispatch skill §1）
 驗收照下表；其餘下列任一成立才派，否則自己做：
-1. context：要讀的原始內容之後不再引用，且超過 10 個本輪未讀的檔或含網頁／log 全文；或主對話 context ≥300K 且還有實作 phase 未做。
+1. context：有界讀取仍需大量且後續不逐行引用的原文，並有預算壓力或退化證據；檔案數、網頁／log 類型只觸發評估。或當前 context ≥300K 且還有實作 phase。
 2. 平行：≥2 個互不依賴的子任務要同時跑。
-3. 工具衝突：改 `.github/workflows`、`.github/actions` 或 release 設定；要用主對話以外的 model（使用者指定、§5 升級、`codex:codex-rescue`）。
+3. 工具衝突：改 `.github/workflows`、`.github/actions` 或 release 設定；明確指定其他模型、獨立第二意見或主對話能力不足；能力足夠不因 model 不同而派出。
 互相獨立的 issue 一 issue 一頂層 session，本 session 只盤點（`~/.claude/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」）。
 
 ## 角色

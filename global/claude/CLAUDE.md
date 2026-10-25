@@ -17,7 +17,7 @@
 
 | 情境 | 用什麼 |
 |---|---|
-| 派 subagent、選模型、升降級、驗收後修正 | `dispatch` skill |
+| 首次改檔前（含自做）、派 subagent、選模型、升降級、驗收後修正 | `dispatch` skill；改檔前先讀 §1 |
 | brief、回報、交接、收尾 | `handoff` skill |
 | commit／開 PR | `git-commit`／`create-pr` skill |
 | ≥2 個寫入切片平行、多個獨立 issue | `parallel-dispatch` skill |

@@ -13,10 +13,12 @@ description: 派工與驗收的完整機制：何時派 subagent、角色與 mod
 
 預設 controller 在主對話自己做，實作與文件都算。下列任一成立才派 subagent；§3 派工合約只對派出的工作生效；§4 回報合約對派出的工作生效，另含自做時的一句交代規則。
 
-1. **context 膨脹**：(a) 要讀進來的原始內容之後不會逐行再引用，且超過 10 個本輪未讀的檔，或含網頁、完整 log、測試／build 全量輸出：派 `Explore` 或 `general-purpose`，只拿結論；(b) 主對話 context ≥300K（量法見 §10）且 plan 還有未做的實作 phase：剩下的 phase 依 §3 寫 brief 派 `worker`。
+1. **context 膨脹**：(a) 原始內容後續不需逐行引用，經搜尋、節錄等有界讀取仍需帶入大量內容，且有 context 預算壓力或漏掉既有決定、重讀無進展等退化證據：派 `Explore` 或 `general-purpose`，只拿結論；(b) 主對話 context ≥300K（量法見 §10）且 plan 還有未做的實作 phase：剩下的 phase 依 §3 寫 brief 派 `worker`。
 2. **平行且用完即丟**：≥2 個子任務彼此不讀對方的輸出、可以同時跑，且回主對話的只要結論（獨立研究路徑、分頭掃不同目錄、ownership 不相交的寫入切片）。寫入切片依 §9 用 `isolation: worktree`，切法依 `~/.claude/skills/parallel-dispatch/SKILL.md`。
-3. **工具或指示衝突**：(a) 改會被執行的 CI／release 設定（見「controller 自做的邊界」）；(b) 要用主對話以外的 model：使用者當次指定、§5 升級、`codex:codex-rescue` 第二意見。
+3. **工具或指示衝突**：(a) 改會被執行的 CI／release 設定（見「controller 自做的邊界」）；(b) 使用者明確指定其他模型、需要獨立第二意見（如 `codex:codex-rescue`），或 §5 的失敗／複雜度證據顯示主對話能力不足。主對話已足以完成時，不因與建議 model 不同而派出；能力不明先查證，不以模型名稱不同推定不足。
 4. **黑箱驗收**：§6 規定的 verifier 與 fresh `code-review` 照派，不因預設自做而省。
+
+檔案數超過 10、網頁、完整 log 或測試／build 全量輸出只觸發內容量與引用需求評估，不單獨觸發派工；能用有界讀取處理的短內容留在主對話。依 context 派出時在 brief 附內容量／預算或退化證據。
 
 不構成派工理由：「任務可獨立」「主對話只需結論」、按工作類型分（實作、文件、測試各派一個）。無法隔離就序列，不改成多個寫入者。
 
