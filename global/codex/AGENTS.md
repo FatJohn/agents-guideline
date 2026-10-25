@@ -15,7 +15,7 @@
 
 | 情境 | 用什麼 |
 |---|---|
-| 派 subagent、選 model／reasoning effort、升降級、驗收 | 先讀 `<REPO>/global/codex/rules/dispatch.md`；prompt 模板 `<REPO>/global/codex/rules/delegation-templates.md` |
+| 首次改檔前（含自做，先讀 §1）、派 subagent、選 model／reasoning effort、升降級、驗收 | 先讀 `<REPO>/global/codex/rules/dispatch.md`；prompt 模板 `<REPO>/global/codex/rules/delegation-templates.md` |
 | brief、回報、交接、收尾 | `handoff` skill |
 | commit／開 PR | `git-commit`／`create-pr` skill |
 | ≥2 個寫入切片平行、多個獨立 issue | `parallel-dispatch` skill |

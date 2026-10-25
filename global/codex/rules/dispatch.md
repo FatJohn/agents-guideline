@@ -87,10 +87,12 @@ controller 核定 plan（自做時至少目標、scope、validation 與可判定
 
 必派條件（任一成立才派，否則 controller 自做）：
 
-1. **context**：(a) 要讀進來的原始內容之後不會逐行再引用，且超過 10 個本輪未讀的檔，或含網頁、完整 log、測試／build 全量輸出：派 `explorer` 或 `scanner`，只拿結論；(b) 主對話 context ≥300K 且 plan 還有未做的實作 phase：剩下的 phase 派 `worker`。runtime 有 context 用量指示就用它；沒有時以「本 session 已 compact 過」代替（未驗證的代替訊號；`<REPO>/docs/codex-tooling-audit-2026-10.md` 未記載 Codex 的 context 用量量法）。
+1. **context**：(a) 原始內容後續不需逐行引用，經搜尋、節錄等有界讀取仍需帶入大量內容，且有 context 預算壓力或漏掉既有決定、重讀無進展等退化證據：派 `explorer` 或 `scanner`，只拿結論；(b) 主對話 context ≥300K 且 plan 還有未做的實作 phase：剩下的 phase 派 `worker`。runtime 有可靠的當前 context 用量就用它；沒有時記為 unknown，依 (a) 的內容量與退化證據判斷。「曾 compact」只觸發重新評估當前狀態，不等同 ≥300K，也不單獨觸發派工。
 2. **平行且用完即丟**：≥2 個子任務彼此不讀對方的輸出、可以同時跑，且回主對話的只要結論。
-3. **工具或指示衝突**：改會被執行的 CI／release 設定；需要主對話以外的 tier（使用者指定、§5 升級、complexity signals 判為 Higher complexity 以上而主對話不是該 tier）。
+3. **工具或指示衝突**：改會被執行的 CI／release 設定；使用者明確指定其他模型、需要獨立第二意見，或 §5 的失敗／complexity signals 證明主對話能力不足而需要其他 tier。主對話已足以完成時，不因與建議 tier 不同而派出；能力不明先查證，不以模型名稱不同推定不足。
 4. **黑箱驗收**：§6 的 verifier、reviewer、`sol_verifier` 照派。
+
+檔案數超過 10、網頁、完整 log 或測試／build 全量輸出只觸發內容量與引用需求評估，不單獨觸發派工；能用有界讀取處理的短內容留在主對話。依 context 派出時在 brief 附內容量／預算或退化證據。
 
 不構成派工理由：任務可獨立、只需結論、按工作類型分。
 
