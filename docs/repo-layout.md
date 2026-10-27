@@ -84,6 +84,7 @@ Codex 的角色選擇、升降級與 runtime adapter 規則是 `global/codex/rul
 | `README.md`／`README.zh-TW.md` | repo 概覽入口（英文／繁體中文，章節對應）：定位、核心概念、安裝入口、目錄地圖 |
 | `docs/install.md` | 完整安裝步驟：Claude Code、Codex、Windows（PowerShell）、實體檔同步版、從 v1 升級；只有中文 |
 | `docs/new-host.md` | 新機器建檔（5 分鐘探測清單）；只有中文 |
+| `docs/mechanism.md` | 運作機制說明：四個時刻各載入什麼、四支 hook 補哪條規則、`settings.json` 依賴的欄位、重建一台機器兩半各要補什麼；只有中文 |
 | `docs/repo-layout.md` | 本檔 |
 | `docs/lessons.md` | 活躍教訓日誌：只留還沒有判準承接的條目，不裝進全域 |
 | `docs/lessons-archive.md` | 已升級成正式判準的歷史教訓（保留原文，作為判準來歷） |

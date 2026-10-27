@@ -57,6 +57,10 @@ Delegation table (abridged from `global/claude/route-card.md`):
 | Acceptance | `verifier`, `model: opus`; always for any document before merge or ready, code by dispatch skill §6 tiers, still applies when project rules name only code-review |
 | Fresh review of a code diff | Fresh subagent running `code-review` skill, never the main conversation itself; adds to `verifier`, never replaces it; after fixing findings, re-verify per dispatch skill §7 |
 
+### Model per seat
+
+Each seat sets its model in one place; cheap defaults go to the high-volume seats and expensive capability is switched on per task. The main conversation takes `settings.json` `model`/`effortLevel` (a cheap default such as sonnet/high suits a controller that mostly inventories, launches issue sessions and reports; switch with `/model` for a single heavy task instead of editing settings). Issue sessions are pinned to opus/medium by the `--model`/`--effort` flags that the `require-issue-session-model.sh` hook enforces. `worker` and `verifier` take their frontmatter; `Explore`/`Plan`/`general-purpose` take the route card. Where each is set and what breaks without it: 「每個座位的 model 在哪設、怎麼選」 in [`docs/mechanism.md`](docs/mechanism.md).
+
 ### Six boundaries
 
 Both entry points share one set of six boundaries, mapped one-to-one in 「邊界」 of `global/claude/CLAUDE.md` and `global/codex/AGENTS.md`.
@@ -178,7 +182,9 @@ Full steps are in [`docs/install.md`](docs/install.md), whose 「安裝對應」
 
 For a new machine (no file in `global/shared/hosts/`), probe it and create its file by following 「新機器建檔（5 分鐘探測清單）」 in [`docs/new-host.md`](docs/new-host.md).
 
-`docs/install.md`, `docs/new-host.md` and `docs/repo-layout.md` exist in Chinese only.
+How the installed pieces work at runtime (what loads when, what each hook enforces, which `settings.json` fields the system depends on, and what a rebuild has to restore on both sides) is explained in 「運作機制」 of [`docs/mechanism.md`](docs/mechanism.md).
+
+`docs/install.md`, `docs/new-host.md`, `docs/mechanism.md` and `docs/repo-layout.md` exist in Chinese only.
 
 ## Directory map
 

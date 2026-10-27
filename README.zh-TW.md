@@ -51,6 +51,10 @@
 | 驗收 | `verifier`，`model: opus`；所有文件 merge／轉 ready 前一律派，程式碼依 dispatch skill §6 分流，專案規則只寫 code-review 時仍適用 |
 | 程式碼 diff 的 fresh review | fresh subagent 跑內建 `code-review` skill，主對話不自跑；是 verifier 的加項不是替代，修 finding 後依 dispatch skill §7 再驗 |
 
+### 每個座位的 model
+
+每個座位的 model 各有一個設定點：便宜的預設給量大的座位，貴的能力只在單一任務需要時當次切。主對話吃 `settings.json` 的 `model`／`effortLevel`——工作型態是盤點、起 issue session、收回報的 controller，設 sonnet／high 這類便宜值就夠，單一重任務用 `/model` 當次切、不改 settings。issue session 由 `--model`／`--effort` 旗標固定在 opus／medium，`require-issue-session-model.sh` hook 保證旗標帶齊。`worker`／`verifier` 吃各自的 frontmatter，`Explore`／`Plan`／`general-purpose` 吃路由卡。各設定點與少了會怎樣見 [`docs/mechanism.md`](docs/mechanism.md)「每個座位的 model 在哪設、怎麼選」。
+
 ### 六條邊界
 
 兩個平台的入口共用同一組六條邊界。語意逐條對應 `global/claude/CLAUDE.md`「邊界」與 `global/codex/AGENTS.md`「邊界」。
@@ -168,7 +172,7 @@ Codex 用 Luna、Terra、Sol 三個由低到高的層級。升級規則（Luna �
 - **Windows（PowerShell）**：用系統管理員 PowerShell，一次裝好 Claude Code 與 Codex 兩側。
 - **實體檔同步版**：給不能提權的機器；用 `scripts/sync-profile.py` 寫成複本，改 repo 後要重跑。
 
-新機器（`global/shared/hosts/` 沒有它的檔）照 [`docs/new-host.md`](docs/new-host.md)「新機器建檔（5 分鐘探測清單）」探測並建檔。`docs/install.md`、`docs/new-host.md`、`docs/repo-layout.md` 只有中文版。
+新機器（`global/shared/hosts/` 沒有它的檔）照 [`docs/new-host.md`](docs/new-host.md)「新機器建檔（5 分鐘探測清單）」探測並建檔。裝好的東西在執行時怎麼運作（什麼時刻載入什麼、每支 hook 補哪條規則、`settings.json` 依賴哪些欄位、重建時兩半各要補什麼）見 [`docs/mechanism.md`](docs/mechanism.md)「運作機制」。`docs/install.md`、`docs/new-host.md`、`docs/mechanism.md`、`docs/repo-layout.md` 只有中文版。
 
 ## 目錄地圖
 

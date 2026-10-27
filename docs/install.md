@@ -5,6 +5,7 @@
 型別：接入指南
 
 > 本檔是 `README.md` 安裝入口指向的完整安裝步驟：Claude Code（macOS／Linux）→ Codex（macOS／Linux）→ Windows（PowerShell，兩側一起裝）→ 實體檔同步版（不能提權的機器）→ 從 v1 升級。
+> 想先懂「哪些東西在什麼時刻生效、各裝在哪、少了會怎樣」再動手，讀 `docs/mechanism.md`「運作機制」。
 > `REPO` 依機器而異：macOS 主力機是 `~/Projects/FatJohn/agents-guideline`，Windows 桌機是 `D:\Projects\FatJohn\agents-guideline`，兩者的對照在 `global/codex/AGENTS.md`「Bootstrap」；新機器先照 `docs/new-host.md` 建檔。
 
 ## 安裝對應
