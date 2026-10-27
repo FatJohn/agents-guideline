@@ -94,7 +94,7 @@ model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/set
 
 - **plugins**（`enabledPlugins`）：各自帶 skill 與 hook，與本系統無關；盤點與瘦身見 `docs/reviews/codex-tooling-audit-2026-10.md`。
 - **statusline**（ccstatusline）：`model` 欄讀 Claude Code 餵的 status JSON，反映該 session 實際 model；`thinking-effort` 欄沒拿到 status JSON 的 `effort.level`、該 session 又沒跑過 `/effort` 或 `/model` 時，退回顯示 `settings.json` 的 `effortLevel`，不反映 `--effort` 旗標。要確認某個 session 的 effort，看它 jsonl 的 `"effort"` 欄位。
-- **Orca**：`settings.json` 的 matcher `*` hooks 與 `~/.orca/` 由 Orca 安裝；`orca worktree create --agent claude` 翻成 `claude --model … --effort … <prompt>` 起頂層 session，旗標語意見 `global/shared/skills/parallel-dispatch/references/cli.md`。
+- **Orca**：`settings.json` 的 matcher `*` hooks 與 `~/.orca/` 由 Orca 安裝；`orca worktree create --agent claude` 翻成 `claude --model … --effort … <prompt>` 起頂層 session，旗標語意見 `global/shared/skills/parallel-dispatch/references/cli.md`。Orca 另會以 `orca skills install` 把 `orca-cli`／`orchestration`／`computer-use` 三個 skill 裝進 `~/.agents/skills/` 並 symlink 進各 agent 的 skills 資料夾，其 description 會把 worktree 與交接導向 Orca、與本系統 `handoff` skill 撞觸發詞；本系統不依賴它們，主力 Mac 已刪（見 `global/shared/hosts/macos.md`），新機器裝 Orca 後照做。
 - **`settings.json` 的 permissions**：安裝後另行 audit，原則見 `docs/install.md`「Claude Code permissions 要和鐵律二對齊」。
 
 ## Codex 端的對照
