@@ -17,8 +17,8 @@
 
 本檔不收下列 4 條，它們在別處已有 canonical：
 
-- 「工具分工」（Memories／handoff／hooks／Chronicle 四層不合併）→ canonical 在 `docs/memory-layers.md`。
-- 「Codex 收尾交接」（交接檔）→ canonical 在 `docs/memory-layers.md` 的「顯式交接檔」條。
+- 「工具分工」（Memories／handoff／hooks／Chronicle 四層不合併）→ canonical 在 `docs/design/memory-layers.md`。
+- 「Codex 收尾交接」（交接檔）→ canonical 在 `docs/design/memory-layers.md` 的「顯式交接檔」條。
 - 「Claude 派工」「Codex 派工」「外部第二意見／整包委派」→ 純指標，canonical 在 `<REPO>/global/shared/skills/dispatch/SKILL.md` 與 `<REPO>/global/codex/rules/dispatch.md`，全域 `CLAUDE.md`／`AGENTS.md` 的路由表也已有路由。
 
 ## 停用 plugin

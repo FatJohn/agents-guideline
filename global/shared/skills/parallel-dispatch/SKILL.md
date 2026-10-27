@@ -36,7 +36,7 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 
 ## §1 ANALYZE：任務分析
 
-**先分流**：候選項目若是互相獨立的 issue（各自可單獨交付、不必一起整合），不進本流程的同 session fan out，改依 `references/cli.md`「盤點 session 與 issue session」一個 issue 一個頂層 session，各 issue session 是自己的 controller；本流程只處理同一 issue／功能內需要一起整合的切片。判不出是否獨立（共用 schema、lockfile、registry、CI 設定、migration 序號，或驗收要一起跑）就當成相依，留在本流程。理由與量測見 `<REPO>/docs/issue-session-trial-2026-10.md`。
+**先分流**：候選項目若是互相獨立的 issue（各自可單獨交付、不必一起整合），不進本流程的同 session fan out，改依 `references/cli.md`「盤點 session 與 issue session」一個 issue 一個頂層 session，各 issue session 是自己的 controller；本流程只處理同一 issue／功能內需要一起整合的切片。判不出是否獨立（共用 schema、lockfile、registry、CI 設定、migration 序號，或驗收要一起跑）就當成相依，留在本流程。理由與量測見 `<REPO>/docs/reviews/issue-session-trial-2026-10.md`。
 
 - **入口 A**：tracker 已有切好的項目 → 不重切，但每項仍要補齊下列欄位；tracker 上的數字與事實以現查為準，與使用者提供素材不一致時在 plan 並列，不靜默採用。
 - **入口 B**：spec／grilling 結論尚未切 → 先切。單模組、依賴已知時由 controller 自切；跨模組或依賴不明時依平台 dispatch 派 read-only 規劃角色，controller 核定。
@@ -67,7 +67,7 @@ REQUEST → ANALYZE（§1）→ PARALLELIZE?（§2）
 
 **批次上限**：預設一批 **3** 片（假設；已知樣本只有一批 3 片，見 `<REPO>/docs/harness-facts.md` `isolation: worktree` 條的「成本量級」句，4 片無樣本），最多 4 片且要寫出理由（每片獨立且 review 量可承受）；不滾動補位；下一批須等本批整合完成（§7）。平行是有成本的資源：每多一個 worker 就多一份 context 複製、一個要 review 的 diff、一次整合風險；而驗收與整合本身是序列的，多開 worker 不會讓瓶頸變快（`<REPO>/docs/judgment-rationale.md`「§2 補充判準（修正與驗收輪次）」：實作占 wall time 10–16%、驗收＋修正 85%）。
 
-**單片尺寸評估**：依交付內容、依賴關係、驗收邊界與可交接性估量，不用單一 counter 當硬上限或品質門檻。**單片 context 約 300k** 目前只作**折衷提醒值（非實測，n=1）**（理由見 `<REPO>/docs/judgment-rationale.md`「project-a session review：Explore 前置與單片 context 提醒的理由」段）；若預估或實際明顯超過，重評進度、剩餘工作、context、重讀與 handoff 成本，再決定續用、交接、序列或重切；多 commit 的單片以 commit 邊界作交接點優先；不得為了湊計數拆開原本有依賴的片。counter 的量法依 adapter，**優先用 agent 交回時的 context 大小**（Claude：完成通知 `<usage>` 的 `subagent_tokens`，見 `references/claude-code.md`「counter」列），工具呼叫數只是輔助；沒有可靠 counter 就標 `unknown`，不可從文字猜，也不阻擋派工。量測限制與後續方法見 `<REPO>/docs/dispatch-cost-review-*.md`。同一批切片中預估最大片超過中位片約 2 倍時，先評估能否再切大片或合併小片，因為並行波次牆鐘由最長片決定（最長／中位 1.71×，P75 2.27×，見 `<REPO>/docs/worker-sonnet55-trial-2026-09.md`「質性 review」）；切不開就維持並在 graph 註明。
+**單片尺寸評估**：依交付內容、依賴關係、驗收邊界與可交接性估量，不用單一 counter 當硬上限或品質門檻。**單片 context 約 300k** 目前只作**折衷提醒值（非實測，n=1）**（理由見 `<REPO>/docs/judgment-rationale.md`「project-a session review：Explore 前置與單片 context 提醒的理由」段）；若預估或實際明顯超過，重評進度、剩餘工作、context、重讀與 handoff 成本，再決定續用、交接、序列或重切；多 commit 的單片以 commit 邊界作交接點優先；不得為了湊計數拆開原本有依賴的片。counter 的量法依 adapter，**優先用 agent 交回時的 context 大小**（Claude：完成通知 `<usage>` 的 `subagent_tokens`，見 `references/claude-code.md`「counter」列），工具呼叫數只是輔助；沒有可靠 counter 就標 `unknown`，不可從文字猜，也不阻擋派工。量測限制與後續方法見 `<REPO>/docs/reviews/dispatch-cost-review-*.md`。同一批切片中預估最大片超過中位片約 2 倍時，先評估能否再切大片或合併小片，因為並行波次牆鐘由最長片決定（最長／中位 1.71×，P75 2.27×，見 `<REPO>/docs/reviews/worker-sonnet55-trial-2026-09.md`「質性 review」）；切不開就維持並在 graph 註明。
 
 **Ownership**（每份 brief 必填）：objective、scope、允許路徑、禁止路徑或子系統、依賴、預期輸出、驗證命令、完成定義。允許路徑以 repo 相對路徑寫，實際落地位置由 adapter 決定（`references/worktree.md`）。目標是**兩個 worker 不會同時改同一檔**，做不到就序列。三條硬規則：
 - **共用觸點不得有兩個 owner**：lockfile、registry／index 檔、generated artifact、migration 序號、changelog 這類單檔熱點，要嘛指定唯一 owner，要嘛留給 integrator 在 §6 統一改，要嘛改成每片一個 fragment 由整合時合併。沒有 owner 的路徑任何片都不准改。
@@ -123,7 +123,7 @@ merge／push 一律由 controller 依當次 session 授權執行（worker 的 pu
 
 **已整合才算完成**：accepted 的改動要在目標 base 上看得到（`git log <base-start>..<base-now>` 有它）。併不回去時不得暗示完成——status board 列出每片所在的 branch 與 HEAD、確切 blocker、已跑的驗證與缺口、下一步要跑的指令，交給使用者決定。
 
-最後回報 status board 終版（`references/templates.md`）：拆了什麼、各片狀態、整合證據、量測（elapsed、等待驗收時間、重工次數、可取得時的 tokens、整合或驗收發現的缺陷）。**沒有序列 baseline 不宣稱加速。** 成本或 effort 比較時用 `<REPO>/docs/dispatch-cost-review-*.md`「後續量測方法」，平常無須做額外重算。
+最後回報 status board 終版（`references/templates.md`）：拆了什麼、各片狀態、整合證據、量測（elapsed、等待驗收時間、重工次數、可取得時的 tokens、整合或驗收發現的缺陷）。**沒有序列 baseline 不宣稱加速。** 成本或 effort 比較時用 `<REPO>/docs/reviews/dispatch-cost-review-*.md`「後續量測方法」，平常無須做額外重算。
 
 ## §8 失敗處理與 re-plan
 
@@ -150,10 +150,10 @@ plan → execute → new information → re-plan（回 §3）→ execute
 
 **使用者要看得懂的節點**：為什麼拆（§2）、拆成哪些片（§3）、哪些在跑／blocked／完成（§4–§5，用 status board）、哪些成果準備整合（§6 第 1 步）、整合結果與量測（§7）。使用者不必處理 terminal、worktree、process 的細節，那是 adapter 的事。
 
-**Adapter 契約**（launch／follow-up／query status／collect／stop 五件事、workspace 建法、角色名稱與 model 對應表、不能做的邊界）完整定義見 `<REPO>/docs/parallel-dispatch-design.md`「Adapter 契約」。
+**Adapter 契約**（launch／follow-up／query status／collect／stop 五件事、workspace 建法、角色名稱與 model 對應表、不能做的邊界）完整定義見 `<REPO>/docs/design/parallel-dispatch-design.md`「Adapter 契約」。
 
 ## §10 邊界
 
 不做：跳過重疊矩陣或 ownership 分析；滾動補位；每次 merge 通知所有 worker rebase；把切分拆成另一個 skill；讓 worker 取得 tracker／push／merge 的隱含授權；把 git 無 conflict 當語意安全；Pattern B 合併多個方案；為了用某個 workspace 工具而改變上述任何一步；在 worktree 之間用複製檔案代替 git 合併。也不用其他 skill 內建、沒有整合步驟的多輪 review 流程取代 §5–§7——既有 fresh verifier 合約與 `~/.claude/rules/judgment.md` 7『驗收的停止端』已承接其驗收目的。
 
-**刻意不做（屬 framework 層，不進本 skill）**：清單與理由見 `<REPO>/docs/parallel-dispatch-design.md`「刻意不做」。
+**刻意不做（屬 framework 層，不進本 skill）**：清單與理由見 `<REPO>/docs/design/parallel-dispatch-design.md`「刻意不做」。

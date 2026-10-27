@@ -59,7 +59,7 @@ Delegation table (abridged from `global/claude/route-card.md`):
 
 ### Model per seat
 
-Each seat sets its model in one place; cheap defaults go to the high-volume seats and expensive capability is switched on per task. The main conversation takes `settings.json` `model`/`effortLevel` (a cheap default such as sonnet/high suits a controller that mostly inventories, launches issue sessions and reports; switch with `/model` for a single heavy task instead of editing settings). Issue sessions are pinned to opus/medium by the `--model`/`--effort` flags that the `require-issue-session-model.sh` hook enforces. `worker` and `verifier` take their frontmatter; `Explore`/`Plan`/`general-purpose` take the route card. Where each is set and what breaks without it: 「每個座位的 model 在哪設、怎麼選」 in [`docs/mechanism.md`](docs/mechanism.md).
+Each seat sets its model in one place; cheap defaults go to the high-volume seats and expensive capability is switched on per task. The main conversation takes `settings.json` `model`/`effortLevel` (a cheap default such as sonnet/high suits a controller that mostly inventories, launches issue sessions and reports; switch with `/model` for a single heavy task instead of editing settings). Issue sessions are pinned to opus/medium by the `--model`/`--effort` flags that the `require-issue-session-model.sh` hook enforces. `worker` and `verifier` take their frontmatter; `Explore`/`Plan`/`general-purpose` take the route card. Where each is set and what breaks without it: 「每個座位的 model 在哪設、怎麼選」 in [`docs/design/mechanism.md`](docs/design/mechanism.md).
 
 ### Six boundaries
 
@@ -182,9 +182,9 @@ Full steps are in [`docs/install.md`](docs/install.md), whose 「安裝對應」
 
 For a new machine (no file in `global/shared/hosts/`), probe it and create its file by following 「新機器建檔（5 分鐘探測清單）」 in [`docs/new-host.md`](docs/new-host.md).
 
-How the installed pieces work at runtime (what loads when, what each hook enforces, which `settings.json` fields the system depends on, and what a rebuild has to restore on both sides) is explained in 「運作機制」 of [`docs/mechanism.md`](docs/mechanism.md).
+How the installed pieces work at runtime (what loads when, what each hook enforces, which `settings.json` fields the system depends on, and what a rebuild has to restore on both sides) is explained in 「運作機制」 of [`docs/design/mechanism.md`](docs/design/mechanism.md).
 
-`docs/install.md`, `docs/new-host.md`, `docs/mechanism.md` and `docs/repo-layout.md` exist in Chinese only.
+`docs/install.md`, `docs/new-host.md`, `docs/design/mechanism.md` and `docs/repo-layout.md` exist in Chinese only.
 
 ## Directory map
 

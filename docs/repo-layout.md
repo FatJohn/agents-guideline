@@ -84,7 +84,7 @@ Codex 的角色選擇、升降級與 runtime adapter 規則是 `global/codex/rul
 | `README.md`／`README.zh-TW.md` | repo 概覽入口（英文／繁體中文，章節對應）：定位、核心概念、安裝入口、目錄地圖 |
 | `docs/install.md` | 完整安裝步驟：Claude Code、Codex、Windows（PowerShell）、實體檔同步版、從 v1 升級；只有中文 |
 | `docs/new-host.md` | 新機器建檔（5 分鐘探測清單）；只有中文 |
-| `docs/mechanism.md` | 運作機制說明：四個時刻各載入什麼、四支 hook 補哪條規則、`settings.json` 依賴的欄位、重建一台機器兩半各要補什麼；只有中文 |
+| `docs/design/mechanism.md` | 運作機制說明：四個時刻各載入什麼、四支 hook 補哪條規則、`settings.json` 依賴的欄位、重建一台機器兩半各要補什麼；只有中文 |
 | `docs/repo-layout.md` | 本檔 |
 | `docs/lessons.md` | 活躍教訓日誌：只留還沒有判準承接的條目，不裝進全域 |
 | `docs/lessons-archive.md` | 已升級成正式判準的歷史教訓（保留原文，作為判準來歷） |
@@ -93,14 +93,12 @@ Codex 的角色選擇、升降級與 runtime adapter 規則是 `global/codex/rul
 | `docs/harness-facts.md` | 查證過的 harness 事實（model／effort 可填值、`isolation: worktree`、hook 注入等） |
 | `docs/hosts-detail.md` | 各機器工具鏈與版本明細（探測快照） |
 | `docs/skill-catalog.md` | 各類任務用哪個 skill／plugin，含 Figma 在 MCP 缺席時的 curl fallback |
-| `docs/memory-layers.md` | 記憶機制四層的分工與邊界 |
-| `docs/codex-named-agent-registration.md` | Codex named agent 實體 TOML 同步、註冊實測差異與限制 |
-| `docs/codex-tooling-audit-*.md` | Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身 |
-| `docs/parallel-dispatch-design.md` | parallel-dispatch 的架構說明與刻意不做的理由 |
-| `docs/verification-policy-history.md` | 驗收政策的歷史背景與 `fable` 升檔訊號清單 |
-| `docs/dispatch-cost-review-*.md`、`worker-sonnet55-trial-*.md`、`issue-session-trial-*.md`、`workflow-cost-improvement-brief-*.md` | 派工成本 audit、worker 換型號的量測、issue 分 session 試行與成本調整 brief；歷史紀錄，不是現行規則 |
-| `docs/restructure-plan-*.md`、`global-policy-ownership-review-*.md`、`global-rules-token-review-*.md`、`*-agents-guildeline-self-review.md` | 全域規則重構的計畫與其輸入審查 |
-| `docs/archive/` | 無任何檔案引用的歷史文件；只作考古用 |
+| `docs/design/memory-layers.md` | 記憶機制四層的分工與邊界 |
+| `docs/reviews/codex-named-agent-registration.md` | Codex named agent 實體 TOML 同步、註冊實測差異與限制 |
+| `docs/reviews/codex-tooling-audit-*.md` | Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身 |
+| `docs/design/parallel-dispatch-design.md` | parallel-dispatch 的架構說明與刻意不做的理由 |
+| `docs/reviews/verification-policy-history.md` | 驗收政策的歷史背景與 `fable` 升檔訊號清單 |
+| `docs/reviews/` | 帶日期的量測、試行、審查、計畫與 brief，查詢用、不是現行規則：`dispatch-cost-review-*`、`worker-sonnet55-trial-*`、`issue-session-trial-*`、`v3-trial-*`、`workflow-cost-improvement-brief-*`（派工成本與 model 試行）；`codex-tooling-audit-*`、`codex-named-agent-registration`（Codex 工具鏈盤點與 named agent 診斷）；`restructure-plan-*`、`global-policy-ownership-review-*`、`global-rules-token-review-*`、`agents-guideline-self-review-*`（全域規則重構的計畫與輸入審查）；`verification-policy-history`、`verification-round-inventory-*`（驗收政策的歷史背景與輪次盤點）；`superpowers/`（2026-07 的 Codex 路由 plan／spec） |
 | `scripts/sync-profile.py` | 把 `global/` 寫成 `~/.claude`、`~/.codex`、`~/.agents` 的實體檔複本（不能提權的機器用），偵測並列出 v1 舊安裝殘留 |
 | `scripts/sync-codex-agents.py` | 把 `global/codex/agents/*.toml` 寫成 `~/.codex/agents` 的實體檔 |
 | `scripts/dispatch-usage.py` | 日落審查用：量主對話自寫與派 subagent 的使用率（量法見 `maintain-guideline` §5） |

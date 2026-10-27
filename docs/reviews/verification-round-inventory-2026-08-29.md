@@ -306,7 +306,7 @@ awk -F'|' '/^\| [0-9]+ \|/{
 }
 END{for(k in loc)print "落點",loc[k],k; for(k in typ)print "型別",typ[k],k
     for(k in rul)print "規則",rul[k],k; for(k in src)print "來源",src[k],k; print "合計",n}' \
-  docs/verification-round-inventory-2026-08-29.md | sort
+  docs/reviews/verification-round-inventory-2026-08-29.md | sort
 ```
 
 **「BODY 13」與「落點＝body 18」是兩個不同的數，不要互換**：有 5 則落在 body、但那句話是為了滿足別的規則才寫的

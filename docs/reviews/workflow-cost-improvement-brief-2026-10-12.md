@@ -22,7 +22,7 @@
 - `skills/parallel-dispatch/references/templates.md`：現有 brief／report 模板。
 - `rules/10-dispatch.md`、`codex/rules/10-dispatch-codex.md`：兩平台派工與驗收路由。
 - `rules/20-judgment.md`：修正輪、delta 驗收與停止端。
-- `docs/issue-session-trial-2026-10.md`：既有量測、限制與未證實節省的結論。
+- `docs/reviews/issue-session-trial-2026-10.md`：既有量測、限制與未證實節省的結論。
 - `rubrics/document-quality.md`：文件驗收。
 
 上述文件有分工，先找每個概念的 canonical 位置，再決定修改哪裡。Claude／Codex 同步共通語意，平台執行方式、權限與 runtime 證據仍依各自合約。

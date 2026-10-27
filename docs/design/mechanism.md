@@ -92,7 +92,7 @@ model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/set
 
 ## 不在 repo 管轄、但會影響觀感的東西
 
-- **plugins**（`enabledPlugins`）：各自帶 skill 與 hook，與本系統無關；盤點與瘦身見 `docs/codex-tooling-audit-2026-10.md`。
+- **plugins**（`enabledPlugins`）：各自帶 skill 與 hook，與本系統無關；盤點與瘦身見 `docs/reviews/codex-tooling-audit-2026-10.md`。
 - **statusline**（ccstatusline）：`model` 欄讀 Claude Code 餵的 status JSON，反映該 session 實際 model；`thinking-effort` 欄沒拿到 status JSON 的 `effort.level`、該 session 又沒跑過 `/effort` 或 `/model` 時，退回顯示 `settings.json` 的 `effortLevel`，不反映 `--effort` 旗標。要確認某個 session 的 effort，看它 jsonl 的 `"effort"` 欄位。
 - **Orca**：`settings.json` 的 matcher `*` hooks 與 `~/.orca/` 由 Orca 安裝；`orca worktree create --agent claude` 翻成 `claude --model … --effort … <prompt>` 起頂層 session，旗標語意見 `global/shared/skills/parallel-dispatch/references/cli.md`。
 - **`settings.json` 的 permissions**：安裝後另行 audit，原則見 `docs/install.md`「Claude Code permissions 要和鐵律二對齊」。

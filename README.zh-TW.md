@@ -53,7 +53,7 @@
 
 ### 每個座位的 model
 
-每個座位的 model 各有一個設定點：便宜的預設給量大的座位，貴的能力只在單一任務需要時當次切。主對話吃 `settings.json` 的 `model`／`effortLevel`——工作型態是盤點、起 issue session、收回報的 controller，設 sonnet／high 這類便宜值就夠，單一重任務用 `/model` 當次切、不改 settings。issue session 由 `--model`／`--effort` 旗標固定在 opus／medium，`require-issue-session-model.sh` hook 保證旗標帶齊。`worker`／`verifier` 吃各自的 frontmatter，`Explore`／`Plan`／`general-purpose` 吃路由卡。各設定點與少了會怎樣見 [`docs/mechanism.md`](docs/mechanism.md)「每個座位的 model 在哪設、怎麼選」。
+每個座位的 model 各有一個設定點：便宜的預設給量大的座位，貴的能力只在單一任務需要時當次切。主對話吃 `settings.json` 的 `model`／`effortLevel`——工作型態是盤點、起 issue session、收回報的 controller，設 sonnet／high 這類便宜值就夠，單一重任務用 `/model` 當次切、不改 settings。issue session 由 `--model`／`--effort` 旗標固定在 opus／medium，`require-issue-session-model.sh` hook 保證旗標帶齊。`worker`／`verifier` 吃各自的 frontmatter，`Explore`／`Plan`／`general-purpose` 吃路由卡。各設定點與少了會怎樣見 [`docs/design/mechanism.md`](docs/design/mechanism.md)「每個座位的 model 在哪設、怎麼選」。
 
 ### 六條邊界
 
@@ -172,7 +172,7 @@ Codex 用 Luna、Terra、Sol 三個由低到高的層級。升級規則（Luna �
 - **Windows（PowerShell）**：用系統管理員 PowerShell，一次裝好 Claude Code 與 Codex 兩側。
 - **實體檔同步版**：給不能提權的機器；用 `scripts/sync-profile.py` 寫成複本，改 repo 後要重跑。
 
-新機器（`global/shared/hosts/` 沒有它的檔）照 [`docs/new-host.md`](docs/new-host.md)「新機器建檔（5 分鐘探測清單）」探測並建檔。裝好的東西在執行時怎麼運作（什麼時刻載入什麼、每支 hook 補哪條規則、`settings.json` 依賴哪些欄位、重建時兩半各要補什麼）見 [`docs/mechanism.md`](docs/mechanism.md)「運作機制」。`docs/install.md`、`docs/new-host.md`、`docs/mechanism.md`、`docs/repo-layout.md` 只有中文版。
+新機器（`global/shared/hosts/` 沒有它的檔）照 [`docs/new-host.md`](docs/new-host.md)「新機器建檔（5 分鐘探測清單）」探測並建檔。裝好的東西在執行時怎麼運作（什麼時刻載入什麼、每支 hook 補哪條規則、`settings.json` 依賴哪些欄位、重建時兩半各要補什麼）見 [`docs/design/mechanism.md`](docs/design/mechanism.md)「運作機制」。`docs/install.md`、`docs/new-host.md`、`docs/design/mechanism.md`、`docs/repo-layout.md` 只有中文版。
 
 ## 目錄地圖
 

@@ -24,7 +24,7 @@ description: 派工與驗收的完整機制：何時派 subagent、角色與 mod
 
 ### 一個 issue 一個 session
 
-互相獨立的 issue（各自可單獨交付、不必一起整合）一個 issue 一個頂層 session，不由同一個 controller 平行扛：本 session 只做盤點，每個 issue 各開一個 session，依 `~/.claude/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」開出（理由與量測見 `<REPO>/docs/issue-session-trial-2026-10.md`）。issue session 的 brief 逐字引用使用者在盤點 session 對該 issue 的授權時，視同該 session 已授權，範圍以引文為限、上限 push feature branch＋開 PR，細節見 cli.md 該段「授權」條。一個 issue 交付後要換主題，開新 session，不在大 context 上接新主題。
+互相獨立的 issue（各自可單獨交付、不必一起整合）一個 issue 一個頂層 session，不由同一個 controller 平行扛：本 session 只做盤點，每個 issue 各開一個 session，依 `~/.claude/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」開出（理由與量測見 `<REPO>/docs/reviews/issue-session-trial-2026-10.md`）。issue session 的 brief 逐字引用使用者在盤點 session 對該 issue 的授權時，視同該 session 已授權，範圍以引文為限、上限 push feature branch＋開 PR，細節見 cli.md 該段「授權」條。一個 issue 交付後要換主題，開新 session，不在大 context 上接新主題。
 
 同一 issue／功能內準備讓 ≥2 個各需寫入的切片平行（含 spec 尚未切分、要先判斷能不能切時），先讀 `~/.claude/skills/parallel-dispatch/SKILL.md`，它承載切分判準、派工、整合驗收流程（worktree 與 terminal 只是 adapter 層）。
 
@@ -95,7 +95,7 @@ Agent 工具有逐次 `effort` 參數，但派 `worker`／`verifier` 不帶（�
 **Subagent 回報**，固定格式見 `~/.claude/skills/handoff/SKILL.md` §2『回報卡』與 §3『verifier 判定卡』：
 
 - 只回**結論與證據**（檔案:行號、指令輸出關鍵行），不回原始內容傾倒。
-- 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接用 handoff §4『session 交接卡』，記憶分層見 `<REPO>/docs/memory-layers.md`。
+- 需留存的長產物（報告、大 diff、清單）放 repo 內合適路徑；session 內進度使用平台 plan／task，跨 session 續接用 handoff §4『session 交接卡』，記憶分層見 `<REPO>/docs/design/memory-layers.md`。
 - 回報長度以 controller 下一步決策需要的資訊為準。大 diff、完整清單、全文等長產物落檔，`.md` 檔名不以 `report`／`summary`／`findings`／`analysis` 開頭（否則 harness 擋 subagent 寫入，見 `<REPO>/docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），回報附路徑與摘要；驗收的逐條判定屬決策資訊，留在回報內。brief 的回報格式只列下一步決策要用的欄位，欄位以外一律落檔附路徑。要縮時先砍原始內容傾倒與重複敘述，不砍決策所需證據。
 - 唯讀角色（Explore／Plan）的角色指示禁止寫檔（含 heredoc，見 `<REPO>/docs/harness-facts.md`「常用 subagent 類型」），長度只能靠 brief 控：要它回「結論＋檔案:行號範圍」，不要回原文段落；worker brief 寫「讀 X 第 a–b 行」由執行者自讀；真要原文落檔改派 general-purpose（sonnet）寫到指定路徑。附進 brief 的素材本身不計長度。
 - 回報必須分級：**已驗證（附證據）／待 CI／未驗證**。
@@ -153,7 +153,7 @@ execution mistake（syntax、漏改、指令拼錯）正確修法明確時可同
 
 Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`：frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑；真的 fallback 時另帶與 verifier frontmatter 相同的 `effort`，否則 effort 落到 session 設定。
 
-改用 `model: fable` 前，說明訊號與證據並取得當次同意（訊號清單與歷史理由見 `<REPO>/docs/verification-policy-history.md`「fable 升檔訊號」）。使用者當次直接指定 fable 不必再問；無訊號仍可提議，但要明說沒有訊號及判斷理由。Codex 刻意維持 `sol_verifier/Sol high`，見 `<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』。
+改用 `model: fable` 前，說明訊號與證據並取得當次同意（訊號清單與歷史理由見 `<REPO>/docs/reviews/verification-policy-history.md`「fable 升檔訊號」）。使用者當次直接指定 fable 不必再問；無訊號仍可提議，但要明說沒有訊號及判斷理由。Codex 刻意維持 `sol_verifier/Sol high`，見 `<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』。
 
 **第二個現場**是取樣，不是本次必修清單；verifier 交回的 N 個實例清單同樣是取樣。逐個修完之前先問「是什麼產生它們」，再決定修哪一層。範圍內依 §7 修正分流；範圍外不擴修，登記該 repo issue 並附連結（對外授權仍依鐵律二，未授權先保留待登記項目）。連續兩輪發現都在範圍外就停手回報，不把下一批工作塞進本次。
 

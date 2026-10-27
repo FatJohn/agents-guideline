@@ -54,7 +54,7 @@ Claude 的實際 context、hook 注入時機與 Codex child 的最終 prompt 都
 | Codex `AGENTS.md` | 6,495 | 每個 AGENTS 載入路徑的入口面積 |
 | Codex dispatch 加模板 | 51,375 | 需要派工時的文件面積，非已量得的 prompt token |
 
-數字來源是本輪 `wc -c`；Claude 分組與 controller 分流的安裝設計見 [docs/install.md](../docs/install.md) 的〈SessionStart hook：注入 controller 專用規則（必裝）〉。
+數字來源是本輪 `wc -c`；Claude 分組與 controller 分流的安裝設計見 [docs/install.md](../install.md) 的〈SessionStart hook：注入 controller 專用規則（必裝）〉。
 
 ## 產品與外部工作流依據
 
@@ -76,14 +76,14 @@ hook 可以在 lifecycle 的固定事件上執行，適合小型 router 或 dete
 
 | 層 | 現有入口 | 合理責任 | 主要問題 |
 |---|---|---|---|
-| 全域 Claude | [CLAUDE.md](../CLAUDE.md) | 最低安全、語言、短路由 | 常駐規則、hook 與派工授權在此匯合 |
+| 全域 Claude | [CLAUDE.md](../../CLAUDE.md) | 最低安全、語言、短路由 | 常駐規則、hook 與派工授權在此匯合 |
 | Claude rules | [rules/](../rules/) | 每 session 都需知的事實 | 使用者背景、派工方法、長驗收語義混在無條件區 |
 | Claude controller | [rules-controller/](../rules-controller/) | controller 才需的策略 | SessionStart 注入整份派工與判斷細節 |
 | Claude agents | [agents/](../agents/) | role 的工具／寫入界線 | 可保留具體角色契約，不能承擔全域工作流 |
-| Codex 全域 | [AGENTS.md](../AGENTS.md) | boot、邊界、短路由 | 情境表把許多按需文件列為多步驟任務的預設成本 |
+| Codex 全域 | [AGENTS.md](../../AGENTS.md) | boot、邊界、短路由 | 情境表把許多按需文件列為多步驟任務的預設成本 |
 | Codex dispatch | [codex/rules/](../codex/rules/) | runtime adapter 與派工契約 | dispatch 與 A–L 全模板被一起要求閱讀 |
 | skills | [skills/](../skills/) | 有 trigger 的程序與參考 | 已有合適容器，尚未成為 orchestration 的主 owner |
-| hooks／設定 | [docs/install.md](../docs/install.md) | deterministic enforcement 與短注入 | 行為指示與強制擋板仍需區分 |
+| hooks／設定 | [docs/install.md](../install.md) | deterministic enforcement 與短注入 | 行為指示與強制擋板仍需區分 |
 
 Claude 入口第 16 行明說 `rules/` 常駐而 controller 由 hook 注入；第 23–25 行已把維護與文件程序交給 skills。
 

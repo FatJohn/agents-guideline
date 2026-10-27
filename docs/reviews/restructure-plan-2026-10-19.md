@@ -2,9 +2,9 @@
 
 讀者：本 repo 維護者與執行重構的 agent。
 
-型別：計畫（完成後封存到 `docs/archive/`）。
+型別：計畫（完成後封存到 `docs/reviews/`）。
 
-輸入：使用者自評 `2026-10-19-agents-guildeline-self-review.md`（主）、ownership review `global-policy-ownership-review-2026-10-19.md`（主）、token review `global-rules-token-review-2026-10-19.md`（輔）、`docs/judgment-rationale.md` 與 `docs/lessons-archive.md`（歷程）。
+輸入：使用者自評 `agents-guideline-self-review-2026-10-19.md`（主）、ownership review `global-policy-ownership-review-2026-10-19.md`（主）、token review `global-rules-token-review-2026-10-19.md`（輔）、`docs/judgment-rationale.md` 與 `docs/lessons-archive.md`（歷程）。
 
 ## 1. 目標與不變量
 

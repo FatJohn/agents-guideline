@@ -2,7 +2,7 @@
 
 > 常駐區只留判準與不算違規邊界（格式規則見 `<REPO>/.claude/skills/maintain-guideline/SKILL.md` §5「瘦身協議」）。訂條理由、事故脈絡、修辭句、鄰條分工與 ✅／❌ 正反例從常駐區搬到這裡，**原句保留不改寫**；舊 `§` 章節的標題與重構前 `rules/20-judgment.md` 的節名／補充判準名一一對應。要查「這條為什麼存在」時再讀，不會自動載入。例外：檔尾「2026-09-21 session review：非 20-judgment 檔的調整理由」一節收 `global/claude/agents/worker.md`、dispatch skill、全域 `CLAUDE.md` 的理由，以及 dispatch skill、`global/claude/agents/verifier.md` 搬出的 ✅／❌（該節是重構前寫的，節內的檔名是當時的路徑）。 各章節內引用的 `rules/`、`rules-controller/` 等舊路徑是重構前原句，刻意不更新；新位置對照見 `<REPO>/docs/repo-layout.md`。
 
-> 新版常駐規則 `global/shared/rules/judgment.md` 已改寫成 15 條編號規則（改寫計畫見 `<REPO>/docs/restructure-plan-2026-10-19.md` §2–§3）；各條的訂條理由與從常駐區移出的原句，收在本檔檔尾與新條目同名的 `## N. 標題` 章節，與下方舊 `§` 章節並存、舊章節原文不動。舊編號對應如下，舊引用可由此找到新位置。
+> 新版常駐規則 `global/shared/rules/judgment.md` 已改寫成 15 條編號規則（改寫計畫見 `<REPO>/docs/reviews/restructure-plan-2026-10-19.md` §2–§3）；各條的訂條理由與從常駐區移出的原句，收在本檔檔尾與新條目同名的 `## N. 標題` 章節，與下方舊 `§` 章節並存、舊章節原文不動。舊編號對應如下，舊引用可由此找到新位置。
 
 | 舊節名 | 新位置 |
 |---|---|
@@ -266,7 +266,7 @@
 > 不然今天跟 AI 講得再清楚，過幾十輪之後，早就歪到姥姥家了，我覺得用這個角度去想之後，反而才能真的好好 Focus 在 Spec 要寫什麼，然後也不會過度在思考要怎麼把 Code 完全完整同步翻譯成人話文件，這件事不如讓 AI 讀 Code 就好。
 > 很多人都搞錯方向，變成多維護一份完整的 Code 翻譯文件。
 
-補充：註解同理——不需要寫太多，在不好理解的地方、有商業決策的地方再補；整體設計方向以另外的文件描述。反例引的數字來自 `<REPO>/docs/archive/verification-round-inventory-2026-08-29.md` §3.1（93 則 FAIL 中 40 則落在程式碼註解，43%）。
+補充：註解同理——不需要寫太多，在不好理解的地方、有商業決策的地方再補；整體設計方向以另外的文件描述。反例引的數字來自 `<REPO>/docs/reviews/verification-round-inventory-2026-08-29.md` §3.1（93 則 FAIL 中 40 則落在程式碼註解，43%）。
 
 以下 ✅／❌ 於 2026-10-12 從常駐區搬出（使用者決定：常駐範例是在補償舊模型，新模型靠判準與邊界即可照做），原句保留：
 
@@ -314,11 +314,11 @@
 
 **`skills/parallel-dispatch/SKILL.md`「單片尺寸評估」加 context 約 300k 提醒**：該單片首輪 4 commit（含兩輪修正共 7 commit、33 檔 +4781 行；首輪 4 commit 為 30 檔 +4119 行），首輪實作 50 分鐘（tool 執行 12 分、模型產出 38 分、含讀碼段共 268 turn／266k output tokens），時間面合理；問題在 context 一路漲到 655k（1M 視窗），336 turn 平均每輪重讀 426k、累計 143M cache-read tokens（同 session 主對話 24M、兩個 verifier 合計 24M）。commit 1–2（格式核心）與 3–4（saver／play 整合）之間有清楚的交接點且 3–4 依賴 2，平行切不了但序列交接可以，每段 context 可壓在 300k 內。300k 取「200k 以上進長 context 計費」與「交接冷啟動再付一次摸索」之間的折衷，只作提醒不作硬上限，與同段「不用單一 counter 當硬上限」一致。檢驗方式：之後 N 個單片交回時 `subagent_tokens` 的中位若 >300k，代表提醒值落在健康派工之下（與 60 次同形），即撤回。驗收兩輪 38 分鐘裡約一半是 .NET build+test 的 mutation 迴圈，屬「驗證不自驗」的必要成本，不列為問題。
 
-**`skills/parallel-dispatch/SKILL.md`「單片尺寸評估」撤回 60 次工具呼叫提醒**：60 是 2026-09-17 訂的、當日 `<REPO>/docs/dispatch-cost-review-2026-09-17.md` 已標為待評估假設；2026-09-21 review 實測 worker 工具呼叫中位 90 次、13/89 超過 150 次且逐一檢視無鬼打牆（見上方「規則 8」段）。提醒值落在中位數以下，超過半數健康派工都會觸發，等於沒有訊號；同段已規定 counter 優先用 context 大小、呼叫數只是輔助，worker 也算不準自己的呼叫數。§6 第 10 步「不以首輪 60 次單獨決定」同步改為「不以工具呼叫數單獨決定」。
+**`skills/parallel-dispatch/SKILL.md`「單片尺寸評估」撤回 60 次工具呼叫提醒**：60 是 2026-09-17 訂的、當日 `<REPO>/docs/reviews/dispatch-cost-review-2026-09-17.md` 已標為待評估假設；2026-09-21 review 實測 worker 工具呼叫中位 90 次、13/89 超過 150 次且逐一檢視無鬼打牆（見上方「規則 8」段）。提醒值落在中位數以下，超過半數健康派工都會觸發，等於沒有訊號；同段已規定 counter 優先用 context 大小、呼叫數只是輔助，worker 也算不準自己的呼叫數。§6 第 10 步「不以首輪 60 次單獨決定」同步改為「不以工具呼叫數單獨決定」。
 
 ## 2026-10-12 Explore 前置改成觸發式
 
-`rules-controller/10-dispatch.md`「Controller 工作迴圈」第 1 步原文「核定前先派 `Explore`」是預設開啟、只留「手上已有素材」一個例外。改成預設仍派 Explore，但 (a) 清單與測試結構能從一次批次 `rg`／`ls` 輸出直接得出、且 (b) 關鍵段落全在本輪已讀進主對話 context 的檔裡時，controller 自己拿。第一版寫成兩組條件（「一次批次取得」對「要掃多目錄」）互相重疊又有缺口、「幾個檔」「明顯撐大」無邊界，fresh verifier 判不出結果而退回；改成「預設 Explore＋兩項同時成立才自拿」後只剩一個判斷軸：controller 要不要為了找素材去讀還沒讀過的檔。依據：2026-09-22 project-a 兩個 session 量到 Explore→brief 前置各約 12 分（樣本 n=2，量測只記在本機 session 記憶、未入 repo；當時被 live 量測蓋住，沒可並行工作時會變真牆鐘）；上方「2026-09-22 project-a session review」段已寫明「這條的假設是「附的是素材而不是描述」才省得掉摸索段」、「這是尚未實證的假設」。條件 (b) 綁「已讀進 context」是為了不與 `rules/00-environment.md` 風險 1（主對話下場做粗活）相抵。Codex 端 `codex/rules/10-dispatch-codex.md` §3「素材與批次查證」本來只要求 brief 附素材、沒有先派 explorer 的強制句，不需同步。來源：使用者 2026-10-12 核定 `docs/workflow-cost-improvement-brief-2026-10-12.md` 候選 1「派工依需要觸發」（本 session 回覆中列為候選 A）。檢驗方式兩項：沿用上段比「第一次 Edit 前的 turn 數」，controller 自拿素材的派工若明顯高於派 Explore 的，收回；另比主對話核定 plan 前的 context 增量（jsonl 量法見 `docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），自拿的派工若增量超過一次批次指令輸出的量級，代表 (b) 被繞過，同樣收回。
+`rules-controller/10-dispatch.md`「Controller 工作迴圈」第 1 步原文「核定前先派 `Explore`」是預設開啟、只留「手上已有素材」一個例外。改成預設仍派 Explore，但 (a) 清單與測試結構能從一次批次 `rg`／`ls` 輸出直接得出、且 (b) 關鍵段落全在本輪已讀進主對話 context 的檔裡時，controller 自己拿。第一版寫成兩組條件（「一次批次取得」對「要掃多目錄」）互相重疊又有缺口、「幾個檔」「明顯撐大」無邊界，fresh verifier 判不出結果而退回；改成「預設 Explore＋兩項同時成立才自拿」後只剩一個判斷軸：controller 要不要為了找素材去讀還沒讀過的檔。依據：2026-09-22 project-a 兩個 session 量到 Explore→brief 前置各約 12 分（樣本 n=2，量測只記在本機 session 記憶、未入 repo；當時被 live 量測蓋住，沒可並行工作時會變真牆鐘）；上方「2026-09-22 project-a session review」段已寫明「這條的假設是「附的是素材而不是描述」才省得掉摸索段」、「這是尚未實證的假設」。條件 (b) 綁「已讀進 context」是為了不與 `rules/00-environment.md` 風險 1（主對話下場做粗活）相抵。Codex 端 `codex/rules/10-dispatch-codex.md` §3「素材與批次查證」本來只要求 brief 附素材、沒有先派 explorer 的強制句，不需同步。來源：使用者 2026-10-12 核定 `docs/reviews/workflow-cost-improvement-brief-2026-10-12.md` 候選 1「派工依需要觸發」（本 session 回覆中列為候選 A）。檢驗方式兩項：沿用上段比「第一次 Edit 前的 turn 數」，controller 自拿素材的派工若明顯高於派 Explore 的，收回；另比主對話核定 plan 前的 context 增量（jsonl 量法見 `docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」），自拿的派工若增量超過一次批次指令輸出的量級，代表 (b) 被繞過，同樣收回。
 
 ## 2026-09-22 parallel-dispatch skill fable review 落地
 
@@ -326,7 +326,7 @@
 
 **`SKILL.md` §8 worker 停滯規則加「探索段不計」**：原句「兩次相隔至少 10 分鐘或該片預估工時的一半，取小者」把 ≤20 分的片門檻壓到 ≤10 分，容易在健康探索段誤殺。證據：第一次 Edit 前摸索中位 24 次、占 29%（中位 16.1 分 → 約 4–5 分鐘 git 零改動，2026-09-21 review）；project-a 單片第 77 turn／開工 8 分鐘才第一次 Edit（2026-09-22 review）；來源 commit `4368dd5`（09-15）無任何實測引用。改為「第一次 Edit 前的探索段不計」，能查詢狀態的 adapter 以活動訊號為主，git read-back 只作佐證；同步、無法中途查詢的 adapter（Claude subagent，見 `claude-code.md`）仍以 git 兩次 read-back 為準，門檻降級為未實測的參考值。探索段（第一個 git 改動之前）刻意不設上限：2026-09-21 review 逐一檢視 13/89 長尾 worker 無一鬼打牆，之前的 60 次與 10 分鐘門檻誤殺的正是這段；全程零改動的 worker 由 §4「實作類任務改動為零＝失敗」事後抓，代價是那一次空轉全額付掉。
 
-**`SKILL.md` §6 第 10 步續用成本數字移出常駐句**：實測續用輪每 request 成本約首輪 1.9 倍、一輪續用修正約一個 fresh 修正 worker 的 1.7 倍（方向證據，兩組任務難度未受控），且半數 follow-up 送出時 context 已 >200K（`<REPO>/docs/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」）。常駐句改留一句「續用成本高於 fresh，數字見 rationale」。
+**`SKILL.md` §6 第 10 步續用成本數字移出常駐句**：實測續用輪每 request 成本約首輪 1.9 倍、一輪續用修正約一個 fresh 修正 worker 的 1.7 倍（方向證據，兩組任務難度未受控），且半數 follow-up 送出時 context 已 >200K（`<REPO>/docs/reviews/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」）。常駐句改留一句「續用成本高於 fresh，數字見 rationale」。
 
 ## 2026-10-12 verifier 第一行附下一步
 
@@ -502,6 +502,6 @@
 
 ## 15. 可中斷的長任務要留可恢復脈絡
 
-新增條目，舊檔沒有對應句。來源是 `<REPO>/docs/restructure-plan-2026-10-19.md` §3「handoff skill」：四張固定卡（brief 卡、回報卡、verifier 判定卡、session 交接卡）放在 handoff skill，全域規則只留「可中斷的長任務要留可恢復脈絡」一句，格式與時機指向 handoff skill §4「session 交接卡」。
+新增條目，舊檔沒有對應句。來源是 `<REPO>/docs/reviews/restructure-plan-2026-10-19.md` §3「handoff skill」：四張固定卡（brief 卡、回報卡、verifier 判定卡、session 交接卡）放在 handoff skill，全域規則只留「可中斷的長任務要留可恢復脈絡」一句，格式與時機指向 handoff skill §4「session 交接卡」。
 
-「不算違規：單輪可完成的小任務」是防止每個小任務都被要求寫交接卡；觸發條件列四種情形（多階段、會等人、會離開、會 compact），都是脈絡可能被切斷的時刻。四層記憶的分工見 `<REPO>/docs/memory-layers.md`。
+「不算違規：單輪可完成的小任務」是防止每個小任務都被要求寫交接卡；觸發條件列四種情形（多階段、會等人、會離開、會 compact），都是脈絡可能被切斷的時刻。四層記憶的分工見 `<REPO>/docs/design/memory-layers.md`。

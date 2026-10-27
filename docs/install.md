@@ -5,7 +5,7 @@
 型別：接入指南
 
 > 本檔是 `README.md` 安裝入口指向的完整安裝步驟：Claude Code（macOS／Linux）→ Codex（macOS／Linux）→ Windows（PowerShell，兩側一起裝）→ 實體檔同步版（不能提權的機器）→ 從 v1 升級。
-> 想先懂「哪些東西在什麼時刻生效、各裝在哪、少了會怎樣」再動手，讀 `docs/mechanism.md`「運作機制」。
+> 想先懂「哪些東西在什麼時刻生效、各裝在哪、少了會怎樣」再動手，讀 `docs/design/mechanism.md`「運作機制」。
 > `REPO` 依機器而異：macOS 主力機是 `~/Projects/FatJohn/agents-guideline`，Windows 桌機是 `D:\Projects\FatJohn\agents-guideline`，兩者的對照在 `global/codex/AGENTS.md`「Bootstrap」；新機器先照 `docs/new-host.md` 建檔。
 
 ## 安裝對應
@@ -245,7 +245,7 @@ Codex subagent 並行與遞迴上限建議固定：
 
 `max_depth = 1` 的用意是把 subagent 遞迴限制在一層；調高前需重新評估 token、延遲與 working-tree 風險。此 key 以 Codex CLI 0.151.0 的 `--strict-config` 驗證可接受，但**沒有實跑 nested spawn 驗證其行為**，且公開 config reference 沒有列出，因此是本系統的實測相容設定，不是官方 canonical；新 CLI 若拒絕就移除，角色合約本身仍禁止 nested spawn。`codex exec --ephemeral --sandbox read-only` 是單體 fresh reviewer 的 direct CLI 路徑；它直接驗收，不在該 ephemeral process nested spawn。
 
-安裝後實際測一次 named spawn；清單列出角色或 TOML parse 通過不代表能建立。physical TOML 讓目前桌面與 fresh CLI 的 explorer named path 可重跑；named 建立與 model／effort 的 child metadata 仍要以實際工具證據確認。沒有永久 config registration；證據、限制與用法見 `docs/codex-named-agent-registration.md`，不可用時仍依 runtime adapter 的 permission gate 選 fallback。
+安裝後實際測一次 named spawn；清單列出角色或 TOML parse 通過不代表能建立。physical TOML 讓目前桌面與 fresh CLI 的 explorer named path 可重跑；named 建立與 model／effort 的 child metadata 仍要以實際工具證據確認。沒有永久 config registration；證據、限制與用法見 `docs/reviews/codex-named-agent-registration.md`，不可用時仍依 runtime adapter 的 permission gate 選 fallback。
 
 Codex 的三個層次要分開看：standalone `~/.codex/agents/*.toml` 只提供角色設定與註冊來源；named role runtime 只有在當前 surface 明確選中並取得證據時才算套用；named unavailable 時由 runtime adapter 選擇實際 `agent_type=default` 或 direct CLI，並加上 `global/codex/rules/delegation-templates.md` 的 adapter envelope 與完整 logical-role contract，再明確傳入 mapping 的 model／effort。generic spawn 要 override model／effort 時，`fork_turns` 必須是 `none` 或正整數，不能用 full-history fork。permission 分成 logical contract 與 runtime evidence：寫入角色可在父 session 權限涵蓋 approved scope 時用 `default`；read-only 角色只有 runtime 已是 read-only 時可用 `default`，否則改走 `codex exec --sandbox read-only`。generic／direct CLI 是可執行 fallback，不是 custom role；若 model／effort／permission 證據完整，可作獨立驗收，缺證據則標 runtime 未驗證、不能正式結案。
 
@@ -258,7 +258,7 @@ memories = true
 
 兩個平台共用的六個 global skills：`dispatch` 負責派工、回報、升降級與驗收後修正，`handoff` 提供 brief、回報、verifier 判定、session 交接四張固定卡（session 卡預設寫專案根 `.agents/HANDOFF.md`），`git-commit` 定 commit message 格式與 squash merge 標題，`create-pr` 負責分析 branch 變更並準備 Pull Request，`parallel-dispatch` 處理多寫入切片的切分、派工與整合驗收（worktree 與 terminal 只是 adapter 層），`writing-principles` 提供長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則、判定與純標準庫檢查腳本（`scripts/check_docs.py`），寫的人與 verifier 跑同一支。`maintain-guideline` 與 `usage-review` 是 repo-only：Claude 在本 repo 開工時自動可用，Codex 維護本 repo 時直接讀 `.claude/skills/maintain-guideline/SKILL.md`；`usage-review` 只解析 Claude Code 本機 session jsonl（`~/.claude/projects`），不裝到 Codex。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
 
-Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身，按需讀 `<REPO>/docs/codex-tooling-audit-2026-10.md`。
+Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身，按需讀 `<REPO>/docs/reviews/codex-tooling-audit-2026-10.md`。
 
 ## 安裝（Windows／PowerShell）
 

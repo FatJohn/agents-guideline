@@ -9,7 +9,7 @@
 新增的總原則是：**先審所有權與是否需要全域常駐，再談壓字句**。專案規格優先能解決衝突，但不會自動消除兩份 context；要逐項判斷是刪除、由 project 負責、skill 化、agent contract 承接，或保留全域最低邊界。
 
 1. **P0，先量後改**：以相同類型工作、固定期間比較 main context、worker 在窗口可見的首 request、重複修正／escaped defect 與 Usage 畫面的 weekly 曲線；先做兩個低風險 A/B 實驗：語言段落、Codex named-role prompt。任一品質指標退步立即回退。
-2. **P1，最小且最有把握的瘦身候選**：現有 user-level Claude `language` 設定已是「繁體中文台灣用語」，以可回退 A/B 驗證其是否足以取代 [`CLAUDE.md:6-8`](../CLAUDE.md#L6) 的重複語言句。技術名詞／程式碼原文是另一個語義，不能因為 `language` key 存在便直接宣稱已涵蓋。
+2. **P1，最小且最有把握的瘦身候選**：現有 user-level Claude `language` 設定已是「繁體中文台灣用語」，以可回退 A/B 驗證其是否足以取代 [`CLAUDE.md:6-8`](../../CLAUDE.md#L6) 的重複語言句。技術名詞／程式碼原文是另一個語義，不能因為 `language` key 存在便直接宣稱已涵蓋。
 3. **P1，保留安全核心、審查 controller fan-out**：不是先砍 verifier。先檢驗 [`rules-controller/10-dispatch.md:43-46`](../rules-controller/10-dispatch.md#L43) 對素材探索、完整 plan、fresh repair 與驗收輪次的組合，是否把 routine 工作推成不成比例的 `Explore → worker → verifier` request 數。現行「一次 review／按風險做 delta」已是抑制機制，不能又提成新規則。
 4. **P2，拆出少數真正在常駐區的細節**：把 `rules/20` 的工具／Git 細節、`rules/00` 的使用者背景、`rules/50` 的工具專屬教訓改為有觸發條件的資料；保留不可逆授權、環境 gotcha、產物／negative evidence 的可判定邊界。
 5. **P2，Codex dispatch 僅做 named-role 實驗**：現行 adapter 與 A–L 模板總計很長，但不是 Codex session 的自動初始內容。先證明 named role 已有角色合約後，能否只傳 task-specific plan；generic fallback／direct CLI 仍傳完整 adapter 合約。未證實前不縮短。
@@ -28,7 +28,7 @@
 
 ### 載入成本模型
 
-令 `B` 為 UTF-8 bytes，`T` 為某次 request 實際 input／cache token，`Q` 為帳戶在某一 weekly window 的剩餘 allocation。只有 `B` 在這次檔案盤點中可直接相加；`T` 還受 system prompt、chat history、工具結果、plugin／MCP、動態 hook 與選中的 agent 影響；`Q` 的計量未由 Anthropic 公開為 `B` 或 `T` 的固定函數。既有校準也只是一個舊的中英混合檔樣本（2.07 bytes/token），不適用於本集合的通用換算。[`docs/harness-facts.md:81-84`](harness-facts.md#L81)
+令 `B` 為 UTF-8 bytes，`T` 為某次 request 實際 input／cache token，`Q` 為帳戶在某一 weekly window 的剩餘 allocation。只有 `B` 在這次檔案盤點中可直接相加；`T` 還受 system prompt、chat history、工具結果、plugin／MCP、動態 hook 與選中的 agent 影響；`Q` 的計量未由 Anthropic 公開為 `B` 或 `T` 的固定函數。既有校準也只是一個舊的中英混合檔樣本（2.07 bytes/token），不適用於本集合的通用換算。[`docs/harness-facts.md:81-84`](../harness-facts.md#L81)
 
 因此只使用下列安全陳述：刪除**確實載入**的內容，會降低那個情境的靜態 bytes；是否降低 token、cache write/read、輸出、總 request、或延後 weekly limit，必須用相同工作類型的 before/after 量測確認。
 
@@ -38,11 +38,11 @@
 
 | Claude 載入情境 | 組成 | Bytes | 解讀 |
 |---|---|---:|---|
-| 全域 shared | `CLAUDE.md` 3,943 + `rules/*` 16,923 + 本機 host 1,428 | 22,294 | `CLAUDE.md` 明示 rules 每 session 常駐，並 `@` 匯入 host facts；custom worker／verifier 也繼承。[`CLAUDE.md:10-16`](../CLAUDE.md#L10) [`docs/harness-facts.md:70-78`](harness-facts.md#L70) |
-| Claude controller | shared + `rules-controller/*` 25,016 | 47,310 | controller files 由 SessionStart 注入主對話、custom agent 不繼承。不是每個 subagent 固定成本。[`docs/harness-facts.md:77`](harness-facts.md#L77) |
+| 全域 shared | `CLAUDE.md` 3,943 + `rules/*` 16,923 + 本機 host 1,428 | 22,294 | `CLAUDE.md` 明示 rules 每 session 常駐，並 `@` 匯入 host facts；custom worker／verifier 也繼承。[`CLAUDE.md:10-16`](../../CLAUDE.md#L10) [`docs/harness-facts.md:70-78`](../harness-facts.md#L70) |
+| Claude controller | shared + `rules-controller/*` 25,016 | 47,310 | controller files 由 SessionStart 注入主對話、custom agent 不繼承。不是每個 subagent 固定成本。[`docs/harness-facts.md:77`](../harness-facts.md#L77) |
 | Claude `worker` | shared + role file 6,775（含 frontmatter） | 29,069 | 不含 Claude 的內建 system prompt、專案檔、工具結果與 brief。[`agents/worker.md:1-13`](../agents/worker.md#L1) |
 | Claude `verifier` | shared + role file 7,897（含 frontmatter） | 30,191 | 同上；不能將 fresh-context 驗收的價值當作可任意刪除的重複。[`agents/verifier.md:1-10`](../agents/verifier.md#L1) |
-| Codex global entry | `AGENTS.md` | 6,495 | 入口要求按情境讀其他文件，不等同把所有後續檔案注入。[`AGENTS.md:17-36`](../AGENTS.md#L17) |
+| Codex global entry | `AGENTS.md` | 6,495 | 入口要求按情境讀其他文件，不等同把所有後續檔案注入。[`AGENTS.md:17-36`](../../AGENTS.md#L17) |
 | Codex dispatch materials | dispatch 28,438 + A–L templates 22,937 | 51,375 | 是 controller 派工／模板工作量；不是已證實的每-agent 初始注入。[`codex/rules/10-dispatch-codex.md:1-4`](../codex/rules/10-dispatch-codex.md#L1) [`codex/rules/30-delegation-templates-codex.md:1-35`](../codex/rules/30-delegation-templates-codex.md#L1) |
 | 平行派工 Claude adapter | core 24,732 + Claude reference 5,599 | 30,331 | 只在並行切分觸發，不能誤列進一般 session 初始成本。[`skills/parallel-dispatch/SKILL.md:1-18`](../skills/parallel-dispatch/SKILL.md#L1) |
 
@@ -87,7 +87,7 @@ python3 skills/usage-review/scripts/extract.py \
 
 raw API price snapshot（repo 於 2026-10-06 的表）算得 $3,131.02860047 等價值；它**不是**帳單、不是 subscription 額度、不是當日官方價格，且 `out_est_nonnull=0`、advisor 缺失、不含其他機器與 claude.ai。窗口可見首 request 也可能是 10-12 前已啟動／續用 agent 的首筆，而非冷啟動；不同專案、brief、tool 混雜。因此角色比例只用來排實驗優先，不能稱為精確真實支出結構，更不能預測節省多少週配額。
 
-既有實測已證明 controller rules 分流能降低 custom agent 首 request；同時也證明 `omitClaudeMd` 會連 project spec 與語言設定一起消失，所以不是本輪可直接採用的省 token 手段。[`docs/harness-facts.md:89-98`](harness-facts.md#L89) 現有 plugin 差約 3.8K tokens 的歷史 probe 也只量到整體 plugin／hook，互動額外約 28K 未拆因，不能把它全怪到 9 個 enabled plugins。[`docs/harness-facts.md:118-133`](harness-facts.md#L118)
+既有實測已證明 controller rules 分流能降低 custom agent 首 request；同時也證明 `omitClaudeMd` 會連 project spec 與語言設定一起消失，所以不是本輪可直接採用的省 token 手段。[`docs/harness-facts.md:89-98`](../harness-facts.md#L89) 現有 plugin 差約 3.8K tokens 的歷史 probe 也只量到整體 plugin／hook，互動額外約 28K 未拆因，不能把它全怪到 9 個 enabled plugins。[`docs/harness-facts.md:118-133`](../harness-facts.md#L118)
 
 ## 檔案逐項分類與 findings
 
@@ -123,7 +123,7 @@ raw API price snapshot（repo 於 2026-10-06 的表）算得 $3,131.02860047 等
 
 ### FIND-01 — 語言重複是最小可回退實驗
 
-- **現況**：[`CLAUDE.md:6-8`](../CLAUDE.md#L6) 有 194 bytes 的語言段；本機 user settings 已經以白名單讀回相同「繁體中文台灣用語」值。官方 schema 支持 `language` 做預設回覆語言，但不保證術語規則。
+- **現況**：[`CLAUDE.md:6-8`](../../CLAUDE.md#L6) 有 194 bytes 的語言段；本機 user settings 已經以白名單讀回相同「繁體中文台灣用語」值。官方 schema 支持 `language` 做預設回覆語言，但不保證術語規則。
 - **建議**：先只在隔離設定／新 Claude session 做低成本代表性抽樣：移除 global `CLAUDE.md` 的語言句，保留 user `language`，檢查回覆語言、台灣用語、程式碼、library/API/CLI 名稱。若有術語漂移，回退並測一行「程式碼與明確技術名詞保留原文」是否足夠；不要把完整語言段直接刪掉。
 - **平台差異**：Claude 有 user language setting；Codex 本輪沒有同一個已查證設定 key，`AGENTS.md:13-15` 的語言段不可隨 Claude 一起移除。
 - **風險／驗收**：抽樣需涵蓋繁中議題、英文 tool output、code review、對外文字；數量是執行者依可用任務決定的小樣本 early-warning，不是新硬門檻。任何指令誤解即 rollback；rollback 是還原單一段落。
@@ -158,7 +158,7 @@ raw API price snapshot（repo 於 2026-10-06 的表）算得 $3,131.02860047 等
 
 ### FIND-06 — 環境事實、授權與裝置 gotcha 不因模型改善而日落
 
-- **現況**：`rules/05` 的 sentinel 對抗 `@import` 缺檔靜默略過；[`docs/harness-facts.md:77-83`](harness-facts.md#L77) 已有此 failure mode。`rules/00` 的使用者背景約 749 bytes，compact/handoff 有 controller-only 成分；`rules/50:9-12` 的工具專屬活躍教訓約 789 bytes。
+- **現況**：`rules/05` 的 sentinel 對抗 `@import` 缺檔靜默略過；[`docs/harness-facts.md:77-83`](../harness-facts.md#L77) 已有此 failure mode。`rules/00` 的使用者背景約 749 bytes，compact/handoff 有 controller-only 成分；`rules/50:9-12` 的工具專屬活躍教訓約 789 bytes。
 - **建議**：使用者背景搬入 profile/memory 或只在需要風格化輸出時載入；compact/handoff 搬到 controller context；工具專屬 lesson 轉為明確 task trigger，且要先證明觸發發現率不降。
 - **保留理由**：host/port/CLI/sandbox/installation、對外與不可逆授權、artifact evidence、negative-test semantics 是模型無從推知的真實環境／責任邊界。它們不是「模型變強就會自然做到」的教學。
 - **風險／驗收**：在 macOS 及另一安裝形狀重跑 `@import` sentinel、host lookup、受限命令與新機器 bootstrap；發現一個未引導的錯誤便回退。
@@ -172,14 +172,14 @@ raw API price snapshot（repo 於 2026-10-06 的表）算得 $3,131.02860047 等
 
 ### FIND-08 — controller 詳細規則可測「route card + on-demand」，不是直接取消 hook
 
-- **現況**：controller 的 25,016 bytes 在每個主對話透過 SessionStart 注入；這個分流已把成本從 custom agent 移走，且 compact 後的 reinjection 是設計動機。[`docs/harness-facts.md:89-97`](harness-facts.md#L89)
+- **現況**：controller 的 25,016 bytes 在每個主對話透過 SessionStart 注入；這個分流已把成本從 custom agent 移走，且 compact 後的 reinjection 是設計動機。[`docs/harness-facts.md:89-97`](../harness-facts.md#L89)
 - **建議**：以 10 個不派工／單點小修與 10 個需派工的 matched sessions 為可調整起點（不是硬門檻），測試一張極短 route card（鐵律、何時讀 dispatch、驗收入口）加上要派工時才讀完整 controller files。不要改 hook 前就假定這一定較省，因為 on-demand read 與漏讀都可能反而增加 request。
 - **平台差異**：本 repo 已採用的是 Claude SessionStart 注入方案；Codex 官方也支援 `SessionStart`／`SubagentStart`、stdout／`additionalContext` 注入與 compact 後重注入。本 repo 尚未採用等價的 Codex controller 分流方案，本機等價設定與繼承行為未實測，不能直接共用 patch；後續可另列比較候選。[Codex Hooks](https://learn.chatgpt.com/docs/hooks)
 - **風險／驗收**：小修不能誤派或越權；派工 task 必有完整 approved plan、正確 model/role、fresh verification。任一 controller 忘讀 detail 而違反 gate，即回退全量 injection。
 
 ### FIND-09 — skill／plugin catalog 應依可發現性與實際使用做減法
 
-- **現況**：官方說可供模型呼叫的 skills 每 request 至少有 name/description；manual-only (`disable-model-invocation: true`) skill 在呼叫前不載入。現有 9 enabled plugins 的整體歷史差約 3.8K tokens，但沒有逐 plugin 歸因。 [Extend Claude Code](https://code.claude.com/docs/en/features-overview) [`docs/harness-facts.md:118-133`](harness-facts.md#L118)
+- **現況**：官方說可供模型呼叫的 skills 每 request 至少有 name/description；manual-only (`disable-model-invocation: true`) skill 在呼叫前不載入。現有 9 enabled plugins 的整體歷史差約 3.8K tokens，但沒有逐 plugin 歸因。 [Extend Claude Code](https://code.claude.com/docs/en/features-overview) [`docs/harness-facts.md:118-133`](../harness-facts.md#L118)
 - **建議**：先以 30 日 invocation/工具呼叫率作為可調整起點（不是硬門檻），建立 plugin、skill 的「高頻必要／低頻但模型需自動發現／只由人手動叫」三欄清單；只將最後一欄在 isolated config 試設 manual-only，或停用確定無用的 plugin。不要因檔案大就移除 `parallel-dispatch` 等按需高風險工作流。
 - **平台差異**：Claude 有 `disable-model-invocation`；Codex skill catalog/設定上限是另一 surface，僅有官方一般語義，需另外量測。
 - **風險／驗收**：每個試驗 task 都要量 skill 被正確發現率、tool 成功率與初始 context；遺漏必需 skill 即回退。3.8K 是歷史觀察，非承諾收益。
@@ -209,7 +209,7 @@ raw API price snapshot（repo 於 2026-10-06 的表）算得 $3,131.02860047 等
 
 - **使用者方向（判斷）**：全域規則若與各專案的 `CLAUDE.md`／`AGENTS.md` 重複，不能先把兩份都當常駐。
   先問「誰是 owner、這件事是否每個 session 都需要」。
-  本 repo 已明定 project 規格優先，但優先權只解決衝突，不代表同義內容會自動去重（[`CLAUDE.md:35-38`](../CLAUDE.md#L35)；[`skills/maintain-guideline/SKILL.md:107-111`](../skills/maintain-guideline/SKILL.md#L107)）。
+  本 repo 已明定 project 規格優先，但優先權只解決衝突，不代表同義內容會自動去重（[`CLAUDE.md:35-38`](../../CLAUDE.md#L35)；[`skills/maintain-guideline/SKILL.md:107-111`](../skills/maintain-guideline/SKILL.md#L107)）。
 - **不可直接推出**：某 project 有自己的規則檔，不代表它已涵蓋全域 entry 的授權、環境事實、完成證據或 fallback。
   這份報告也沒有掃描其他私有專案的 `CLAUDE.md`／`AGENTS.md`，所以不宣稱跨 project 重複率。
 - **責任分類（提案）**：逐項把候選標成 `delete candidate`、`project-owned`、`on-demand skill`、`agent contract` 或 `global minimum`。
