@@ -1,4 +1,4 @@
-"""Run the shell-level assertions for global/claude/hooks/block-ci-edit.sh, global/claude/hooks/allow-git-c-projects.sh, global/claude/hooks/controller-context.sh and global/claude/config/ripgreprc.
+"""Run the shell-level assertions for global/claude/hooks/block-ci-edit.sh, global/claude/hooks/allow-git-c-projects.sh, global/claude/hooks/require-issue-session-model.sh, global/claude/hooks/controller-context.sh and global/claude/config/ripgreprc.
 
 The scripts under tests/ build synthetic input (hook stdin JSON, a throwaway
 fixture tree) and need no Claude Code or network.  They are wrapped here so
@@ -61,6 +61,20 @@ class AllowGitCProjectsHookTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(count_lines(result.stdout, "FAIL"), 0, result.stdout)
         self.assertGreaterEqual(count_lines(result.stdout, "PASS"), 13, result.stdout)
+        self.assertIn("failures=0", result.stdout)
+
+
+class RequireIssueSessionModelHookTests(unittest.TestCase):
+    def test_hook_assertions_pass(self) -> None:
+        for tool in ("bash", "jq"):
+            if shutil.which(tool) is None:
+                self.skipTest(f"{tool} is not on PATH")
+
+        result = run_script("test-require-issue-session-model.sh")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(count_lines(result.stdout, "FAIL"), 0, result.stdout)
+        self.assertGreaterEqual(count_lines(result.stdout, "PASS"), 20, result.stdout)
         self.assertIn("failures=0", result.stdout)
 
 

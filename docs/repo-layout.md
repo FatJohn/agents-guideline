@@ -38,6 +38,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/claude/agents/verifier.md` | fresh-context 驗收者：含「找碴範圍」與收斂標記；高風險驗收用同一個角色，派工一律顯式 `model: opus`（升 `fable` 的條件見 dispatch skill §6『驗證不自驗』） |
 | `global/claude/hooks/controller-context.sh` | SessionStart hook，把 `route-card.md` 注入主對話；卡片不存在就靜默略過 |
 | `global/claude/hooks/block-ci-edit.sh` | PreToolUse hook，擋主對話用 Edit／Write 改 `.github/workflows` 與 `.github/actions`（選配） |
+| `global/claude/hooks/require-issue-session-model.sh` | PreToolUse hook，`orca worktree create`／`orca agent launch` 帶 `--agent claude` 卻缺 `--model` 或 `--effort` 時擋下，訊息指回 parallel-dispatch `references/cli.md`（選配） |
 | `global/claude/hooks/allow-git-c-projects.sh` | PreToolUse hook，對 `$HOME/Projects/`（或 `GIT_C_ALLOW_ROOT` 指定的根目錄）底下嚴格形狀的 `git -C <path> worktree remove`／`branch -D` 回 allow，其餘不表態（選配） |
 | `global/claude/config/ripgreprc` | 讓 Bash 的 `rg` 預設 `--hidden` 並排除 `.git`（選配） |
 | `global/claude/settings.snippets.json` | 要手動併入 `~/.claude/settings.json` 的 hook 與 `env` 片段，不整檔覆蓋 |
@@ -107,7 +108,7 @@ Codex 的角色選擇、升降級與 runtime adapter 規則是 `global/codex/rul
 | `scripts/issue-status.py` | 一次列出某 repo 每個 issue worktree 的狀態（盤點 session 用，唯讀） |
 | `scripts/tests/` | `issue-status.py`、`stall-check.py` 的單元測試 |
 | `tests/test_*.py` | sync 腳本、usage-review 腳本、writing-principles 檢查腳本與 shell 守門腳本的單元測試；樣本在 `tests/fixtures/writing-principles/` |
-| `tests/test-*.sh` | hook 與 ripgreprc 的離線斷言（`block-ci-edit.sh`、`allow-git-c-projects.sh`、`controller-context.sh`、`ripgreprc`），也由 `tests/test_shell_guards.py` 包進 pytest |
+| `tests/test-*.sh` | hook 與 ripgreprc 的離線斷言（`block-ci-edit.sh`、`allow-git-c-projects.sh`、`require-issue-session-model.sh`、`controller-context.sh`、`ripgreprc`），也由 `tests/test_shell_guards.py` 包進 pytest |
 
 ## 為什麼 Claude 側只自建 worker 與 verifier
 

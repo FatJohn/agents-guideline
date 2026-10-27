@@ -166,7 +166,7 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 **改專案根目錄：`GIT_C_ALLOW_ROOT`**。專案不在 `$HOME/Projects`（例如 Windows 的 `D:/Projects`）時，在 `~/.claude/settings.json` 的 `env` 設這個變數；它**取代**預設根目錄（不是再加一個），所以設了之後 `$HOME/Projects/` 底下不再自動放行。
 
 ```json
-"env": { "GIT_C_ALLOW_ROOT": "D:/Projects" }
+{ "env": { "GIT_C_ALLOW_ROOT": "D:/Projects" } }
 ```
 
 - 沒設或設成空字串：根目錄是 `${HOME%/}/Projects`，行為與沒有這個變數時完全相同（macOS 不必改任何東西）。
@@ -181,6 +181,23 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 - 會被略過：`claude --bare`、`--setting-sources` 不含 user、`disableAllHooks`；略過時等於沒裝，指令回到正常 permission 流程。
 - fail-open 語意：`jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1（非阻擋錯誤，stderr 顯示 `auto-allow is INACTIVE`／`did not run`），不給 allow，工具照正常 permission 流程；不會因此多放行。
 - 不和 `permissions.allow` 互斥：已有的 allow 規則照常生效，這個 hook 只多一條放行路徑。
+
+### 選配：擋沒帶 `--model`／`--effort` 的 Claude issue session 啟動
+
+`hooks/require-issue-session-model.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。目的：`global/shared/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」規定 issue session 一律 `--model claude-opus-5-5 --effort medium`，但這條只寫在 reference 裡，controller 沒載 skill 就看不到；沒帶旗標的 `claude` 吃的是啟動當下 `~/.claude/settings.json` 的 `model`（2026-10-27 四個 issue session 因此開成 Sonnet high 與 Fable）。這個 `PreToolUse` hook 把它變成機械擋板：Bash command 以換行、`;`、`&&`、`||`、`|` 切段，任一段含 `orca worktree create` 或 `orca agent launch` 且含 token `--agent claude`（或 `--agent=claude`、值加引號的寫法），就必須同段含 `--model <值>` 與 `--effort <值>`（`=` 寫法亦可），缺一即 exit 2、stderr 訊息指回 cli.md 與完整旗標；只檢查有沒有帶，值的政策留在 cli.md。`--agent codex`、沒有 `--agent` 的純 worktree、`orca terminal create`、其他指令與非 Bash 工具一律放行；`--prompt` 內文含 `&&` 不影響（旗標依文件順序寫在 `--prompt` 之前）。fail-open：`jq` 不在或 stdin 不是 JSON 時 exit 1、不擋。
+
+**追加**到既有的 `hooks.PreToolUse` 陣列（不要取代其他元素；片段同樣收在 `<REPO>/global/claude/settings.snippets.json`）：
+
+```json
+{
+  "matcher": "Bash",
+  "hooks": [
+    { "type": "command", "command": "bash \"$HOME/.claude/hooks/require-issue-session-model.sh\"" }
+  ]
+}
+```
+
+裝完驗證（離線、需要 `jq`）：`bash tests/test-require-issue-session-model.sh ~/.claude/hooks/require-issue-session-model.sh`。設 `ISSUE_SESSION_MODEL_LOG=/path/to/file` 會逐筆 append 決定與原因（平常不設）。
 
 ## 安裝 Codex
 

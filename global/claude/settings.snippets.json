@@ -32,6 +32,15 @@
             "command": "bash \"$HOME/.claude/hooks/allow-git-c-projects.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/require-issue-session-model.sh\""
+          }
+        ]
       }
     ]
   }
