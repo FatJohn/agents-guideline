@@ -14,7 +14,8 @@ read-back is not evidence here.
 
 Entries a v1 install left behind (``~/.claude/rules-controller``, the old
 ``rules/*.md`` files, the ``maintain-guideline``/``usage-review``/``session-handoff``
-skills, the retired ``worker-opus`` agent) are detected and listed, in the dry-run
+skills, the retired ``worker``/``worker-opus`` agents, the renamed
+``parallel-dispatch`` skill) are detected and listed, in the dry-run
 and again after ``--apply``.  They are never removed by this script;
 ``docs/install.md`` section "從 v1 升級" has the removal commands.  ``--prune``
 still removes the symlink-shaped ones that point into this repository.
@@ -54,7 +55,7 @@ SHARED_SKILLS = (
     "handoff",
     "git-commit",
     "create-pr",
-    "parallel-dispatch",
+    "worktree-session",
     "writing-principles",
 )
 
@@ -167,7 +168,6 @@ def default_mappings(
         # docs/install.md; it is deliberately outside ~/.claude/rules.
         Mapping(claude / "route-card.md", claude_home / "route-card.md", "file"),
         Mapping(shared / "rubrics", claude_home / "rubrics", "tree"),
-        Mapping(claude / "agents" / "worker.md", claude_home / "agents" / "worker.md", "file"),
         Mapping(claude / "agents" / "verifier.md", claude_home / "agents" / "verifier.md", "file"),
         # Files only: wiring them into ~/.claude/settings.json (hook entries,
         # RIPGREP_CONFIG_PATH) stays manual, see docs/install.md.
@@ -195,6 +195,9 @@ def legacy_paths(*, claude_home: Path, agents_home: Path) -> list[Path]:
         claude_home / "skills" / "maintain-guideline",
         claude_home / "skills" / "usage-review",
         claude_home / "agents" / "worker-opus.md",
+        claude_home / "agents" / "worker.md",
+        claude_home / "skills" / "parallel-dispatch",
+        agents_home / "skills" / "parallel-dispatch",
         agents_home / "skills" / "maintain-guideline",
         agents_home / "skills" / "session-handoff",
     ]

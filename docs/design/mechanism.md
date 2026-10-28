@@ -24,7 +24,7 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 | session 啟動 | `~/.claude/CLAUDE.md`（含 `@~/.claude/host-facts.md` 匯入）、`~/.claude/rules/judgment.md`、回覆語言 | repo 檔＋`settings.json` 的 `language` | `@import` 缺檔靜默略過；`language` 漏設回預設語言 |
 | session 啟動（只有主對話） | controller 路由卡 `~/.claude/route-card.md`，由 `hooks/controller-context.sh` 以 SessionStart hook 的 stdout 注入 | 腳本在 repo、登記在 `settings.json` `hooks.SessionStart` | context 裡沒有以 `# Contents of ` 開頭、含 `route-card.md` 的注入；主對話照常跑但沒有派工路由 |
 | 每次工具呼叫 | PreToolUse hook（下節三支）＋ `permissions` 規則 | 腳本在 repo、登記在 `settings.json` `hooks.PreToolUse` | 本該被擋的呼叫直接執行，沒有任何提示 |
-| 派 subagent | `~/.claude/agents/{worker,verifier}.md` 合約進該 subagent 的 context；`general-purpose`／自訂 agent 繼承全域 `CLAUDE.md` 與 `rules/`，不繼承路由卡；`Explore`／`Plan` 兩者都不繼承 | repo 檔 | 可用 agent 清單裡沒有 `worker`／`verifier`，Agent 工具報 unknown agent type |
+| 派 subagent | `~/.claude/agents/verifier.md` 合約進該 subagent 的 context；`general-purpose`／自訂 agent 繼承全域 `CLAUDE.md` 與 `rules/`，不繼承路由卡；`Explore`／`Plan` 兩者都不繼承 | repo 檔 | 可用 agent 清單裡沒有 `verifier`，Agent 工具報 unknown agent type |
 | skill 觸發 | `~/.claude/skills/<name>/SKILL.md`，description 與任務比對到才載入 | repo 檔 | skill 清單沒有該名字；或清單有、但 controller 沒載就照自己的印象做（issue session 旗標事故就是這個形狀，見下節） |
 
 ## hooks：四支，各補一條靠自律會漏的規則
@@ -32,9 +32,9 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 | hook | 事件／matcher | 做什麼 | 補的是哪條規則 | 離線測試 |
 |---|---|---|---|---|
 | `controller-context.sh` | `SessionStart`（無 matcher） | 把路由卡印到 stdout，注入主對話 | 路由卡只給 controller，subagent 不付這份 context（`docs/harness-facts.md`「controller 專用規則分流」） | `tests/test-controller-context.sh` |
-| `block-ci-edit.sh` | `PreToolUse`，`Edit\|Write\|MultiEdit\|NotebookEdit` | 主對話（stdin 沒有 `agent_id`）改 `.github/workflows`／`.github/actions` 時 exit 2 | dispatch skill §1「controller 自做的邊界」：CI／release 設定不自做 | `tests/test-block-ci-edit.sh` |
+| `block-ci-edit.sh` | `PreToolUse`，`Edit\|Write\|MultiEdit\|NotebookEdit` | 主對話（stdin 沒有 `agent_id`）改 `.github/workflows`／`.github/actions` 時 exit 2 | dispatch skill §3「派工合約與回報」：CI／release 設定不靜默自改，先給使用者看 diff | `tests/test-block-ci-edit.sh` |
 | `allow-git-c-projects.sh` | `PreToolUse`，`Bash` | 嚴格形狀的 `git -C <projects 下路徑> worktree remove`／`branch -D` 回 allow，其餘不表態 | 替代會觸發 Claude Code 警告的 `Bash(git -C * …)` wildcard 規則 | `tests/test-allow-git-c-projects.sh` |
-| `require-issue-session-model.sh` | `PreToolUse`，`Bash` | `orca worktree create`／`orca agent launch` 帶 `--agent claude` 卻缺 `--model` 或 `--effort` 時 exit 2 | parallel-dispatch `references/cli.md`「盤點 session 與 issue session」：issue session 一律帶固定旗標，不隨主對話預設 | `tests/test-require-issue-session-model.sh` |
+| `require-issue-session-model.sh` | `PreToolUse`，`Bash` | `orca worktree create`／`orca agent launch` 帶 `--agent claude` 卻缺 `--model` 或 `--effort` 時 exit 2 | worktree-session `references/cli.md`「盤點 session 與 issue session」：issue session 一律帶固定旗標，不隨主對話預設 | `tests/test-require-issue-session-model.sh` |
 
 各支的性質：
 
@@ -46,7 +46,7 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 
 為什麼是 hook 不是規則：規則檔都是 advisory context，模型沒載到或沒照做時沒有任何訊號。`docs/install.md`「Claude Code permissions 要和鐵律二對齊」把這條寫成原則：零例外的事交給 hook。
 
-`require-issue-session-model.sh` 的來歷是直接案例。`cli.md` 寫了旗標規定，但 controller 沒載 parallel-dispatch skill，照 host facts 一句沒帶旗標的範例起了四個 issue session，全部拿到 `settings.json` 當時的預設 model。hook 上線後，同形狀的指令在主對話 Bash 被擋：已實測（2026-10-27，主力 Mac）。文件裡每個可複製的 `--agent claude` 範例也都帶齊旗標。
+`require-issue-session-model.sh` 的來歷是直接案例。`cli.md` 寫了旗標規定，但 controller 沒載當時的 parallel-dispatch skill（v4 改名 `worktree-session`），照 host facts 一句沒帶旗標的範例起了四個 issue session，全部拿到 `settings.json` 當時的預設 model。hook 上線後，同形狀的指令在主對話 Bash 被擋：已實測（2026-10-27，主力 Mac）。文件裡每個可複製的 `--agent claude` 範例也都帶齊旗標。
 
 ## settings.json 裡本系統依賴的欄位
 
@@ -68,10 +68,9 @@ model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/set
 | 座位 | model／effort | 設定點 | 選法 |
 |---|---|---|---|
 | 主對話（controller） | `settings.json` 的 `model`／`effortLevel`，可被專案 `.claude/settings.local.json` 與 `/model` 蓋過 | 本機 settings，使用者自選 | 工作型態是「盤點、起 issue session、驗收回報」時設便宜的（sonnet／high）；單一任務要重推理時 `/model opus` 當次切，不改 settings |
-| issue session（獨立 controller） | `claude-opus-5-5`／medium | `orca worktree create` 的 `--model`／`--effort` 旗標，`require-issue-session-model.sh` 保證帶齊 | 固定值，寫在 parallel-dispatch `references/cli.md`；要換值改 cli.md，hook 只檢查有沒有帶 |
-| `worker` | `claude-sonnet-5-5`／high | `global/claude/agents/worker.md` frontmatter | 派工不帶 `model`／`effort`；不收斂時依 dispatch skill §5 升級，不是調這裡 |
+| issue session（獨立 controller） | `claude-opus-5-5`／medium | `orca worktree create` 的 `--model`／`--effort` 旗標，`require-issue-session-model.sh` 保證帶齊 | 固定值，寫在 worktree-session `references/cli.md`；要換值改 cli.md，hook 只檢查有沒有帶 |
 | `verifier` | opus／medium | `global/claude/agents/verifier.md` frontmatter | 派工顯式 `model: opus`、不帶 `effort`；升 fable 要使用者當次同意 |
-| `Explore`／`Plan`／`general-purpose` | haiku／opus／sonnet 或 opus | Agent 工具的 `model` 參數，依路由卡 | 路由卡角色表定死，controller 不自選 |
+| `Explore`／`general-purpose` | haiku／sonnet／opus | Agent 工具的 `model` 參數，依路由卡 | 查詢型依答案在檔案裡（haiku）還是要歸納推理（sonnet）由 controller 當次判；fresh code-review 用 opus medium |
 
 主對話設便宜不影響其他座位：issue session 由 hook 保證帶旗標，subagent 由 frontmatter 與路由卡決定。改 `settings.json` 的 `model` 只會動到主對話與其他沒帶旗標的 `claude` 程序。
 
@@ -83,7 +82,7 @@ model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/set
 | judgment | `global/shared/rules/` | `~/.claude/rules/` | `ls ~/.claude/rules/` 只有 `judgment.md`（多一個檔就是 v1 殘留） |
 | 路由卡＋SessionStart hook | `global/claude/route-card.md`、`global/claude/hooks/controller-context.sh` | `~/.claude/route-card.md`、`~/.claude/hooks/`＋`settings.json` 元素 | 新 session context 有 `# Contents of …route-card.md` |
 | PreToolUse hooks | `global/claude/hooks/*.sh` | `~/.claude/hooks/`＋`settings.json` 三個元素 | 三支離線測試 `failures=0`；主對話 Bash 下 `false && orca worktree create --name probe --agent claude --prompt x` 被 hook 擋下（hook 沒裝時 `false` 讓後段不執行，不會真的開 worktree） |
-| agents、rubrics、skills | `global/claude/agents/`、`global/shared/rubrics/`、`global/shared/skills/` | `~/.claude/agents/`、`~/.claude/rubrics/`、`~/.claude/skills/`、`~/.agents/skills/` | 可用 agent 清單有 `worker`／`verifier`；skill 清單有六個共用 skill |
+| agents、rubrics、skills | `global/claude/agents/`、`global/shared/rubrics/`、`global/shared/skills/` | `~/.claude/agents/`、`~/.claude/rubrics/`、`~/.claude/skills/`、`~/.agents/skills/` | 可用 agent 清單有 `verifier`；skill 清單有六個共用 skill |
 | ripgreprc | `global/claude/config/ripgreprc` | `~/.claude/ripgreprc`＋`settings.json` `env` | `tests/test-ripgreprc.sh`；Claude Code 的 Bash 裡 `rg` 不帶 `--hidden` 也搜到隱藏目錄 |
 | language | `global/claude/settings.snippets.json` | `settings.json` 頂層 | 回覆是繁體中文 |
 | Codex 端 | `global/codex/AGENTS.md`、`global/shared/skills/`、`global/codex/agents/*.toml` | `~/.codex/AGENTS.md`、`~/.agents/skills/`、`~/.codex/agents/`（實體檔，`scripts/sync-codex-agents.py`） | TOML 檔 bytes 與 repo 一致；named spawn 實際起得來 |
@@ -94,7 +93,7 @@ model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/set
 
 - **plugins**（`enabledPlugins`）：各自帶 skill 與 hook，與本系統無關；盤點與瘦身見 `docs/reviews/codex-tooling-audit-2026-10.md`。
 - **statusline**（ccstatusline）：`model` 欄讀 Claude Code 餵的 status JSON，反映該 session 實際 model；`thinking-effort` 欄沒拿到 status JSON 的 `effort.level`、該 session 又沒跑過 `/effort` 或 `/model` 時，退回顯示 `settings.json` 的 `effortLevel`，不反映 `--effort` 旗標。要確認某個 session 的 effort，看它 jsonl 的 `"effort"` 欄位。
-- **Orca**：`settings.json` 的 matcher `*` hooks 與 `~/.orca/` 由 Orca 安裝；`orca worktree create --agent claude` 翻成 `claude --model … --effort … <prompt>` 起頂層 session，旗標語意見 `global/shared/skills/parallel-dispatch/references/cli.md`。Orca 另會以 `orca skills install` 把 `orca-cli`／`orchestration`／`computer-use` 三個 skill 裝進 `~/.agents/skills/` 並 symlink 進各 agent 的 skills 資料夾，其 description 會把 worktree 與交接導向 Orca、與本系統 `handoff` skill 撞觸發詞；本系統不依賴它們，主力 Mac 已刪（見 `global/shared/hosts/macos.md`），新機器裝 Orca 後照做。
+- **Orca**：`settings.json` 的 matcher `*` hooks 與 `~/.orca/` 由 Orca 安裝；`orca worktree create --agent claude` 翻成 `claude --model … --effort … <prompt>` 起頂層 session，旗標語意見 `global/shared/skills/worktree-session/references/cli.md`。Orca 另會以 `orca skills install` 把 `orca-cli`／`orchestration`／`computer-use` 三個 skill 裝進 `~/.agents/skills/` 並 symlink 進各 agent 的 skills 資料夾，其 description 會把 worktree 與交接導向 Orca、與本系統 `handoff` skill 撞觸發詞；本系統不依賴它們，主力 Mac 已刪（見 `global/shared/hosts/macos.md`），新機器裝 Orca 後照做。
 - **`settings.json` 的 permissions**：安裝後另行 audit，原則見 `docs/install.md`「Claude Code permissions 要和鐵律二對齊」。
 
 ## Codex 端的對照

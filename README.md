@@ -37,29 +37,26 @@ Always-loaded content holds only what every job needs; everything else loads on 
 
 The route card stays out of that area, and subagents do not inherit it.
 
-### Role model: controller, worker, verifier
+### Role model: controller and verifier
 
-The main conversation is the controller: it plans, implements, checks and reports, delegating only when a mandatory condition holds, while verification always goes to a separate role.
+The main conversation is the controller: it plans, implements, checks and reports, and does all of that itself. Subagents exist for three uses only: fresh-context acceptance, fresh code review, and side research. Parallel work is done by several top-level sessions, each in its own worktree, not by implementer subagents (v4, 2026-10-29; the measurements behind it are in `docs/reviews/v4-2026-10.md`).
 
-- Controller (main conversation): does the work itself by default; delegates only when condition 1, 2 or 3 holds (context, parallelism, tool conflict), and never edits CI or release config itself (always a worker).
-- `worker`: starts only from an approved plan the controller signed off; a missing plan is sent back.
+- Controller (main conversation): starts in its own worktree, implements and fixes itself; shows the user the diff and gets per-occasion authorization before touching CI or release config.
 - `verifier`: fresh context, judges only, never produces.
+- Independent issues get one top-level session each (`worktree-session` skill); the current session only inventories.
 
 Delegation table (abridged from `global/claude/route-card.md`):
 
 | Task | Delegate to |
 |---|---|
-| Scan the repo, find files with X, build a list | `Explore`, `model: haiku` |
-| Read long documents, browse the web | `general-purpose`, sonnet |
-| Implement, fix bugs, refactor, batch edits, docs (conditions 1-3) | `worker` |
-| Design and architecture trade-offs | `Plan`, opus |
-| Cross-file reasoning, hard reviews | `general-purpose`, opus |
-| Acceptance | `verifier`, `model: opus`; always for any document before merge or ready, code by dispatch skill §6 tiers, still applies when project rules name only code-review |
-| Fresh review of a code diff | Fresh subagent running `code-review` skill, never the main conversation itself; adds to `verifier`, never replaces it; after fixing findings, re-verify per dispatch skill §7 |
+| Acceptance | `verifier`, `model: opus`; always for any document before merge or ready, code by dispatch skill §1 tiers, still applies when project rules name only code-review |
+| Fresh review of a code diff | Fresh subagent running `code-review` skill, never the main conversation itself; adds to `verifier`, never replaces it; after fixing findings, re-verify per dispatch skill §2 |
+| Side research | Answer is in the files (which files have X, lists, numbers): `Explore`, `model: haiku`. Reading several long documents, cross-source comparison, conclusions that need reasoning: `general-purpose`, `model: sonnet`. Second opinion: `codex:codex-rescue` |
+| Implementation, fixes, docs, planning | Not delegated: the controller does them |
 
 ### Model per seat
 
-Each seat sets its model in one place; cheap defaults go to the high-volume seats and expensive capability is switched on per task. The main conversation takes `settings.json` `model`/`effortLevel` (a cheap default such as sonnet/high suits a controller that mostly inventories, launches issue sessions and reports; switch with `/model` for a single heavy task instead of editing settings). Issue sessions are pinned to opus/medium by the `--model`/`--effort` flags that the `require-issue-session-model.sh` hook enforces. `worker` and `verifier` take their frontmatter; `Explore`/`Plan`/`general-purpose` take the route card. Where each is set and what breaks without it: 「每個座位的 model 在哪設、怎麼選」 in [`docs/design/mechanism.md`](docs/design/mechanism.md).
+Each seat sets its model in one place; cheap defaults go to the high-volume seats and expensive capability is switched on per task. The main conversation takes `settings.json` `model`/`effortLevel` (a cheap default such as sonnet/high suits a controller that mostly inventories, launches issue sessions and reports; switch with `/model` for a single heavy task instead of editing settings). Issue sessions are pinned to opus/medium by the `--model`/`--effort` flags that the `require-issue-session-model.sh` hook enforces. `verifier` takes its frontmatter; `Explore`/`general-purpose` take the route card. Where each is set and what breaks without it: 「每個座位的 model 在哪設、怎麼選」 in [`docs/design/mechanism.md`](docs/design/mechanism.md).
 
 ### Six boundaries
 
@@ -131,18 +128,18 @@ Shared skills come from `global/shared/skills/` and install into `~/.claude/skil
 
 | Name | Triggers when | Installed at |
 |---|---|---|
-| `dispatch` | Delegating, model choice, escalation, post-review fixes | Both platforms |
+| `dispatch` | Acceptance, fresh review, side research, post-review fixes, changing course when stuck | Both platforms |
 | `handoff` | Writing briefs, reports, verdicts; wrap-up, compact | Both platforms |
 | `git-commit` | Writing a commit message or squash-merge title | Both platforms |
 | `create-pr` | Opening a Pull Request from a branch | Both platforms |
-| `parallel-dispatch` | Splitting work across 2+ agents or independent issues | Both platforms |
+| `worktree-session` | Starting work in a worktree, one session per independent issue, cleaning worktrees | Both platforms |
 | `writing-principles` | Writing, editing or reviewing READMEs, guides, design docs | Both platforms |
 | `maintain-guideline` | Changing this system itself (`global/**`, entry points) | repo-only |
 | `usage-review` | Measuring Claude Code usage and dispatch behavior | repo-only |
 
 ## Agents
 
-Claude defines only `worker` and `verifier`; Codex has 11 roles. Each definition file pins model and effort.
+Claude defines only `verifier`; Codex keeps its own role set. Each definition file pins model and effort.
 
 ### Claude Code
 
@@ -150,25 +147,18 @@ Claude defines only `worker` and `verifier`; Codex has 11 roles. Each definition
 
 | Name | Role | model | effort | tools |
 |---|---|---|---|---|
-| `worker` | Implements from an approved plan; no plan, no work | `claude-sonnet-5-5` | `xhigh` | Read, Write, Edit, Bash, Glob, Grep, LSP |
 | `verifier` | Fresh-context acceptance: PASS/FAIL/UNSURE per criterion | `opus` | `medium` | Read, Bash, Glob, Grep, LSP |
 
 ### Codex
 
-Codex uses three tiers, Luna, Terra and Sol, from low to high. The escalation rules (Luna to Terra, Terra to Sol) are in 「升降級路徑」 of `global/codex/rules/dispatch.md`.
+Codex uses three tiers, Luna, Terra and Sol, from low to high. All five roles are read-only or probe-only; implementation and planning stay in the main conversation (the implementer and planner roles were retired in v4, 2026-10-29).
 
 | Name | Role | model | reasoning effort |
 |---|---|---|---|
-| `scanner` | Low-risk read-only scans: lists, classification, checks | `gpt-5.6-luna` | `medium` |
-| `explorer` | Read-only exploration, cross-file tracing, research | `gpt-5.6-terra` | `medium` |
-| `planner` | Read-only planning: scope, risks, invariants, phases | `gpt-5.6-terra` | `high` |
-| `worker` | Condition-triggered implementer; needs a complete approved plan | `gpt-5.6-luna` | `max` |
-| `pro_worker` | Implementation with known complexity signals | `gpt-5.6-terra` | `high` |
-| `recovery_worker` | Takes over after Luna falls short or fails twice | `gpt-5.6-terra` | `high` |
-| `reviewer` | Read-only adversarial review in a fresh context | `gpt-5.6-terra` | `high` |
+| `scanner` | Side research where the answer is in the files: lists, classification, checks | `gpt-5.6-luna` | `medium` |
+| `explorer` | Side research that needs reasoning: cross-file tracing, long documents, external docs | `gpt-5.6-terra` | `medium` |
+| `reviewer` | Fresh-context adversarial review of a code diff | `gpt-5.6-terra` | `high` |
 | `verifier` | Ordinary fresh-context acceptance; judges only | `gpt-5.6-terra` | `high` |
-| `escalation_planner` | Read-only root-cause plan once Terra is the limit | `gpt-5.6-sol` | `medium` |
-| `escalation_worker` | Hard implementation once Terra is confirmed short | `gpt-5.6-sol` | `medium` |
 | `sol_verifier` | High-risk acceptance: security, irreversible, architecture | `gpt-5.6-sol` | `high` |
 
 ## Installation

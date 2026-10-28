@@ -2,7 +2,7 @@
 """一次列出某個 repo 每個 issue worktree 的狀態，給「盤點 session」取代反覆 `orca terminal read`。
 
 用途：issue session 把交付包寫在 `<worktree>/.worktrees/result.md`（欄位見
-`global/shared/skills/parallel-dispatch/references/templates.md`「Issue session result」）。這支腳本讀每個 worktree 的
+`global/shared/skills/worktree-session/SKILL.md` §2「issue session result」）。這支腳本讀每個 worktree 的
 result.md，再拿 git／gh 的事實對照，每個 worktree 輸出一行。它只是彙整 result.md 與 git／gh 事實，不是
 完成證據：要宣稱完成、要 merge，仍要看 PR、CI 與 verifier 的回報本身。
 

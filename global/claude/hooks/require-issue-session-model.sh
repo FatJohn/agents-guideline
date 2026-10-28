@@ -1,7 +1,7 @@
 #!/bin/bash
 # PreToolUse hook: an Orca-launched Claude issue session must carry --model and --effort.
 #
-# Rule (parallel-dispatch skill, references/cli.md "盤點 session 與 issue session"):
+# Rule (worktree-session skill, references/cli.md "盤點 session 與 issue session"):
 # an issue session is a controller and must not inherit the main conversation's
 # default model, so `orca worktree create ... --agent claude` and
 # `orca agent launch ... --agent claude` always pass
@@ -103,7 +103,7 @@ if [ "$decision" = "deny" ]; then
   cat >&2 <<MSG
 BLOCKED by hook require-issue-session-model: 起 Claude issue session 的指令缺${missing}。
 issue session 是 controller，不隨主對話的預設 model；沒帶旗標的 \`claude\` 會吃啟動當下 ~/.claude/settings.json 的 model。
-規則見 ~/.claude/skills/parallel-dispatch/references/cli.md「盤點 session 與 issue session」：\`orca worktree create ... --agent claude --model claude-opus-5-5 --effort medium --prompt ...\`（\`orca agent launch\` 同）。
+規則見 ~/.claude/skills/worktree-session/references/cli.md「盤點 session 與 issue session」：\`orca worktree create ... --agent claude --model claude-opus-5-5 --effort medium --prompt ...\`（\`orca agent launch\` 同）。
 請補上旗標後重送；不要改用 \`orca terminal create\` 或其他方式繞過。
 MSG
   exit 2

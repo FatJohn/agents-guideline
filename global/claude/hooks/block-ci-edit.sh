@@ -1,10 +1,12 @@
 #!/bin/bash
 # PreToolUse hook: the MAIN conversation (controller) must not edit CI config.
 #
-# Rule (dispatch skill §1 "何時派工", sub-section "controller 自做的邊界"): CI/release
-# config (.github/workflows, .github/actions) is not done by the controller
-# itself; it goes through a worker. This hook enforces that
-# mechanically.
+# Rule (dispatch skill §3 "派工合約與回報", CI／release 設定 paragraph): CI/release
+# config (.github/workflows, .github/actions) is never edited silently by the
+# controller; the diff goes to the user first and the edit needs this session's
+# explicit authorization. This hook makes the "never silently" part mechanical:
+# Edit/Write from the main conversation is blocked, the message says to show the
+# patch and apply it with `git apply` once authorized.
 #
 # Decision table (stdin JSON from Claude Code PreToolUse):
 #   - tool is Edit|Write|MultiEdit|NotebookEdit
@@ -67,9 +69,9 @@ fi
 
 if [ "$decision" = "deny" ]; then
   cat >&2 <<MSG
-BLOCKED by hook block-ci-edit: 主對話（controller）不得直接修改 CI 設定（${path}）。
-規則見 dispatch skill §1「何時派工」（「controller 自做的邊界」）：.github/workflows、.github/actions 不由主對話自做，必須走「核定 plan -> 派 worker 實作 -> controller read-back -> 一次 review/verifier」。
-請改派 worker subagent 修改此檔；不要改用 Bash（sed、heredoc）繞過。
+BLOCKED by hook block-ci-edit: 主對話不得靜默修改 CI／release 設定（${path}）。
+規則見 dispatch skill §3「派工合約與回報」的 CI／release 設定段：先把要改的 diff 列給使用者、取得本 session 當次授權，再以 \`git apply\` 套上同一份 patch，並照 §1 派 verifier。
+未取得授權前不要改用 Bash（sed、heredoc）繞過。
 MSG
   exit 2
 fi

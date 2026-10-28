@@ -5,14 +5,14 @@ description: 交接的四張固定卡，Claude 與 Codex 共用：派工 brief �
 
 # handoff — 四張固定卡
 
-交接格式固定，欄位不增不減，讓收的人不必重讀對話。誰在什麼時候用：§1 controller 派工、§2 subagent 回報、§3 verifier 回報、§4 session 收尾或交給另一個 agent。為什麼要這些欄位、缺欄怎麼處理，見 `~/.claude/skills/dispatch/SKILL.md` §3『派工合約』、§4『回報合約』、§7『修正與驗收輪次』（Codex 對應：`<REPO>/global/codex/rules/dispatch.md`）。平行切片專用欄位另見 `~/.claude/skills/parallel-dispatch/references/templates.md`。
+交接格式固定，欄位不增不減，讓收的人不必重讀對話。誰在什麼時候用：§1 controller 派工、§2 subagent 回報、§3 verifier 回報、§4 session 收尾或交給另一個 agent。為什麼要這些欄位、缺欄怎麼處理，見 `~/.claude/skills/dispatch/SKILL.md` §3『派工合約與回報』、§2『修正與驗收輪次』（Codex 對應：`<REPO>/global/codex/rules/dispatch.md`）。issue session 的 brief 與 result 欄位另見 `~/.claude/skills/worktree-session/SKILL.md` §2。
 
 ## 1. brief 卡
 
 controller → subagent。缺任一欄就是不合格的派工：
 
 ```text
-你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包。（Explore／Plan 可省）
+你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包。（只有 general-purpose 要寫；Explore／Plan／verifier 可省）
 目標與動機：<要達成什麼、為什麼；使用者原話、已知限制>
 Scope（只能改）：<絕對路徑清單>   不得改：<絕對路徑清單>
 single-writer：本 working tree 目前只有你在寫；落地位置 <絕對路徑>
@@ -26,7 +26,7 @@ Validation commands：<逐條可執行；能一次串完的批次化>
 
 - 路徑一律絕對路徑；已讀過的素材直接附，不叫 subagent 重讀。
 - 要求補齊某個格式欄位時加一句「查無來源就留空」。
-- Invariants、Phases、Validation 是派 `worker` 的 approved plan 必備，且未決問題必須已解決或明列為禁止範圍（缺項 worker 會退回）；唯讀探索或規劃可省這三欄，其餘欄不省。
+- subagent 不寫 repo（verifier 只寫 repo 外探針目錄），所以派 verifier 與查詢型 subagent 時省 single-writer、Invariants、Phases 三欄，Validation 改填「驗收用的探針與 repo 外落檔路徑」，其餘欄不省。這三欄是給 controller 自做用的：同一張卡就是開工前的 plan，目標、Scope、Invariants、Phases、Validation、驗收條件寫在第一次改檔前，之後的 verifier brief 逐字沿用。
 - 新增或修改測試斷言與守門檢查者，在 Validation 列各自的突變指令、可暫時碰觸的路徑與還原指令。
 
 ## 2. 回報卡
@@ -42,7 +42,7 @@ subagent → controller。只寫 controller 下一步決策要用的：
 長產物：<落檔絕對路徑>
 ```
 
-缺欄＝未完成，controller 退回補齊。不貼完整指令輸出與全文 diff，落檔附路徑。不宣稱「已驗收」，驗收是 verifier 的事。
+缺欄＝未完成，controller 退回補齊。不貼完整指令輸出與全文 diff，落檔附路徑。不宣稱「已驗收」，驗收是 verifier 的事。controller 自做時不必填這張卡，但第 2 步的指令輸出與突變證據要留著給 verifier brief。
 
 ## 3. verifier 判定卡
 
@@ -79,4 +79,4 @@ session → 未來的 session 或另一個 agent，兩平台同一格式：
 - **何時寫**：收尾、要離開、要 compact、交給另一個 agent、長任務每個 phase 結束（可恢復脈絡的要求見 `~/.claude/rules/judgment.md` 15『可中斷的長任務要留可恢復脈絡』）。
 - **寫到哪**：使用者給路徑優先；否則專案根 `.agents/HANDOFF.md`；不能寫就把卡回在對話並明說沒寫檔。更新既有檔時保留仍有效的內容，移除已過時的完成項。
 - **內容**：只寫耐久狀態，不重述對話；事實與猜測分開；完成項附驗證分級，沒驗就寫未驗證；不寫 secrets、token、憑證與原始 log，必要時只引關鍵一行；短到一分鐘內掃得完。
-- **compact 保留指示**就是這張卡的精簡版：目標、授權、未完成項目、在途 subagent（名稱、任務、worktree／分支）、產物證據位置；規則見 dispatch §10『主對話 context 管理』。
+- **compact 保留指示**就是這張卡的精簡版：目標、授權、未完成項目、在途 subagent（名稱、任務、worktree／分支）、產物證據位置；規則見 dispatch §6『主對話 context 管理』。

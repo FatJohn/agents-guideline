@@ -18,11 +18,11 @@
 | `~/.claude/host-facts.md` | `global/shared/hosts/<key>.md`（每台只裝自己那份） | 檔 |
 | `~/.claude/rules/` | `global/shared/rules/`（目前只有 `judgment.md`） | 目錄 |
 | `~/.claude/route-card.md` | `global/claude/route-card.md`（SessionStart hook 注入主對話） | 檔 |
-| `~/.claude/agents/{worker,verifier}.md` | `global/claude/agents/` | 檔 |
+| `~/.claude/agents/verifier.md` | `global/claude/agents/` | 檔 |
 | `~/.claude/rubrics/` | `global/shared/rubrics/` | 目錄 |
 | `~/.claude/hooks/` | `global/claude/hooks/` | 目錄 |
 | `~/.claude/ripgreprc` | `global/claude/config/ripgreprc` | 檔 |
-| `~/.claude/skills/<name>`、`~/.agents/skills/<name>` | `global/shared/skills/<name>`，name ∈ dispatch、handoff、git-commit、create-pr、parallel-dispatch、writing-principles | 目錄 |
+| `~/.claude/skills/<name>`、`~/.agents/skills/<name>` | `global/shared/skills/<name>`，name ∈ dispatch、handoff、git-commit、create-pr、worktree-session、writing-principles | 目錄 |
 | `~/.codex/AGENTS.md` | `global/codex/AGENTS.md` | 檔 |
 | `~/.codex/agents/*.toml` | `global/codex/agents/*.toml` | 實體檔（`scripts/sync-codex-agents.py`） |
 
@@ -49,8 +49,8 @@ link_one "$G/claude/route-card.md"      ~/.claude/route-card.md
 link_one "$G/shared/rubrics"            ~/.claude/rubrics
 link_one "$G/claude/hooks"              ~/.claude/hooks
 link_one "$G/claude/config/ripgreprc"   ~/.claude/ripgreprc
-for agent in worker verifier; do link_one "$G/claude/agents/$agent.md" ~/.claude/agents/$agent.md; done
-for skill in dispatch handoff git-commit create-pr parallel-dispatch writing-principles; do
+link_one "$G/claude/agents/verifier.md" ~/.claude/agents/verifier.md
+for skill in dispatch handoff git-commit create-pr worktree-session writing-principles; do
   link_one "$G/shared/skills/$skill" ~/.claude/skills/$skill
 done
 ```
@@ -69,7 +69,7 @@ symlink 的好處：session 依規則更新事實、寫教訓時直接改到 rep
 
 ### SessionStart hook：注入 controller 路由卡
 
-**必裝。** `route-card.md`（何時必須派工、角色表、brief 必含欄位、指向 dispatch skill）只有主對話用得到，但放在 `rules/` 會原封注入每個 worker／verifier／general-purpose subagent。所以它不放 `~/.claude/rules/`，改由 `hooks/controller-context.sh` 以 SessionStart hook 的 stdout 只注入主對話（subagent 不跑 SessionStart、不繼承），省每個 subagent 的這份固定注入；分流實測見 `docs/harness-facts.md`「controller 專用規則分流」。
+**必裝。** `route-card.md`（三類 subagent 的角色表、brief 必含欄位、指向 dispatch skill）只有主對話用得到，但放在 `rules/` 會原封注入每個 verifier／general-purpose subagent。所以它不放 `~/.claude/rules/`，改由 `hooks/controller-context.sh` 以 SessionStart hook 的 stdout 只注入主對話（subagent 不跑 SessionStart、不繼承），省每個 subagent 的這份固定注入；分流實測見 `docs/harness-facts.md`「controller 專用規則分流」。
 
 `route-card.md` 與 `hooks/` 的連結由上方主安裝一併建立；`settings.json` 要**手動追加**到 `hooks.SessionStart` 陣列（**追加元素，不要取代既有條目**；不設 matcher，官方文件寫 startup／resume／clear／compact 來源都會重跑；compaction 後重注入尚未實測，見 `docs/harness-facts.md`「controller 專用規則分流」）：
 
@@ -85,7 +85,7 @@ symlink 的好處：session 依規則更新事實、寫教訓時直接改到 rep
 
 兩個檔（`hooks/block-ci-edit.sh`、`ripgreprc`）已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效（本 repo 不管理 `settings.json`）。三段合併用的片段（含上面的 SessionStart）收在 `<REPO>/global/claude/settings.snippets.json`，**逐段併入既有設定，不要整檔覆蓋**。片段另含頂層 `language`（`繁體中文台灣用語`）：Claude 端的回覆語言只由這個設定承接，入口不再寫語言段，新機器漏設就會掉回預設語言。
 
-- `hooks/block-ci-edit.sh`：Claude Code `PreToolUse` hook。**主對話**（hook 收到的 stdin 沒有 `agent_id`）用 Edit／Write／MultiEdit／NotebookEdit 改路徑含 `.github/workflows/` 或 `.github/actions/` 的檔會被擋（exit 2，訊息要求改派 worker）；subagent（有 `agent_id`）與其他路徑一律放行。把 dispatch skill §1『何時派工』「controller 自做的邊界」那條「CI／release 設定不自做」變成機械擋板。
+- `hooks/block-ci-edit.sh`：Claude Code `PreToolUse` hook。**主對話**（hook 收到的 stdin 沒有 `agent_id`）用 Edit／Write／MultiEdit／NotebookEdit 改路徑含 `.github/workflows/` 或 `.github/actions/` 的檔會被擋（exit 2，訊息要求先把 diff 給使用者取得當次授權、再以 `git apply` 套上）；subagent（有 `agent_id`）與其他路徑一律放行。把 dispatch skill §3『派工合約與回報』那段「CI／release 設定不靜默自改」變成機械擋板。
 - `ripgreprc`：讓 **Bash 裡的 `rg`** 預設 `--hidden` 並排除 `.git`，對應 `global/shared/rules/judgment.md` 3『殘留掃描』。Claude Code 的 Grep 工具本來就搜隱藏目錄（不搜 `.git`），也不讀 `RIPGREP_CONFIG_PATH`，所以這份設定只影響 Bash 的 `rg`。
 
 `~/.claude/settings.json` 要加兩段。頂層 `env`（已有 `env` 就只加這一個 key）；值必須是絕對路徑，settings 的 `env` 不經 shell 展開（`~` 是否展開沒測，不要依賴）；`<echo "$HOME/.claude/ripgreprc" 的輸出>` 整個換成該指令印出的完整路徑，路徑錯時 `rg` 每次在 stderr 報錯，且 `--hidden` 不生效：
@@ -126,7 +126,7 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 **已知限制**：
 
 - **Bash 改檔不經 hook**：`sed -i`、heredoc、`tee`、`git apply` 改 `.github/workflows` 都不會被擋（實測 `sed -i` 改成功）。hook 只補 Edit／Write 這條路，dispatch skill 那條規則仍然要靠 controller 自己守。路徑只做字串比對，不解析 symlink。
-- **CLI adapter 的 worker 也會被擋**：`global/shared/skills/parallel-dispatch/references/cli.md` 用 `claude -p` 起的 worker 是頂層 session，hook 的 stdin 沒有 `agent_id`，判斷方式與主對話相同，改 `.github/workflows`／`.github/actions` 會被擋。裝了這個 hook 的機器，這類切片改用 Agent 工具派 `worker`，不走 CLI adapter。
+- **issue session 也會被擋**：`global/shared/skills/worktree-session/references/cli.md` 起的 issue session 是頂層 session，hook 的 stdin 沒有 `agent_id`，判斷方式與主對話相同，改 `.github/workflows`／`.github/actions` 會被擋，同樣先取使用者授權。
 - **使用者要求主對話直接改 CI 也會被擋**：hook 不分專案、不分誰下的指示。使用者在編輯器自己改不受影響；真要主對話改，只能暫時移除 `settings.json` 裡那個 `PreToolUse` 元素。`claude --agent <name>` 啟動的主執行緒同樣沒有 `agent_id`，會被當主對話擋。
 - **hook 會被略過**：`claude --bare`、`--setting-sources` 不含 user、`disableAllHooks`。`jq` 不在 PATH 或 stdin 不是 JSON 時 hook fail-open（exit 1，非阻擋錯誤，工具照跑；transcript 會顯示 `CI edit guard is INACTIVE`／`did not run`）——等於沒裝，不會誤擋。
 - **沒測過**：agent teams／teammate、`isolation: worktree` 的 subagent（預期同樣帶 `agent_id`），以及與其他 `*` hook 並存。
@@ -185,7 +185,7 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 
 ### 選配：擋沒帶 `--model`／`--effort` 的 Claude issue session 啟動
 
-`hooks/require-issue-session-model.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。目的：`global/shared/skills/parallel-dispatch/references/cli.md`「盤點 session 與 issue session」規定 issue session 一律 `--model claude-opus-5-5 --effort medium`，但這條只寫在 reference 裡，controller 沒載 skill 就看不到；沒帶旗標的 `claude` 吃的是啟動當下 `~/.claude/settings.json` 的 `model`（2026-10-27 四個 issue session 因此開成 Sonnet high 與 Fable）。這個 `PreToolUse` hook 把它變成機械擋板：Bash command 以換行、`;`、`&&`、`||`、`|` 切段，任一段含 `orca worktree create` 或 `orca agent launch` 且含 token `--agent claude`（或 `--agent=claude`、值加引號的寫法），就必須同段含 `--model <值>` 與 `--effort <值>`（`=` 寫法亦可），缺一即 exit 2、stderr 訊息指回 cli.md 與完整旗標；只檢查有沒有帶，值的政策留在 cli.md。`--agent codex`、沒有 `--agent` 的純 worktree、`orca terminal create`、其他指令與非 Bash 工具一律放行；`--prompt` 內文含 `&&` 不影響（旗標依文件順序寫在 `--prompt` 之前）。fail-open：`jq` 不在或 stdin 不是 JSON 時 exit 1、不擋。
+`hooks/require-issue-session-model.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。目的：`global/shared/skills/worktree-session/references/cli.md`「盤點 session 與 issue session」規定 issue session 一律 `--model claude-opus-5-5 --effort medium`，但這條只寫在 reference 裡，controller 沒載 skill 就看不到；沒帶旗標的 `claude` 吃的是啟動當下 `~/.claude/settings.json` 的 `model`（2026-10-27 四個 issue session 因此開成 Sonnet high 與 Fable）。這個 `PreToolUse` hook 把它變成機械擋板：Bash command 以換行、`;`、`&&`、`||`、`|` 切段，任一段含 `orca worktree create` 或 `orca agent launch` 且含 token `--agent claude`（或 `--agent=claude`、值加引號的寫法），就必須同段含 `--model <值>` 與 `--effort <值>`（`=` 寫法亦可），缺一即 exit 2、stderr 訊息指回 cli.md 與完整旗標；只檢查有沒有帶，值的政策留在 cli.md。`--agent codex`、沒有 `--agent` 的純 worktree、`orca terminal create`、其他指令與非 Bash 工具一律放行；`--prompt` 內文含 `&&` 不影響（旗標依文件順序寫在 `--prompt` 之前）。fail-open：`jq` 不在或 stdin 不是 JSON 時 exit 1、不擋。
 
 **追加**到既有的 `hooks.PreToolUse` 陣列（不要取代其他元素；片段同樣收在 `<REPO>/global/claude/settings.snippets.json`）：
 
@@ -214,7 +214,7 @@ link_one() {   # link_one <來源> <目的>；已存在就略過，不覆蓋
 }
 mkdir -p ~/.codex/agents ~/.agents/skills
 link_one "$REPO/global/codex/AGENTS.md" ~/.codex/AGENTS.md
-for skill in dispatch handoff git-commit create-pr parallel-dispatch writing-principles; do
+for skill in dispatch handoff git-commit create-pr worktree-session writing-principles; do
   link_one "$REPO/global/shared/skills/$skill" ~/.agents/skills/$skill
 done
 
@@ -256,7 +256,7 @@ Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用�
 memories = true
 ```
 
-兩個平台共用的六個 global skills：`dispatch` 負責派工、回報、升降級與驗收後修正，`handoff` 提供 brief、回報、verifier 判定、session 交接四張固定卡（session 卡預設寫專案根 `.agents/HANDOFF.md`），`git-commit` 定 commit message 格式與 squash merge 標題，`create-pr` 負責分析 branch 變更並準備 Pull Request，`parallel-dispatch` 處理多寫入切片的切分、派工與整合驗收（worktree 與 terminal 只是 adapter 層），`writing-principles` 提供長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則、判定與純標準庫檢查腳本（`scripts/check_docs.py`），寫的人與 verifier 跑同一支。`maintain-guideline` 與 `usage-review` 是 repo-only：Claude 在本 repo 開工時自動可用，Codex 維護本 repo 時直接讀 `.claude/skills/maintain-guideline/SKILL.md`；`usage-review` 只解析 Claude Code 本機 session jsonl（`~/.claude/projects`），不裝到 Codex。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
+兩個平台共用的六個 global skills：`dispatch` 負責驗收、派 verifier 與查詢型 subagent、驗收後修正與卡住換路，`handoff` 提供 brief、回報、verifier 判定、session 交接四張固定卡（session 卡預設寫專案根 `.agents/HANDOFF.md`），`git-commit` 定 commit message 格式與 squash merge 標題，`create-pr` 負責分析 branch 變更並準備 Pull Request，`worktree-session` 處理開工建 worktree、多個獨立 issue 各開頂層 session 與 worktree 清理（Orca、tmux、分頁只是 session 的容器），`writing-principles` 提供長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則、判定與純標準庫檢查腳本（`scripts/check_docs.py`），寫的人與 verifier 跑同一支。`maintain-guideline` 與 `usage-review` 是 repo-only：Claude 在本 repo 開工時自動可用，Codex 維護本 repo 時直接讀 `.claude/skills/maintain-guideline/SKILL.md`；`usage-review` 只解析 Claude Code 本機 session jsonl（`~/.claude/projects`），不裝到 Codex。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
 
 Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身，按需讀 `<REPO>/docs/reviews/codex-tooling-audit-2026-10.md`。
 
@@ -301,13 +301,11 @@ Link-One "$G\shared\hosts\windows.md"   "$HOME\.claude\host-facts.md"   # 本機
 Link-One "$G\shared\rules"              "$HOME\.claude\rules"
 Link-One "$G\claude\route-card.md"      "$HOME\.claude\route-card.md"
 Link-One "$G\shared\rubrics"            "$HOME\.claude\rubrics"
-foreach ($a in 'worker','verifier') {
-  Link-One "$G\claude\agents\$a.md" "$HOME\.claude\agents\$a.md"
-}
+Link-One "$G\claude\agents\verifier.md" "$HOME\.claude\agents\verifier.md"
 # hook 與 ripgreprc（只連結檔案，settings.json 另外加，見上方「SessionStart hook」與「選配」段）
 Link-One "$G\claude\hooks"              "$HOME\.claude\hooks"
 Link-One "$G\claude\config\ripgreprc"   "$HOME\.claude\ripgreprc"
-$skills = 'dispatch','handoff','git-commit','create-pr','parallel-dispatch','writing-principles'
+$skills = 'dispatch','handoff','git-commit','create-pr','worktree-session','writing-principles'
 foreach ($s in $skills) { Link-One "$G\shared\skills\$s" "$HOME\.claude\skills\$s" }
 
 # Codex
@@ -358,7 +356,8 @@ v1 是舊目錄結構（repo 根目錄的 `rules/`、`rules-controller/`、`skil
 | `~/.claude/rules/{00-environment,05-hosts,10-dispatch,20-judgment,50-lessons}.md` | 移除 |
 | `~/.claude/skills/{maintain-guideline,usage-review}` | 移除（改為 repo-only） |
 | `~/.agents/skills/{maintain-guideline,session-handoff}` | 移除（`session-handoff` 由 `handoff` skill 取代） |
-| `~/.claude/agents/worker-opus.md` | 移除（`worker-opus` 車道已刪） |
+| `~/.claude/agents/worker-opus.md`、`~/.claude/agents/worker.md` | 移除（`worker-opus` 車道 2026-09 已刪；`worker` 於 v4 2026-10-29 日落，controller 自做） |
+| `~/.claude/skills/parallel-dispatch`、`~/.agents/skills/parallel-dispatch` | 移除（v4 改名 `worktree-session`，重跑主安裝建新連結） |
 
 symlink 安裝：先列出所有指向 repo 的連結，確認清單後再刪（`echo` 換成 `rm`），然後重跑上方主安裝。`rm` 一條連結不會動到 repo。
 

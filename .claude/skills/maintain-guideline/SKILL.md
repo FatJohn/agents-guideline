@@ -18,7 +18,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 | `global/shared/rules/judgment.md` | 判斷準則（每 session 常駐） | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |
 | `global/shared/skills/{dispatch,handoff,git-commit}/SKILL.md`、`global/shared/rubrics/*.md`、`global/codex/rules/{dispatch,delegation-templates}.md` | 系統核心與驗收判準 | ⚠️ 同上 |
 | `global/claude/agents/*.md`、`global/codex/agents/*.toml` | agent 定義（角色介面） | ✅ 新角色可加；改既有角色的職責先問 |
-| `global/shared/skills/{create-pr,parallel-dispatch,writing-principles}/` | 其餘共用 skill | ✅ 照 §2 改；改 `description` 要同步入口路由表 |
+| `global/shared/skills/{create-pr,worktree-session,writing-principles}/` | 其餘共用 skill | ✅ 照 §2 改；改 `description` 要同步入口路由表 |
 | `global/shared/hosts/<key>.md` | 單機事實（每台只裝自己那份） | ✅ 新機器可建檔，過時事實可更新；標題以「# 本機事實：」開頭並含 hostname |
 | `docs/lessons.md`、`docs/lessons-archive.md` | 教訓日誌與封存 | ✅ 隨時可加；封存**不改寫既有條目原文**（唯一例外：專案真名換代號，見 §3） |
 | 本 repo 的 `CLAUDE.md`／`AGENTS.md` | 本 repo 專案規格 | ⚠️ 兩份同內容，改一邊同步另一邊 |
@@ -36,7 +36,6 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 | Claude | Codex | 對齊什麼 |
 |---|---|---|
 | `global/claude/CLAUDE.md` | `global/codex/AGENTS.md` | 邊界六條、路由表、Bootstrap |
-| `global/claude/agents/worker.md` | `global/codex/agents/worker.toml` | 合約核心：approved plan 前置、single-writer、突變紅綠、不自驗、不擴 scope、禁對外 |
 | `global/claude/agents/verifier.md` | `global/codex/agents/{verifier,sol_verifier}.toml` | 找碴範圍、逐條判定、收斂狀態；Codex 高風險派 `sol_verifier` 是刻意分版 |
 | `global/claude/route-card.md`＋`global/shared/skills/dispatch/SKILL.md` | `global/codex/rules/dispatch.md` | 派工時機、升降級、驗證不自驗 |
 
@@ -46,7 +45,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 
 1. 確認回退路徑：`git status --short` 應為乾淨，或至少未提交變更是你自己的。**本 repo 有 git 版控，不要 `cp` 出 `.bak` 檔**，回退用 `git diff`。
 2. 修改（優先新增段落，少動既有文字）。
-3. 驗證：派 fresh-context `verifier` 做 read-back。Claude 端不因高風險升檔，一律顯式帶 `model: opus`（升 `model: fable` 見 `<REPO>/global/shared/skills/dispatch/SKILL.md` §6『驗證不自驗』）；Codex 端高風險仍派 `sol_verifier`。驗收條件至少含「與其他 global 檔無矛盾」「引用的路徑與指令存在」「兩平台對照組語意對齊」。
+3. 驗證：派 fresh-context `verifier` 做 read-back。Claude 端不因高風險升檔，一律顯式帶 `model: opus`（升 `model: fable` 見 `<REPO>/global/shared/skills/dispatch/SKILL.md` §1『驗證不自驗』）；Codex 端高風險仍派 `sol_verifier`。驗收條件至少含「與其他 global 檔無矛盾」「引用的路徑與指令存在」「兩平台對照組語意對齊」。
 4. 提醒使用者 repo 有未 commit 的變更（不要自行 commit）。
 
 **新增或修改 skill／agent／rubric 檔時多一步**：在 repo 加檔不等於任何機器已安裝。新 skill 要補進 `<REPO>/docs/install.md` 的安裝清單與 `<REPO>/scripts/sync-profile.py` 的 `SHARED_SKILLS`；Codex agent TOML 跑 `sync-codex-agents.py --apply`（既有差異加 `--update`），read-back 實體檔 bytes。漏掉這步，規則會指向一個叫不出來的名字。
@@ -57,7 +56,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 
 - 改 `~/.codex/config.toml` 前先備份（不在 git 裡），改後驗證沒有重複的 TOML table。
 - commit 前 read-back：`git status --short`、`git diff --cached`、`git stash list`。
-- 平行寫入：Claude 見 `<REPO>/global/shared/skills/dispatch/SKILL.md` §9『工作目錄與背景任務安全』；Codex 見 `<REPO>/global/codex/rules/dispatch.md` §2『工作目錄與執行安全』。
+- 平行寫入：兩平台見 `<REPO>/global/shared/skills/worktree-session/SKILL.md` §1『開工預設在 worktree』；Codex 另見 `<REPO>/global/codex/rules/dispatch.md` §2『工作目錄與執行安全』。
 
 ## 3. 教訓寫回（每次踩坑後）
 
@@ -103,7 +102,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 
 - 搬移或改名被引用的檔案時，同一次修改先用 `rg --hidden -l '<舊檔名>' ~/.claude/ ~/.codex/ ~/.agents/ <REPO>/` 找出所有引用一起改；專案 CLAUDE.md／AGENTS.md 裡的引用照 §1 權限先問再改。
 - **改 markdown 標題也會斷鏈**：標題一改，下游的 anchor 連結和「§編號『章節名』」引用就死。改完用 `rg --hidden '檔名#'` 與章節名全 repo 驗存活；寧可用「檔案路徑＋章節名」，不手算 GitHub anchor。
-- **跨平台共用的章節指向，逐平台各寫一組編號並附章節名**（「Claude：`<REPO>/global/shared/skills/dispatch/SKILL.md` §6『驗證不自驗』；Codex：`<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』」）。兩份編號本來就不同，只寫 §N 會讓另一個平台翻到別節；路徑寫完整，裸檔名從本檔解析不到。
+- **跨平台共用的章節指向，逐平台各寫一組編號並附章節名**（「Claude：`<REPO>/global/shared/skills/dispatch/SKILL.md` §1『驗證不自驗』；Codex：`<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』」）。兩份編號本來就不同，只寫 §N 會讓另一個平台翻到別節；路徑寫完整，裸檔名從本檔解析不到。
 - 定期（或使用者要求時）健檢：派 verifier 對入口與 skill 引用的路徑與指令做存在性檢查。
 
 ## 7. 跨專案應用
