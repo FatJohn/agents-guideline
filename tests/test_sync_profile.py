@@ -34,7 +34,7 @@ def can_symlink(directory: Path) -> bool:
     return True
 
 
-SHARED_SKILLS = ("dispatch", "handoff", "git-commit", "create-pr", "parallel-dispatch", "writing-principles")
+SHARED_SKILLS = ("dispatch", "handoff", "git-commit", "create-pr", "worktree-session", "writing-principles")
 
 
 def build_repo(root: Path) -> Path:
@@ -71,7 +71,6 @@ def build_repo(root: Path) -> Path:
     (shared / "hosts" / "windows.md").write_text("# win\n", encoding="utf-8")
     (shared / "rubrics" / "code-change.md").write_text("# code change\n", encoding="utf-8")
     (shared / "rubrics" / "document-quality.md").write_text("# document quality\n", encoding="utf-8")
-    (claude / "agents" / "worker.md").write_text("# worker\n", encoding="utf-8")
     (claude / "agents" / "verifier.md").write_text("# verifier\n", encoding="utf-8")
     (claude / "hooks" / "block-ci-edit.sh").write_text("#!/bin/bash\n# hook\n", encoding="utf-8")
     (claude / "hooks" / "controller-context.sh").write_text("#!/bin/bash\n# context\n", encoding="utf-8")
@@ -139,8 +138,8 @@ class SyncProfileTests(unittest.TestCase):
             self.assertFalse((self.claude / "skills" / name).exists())
             self.assertFalse((self.agents / "skills" / name).exists())
 
-        # worker.md is the entry docs/install.md's symlink install has been missing.
-        self.assertEqual((self.claude / "agents" / "worker.md").read_text(encoding="utf-8"), "# worker\n")
+        # worker.md was retired in v4; only verifier.md is installed.
+        self.assertFalse((self.claude / "agents" / "worker.md").exists())
         self.assertEqual((self.claude / "agents" / "verifier.md").read_text(encoding="utf-8"), "# verifier\n")
         self.assertEqual(
             (self.claude / "rubrics" / "code-change.md").read_text(encoding="utf-8"), "# code change\n"
@@ -642,6 +641,9 @@ class SyncProfileTests(unittest.TestCase):
             self.claude / "skills" / "maintain-guideline",
             self.claude / "skills" / "usage-review",
             self.claude / "agents" / "worker-opus.md",
+            self.claude / "agents" / "worker.md",
+            self.claude / "skills" / "parallel-dispatch",
+            self.agents / "skills" / "parallel-dispatch",
             self.agents / "skills" / "maintain-guideline",
             self.agents / "skills" / "session-handoff",
         ]

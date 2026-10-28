@@ -1,6 +1,6 @@
 # 驗收政策歷史背景
 
-現行規則見 `<REPO>/global/shared/rules/judgment.md` 第 1 條「完成的三個條件」、第 7 條「驗收的停止端」及各平台 dispatch；本檔不作驗收指令，唯一例外是下方「fable 升檔訊號」清單（`<REPO>/global/shared/skills/dispatch/SKILL.md` §6「驗證不自驗」指向此處）。
+現行規則見 `<REPO>/global/shared/rules/judgment.md` 第 1 條「完成的三個條件」、第 7 條「驗收的停止端」及各平台 dispatch；本檔不作驗收指令，唯一例外是下方「fable 升檔訊號」清單（`<REPO>/global/shared/skills/dispatch/SKILL.md` §1「驗證不自驗」指向此處）。
 
 2026-09-06 舊驗收規則記錄 project-d 八輪驗收，前五輪 fable 的成本為
 601,747 tokens，第六輪額度不足，後三輪 opus 仍抓到修正引入的迴歸。此數字沿用當時紀錄，

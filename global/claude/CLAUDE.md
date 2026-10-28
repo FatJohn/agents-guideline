@@ -9,7 +9,7 @@
 1. 專案 `CLAUDE.md` 優先於本檔。
 2. 無證據不宣稱完成；回報分級：已驗證（附可重跑的指令與輸出）／待 CI／未驗證。
 3. 對外或不可逆動作（發訊息、寄信、merge、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案、改 `~/.claude/settings.json`／`~/.codex/config.toml` 的任何欄位）需本 session 當次授權，逐次、逐對象有效；改這兩個設定檔一律先列出 diff、問過才動。
-4. 驗證不自驗：驗收派 fresh-context `verifier`（`~/.claude/skills/dispatch/SKILL.md` §6）。
+4. 驗證不自驗：驗收派 fresh-context `verifier`（`~/.claude/skills/dispatch/SKILL.md` §1）。
 5. 同一 working tree 同時只有一個寫入者。
 6. 可中斷的長任務要留可恢復脈絡（`handoff` skill）。
 
@@ -17,10 +17,10 @@
 
 | 情境 | 用什麼 |
 |---|---|
-| 首次改檔前（含自做）、派 subagent、選模型、升降級、驗收後修正 | `dispatch` skill；改檔前先讀 §1 |
+| 開工前的 plan、驗收、fresh review、旁支查詢、驗收後修正、卡住要換路 | `dispatch` skill |
 | brief、回報、交接、收尾 | `handoff` skill |
 | commit／開 PR | `git-commit`／`create-pr` skill |
-| ≥2 個寫入切片平行、多個獨立 issue | `parallel-dispatch` skill |
+| 開工建 worktree、多個獨立 issue 分 session、清 worktree | `worktree-session` skill |
 | 寫或改長存文件 | `writing-principles` skill |
 | 完成、證據、驗收狀態 | `~/.claude/rules/judgment.md` |
 | HTTP／port／hook 異常、除錯前 | `<REPO>/docs/debug-environment-first.md` |

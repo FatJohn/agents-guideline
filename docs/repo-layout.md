@@ -25,25 +25,24 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 
 | 檔案 | 用途 |
 |------|------|
-| `global/shared/skills/dispatch/SKILL.md` | 派工、驗收與升降級：何時派工、角色與模型、派工合約、回報合約、升降級、驗證不自驗、修正與驗收輪次、何時問使用者、工作目錄安全、主對話 context 管理 |
+| `global/shared/skills/dispatch/SKILL.md` | 驗收、派工與修正：驗證不自驗、修正與驗收輪次、派 verifier／fresh review／查詢型 subagent 的合約與回報、卡住時換路、何時問使用者、主對話 context 管理 |
 | `global/shared/skills/handoff/SKILL.md` | 四張固定卡：brief 卡、回報卡、verifier 判定卡、session 交接卡 |
 | `global/shared/skills/git-commit/SKILL.md` | commit message 固定格式與 squash merge 標題；專案規格有自己的慣例時以專案為準 |
 | `global/shared/skills/create-pr/SKILL.md` | 分析 branch 變更並準備 Pull Request |
-| `global/shared/skills/parallel-dispatch/SKILL.md` | 多寫入切片的平行 orchestration（切分、派工、整合驗收）；`references/templates.md`（brief／report 格式）、`worktree.md`（隔離與清理）、execution adapter `claude-code.md`／`codex.md`／`cli.md`（純 shell、tmux、VS Code、Herdr、Orca 等外部 CLI process） |
+| `global/shared/skills/worktree-session/SKILL.md` | 開工預設在 worktree、互相獨立的 issue 一 issue 一頂層 session（盤點 session 的 brief、launch、result 欄位）、清理；`references/cli.md`（Orca／純 shell／分頁起 issue session 的實測指令、stop 與清理）、`worktree.md`（位置、忽略、清理的證據條件） |
 | `global/shared/skills/writing-principles/SKILL.md` | 長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則；`scripts/check_docs.py`（純標準庫）判機械項，其餘由 verifier 抽樣；`references/sources.md` 收出處短引、`references/examples.md` 收改寫前後片段 |
 | `global/shared/rubrics/document-quality.md` | 文件類產出的逐條驗收判準（verifier 讀） |
 | `global/shared/rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描、作假偵測與失敗路徑） |
 | `global/shared/rubrics/research-analysis.md` | 研究與盤點類產出的逐條驗收判準 |
-| `global/claude/agents/worker.md` | 標準執行者：只在 controller 核定的完整 plan 下動手，涵蓋一般程式碼與一般文件；不做自己的正式驗收、不擴 scope、不執行對外或不可逆動作 |
-| `global/claude/agents/verifier.md` | fresh-context 驗收者：含「找碴範圍」與收斂標記；高風險驗收用同一個角色，派工一律顯式 `model: opus`（升 `fable` 的條件見 dispatch skill §6『驗證不自驗』） |
+| `global/claude/agents/verifier.md` | fresh-context 驗收者：含「找碴範圍」與收斂標記；高風險驗收用同一個角色，派工一律顯式 `model: opus`（升 `fable` 的條件見 dispatch skill §1『驗證不自驗』） |
 | `global/claude/hooks/controller-context.sh` | SessionStart hook，把 `route-card.md` 注入主對話；卡片不存在就靜默略過 |
-| `global/claude/hooks/block-ci-edit.sh` | PreToolUse hook，擋主對話用 Edit／Write 改 `.github/workflows` 與 `.github/actions`（選配） |
-| `global/claude/hooks/require-issue-session-model.sh` | PreToolUse hook，`orca worktree create`／`orca agent launch` 帶 `--agent claude` 卻缺 `--model` 或 `--effort` 時擋下，訊息指回 parallel-dispatch `references/cli.md`（選配） |
+| `global/claude/hooks/block-ci-edit.sh` | PreToolUse hook，擋主對話用 Edit／Write 靜默改 `.github/workflows` 與 `.github/actions`，訊息要求先給使用者看 diff 取授權（選配） |
+| `global/claude/hooks/require-issue-session-model.sh` | PreToolUse hook，`orca worktree create`／`orca agent launch` 帶 `--agent claude` 卻缺 `--model` 或 `--effort` 時擋下，訊息指回 worktree-session `references/cli.md`（選配） |
 | `global/claude/hooks/allow-git-c-projects.sh` | PreToolUse hook，對 `$HOME/Projects/`（或 `GIT_C_ALLOW_ROOT` 指定的根目錄）底下嚴格形狀的 `git -C <path> worktree remove`／`branch -D` 回 allow，其餘不表態（選配） |
 | `global/claude/config/ripgreprc` | 讓 Bash 的 `rg` 預設 `--hidden` 並排除 `.git`（選配） |
 | `global/claude/settings.snippets.json` | 要手動併入 `~/.claude/settings.json` 的 hook 與 `env` 片段，不整檔覆蓋 |
 
-`worker.md`／`verifier.md` 的 name 與 description 會出現在每 session 的可用 agent 清單裡，正文只在該角色被派工時進入 subagent context。
+`verifier.md` 的 name 與 description 會出現在每 session 的可用 agent 清單裡，正文只在該角色被派工時進入 subagent context。
 
 ## Codex
 
@@ -52,21 +51,15 @@ Codex 只自動取得 `~/.codex/AGENTS.md` 的路由，依其中條件按需讀�
 | 檔案 | 用途 |
 |------|------|
 | `global/codex/AGENTS.md` | Codex 全域入口：與 Claude 入口同組的邊界六條、路由表、Codex 注意事項、Bootstrap |
-| `global/codex/rules/dispatch.md` | Codex 調度：角色 mapping、named-first → `default` runtime adapter、reasoning effort、subagent 使用邊界、驗證不自驗 |
-| `global/codex/rules/delegation-templates.md` | A–L 十二份 logical-role 派工模板與共用 adapter envelope |
-| `global/codex/agents/scanner.toml` | Luna／medium／read-only，精確掃描 |
-| `global/codex/agents/explorer.toml` | Terra／medium／read-only，repo 探索與外部研究 |
-| `global/codex/agents/planner.toml` | Terra／high／read-only，非平凡任務規劃 |
-| `global/codex/agents/worker.toml` | Luna／max／workspace-write，標準實作；需完整 approved plan |
-| `global/codex/agents/pro_worker.toml` | Terra／high／workspace-write，有 complexity signals 時預先使用的實作 |
-| `global/codex/agents/recovery_worker.toml` | Terra／high／workspace-write，Luna 能力或脈絡理解不足、或兩次未明失敗後的 recovery |
-| `global/codex/agents/reviewer.toml` | Terra／high／read-only，一般實作 review |
-| `global/codex/agents/escalation_planner.toml` | Sol／medium／read-only，root-cause 規劃升級 |
-| `global/codex/agents/escalation_worker.toml` | Sol／medium／workspace-write，Terra 已確認能力不足後的升級實作 |
+| `global/codex/rules/dispatch.md` | Codex 調度：五個唯讀／探針角色的 mapping、named-first → `default` runtime adapter、controller 開工前的 plan、三類 subagent、卡住換路、驗證不自驗 |
+| `global/codex/rules/delegation-templates.md` | A／B／F／G／J／L 六份 logical-role 派工模板與共用 adapter envelope |
+| `global/codex/agents/scanner.toml` | Luna／medium／read-only，答案在檔案裡的精確掃描 |
+| `global/codex/agents/explorer.toml` | Terra／medium／read-only，要歸納推理的 repo 探索與外部研究 |
+| `global/codex/agents/reviewer.toml` | Terra／high／read-only，程式碼 diff 的 fresh review |
 | `global/codex/agents/verifier.toml` | Terra／high／workspace-write（只寫 repo 外探針目錄），一般 fresh-context 驗收 |
 | `global/codex/agents/sol_verifier.toml` | Sol／high／workspace-write（只寫 repo 外探針目錄），高風險 fresh-context 驗收 |
 
-Codex 的角色選擇、升降級與 runtime adapter 規則是 `global/codex/rules/dispatch.md` §0–§1 與 §5 的內容，這裡不重述。TOML 安裝或角色名稱不能取代 runtime evidence；Codex custom role 名稱使用底線，以符合 `spawn_agent.task_name` 的格式限制。
+Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/rules/dispatch.md` §0–§1 與 §5 的內容，這裡不重述；實作型與規劃型角色於 v4（2026-10-29）日落，已安裝的舊 TOML 由 `scripts/sync-codex-agents.py --apply --prune` 搬進 backup 目錄。TOML 安裝或角色名稱不能取代 runtime evidence；Codex custom role 名稱使用底線，以符合 `spawn_agent.task_name` 的格式限制。
 
 ## repo-only
 
@@ -96,9 +89,8 @@ Codex 的角色選擇、升降級與 runtime adapter 規則是 `global/codex/rul
 | `docs/design/memory-layers.md` | 記憶機制四層的分工與邊界 |
 | `docs/reviews/codex-named-agent-registration.md` | Codex named agent 實體 TOML 同步、註冊實測差異與限制 |
 | `docs/reviews/codex-tooling-audit-*.md` | Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身 |
-| `docs/design/parallel-dispatch-design.md` | parallel-dispatch 的架構說明與刻意不做的理由 |
 | `docs/reviews/verification-policy-history.md` | 驗收政策的歷史背景與 `fable` 升檔訊號清單 |
-| `docs/reviews/` | 帶日期的量測、試行、審查、計畫與 brief，查詢用、不是現行規則：`dispatch-cost-review-*`、`worker-sonnet55-trial-*`、`issue-session-trial-*`、`v3-trial-*`、`workflow-cost-improvement-brief-*`（派工成本與 model 試行）；`codex-tooling-audit-*`、`codex-named-agent-registration`（Codex 工具鏈盤點與 named agent 診斷）；`restructure-plan-*`、`global-policy-ownership-review-*`、`global-rules-token-review-*`、`agents-guideline-self-review-*`（全域規則重構的計畫與輸入審查）；`verification-policy-history`、`verification-round-inventory-*`（驗收政策的歷史背景與輪次盤點）；`superpowers/`（2026-07 的 Codex 路由 plan／spec） |
+| `docs/reviews/` | 帶日期的量測、試行、審查、計畫與 brief，查詢用、不是現行規則：`dispatch-cost-review-*`、`worker-sonnet55-trial-*`、`issue-session-trial-*`、`v3-trial-*`、`v4-*`、`workflow-cost-improvement-brief-*`（派工成本與 model 試行）；`parallel-dispatch-design-*`（2026-09 同 issue 內切片平行的設計，v4 日落）；`codex-tooling-audit-*`、`codex-named-agent-registration`（Codex 工具鏈盤點與 named agent 診斷）；`restructure-plan-*`、`global-policy-ownership-review-*`、`global-rules-token-review-*`、`agents-guideline-self-review-*`（全域規則重構的計畫與輸入審查）；`verification-policy-history`、`verification-round-inventory-*`（驗收政策的歷史背景與輪次盤點）；`superpowers/`（2026-07 的 Codex 路由 plan／spec） |
 | `scripts/sync-profile.py` | 把 `global/` 寫成 `~/.claude`、`~/.codex`、`~/.agents` 的實體檔複本（不能提權的機器用），偵測並列出 v1 舊安裝殘留 |
 | `scripts/sync-codex-agents.py` | 把 `global/codex/agents/*.toml` 寫成 `~/.codex/agents` 的實體檔 |
 | `scripts/dispatch-usage.py` | 日落審查用：量主對話自寫與派 subagent 的使用率（量法見 `maintain-guideline` §5） |
@@ -109,10 +101,10 @@ Codex 的角色選擇、升降級與 runtime adapter 規則是 `global/codex/rul
 | `tests/test_*.py` | sync 腳本、usage-review 腳本、writing-principles 檢查腳本與 shell 守門腳本的單元測試；樣本在 `tests/fixtures/writing-principles/` |
 | `tests/test-*.sh` | hook 與 ripgreprc 的離線斷言（`block-ci-edit.sh`、`allow-git-c-projects.sh`、`require-issue-session-model.sh`、`controller-context.sh`、`ripgreprc`），也由 `tests/test_shell_guards.py` 包進 pytest |
 
-## 為什麼 Claude 側只自建 worker 與 verifier
+## 為什麼 Claude 側只自建 verifier
 
-Claude 側沒有 `scanner`／`explorer`／`planner` 的等價 custom agent：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋唯讀掃描與規劃。`worker` 與 `verifier` 需要獨立定義檔：一般實作與文件撰寫要固定綁 Sonnet 5.5，驗收要固定綁 `opus`，寫成 standalone agent 才能把 model、effort 與角色合約一起鎖成預設，不靠每次呼叫都記得帶參數。Agent 工具本身可以逐次帶 `effort`（見 `docs/harness-facts.md`「沒有 frontmatter effort 的 subagent」），所以獨立定義檔的價值是鎖預設，不是補足做不到的事。
+Claude 側沒有 `scanner`／`explorer`／`planner` 的等價 custom agent：內建 `Explore`／`Plan`／`general-purpose` 加上逐次指定 `model` 已經涵蓋唯讀掃描與規劃。`verifier` 需要獨立定義檔：驗收要固定綁 `opus`，寫成 standalone agent 才能把 model、effort 與角色合約一起鎖成預設，不靠每次呼叫都記得帶參數。`worker`（Sonnet 5.5 實作者）於 v4（2026-10-29）日落：controller 自己實作，平行開發改以多個頂層 session 各在自己的 worktree 進行，實作型 subagent 沒有剩餘用途（量測見 `docs/reviews/v4-2026-10.md`）。Agent 工具本身可以逐次帶 `effort`（見 `docs/harness-facts.md`「沒有 frontmatter effort 的 subagent」），所以獨立定義檔的價值是鎖預設，不是補足做不到的事。
 
 ## 為什麼 Claude 側沒有派工模板檔
 
-Claude 側的派工合約併在 `global/shared/skills/dispatch/SKILL.md` §3『派工合約』與 `handoff` skill §1『brief 卡』，沒有獨立模板檔：填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `global/codex/rules/delegation-templates.md`：它把 approved plan、寫入所有權、驗證命令與回報格式做成可核對欄位，避免 controller 只靠角色名稱推定 child 已取得完整脈絡。
+Claude 側的派工合約併在 `global/shared/skills/dispatch/SKILL.md` §3『派工合約與回報』與 `handoff` skill §1『brief 卡』，沒有獨立模板檔：填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `global/codex/rules/delegation-templates.md`：它把 approved plan、寫入所有權、驗證命令與回報格式做成可核對欄位，避免 controller 只靠角色名稱推定 child 已取得完整脈絡。

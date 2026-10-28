@@ -49,12 +49,38 @@ class SyncTests(unittest.TestCase):
     def test_default_source_is_the_repository_codex_agents_directory(self) -> None:
         self.assertEqual(sync_codex_agents.DEFAULT_SOURCE, REPO_ROOT / "global" / "codex" / "agents")
         expected = sorted(path.stem for path in (REPO_ROOT / "global" / "codex" / "agents").glob("*.toml"))
-        self.assertIn("worker", expected)
+        self.assertIn("scanner", expected)
         self.assertIn("verifier", expected)
+        # v4 retired the implementer and planner roles; the repo must not ship them.
+        for retired in sync_codex_agents.RETIRED_ROLES:
+            self.assertNotIn(retired, expected)
 
         roles = sync_codex_agents.load_roles(sync_codex_agents.DEFAULT_SOURCE)
 
         self.assertEqual(sorted(role.name for role in roles), expected)
+
+    def test_retired_role_is_reported_and_pruned_only_with_prune(self) -> None:
+        temporary, source, destination = self.make_dirs()
+        with temporary:
+            source.mkdir(parents=True)
+            write_role(source, "verifier")
+            destination.mkdir(parents=True)
+            stale = destination / "worker.toml"
+            stale.write_bytes(b"old worker")
+
+            # Dry-run and plain --apply only report the stale file.
+            ops = sync_codex_agents.sync(source, destination)
+            self.assertIn(("worker", "prune-pending"), [(o.role.name, o.action) for o in ops])
+            sync_codex_agents.sync(source, destination, apply=True)
+            self.assertEqual(stale.read_bytes(), b"old worker")
+
+            ops = sync_codex_agents.sync(source, destination, apply=True, prune=True)
+            self.assertIn(("worker", "prune"), [(o.role.name, o.action) for o in ops])
+            self.assertFalse(stale.exists())
+            backups = list(destination.parent.glob("agents.backup-*/worker.toml"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].read_bytes(), b"old worker")
+            self.assertTrue((destination / "verifier.toml").is_file())
 
     def test_first_install_uses_regular_files_and_leaves_unrelated_names(self) -> None:
         temporary, source, destination = self.make_dirs()

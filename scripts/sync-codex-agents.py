@@ -22,6 +22,18 @@ from pathlib import Path
 DEFAULT_SOURCE = Path(__file__).resolve().parent.parent / "global" / "codex" / "agents"
 DEFAULT_DESTINATION = Path.home() / ".codex" / "agents"
 
+# Roles the repository no longer ships.  An installed copy is reported on every
+# run and removed only with ``--apply --prune`` (v4, 2026-10-29: implementer and
+# planner roles folded into the main conversation).
+RETIRED_ROLES = (
+    "worker",
+    "pro_worker",
+    "recovery_worker",
+    "escalation_worker",
+    "planner",
+    "escalation_planner",
+)
+
 
 class SyncError(ValueError):
     """A safe, user-actionable synchronization error."""
@@ -165,6 +177,7 @@ def plan_operations(
     *,
     apply: bool,
     update: bool,
+    prune: bool = False,
 ) -> list[Operation]:
     """Inspect every destination entry before any operation can mutate it."""
 
@@ -205,6 +218,17 @@ def plan_operations(
             operations.append(Operation(role, target, "update-required"))
         else:
             operations.append(Operation(role, target, "update"))
+
+    present = {role.name for role in roles}
+    for name in RETIRED_ROLES:
+        if name in present:
+            continue
+        stale = destination / f"{name}.toml"
+        if stale.exists() or stale.is_symlink():
+            if stale.is_dir():
+                raise SyncError(f"retired role path is a directory: {stale}")
+            retired = SourceRole(name, stale, b"")
+            operations.append(Operation(retired, stale, "prune" if (apply and prune) else "prune-pending"))
 
     blocked = [operation for operation in operations if operation.action == "update-required"]
     if blocked and apply:
@@ -254,7 +278,8 @@ def apply_operations(operations: list[Operation], destination: Path) -> tuple[Pa
     """Apply staged regular-file replacements and return backup evidence."""
 
     changes = [operation for operation in operations if operation.action in {"install", "migrate-symlink", "update"}]
-    if not changes:
+    prunes = [operation for operation in operations if operation.action == "prune"]
+    if not changes and not prunes:
         return None, {}
 
     destination.mkdir(parents=True, exist_ok=True)
@@ -277,6 +302,14 @@ def apply_operations(operations: list[Operation], destination: Path) -> tuple[Pa
                 if backup.exists() or backup.is_symlink():
                     os.replace(backup, operation.destination)
             raise
+
+    # A retired role is moved to the same backup directory, never unlinked, so
+    # the bytes stay recoverable next to the other backups of this run.
+    if prunes:
+        if backup_root is None:
+            backup_root = _make_backup_root(destination)
+        for operation in prunes:
+            backups[operation.role.name] = _move_to_backup(operation, backup_root)
 
     try:
         for operation in changes:
@@ -304,7 +337,7 @@ def apply_operations(operations: list[Operation], destination: Path) -> tuple[Pa
 
 
 def _counts(operations: list[Operation]) -> dict[str, int]:
-    labels = {"install": "install", "migrate-symlink": "migrate", "update": "update", "unchanged": "unchanged", "update-required": "update-required"}
+    labels = {"install": "install", "migrate-symlink": "migrate", "update": "update", "unchanged": "unchanged", "update-required": "update-required", "prune": "prune", "prune-pending": "prune-pending"}
     counts = {label: 0 for label in labels.values()}
     for operation in operations:
         counts[labels[operation.action]] += 1
@@ -324,6 +357,10 @@ def print_preview(operations: list[Operation], destination: Path, *, apply: bool
             verb = "update regular file"
         elif operation.action == "update-required":
             verb = "would update (requires --apply --update)"
+        elif operation.action == "prune":
+            verb = "prune retired role"
+        elif operation.action == "prune-pending":
+            verb = "retired role still installed (remove with --apply --prune)"
         else:
             verb = "unchanged"
         print(f"{verb}: {operation.destination}")
@@ -335,17 +372,21 @@ def print_preview(operations: list[Operation], destination: Path, *, apply: bool
         f"migrate={counts['migrate']} "
         f"update={counts['update']} "
         f"unchanged={counts['unchanged']} "
-        f"update-required={counts['update-required']}"
+        f"update-required={counts['update-required']} "
+        f"prune={counts['prune']} "
+        f"prune-pending={counts['prune-pending']}"
     )
 
 
-def sync(source: Path, destination: Path, *, apply: bool = False, update: bool = False) -> list[Operation]:
+def sync(
+    source: Path, destination: Path, *, apply: bool = False, update: bool = False, prune: bool = False
+) -> list[Operation]:
     """Validate, preview, or apply a synchronization plan."""
 
     source = source.expanduser()
     destination = destination.expanduser()
     roles = load_roles(source)
-    operations = plan_operations(roles, source, destination, apply=apply, update=update)
+    operations = plan_operations(roles, source, destination, apply=apply, update=update, prune=prune)
     if not apply:
         print_preview(operations, destination, apply=False)
         return operations
@@ -379,6 +420,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="allow --apply to replace differing regular files after backing them up",
     )
+    parser.add_argument(
+        "--prune",
+        action="store_true",
+        help="allow --apply to move retired role files (RETIRED_ROLES) into the backup directory",
+    )
     return parser
 
 
@@ -387,8 +433,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.update and not args.apply:
         parser.error("--update requires --apply")
+    if args.prune and not args.apply:
+        parser.error("--prune requires --apply")
     try:
-        sync(DEFAULT_SOURCE, args.destination, apply=args.apply, update=args.update)
+        sync(DEFAULT_SOURCE, args.destination, apply=args.apply, update=args.update, prune=args.prune)
     except (OSError, SyncError) as exc:
         print(f"sync-codex-agents: error: {exc}", file=sys.stderr)
         return 1

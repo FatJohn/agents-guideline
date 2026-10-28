@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""量平行寫入派工：同時在途 ≥2 個寫入型 agent 的群組、worktree 派工、parallel-dispatch 叫用次數。
+"""量平行寫入派工：同時在途 ≥2 個寫入型 agent 的群組、worktree 派工、parallel-dispatch／worktree-session skill 叫用次數。
 
 資料來源：~/.claude/projects/**/*.jsonl 的 assistant tool_use 與 task-notification（不裸 grep，
 理由同 dispatch-usage.py）。背景 agent 以 tool_result 的 agentId 對到 task-notification 的結束時間；
@@ -52,7 +52,7 @@ def main():
                 for c in (d.get("message") or {}).get("content") or []:
                     if not isinstance(c, dict) or c.get("type") != "tool_use": continue
                     inp = c.get("input") or {}
-                    if c["name"] == "Skill" and "parallel-dispatch" in str(inp.get("skill", "")): skill += 1
+                    if c["name"] == "Skill" and str(inp.get("skill", "")) in ("parallel-dispatch", "worktree-session"): skill += 1
                     if c["name"] == "Agent":
                         st = inp.get("subagent_type")
                         if inp.get("isolation") == "worktree":
@@ -117,7 +117,7 @@ def main():
     def out(s=""):
         lines.append(s)
     out(f"since {a.since}; sessions with Agent calls: {nsess}; Agent calls: {tot['agents']}; write-type agents: {tot['write_agents']}")
-    out(f"Skill parallel-dispatch: {tot['skill_pd']}; async agents with no end notification (treated open to session end): {unterminated}")
+    out(f"Skill parallel-dispatch/worktree-session: {tot['skill_pd']}; async agents with no end notification (treated open to session end): {unterminated}")
     out("worktree Agent: " + str({k[3:]: v for k, v in tot.items() if k.startswith('wt:')}) + f" total={sum(v for k,v in tot.items() if k.startswith('wt:'))}")
     out(f"parallel-write groups (spec definition, all write-type roles): {len(groups)}")
     out(f"parallel-write groups STRICT (>=2 overlapping write-type agents whose brief head lacks read-only markers): {len(strict)}")

@@ -15,10 +15,10 @@
 
 | 情境 | 用什麼 |
 |---|---|
-| 首次改檔前（含自做，先讀 §1）、派 subagent、選 model／reasoning effort、升降級、驗收 | 先讀 `<REPO>/global/codex/rules/dispatch.md`；prompt 模板 `<REPO>/global/codex/rules/delegation-templates.md` |
+| 開工前的 plan、驗收、fresh review、旁支查詢、驗收後修正、卡住要換路 | 先讀 `<REPO>/global/codex/rules/dispatch.md`；prompt 模板 `<REPO>/global/codex/rules/delegation-templates.md` |
 | brief、回報、交接、收尾 | `handoff` skill |
 | commit／開 PR | `git-commit`／`create-pr` skill |
-| ≥2 個寫入切片平行、多個獨立 issue | `parallel-dispatch` skill |
+| 開工建 worktree、多個獨立 issue 分 session、清 worktree | `worktree-session` skill |
 | 寫或改長存文件 | `writing-principles` skill |
 | 完成、證據、驗收狀態 | `<REPO>/global/shared/rules/judgment.md` |
 | HTTP／port／hook 異常、除錯前 | `<REPO>/docs/debug-environment-first.md` |
@@ -28,7 +28,7 @@
 
 - `~/.codex/rules/*.rules` 是命令權限規則，不是本 repo 的 markdown；不要把本 repo 的 `.md` 連進去。
 - 派 subagent 前必讀 `dispatch.md`；呼叫工具前在 commentary 只報 logical role 名稱與任務摘要。named role 不可用而改用 `default` 或 direct CLI 時，在名稱後標 `generic fallback`／`direct CLI fallback` 並簡述差異；不把 generic child 稱為 custom role。
-- 多步驟任務預設在主對話完成；符合 `dispatch.md` §1 必派條件時用 subagent（本檔即常設授權）；surface 沒有 subagent 工具就在主對話完成並明說限制。subagent 繼承父 session 的 sandbox 與 approval，對外動作仍守本 session 權限。
+- 實作、修 bug、文件與規劃一律在主對話完成；subagent 只派驗收、fresh review 與旁支查詢三類（`dispatch.md` §1，本檔即常設授權），不把實作委派給 custom 或內建 generic child；surface 沒有 subagent 工具就在主對話完成並明說限制。subagent 繼承父 session 的 sandbox 與 approval，對外動作仍守本 session 權限。
 
 ## Bootstrap
 

@@ -31,29 +31,26 @@
 
 `~/.claude/rules/` 是無條件常駐區，每個 session 都全文載入其中的檔，所以只裝 `judgment.md` 一份。路由卡不放這個區，subagent 不繼承。
 
-### 角色模型：controller／worker／verifier
+### 角色模型：controller 與 verifier
 
-主對話是 controller，規劃、實作、核對與回報；只在必派條件成立時派工，驗收一律交獨立角色。
+主對話是 controller，規劃、實作、核對與回報，全部自己做。subagent 只剩三種用途：fresh-context 驗收、fresh code review、旁支查詢。平行開發由多個頂層 session 各在自己的 worktree 進行，不用實作型 subagent（v4，2026-10-29；量測依據見 `docs/reviews/v4-2026-10.md`）。
 
-- controller（主對話）：預設自己做；條件 1–3（context、平行、工具衝突）成立才派，CI 與 release 設定一律派 worker。
-- `worker`：只在 controller 核定完整的 approved plan 後動工，缺 plan 退回。
+- controller（主對話）：開工在自己的 worktree，自己實作、自己修；CI 與 release 設定先把 diff 給使用者、取得當次授權才改。
 - `verifier`：fresh-context，只判定不製作。
+- 互相獨立的 issue 一 issue 一頂層 session（`worktree-session` skill），本 session 只盤點。
 
 派工對照（節錄自 `global/claude/route-card.md`）：
 
 | 工作 | 派給 |
 |---|---|
-| 掃 repo、找哪些檔有 X、整理清單 | `Explore`，`model: haiku` |
-| 讀多份長文件、查網頁 | `general-purpose`，sonnet |
-| 實作、修 bug、重構、批次改檔、一般文件（條件 1–3） | `worker` |
-| 設計與架構取捨 | `Plan`，opus |
-| 跨檔推理、高難度 review | `general-purpose`，opus |
-| 驗收 | `verifier`，`model: opus`；所有文件 merge／轉 ready 前一律派，程式碼依 dispatch skill §6 分流，專案規則只寫 code-review 時仍適用 |
-| 程式碼 diff 的 fresh review | fresh subagent 跑內建 `code-review` skill，主對話不自跑；是 verifier 的加項不是替代，修 finding 後依 dispatch skill §7 再驗 |
+| 驗收 | `verifier`，`model: opus`；所有文件 merge／轉 ready 前一律派，程式碼依 dispatch skill §1 分流，專案規則只寫 code-review 時仍適用 |
+| 程式碼 diff 的 fresh review | fresh subagent 跑內建 `code-review` skill，主對話不自跑；是 verifier 的加項不是替代，修 finding 後依 dispatch skill §2 再驗 |
+| 旁支查詢 | 答案在檔案裡（找哪些檔有 X、列清單、抓數字）：`Explore`，`model: haiku`；要讀多份長文歸納、跨來源比對、結論帶推理：`general-purpose`，`model: sonnet`；第二意見：`codex:codex-rescue` |
+| 實作、修 bug、文件、規劃 | 不派，controller 自己做 |
 
 ### 每個座位的 model
 
-每個座位的 model 各有一個設定點：便宜的預設給量大的座位，貴的能力只在單一任務需要時當次切。主對話吃 `settings.json` 的 `model`／`effortLevel`——工作型態是盤點、起 issue session、收回報的 controller，設 sonnet／high 這類便宜值就夠，單一重任務用 `/model` 當次切、不改 settings。issue session 由 `--model`／`--effort` 旗標固定在 opus／medium，`require-issue-session-model.sh` hook 保證旗標帶齊。`worker`／`verifier` 吃各自的 frontmatter，`Explore`／`Plan`／`general-purpose` 吃路由卡。各設定點與少了會怎樣見 [`docs/design/mechanism.md`](docs/design/mechanism.md)「每個座位的 model 在哪設、怎麼選」。
+每個座位的 model 各有一個設定點：便宜的預設給量大的座位，貴的能力只在單一任務需要時當次切。主對話吃 `settings.json` 的 `model`／`effortLevel`——工作型態是盤點、起 issue session、收回報的 controller，設 sonnet／high 這類便宜值就夠，單一重任務用 `/model` 當次切、不改 settings。issue session 由 `--model`／`--effort` 旗標固定在 opus／medium，`require-issue-session-model.sh` hook 保證旗標帶齊。`verifier` 吃 frontmatter，`Explore`／`general-purpose` 吃路由卡。各設定點與少了會怎樣見 [`docs/design/mechanism.md`](docs/design/mechanism.md)「每個座位的 model 在哪設、怎麼選」。
 
 ### 六條邊界
 
@@ -123,18 +120,18 @@ Claude 與 Codex 的入口是同一組邊界與路由表，只有平台措辭不
 
 | 名稱 | 何時觸發 | 裝在哪 |
 |---|---|---|
-| `dispatch` | 派 subagent、選模型、升降級、驗收後選修正路徑、要 compact 時 | 兩平台共用 |
+| `dispatch` | 驗收、fresh review、旁支查詢、驗收後選修正路徑、卡住換路、要 compact 時 | 兩平台共用 |
 | `handoff` | 寫 brief、回報、驗收判定，或收尾、離開、compact、交接時 | 兩平台共用 |
 | `git-commit` | 寫 commit message 或 squash merge 標題時 | 兩平台共用 |
 | `create-pr` | 要從 branch 開 Pull Request 時（含「可以開了」這類暗示） | 兩平台共用 |
-| `parallel-dispatch` | 任務可拆給 ≥2 個 agent 平行做，或多個獨立 issue 要處理時 | 兩平台共用 |
+| `worktree-session` | 開工建 worktree、多個獨立 issue 各開 session、清 worktree 時 | 兩平台共用 |
 | `writing-principles` | 寫、改或驗收 README、接入指南、設計說明等長存文件時 | 兩平台共用 |
 | `maintain-guideline` | 修改本系統本身（`global/**`、入口、`docs/lessons.md`）時 | repo-only |
 | `usage-review` | 量 Claude Code session 的用量與派工行為時（成本拆帳、context 膨脹） | repo-only |
 
 ## Agents
 
-Claude 側只自建 `worker` 與 `verifier`，Codex 側有 11 個角色；model 與 effort 鎖在各自的定義檔。
+Claude 側只自建 `verifier`，Codex 側維持自己的角色集；model 與 effort 鎖在各自的定義檔。
 
 ### Claude Code
 
@@ -142,25 +139,18 @@ Claude 側只自建 `worker` 與 `verifier`，Codex 側有 11 個角色；model 
 
 | 名稱 | 職責 | model | effort | tools |
 |---|---|---|---|---|
-| `worker` | 依 approved plan 實作、修 bug、重構、批次改檔；缺 plan 退回 | `claude-sonnet-5-5` | `xhigh` | Read, Write, Edit, Bash, Glob, Grep, LSP |
 | `verifier` | fresh-context 驗收：逐條判 PASS／FAIL／UNSURE，不參與製作 | `opus` | `medium` | Read, Bash, Glob, Grep, LSP |
 
 ### Codex
 
-Codex 用 Luna、Terra、Sol 三個由低到高的層級。升級規則（Luna 升 Terra、Terra 升 Sol）在 `global/codex/rules/dispatch.md`「升降級路徑」。
+Codex 用 Luna、Terra、Sol 三個由低到高的層級。五個角色都是唯讀或只寫探針；實作與規劃留在主對話（實作型與規劃型角色於 v4，2026-10-29 日落）。
 
 | 名稱 | 職責 | model | reasoning effort |
 |---|---|---|---|
-| `scanner` | 低風險唯讀掃描：精確清單、分類、格式檢查、結構化抽取 | `gpt-5.6-luna` | `medium` |
-| `explorer` | 唯讀探索：repo 探索、跨檔追蹤、文件研究、影響範圍 | `gpt-5.6-terra` | `medium` |
-| `planner` | 唯讀規劃：scope、風險、invariants、階段與驗證條件 | `gpt-5.6-terra` | `high` |
-| `worker` | 條件觸發的實作者：approved plan 完整後依 phases 修改、跑機械驗證 | `gpt-5.6-luna` | `max` |
-| `pro_worker` | 複雜實作：已有跨模組、高 ambiguity 證據時首次即用 | `gpt-5.6-terra` | `high` |
-| `recovery_worker` | recovery 實作：Luna 能力不足或兩次未明失敗後接手 | `gpt-5.6-terra` | `high` |
-| `reviewer` | 唯讀 reviewer：fresh context 對一般實作做對抗式 review | `gpt-5.6-terra` | `high` |
+| `scanner` | 答案在檔案裡的旁支查詢：精確清單、分類、格式檢查、結構化抽取 | `gpt-5.6-luna` | `medium` |
+| `explorer` | 要歸納推理的旁支查詢：跨檔追蹤、長文件與外部文件研究、影響範圍 | `gpt-5.6-terra` | `medium` |
+| `reviewer` | 程式碼 diff 的 fresh-context 對抗式 review | `gpt-5.6-terra` | `high` |
 | `verifier` | 一般驗收：fresh-context read-back，只判定不製作 | `gpt-5.6-terra` | `high` |
-| `escalation_planner` | 規劃升級：Terra 確認能力受限後，唯讀建立 plan | `gpt-5.6-sol` | `medium` |
-| `escalation_worker` | 升級實作：Terra 確認能力不足後接手困難實作 | `gpt-5.6-sol` | `medium` |
 | `sol_verifier` | 高風險驗收：安全、不可逆、重大架構的 fresh-context 驗收 | `gpt-5.6-sol` | `high` |
 
 ## 安裝

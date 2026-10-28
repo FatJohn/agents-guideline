@@ -4,11 +4,11 @@
 
 ## 1. 完成的三個條件
 
-宣稱完成前須同時成立：派工時寫的驗收條件逐條核過；有指令輸出或 read-back 結果作證據，不是「我認為」，分級為已驗證／待 CI／未驗證；驗證方式符合產出風險——機械驗證可自跑但附輸出，主觀品質、高風險產出、修使用者實際回報的 bug、diff 含外部呼叫／權限請求／不可逆副作用（第 2 條）要 fresh-context 驗收。誰驗什麼：Claude 見 `~/.claude/skills/dispatch/SKILL.md` §6「驗證不自驗」，Codex 見 `<REPO>/global/codex/rules/dispatch.md` §6「驗證語意」。
+宣稱完成前須同時成立：派工時寫的驗收條件逐條核過；有指令輸出或 read-back 結果作證據，不是「我認為」，分級為已驗證／待 CI／未驗證；驗證方式符合產出風險——機械驗證可自跑但附輸出，主觀品質、高風險產出、修使用者實際回報的 bug、diff 含外部呼叫／權限請求／不可逆副作用（第 2 條）要 fresh-context 驗收。誰驗什麼：Claude 見 `~/.claude/skills/dispatch/SKILL.md` §1「驗證不自驗」，Codex 見 `<REPO>/global/codex/rules/dispatch.md` §6「驗證語意」。
 
 ## 2. 不可逆副作用的定義
 
-**「不可逆副作用」的 canonical 定義**：**一般側**＝程式路徑在正常流程會做、事後可由系統重建或重送的操作（寫後端狀態、清本機進度或快取、覆寫可重算的資料、向作業系統請求 Health／通知等平台權限），走一般驗收；**高風險側**＝決策層級（架構、安全設計、權限模型與存取控制的設計）與無法由系統重建或重送的效果（使用者資料刪除或覆寫、扣款、對外寄送推播或信件），不論是否寫在程式路徑裡。本檔、dispatch skill、各 dispatch 文件、agent 合約、派工模板與 skill reference 裡作為高風險門檻的「安全、不可逆、資料遺失」一律指高風險側；同一操作兩側都符合時高風險側優先。**收窄**：使用者當次操作對自己單筆資料的寫入（舊值由使用者自己覆蓋）歸一般側，即使舊值無法由系統重建；刪除、批次寫入、他人資料不在此例外內，照上面兩側判。只含一般側的 feature 不因此升高風險層，其 FAIL 修正後的結案仍依 `~/.claude/skills/dispatch/SKILL.md`（Codex：`<REPO>/global/shared/skills/dispatch/SKILL.md`）§7「修正與驗收輪次」。
+**「不可逆副作用」的 canonical 定義**：**一般側**＝程式路徑在正常流程會做、事後可由系統重建或重送的操作（寫後端狀態、清本機進度或快取、覆寫可重算的資料、向作業系統請求 Health／通知等平台權限），走一般驗收；**高風險側**＝決策層級（架構、安全設計、權限模型與存取控制的設計）與無法由系統重建或重送的效果（使用者資料刪除或覆寫、扣款、對外寄送推播或信件），不論是否寫在程式路徑裡。本檔、dispatch skill、各 dispatch 文件、agent 合約、派工模板與 skill reference 裡作為高風險門檻的「安全、不可逆、資料遺失」一律指高風險側；同一操作兩側都符合時高風險側優先。**收窄**：使用者當次操作對自己單筆資料的寫入（舊值由使用者自己覆蓋）歸一般側，即使舊值無法由系統重建；刪除、批次寫入、他人資料不在此例外內，照上面兩側判。只含一般側的 feature 不因此升高風險層，其 FAIL 修正後的結案仍依 `~/.claude/skills/dispatch/SKILL.md`（Codex：`<REPO>/global/shared/skills/dispatch/SKILL.md`）§2「修正與驗收輪次」。
 
 ## 3. 殘留掃描
 
@@ -24,7 +24,7 @@
 
 ## 6. 修正者的證據
 
-修正者（含 controller 自修）對文件新寫或改寫的句子逐句對照權威來源；對新增或修改的測試斷言與守門檢查，附實跑會變紅的突變紅／綠輸出（Claude 細節見 `~/.claude/agents/worker.md` 規則 2）。兩者證據帶進 delta brief；分流與輪次見 `~/.claude/skills/dispatch/SKILL.md`（Codex：`<REPO>/global/shared/skills/dispatch/SKILL.md`）§7「修正與驗收輪次」。
+修正者（含 controller 自修）對文件新寫或改寫的句子逐句對照權威來源；對新增或修改的測試斷言與守門檢查，附實跑會變紅的突變紅／綠輸出（做法見 `~/.claude/skills/dispatch/SKILL.md` §1「驗證不自驗」的程式碼機械驗證條）。兩者證據帶進 delta brief；分流與輪次見 `~/.claude/skills/dispatch/SKILL.md`（Codex：`<REPO>/global/shared/skills/dispatch/SKILL.md`）§2「修正與驗收輪次」。
 
 ## 7. 驗收的停止端
 
@@ -45,7 +45,7 @@
 
 ## 10. 改既有檢查
 
-改既有檢查／過濾／驗證規則時，完成證據＝動手前凍結的行為基線前後比對（新版是舊版超集，或差異都是刻意的）＋正向語料（合法輸入不被誤叫）實跑；事後補的基線不算，測試全綠不算。放寬時基線照做但不足以結案，另派 fresh-context 對抗性探測（Claude：`~/.claude/skills/dispatch/SKILL.md` §6「驗證不自驗」；Codex：`<REPO>/global/codex/rules/dispatch.md` §6「驗證語意」）；判不出安全的輸入維持擋。不算違規：全新檢查沒有舊行為可比，只需正向語料；「順手動到既有檢查」不算全新。
+改既有檢查／過濾／驗證規則時，完成證據＝動手前凍結的行為基線前後比對（新版是舊版超集，或差異都是刻意的）＋正向語料（合法輸入不被誤叫）實跑；事後補的基線不算，測試全綠不算。放寬時基線照做但不足以結案，另派 fresh-context 對抗性探測（Claude：`~/.claude/skills/dispatch/SKILL.md` §1「驗證不自驗」；Codex：`<REPO>/global/codex/rules/dispatch.md` §6「驗證語意」）；判不出安全的輸入維持擋。不算違規：全新檢查沒有舊行為可比，只需正向語料；「順手動到既有檢查」不算全新。
 
 ## 11. 指令自己綁定目標
 
