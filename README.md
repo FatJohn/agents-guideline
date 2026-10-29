@@ -56,7 +56,7 @@ Delegation table (abridged from `global/claude/route-card.md`):
 
 ### Model per seat
 
-Each seat sets its model in one place; cheap defaults go to the high-volume seats and expensive capability is switched on per task. The main conversation takes `settings.json` `model`/`effortLevel` (a cheap default such as sonnet/high suits a controller that mostly inventories, launches issue sessions and reports; switch with `/model` for a single heavy task instead of editing settings). Issue sessions are pinned to opus/medium by the `--model`/`--effort` flags that the `require-issue-session-model.sh` hook enforces. `verifier` takes its frontmatter; `Explore`/`general-purpose` take the route card. Where each is set and what breaks without it: 「每個座位的 model 在哪設、怎麼選」 in [`docs/design/mechanism.md`](docs/design/mechanism.md).
+Each seat sets its model in one place. The main conversation takes `settings.json` `model`/`effortLevel`; since v4 the controller implements the work itself, so the default is opus/medium, and `/model sonnet` is switched on per session for simple tasks instead of editing settings. Issue sessions are pinned to opus/medium by the `--model`/`--effort` flags that the `require-issue-session-model.sh` hook enforces. `verifier` takes its frontmatter; `Explore`/`general-purpose` take the route card. Where each is set and what breaks without it: 「每個座位的 model 在哪設、怎麼選」 in [`docs/design/mechanism.md`](docs/design/mechanism.md).
 
 ### Six boundaries
 

@@ -50,7 +50,7 @@
 
 ### 每個座位的 model
 
-每個座位的 model 各有一個設定點：便宜的預設給量大的座位，貴的能力只在單一任務需要時當次切。主對話吃 `settings.json` 的 `model`／`effortLevel`——工作型態是盤點、起 issue session、收回報的 controller，設 sonnet／high 這類便宜值就夠，單一重任務用 `/model` 當次切、不改 settings。issue session 由 `--model`／`--effort` 旗標固定在 opus／medium，`require-issue-session-model.sh` hook 保證旗標帶齊。`verifier` 吃 frontmatter，`Explore`／`general-purpose` 吃路由卡。各設定點與少了會怎樣見 [`docs/design/mechanism.md`](docs/design/mechanism.md)「每個座位的 model 在哪設、怎麼選」。
+每個座位的 model 各有一個設定點。主對話吃 `settings.json` 的 `model`／`effortLevel`；v4 起 controller 自己實作，預設 opus／medium，簡單任務用 `/model sonnet` 當次切、不改 settings。issue session 由 `--model`／`--effort` 旗標固定在 opus／medium，`require-issue-session-model.sh` hook 保證旗標帶齊。`verifier` 吃 frontmatter，`Explore`／`general-purpose` 吃路由卡。各設定點與少了會怎樣見 [`docs/design/mechanism.md`](docs/design/mechanism.md)「每個座位的 model 在哪設、怎麼選」。
 
 ### 六條邊界
 

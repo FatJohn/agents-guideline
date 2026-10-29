@@ -57,22 +57,22 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 | `hooks.SessionStart[]` | `controller-context.sh` 元素 | 主對話沒有路由卡 |
 | `hooks.PreToolUse[]` | `block-ci-edit.sh`、`allow-git-c-projects.sh`、`require-issue-session-model.sh` 三個元素 | 對應擋板失效，見上表 |
 | `permissions` | 本 repo 不管理；原則是 allow 只放可判定唯讀的子命令（`docs/install.md`「Claude Code permissions 要和鐵律二對齊」） | 對外或不可逆動作可能不再逐次確認 |
-| `model`／`effortLevel` | 本 repo 不管理；是主對話與**任何沒帶 `--model` 的 `claude` 程序**的預設。可以刻意設便宜（例如 sonnet／high 給只做盤點、起 issue session 的主對話），單一任務要 Opus 時用 `/model` 當次切 | 沒帶旗標起的 session 跟著它變；issue session 由 `require-issue-session-model.sh` 保證帶旗標，不受影響 |
+| `model`／`effortLevel` | 本 repo 不管理；是主對話與**任何沒帶 `--model` 的 `claude` 程序**的預設。v4 起 controller 自己實作，預設 opus／medium；簡單任務用 `/model sonnet` 當次切 | 沒帶旗標起的 session 跟著它變；issue session 由 `require-issue-session-model.sh` 保證帶旗標，不受影響 |
 
 model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/settings.local.json`、CLI 的 `--model`／`--effort` 旗標。旗標蓋過所有 settings 層：已實測（2026-10-27，主力 Mac），settings 設 sonnet／high、旗標給 opus／medium 時，init 訊息與 session jsonl 都是 opus／medium。
 
 ## 每個座位的 model 在哪設、怎麼選
 
-每個座位的 model 各有一個設定點，互不影響；選法的原則是：便宜的預設給量大的座位，貴的能力只在單一任務需要時當次切。
+每個座位的 model 各有一個設定點，互不影響；選法的原則是：預設給該座位常態工作夠用的 model，單一任務需要更強或更便宜時當次切、不改設定。
 
 | 座位 | model／effort | 設定點 | 選法 |
 |---|---|---|---|
-| 主對話（controller） | `settings.json` 的 `model`／`effortLevel`，可被專案 `.claude/settings.local.json` 與 `/model` 蓋過 | 本機 settings，使用者自選 | 工作型態是「盤點、起 issue session、驗收回報」時設便宜的（sonnet／high）；單一任務要重推理時 `/model opus` 當次切，不改 settings |
+| 主對話（controller） | `settings.json` 的 `model`／`effortLevel`，可被專案 `.claude/settings.local.json` 與 `/model` 蓋過 | 本機 settings，使用者自選 | v4 起 controller 自己實作，預設 opus／medium（2026-10-29 設定）；簡單任務 `/model sonnet` 當次切，不改 settings |
 | issue session（獨立 controller） | `claude-opus-5-5`／medium | `orca worktree create` 的 `--model`／`--effort` 旗標，`require-issue-session-model.sh` 保證帶齊 | 固定值，寫在 worktree-session `references/cli.md`；要換值改 cli.md，hook 只檢查有沒有帶 |
 | `verifier` | opus／medium | `global/claude/agents/verifier.md` frontmatter | 派工顯式 `model: opus`、不帶 `effort`；升 fable 要使用者當次同意 |
 | `Explore`／`general-purpose` | haiku／sonnet／opus | Agent 工具的 `model` 參數，依路由卡 | 查詢型依答案在檔案裡（haiku）還是要歸納推理（sonnet）由 controller 當次判；fresh code-review 用 opus medium |
 
-主對話設便宜不影響其他座位：issue session 由 hook 保證帶旗標，subagent 由 frontmatter 與路由卡決定。改 `settings.json` 的 `model` 只會動到主對話與其他沒帶旗標的 `claude` 程序。
+改主對話的 model 不影響其他座位：issue session 由 hook 保證帶旗標，subagent 由 frontmatter 與路由卡決定。改 `settings.json` 的 `model` 只會動到主對話與其他沒帶旗標的 `claude` 程序。
 
 ## 重建一台機器：兩半各要補齊什麼
 
