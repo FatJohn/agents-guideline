@@ -17,17 +17,17 @@ controller 在主對話自己做實作與文件；subagent 只剩三類：fresh-
 
 首次驗收分工：
 
-- **文件／主觀品質**：派 fresh-context `verifier`，給產出路徑及驗收條件，逐條 PASS／FAIL／UNSURE；不參與製作。
-- **程式碼機械驗證**：製作者可跑測試、build、lint、實跑、schema，附輸出；讀碼不取代執行證據。新增或修改的測試斷言與守門檢查（lint、regex、檢查器、CI gate）各附一次實跑會變紅的突變：暫時改壞被守的行為、實跑看到失敗，還原後重跑轉綠，回報列「斷言→突變→紅／綠關鍵輸出」；還原只能反向編輯或從 scratchpad 快照複製回去，不用 `git checkout`／`git restore`／`git stash`。
+- **文件／主觀品質**：派 fresh-context `verifier`，給產出路徑及驗收條件，逐條 PASS／FAIL／UNSURE；不參與製作。**只改文件的 diff 不派 `code-review`**（含規格、spec、`AGENTS.md`／`CLAUDE.md`、rules 這類行為承載文件）：code-review 從 diff 推程式缺陷，對文件沒有判準，只會多出第二個 finding 來源再觸發一輪 delta；文件的正確性由 verifier 逐句對照。混合 diff 以程式碼部分定級，文件部分併入同一份 verifier brief 的驗收條件，不另派 code-review 看文件。
+- **程式碼機械驗證**：製作者可跑測試、build、lint、實跑、schema，附輸出；讀碼不取代執行證據。**中間層**（超過低風險小改、不含下一條的外部呼叫／權限請求／不可逆副作用、也不是高風險或使用者回報的 bug）：製作者機械驗證＋一個 fresh `code-review`，不派 `verifier`；程式碼只有在下兩條成立時才派 verifier；中間層的 fresh 審查來源只有這一個。新增或修改的測試斷言與守門檢查（lint、regex、檢查器、CI gate）各附一次實跑會變紅的突變：暫時改壞被守的行為、實跑看到失敗，還原後重跑轉綠，回報列「斷言→突變→紅／綠關鍵輸出」；還原只能反向編輯或從 scratchpad 快照複製回去，不用 `git checkout`／`git restore`／`git stash`。
 - **含外部呼叫、權限請求或不可逆副作用的程式碼**：不論風險等級，機械驗證外一律派 fresh-context `verifier` 套 `~/.claude/rubrics/code-change.md` §7『失敗路徑與不可逆副作用』；製作者的測試與突變證據只證 happy path，不得據此結案。「不可逆副作用」的範圍依 `~/.claude/rules/judgment.md` 2『不可逆副作用的定義』；§7 FAIL 修正後的結案方式依本 skill §2。
-- **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。fresh review 派一個 fresh-context subagent 執行 `code-review` skill（從 diff 推 bug，不需驗收條件；finding 的形狀與發出前的查證依 `~/.claude/rubrics/review-findings.md`）；它不取代上一條的 §7 verifier 審查，有逐條驗收條件時仍派 `verifier`。
+- **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。fresh review 派一個 fresh-context subagent 執行 `code-review` skill（從 diff 推 bug，不需驗收條件；finding 的形狀與發出前的查證依 `~/.claude/rubrics/review-findings.md`）；它不取代上一條的 §7 verifier 審查，有逐條驗收條件時仍派 `verifier`。兩者**同時派、等兩邊都回報、合併 finding 修一次**，再依 §2 分流決定要不要一次 delta；不等一邊 CONVERGED 就先修另一邊的 finding，否則兩個審查者會各自串出一輪。
 - **高風險判斷**（對外文件、不可逆、架構決策）：加獨立第二意見，用 `codex:codex-rescue` 或第二個獨立 agent，分歧交使用者。
 
 Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`：frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑；真的 fallback 時另帶與 verifier frontmatter 相同的 `effort`，否則 effort 落到 session 設定。改用 `model: fable` 前，說明訊號與證據並取得當次同意（訊號清單見 `<REPO>/docs/reviews/verification-policy-history.md`「fable 升檔訊號」）；使用者當次直接指定 fable 不必再問。Codex 刻意維持 `sol_verifier/Sol high`，見 `<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』。
 
 **第二個現場**是取樣，不是本次必修清單；verifier 交回的 N 個實例清單同樣是取樣。逐個修完之前先問「是什麼產生它們」，再決定修哪一層。範圍內依 §2 修正分流；範圍外不擴修，登記該 repo issue 並附連結（對外授權仍依鐵律二，未授權先保留待登記項目）。連續兩輪發現都在範圍外就停手回報，不把下一批工作塞進本次。
 
-**唯讀角色也受影響**：verifier 與寫入者共用 working tree 時，它的唯讀結論（檔案內容、路徑與指令是否存在）仍可信，但任何跑測試／build 取得的數字都被污染。驗收期間 controller 不動工作區；等不了就給 verifier 自己的 worktree（`isolation: worktree`）。
+**唯讀角色也受影響**：verifier 與寫入者共用 working tree 時，它的唯讀結論（檔案內容、路徑與指令是否存在）仍可信，但任何跑測試／build 取得的數字都被污染。驗收期間 controller 不動工作區，也不 kill 在途 verifier 改派新 HEAD；要驗新 commit 就等它回報，再依 §2 派 delta。等不了就給 verifier 自己的 worktree（`isolation: worktree`）。
 
 ## 2. 修正與驗收輪次
 
@@ -36,6 +36,8 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 **修正一律 controller 自做**（`~/.claude/rules/judgment.md` 6『修正者的證據』），沒有別的修正者。**驗收後的風險分流**：verifier 第一行已依判準寫明走哪一側，controller 照走；低風險且有確定性檢查能證明 finding 已修、無相關迴歸時，controller 自行檢查並以「finding→修正→證據」結案；安全、權限模型與存取控制的設計、不可逆、重大架構或缺乏可靠機械證據時，修完再派一次 fresh-context `verifier` 做 delta 驗收。
 
 **驗收輪次按產物切開**：文件待實作與證據穩定後集中更新，不逐輪加未驗宣稱。可執行宣稱（測試、斷言）在實作當下寫並驗，散文最後一次寫完才驗；同一交付批次中證據已穩定、無個別交付依賴的散文可合併成一次驗收，不得為合批延後已可交付的 issue／PR 或阻塞後續工作，行為承載文件不因此降成散文。
+
+**同一產物第 2 輪起一律 delta brief**：同一 issue／PR／分支上的後續 commit 都是同一產物，換 HEAD 不算新產物；第 2 輪起不得重用首輪 brief 整輪重驗，整輪重驗讓 verifier 每輪自由設計新探針，是「每輪冒新 finding」的來源。只有驗收範圍真的換了產物（另一個 PR、使用者新加的 scope）才回到 §1 首次驗收分工。verifier 第一行寫低風險機械結案時，controller 修完以「finding→修正→證據」結案，**不得再對同一產物派 delta**；只有修正本身落入高風險側（放寬既有檢查、改權限模型、不可逆）才改派 fresh delta。
 
 **delta 派工**必帶：原 finding、修正 diff、受影響的原始驗收條件與既有證據（含修正者對新寫句子的逐句對照、對新斷言的突變紅／綠輸出）。evidence set 範圍、歸因與收斂判定的 canonical 在 verifier 合約（`~/.claude/agents/verifier.md`；Codex：`<REPO>/global/codex/agents/verifier.toml`）。首輪 brief 指定 repo 外的探針落檔路徑，delta brief 附該路徑；除「改既有檢查」的放寬探測外，delta brief 不另指定新探測形狀或開放式找漏洞。欄位見 handoff §1『brief 卡』。
 
