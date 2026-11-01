@@ -6,7 +6,7 @@
 session jsonl 算最後一筆訊息距今多久，以及有沒有送出工具呼叫但還沒收到結果（outstanding）。
 它只是線索，不是狀態：靜默 20 分的 Bash 可能是在跑 build；判定仍要去那個分頁看。
 
-每行欄位：PID、狀態、靜默時間、outstanding、harness（sessions json 的 status@多久前更新）、cwd。狀態定義（依 jsonl 最後一筆訊息判）：
+每行欄位：PID、name（sessions json 的 `name`，即 ListAgents／SendMessage 用的 session 名；沒有就 `-`）、狀態、靜默時間、outstanding、harness（sessions json 的 status@多久前更新）、cwd。狀態定義（依 jsonl 最後一筆訊息判）：
   idle     最後一筆是 assistant 收尾（沒有工具呼叫）且沒有還在跑的 subagent＝在等人打字
   sub      同上，但 session 底下有還沒收尾的 subagent transcript（背景 Agent）；逐個列在下一行
   turn     最後一筆是 user（prompt 或 tool_result）＝輪到模型、還沒有下一筆；outstanding 顯示 (model)
@@ -252,8 +252,10 @@ def main():
         pdir = project_dir_for(cwd)
         logs = pair_logs(group, pdir)
         for pid, _cwd, _started in group:
-            row = {"pid": pid, "cwd": cwd, "state": "no-log", "silent": None, "outstanding": None, "subagents": [], "harness": None}
+            row = {"pid": pid, "name": None, "cwd": cwd, "state": "no-log", "silent": None, "outstanding": None, "subagents": [], "harness": None}
             main_log, info = logs.get(pid, (None, None))
+            if isinstance(info, dict) and isinstance(info.get("name"), str):
+                row["name"] = info["name"]
             if isinstance(info, dict) and info.get("status"):
                 age = None
                 if isinstance(info.get("statusUpdatedAt"), (int, float)):
@@ -286,9 +288,9 @@ def main():
         print("沒有在跑的 claude process")
         return
     for r in rows:
-        print(f"{r['pid']:>6}  {r['state']:<8} {r['silent'] or '   —   ':>8}  {r['outstanding'] or '-':<14} {r['harness'] or '-':<14} {r['cwd']}")
+        print(f"{r['pid']:>6}  {(r['name'] or '-')[:28]:<28} {r['state']:<8} {r['silent'] or '   —   ':>8}  {r['outstanding'] or '-':<14} {r['harness'] or '-':<14} {r['cwd']}")
         for s in r["subagents"]:
-            print(f"{'':>6}  {'└ sub':<8} {s['silent']:>8}  {s['outstanding'] or '-':<14} {'':<14} {s['file']}")
+            print(f"{'':>6}  {'':<28} {'└ sub':<8} {s['silent']:>8}  {s['outstanding'] or '-':<14} {'':<14} {s['file']}")
 
 
 if __name__ == "__main__":

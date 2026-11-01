@@ -177,10 +177,11 @@ class MainTests(unittest.TestCase):
         write_jsonl(log_b, [assistant(20), assistant(1)])
         sessions = self.projects / "sessions"
         sessions.mkdir()
-        (sessions / "1.json").write_text(json.dumps({"pid": 1, "sessionId": "bbbb", "status": "busy", "statusUpdatedAt": int((NOW - timedelta(minutes=2)).timestamp() * 1000)}))
+        (sessions / "1.json").write_text(json.dumps({"pid": 1, "sessionId": "bbbb", "name": "repo-12", "status": "busy", "statusUpdatedAt": int((NOW - timedelta(minutes=2)).timestamp() * 1000)}))
         (sessions / "2.json").write_text(json.dumps({"pid": 2, "sessionId": "aaaa", "status": "idle"}))
         rows = {r["pid"]: r for r in json.loads(self.run_main([(1, self.cwd, NOW - timedelta(minutes=60)), (2, self.cwd, NOW - timedelta(minutes=25))], ["--json"]))}
-        self.assertEqual((rows[1]["state"], rows[1]["harness"]), ("idle", "busy@2m00s"))
+        self.assertEqual((rows[1]["state"], rows[1]["harness"], rows[1]["name"]), ("idle", "busy@2m00s", "repo-12"))
+        self.assertIsNone(rows[2]["name"])  # json 沒有 name
         self.assertEqual((rows[2]["state"], rows[2]["outstanding"], rows[2]["harness"]), ("quiet", "Bash", "idle"))
         (sessions / "1.json").write_text("{not json")
         rows = {r["pid"]: r for r in json.loads(self.run_main([(1, self.cwd, NOW - timedelta(minutes=60))], ["--json"]))}
