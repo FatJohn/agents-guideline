@@ -20,7 +20,7 @@ controller 在主對話自己做實作與文件；subagent 只剩三類：fresh-
 - **文件／主觀品質**：派 fresh-context `verifier`，給產出路徑及驗收條件，逐條 PASS／FAIL／UNSURE；不參與製作。
 - **程式碼機械驗證**：製作者可跑測試、build、lint、實跑、schema，附輸出；讀碼不取代執行證據。新增或修改的測試斷言與守門檢查（lint、regex、檢查器、CI gate）各附一次實跑會變紅的突變：暫時改壞被守的行為、實跑看到失敗，還原後重跑轉綠，回報列「斷言→突變→紅／綠關鍵輸出」；還原只能反向編輯或從 scratchpad 快照複製回去，不用 `git checkout`／`git restore`／`git stash`。
 - **含外部呼叫、權限請求或不可逆副作用的程式碼**：不論風險等級，機械驗證外一律派 fresh-context `verifier` 套 `~/.claude/rubrics/code-change.md` §7『失敗路徑與不可逆副作用』；製作者的測試與突變證據只證 happy path，不得據此結案。「不可逆副作用」的範圍依 `~/.claude/rules/judgment.md` 2『不可逆副作用的定義』；§7 FAIL 修正後的結案方式依本 skill §2。
-- **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。fresh review 派一個 fresh-context subagent 執行 `code-review` skill（從 diff 推 bug，不需驗收條件）；它不取代上一條的 §7 verifier 審查，有逐條驗收條件時仍派 `verifier`。
+- **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。fresh review 派一個 fresh-context subagent 執行 `code-review` skill（從 diff 推 bug，不需驗收條件；finding 的形狀與發出前的查證依 `~/.claude/rubrics/review-findings.md`）；它不取代上一條的 §7 verifier 審查，有逐條驗收條件時仍派 `verifier`。
 - **高風險判斷**（對外文件、不可逆、架構決策）：加獨立第二意見，用 `codex:codex-rescue` 或第二個獨立 agent，分歧交使用者。
 
 Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`：frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑；真的 fallback 時另帶與 verifier frontmatter 相同的 `effort`，否則 effort 落到 session 設定。改用 `model: fable` 前，說明訊號與證據並取得當次同意（訊號清單見 `<REPO>/docs/reviews/verification-policy-history.md`「fable 升檔訊號」）；使用者當次直接指定 fable 不必再問。Codex 刻意維持 `sol_verifier/Sol high`，見 `<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』。
@@ -46,7 +46,7 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 **三類 subagent 與參數**。Agent 工具的 `model` 參數只接受 harness 注入的 alias（`haiku`／`sonnet`／`opus`／`fable`），完整 model ID 只能寫在 agent frontmatter；對照見 `<REPO>/docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」。
 
 - `verifier`：顯式 `model: opus`、不帶 `effort`（帶了會蓋過 frontmatter）；派前讀 `~/.claude/agents/verifier.md`，只提供該檔要求的素材，不重述其職責。
-- fresh `code-review`：派 `general-purpose` 執行內建 `code-review` skill，`model: opus`、`effort: medium`（與路由卡一致）。
+- fresh `code-review`：派 `general-purpose` 執行內建 `code-review` skill，`model: opus`、`effort: medium`（與路由卡一致）；brief 附 `~/.claude/rubrics/review-findings.md`，要求每條 finding 發出前自查該檔 §1–§3，並先讀目標 repo 自己的 review 判準。
 - 旁支查詢：答案在檔案裡的用 `Explore`（`model: haiku`）；要讀多份長文歸納、跨來源比對、結論帶推理的用 `general-purpose`（`model: sonnet`）；要落檔原文也派 `general-purpose`（Explore／Plan 的角色指示禁止寫檔，見 `<REPO>/docs/harness-facts.md`「常用 subagent 類型」）。第二意見用 `codex:codex-rescue`（外部模型，不占 Claude 配額）。簡化剛改過的程式碼用內建 `simplify` skill。
 
 **CI／release 設定**（`.github/workflows`、`.github/actions` 等會被執行的設定）不派也不靜默自改：先把 diff 給使用者、取得當次授權，再套上並照 §1 派 verifier。裝了 `block-ci-edit` hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open），訊息要求先取授權；授權後以 `git apply` 套上給使用者看過的 patch，未授權不得改用 Bash 繞過。

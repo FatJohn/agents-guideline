@@ -34,6 +34,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/shared/rubrics/document-quality.md` | 文件類產出的逐條驗收判準（verifier 讀） |
 | `global/shared/rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描、作假偵測與失敗路徑） |
 | `global/shared/rubrics/research-analysis.md` | 研究與盤點類產出的逐條驗收判準 |
+| `global/shared/rubrics/review-findings.md` | review finding 的品質判準（失敗情境、斷言前查證、嚴重度、不要留言的事）；fresh code-review 的 brief 與 Codex `reviewer` 合約引用 |
 | `global/claude/agents/verifier.md` | fresh-context 驗收者：含「找碴範圍」與收斂標記；高風險驗收用同一個角色，派工一律顯式 `model: opus`（升 `fable` 的條件見 dispatch skill §1『驗證不自驗』） |
 | `global/claude/hooks/controller-context.sh` | SessionStart hook，把 `route-card.md` 注入主對話；卡片不存在就靜默略過 |
 | `global/claude/hooks/block-ci-edit.sh` | PreToolUse hook，擋主對話用 Edit／Write 靜默改 `.github/workflows` 與 `.github/actions`，訊息要求先給使用者看 diff 取授權（選配） |

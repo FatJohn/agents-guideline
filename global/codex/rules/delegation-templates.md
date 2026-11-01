@@ -89,6 +89,7 @@ verifier 回報狀態使用 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`
 1.【需求與 plan 是否落地】
 2.【測試／靜態檢查／實跑證據是否足夠】
 3.【是否有規則衝突、行為回歸、路徑錯誤或缺漏的測試】
+finding 品質：每條 finding 發出前依 `<REPO>/global/shared/rubrics/review-findings.md` §1–§3 自查；目標 repo 自己的 review 判準在【路徑；無則寫「無」】。
 限制：遇到一般文件或一般驗收，停止並回報「需 verifier/Terra high」；遇到安全、不可逆、重大架構／安全判斷或正式高風險驗收，停止並回報「需 sol_verifier/Sol high」（「不可逆」依 `<REPO>/global/shared/rules/judgment.md` 第 2 條「不可逆副作用的定義」的 canonical 定義，一般側操作照 `<REPO>/global/shared/rubrics/code-change.md` §7 審完、不升級）；不得自行修正。
 回報格式：依 `<REPO>/global/codex/rules/dispatch.md` §4，逐條判定並附證據位置與最大未解風險。
 ```
