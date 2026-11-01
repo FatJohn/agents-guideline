@@ -5,7 +5,7 @@
 ## subagent 只有三類
 | 工作 | 派給 |
 |---|---|
-| 驗收 | `verifier`，顯式 `model: opus`，不帶 effort。先依 dispatch skill §1『先定深度再派』定級：低風險小改的文件派 verifier 做 read-back 級、程式碼只派 code-review 不派 verifier；其餘文件（含規則、agent／skill 定義）交回後、merge／轉 ready 前一律派，程式碼依 §1 分流，含外部呼叫、權限請求或不可逆副作用的一律派，高風險或使用者回報 bug 的一律派並另加 fresh review。專案規則只寫 code-review 時仍適用 |
+| 驗收 | `verifier`，顯式 `model: opus`，不帶 effort。依 dispatch skill §1 定級：文件交回後、merge／轉 ready 前一律派 verifier（低風險小改做 read-back 級），只改文件的 diff 不派 code-review；程式碼只在含外部呼叫、權限請求、不可逆副作用，或高風險、使用者回報 bug 時派 verifier（後者另加 fresh review，同時派），其餘只派 code-review。同一產物第 2 輪起只派 delta，verifier 寫機械結案就不再派（§2）。專案規則只寫 code-review 時仍適用 |
 | 程式碼 diff 的 fresh review | 派 `general-purpose`（`model: opus`，`effort: medium`）執行內建 `code-review` skill，主對話不自跑 `Skill(code-review)`（帶著主對話 context，不算 fresh）；是 verifier 的加項不是替代。修 finding 後依 dispatch skill §2 風險分流再驗 |
 | 旁支查詢 | 答案在檔案裡（找哪些檔有 X、列清單、抓數字）：`Explore`，`model: haiku`。要讀多份長文歸納、跨來源比對或結論帶推理：`general-purpose`，`model: sonnet`。只拿結論與檔案:行號，原文不帶回主對話。獨立第二意見：`codex:codex-rescue` |
 
