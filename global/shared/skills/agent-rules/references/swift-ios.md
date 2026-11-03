@@ -19,7 +19,7 @@
 三個要另外看的地方：
 
 - **opt-in 欄**：`opt-in: yes` 的規則預設不跑，要在 `opt_in_rules:` 列出或寫 `opt_in_rules: [all]` 才算啟用；只看 `rules` 全表會把它們誤判成已擋。以「enabled in your config」欄為準。
-- **analyzer 欄**：`analyzer: yes` 的規則（`unused_declaration`、`unused_import`、`capture_variable`）只在 `swiftlint analyze --compiler-log-path <log>` 下跑，`swiftlint lint` 不會跑；CI 沒跑 `analyze` 就不算擋。
+- **analyzer 欄**：`analyzer: yes` 的規則（0.65.1 共 5 條：`capture_variable`、`explicit_self`、`typesafe_array_init`、`unused_declaration`、`unused_import`）只在 `swiftlint analyze --compiler-log-path <log>` 下跑，`swiftlint lint` 不會跑；CI 沒跑 `analyze` 就不算擋。
 - **與 swift-format 的分工**：專案常把排版類規則（`indentation_width`、`sorted_imports`、`multiline_*`、`opening_brace` 變體）關掉交給 swift-format；關掉的規則要對照 swift-format 那邊有沒有對應規則，兩邊都沒有才是「可擋未擋」。
 
 ### swift-format
@@ -51,7 +51,7 @@ swift format lint --strict --recursive Sources Tests         # 當 CI 閘門
 | closure 捕獲避免 retain cycle | SwiftLint `unowned_variable_capture`（opt-in）；`capture_variable`（analyzer，要 `analyze`） | 「一律 `[weak self]`」沒有現成規則，留 C 或 `custom_rules` |
 | 檔案／型別／函式長度上限 | SwiftLint `file_length`、`type_body_length`、`function_body_length`、`closure_body_length`（opt-in） | 門檻寫進設定，規則文字只留數字來源 |
 | 巢狀深度、複雜度 | SwiftLint `nesting`、`cyclomatic_complexity` | |
-| 行寬 | SwiftLint `line_length`；swift-format `lineLength` | 二選一，另一邊關掉 |
+| 行寬 | SwiftLint `line_length`；swift-format 設定鍵 `lineLength`（不是 rule） | 二選一，另一邊關掉 |
 | 命名（lowerCamelCase、型別大寫） | SwiftLint `identifier_name`、`type_name`；swift-format `AlwaysUseLowerCamelCase`、`TypeNamesShouldBeCapitalized` | |
 | `IBOutlet`／`IBAction` 用 `private`、outlet 用 `weak` | SwiftLint `private_outlet`、`private_action`、`strong_iboutlet`（皆 opt-in） | |
 | `fatalError` 要帶訊息 | SwiftLint `fatal_error_message`（opt-in） | |
@@ -92,4 +92,10 @@ custom_rules:
 
 ## 實測紀錄
 
-2026-11-03，一個 iOS SDK 專案（Swift Package，SwiftLint 0.65.1 固定在 `.tools/`，`opt_in_rules: [all]` 加 35 條停用，swift-format 43 條全開）：`rules --enabled` 229 條、`--disabled` 35 條；三條 analyzer 規則顯示 `enabled: no`，因為它們本來就不在 `lint` 階段跑。上表的 43 個候選 id 中 3 個不存在（`print_usage`、`no_print`、`main_actor_in_defer`），已改寫成 `custom_rules`。
+2026-11-03，一個 iOS SDK 專案（Swift Package，SwiftLint 0.65.1 固定在 `.tools/`，`opt_in_rules: [all]` 加 `disabled_rules` 26 條，swift-format 43 條全開）。
+
+| 計數 | 值 | 怎麼數 |
+|---|---|---|
+| `rules --enabled` | 225 | 表格資料列數，不含表框與表頭 |
+| `rules --disabled` | 31 | 同上；26 條來自 `disabled_rules`，5 條是 analyzer 規則（`lint` 階段本來就不跑） |
+| 候選 id 不存在 | 3 | `print_usage`、`no_print`、`main_actor_in_defer`，已改寫成 `custom_rules` |

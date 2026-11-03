@@ -22,14 +22,14 @@ python3 <SK>/scripts/active_lints_android.py --module <模組目錄> --json
 
 ### ktlint（直接用或透過 kotlinter／spotless）
 
-ktlint 1.x 沒有列出規則的指令。啟用集合＝standard ruleset 全部（99 條）減 `.editorconfig` 關掉的：
+ktlint 1.x 沒有列出規則的指令（依 1.8.0 的 CLI 文件，未實跑）。啟用集合＝standard ruleset 全部（1.8.0 文件列 99 條）減 `.editorconfig` 關掉的：
 
 ```bash
 rg -n '^ktlint_' .editorconfig                      # ktlint_code_style、ktlint_standard_<rule> = disabled、ktlint_standard = disabled、ktlint_experimental = enabled
 rg -n -i 'ktlintVersion|kotlinter|ktlint' build.gradle.kts */build.gradle.kts gradle/libs.versions.toml
 ```
 
-要注意：`ktlint_experimental` 預設不跑；`no-unused-imports` 從 1.7.0 起預設不跑，要 `ktlint_standard_no-unused-imports = enabled`；kotlinter 5.7.0 預設帶 ktlint 1.8.0，`kotlinter { ktlintVersion }` 可覆寫，它沒有自己的關規則機制。standard 規則 id 清單在 https://ktlint.github.io/ktlint/latest/rules/standard/ （舊網址 `pinterest.github.io/ktlint` 已 404）。
+要注意（以下依 ktlint 與 kotlinter 文件，本機未實跑 ktlint）：`ktlint_experimental` 預設不跑；`no-unused-imports` 從 1.7.0 起預設不跑，要 `ktlint_standard_no-unused-imports = enabled`；kotlinter 5.7.0 的 `libs.versions.toml` 寫 ktlint 1.8.0，`kotlinter { ktlintVersion }` 可覆寫，它沒有自己的關規則機制。standard 規則 id 清單在 https://ktlint.github.io/ktlint/latest/rules/standard/ （舊網址 `pinterest.github.io/ktlint` 已 404）。
 
 ### detekt
 
