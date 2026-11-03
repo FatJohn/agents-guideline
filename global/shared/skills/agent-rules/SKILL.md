@@ -32,7 +32,7 @@ allowed-tools: Bash(python3:*), Bash(rg:*), Bash(git:*), Bash(gh:*), Read, Grep,
 
 ### 2. 每條規則過分類，機械可驗的降級
 
-把三層裡的每條規則列成一行，給它一個分類與證據：
+把三層裡的每條規則列成一行，給它一個分類與證據。分類的對象是**規則**，不是程式碼：問的是「這條規則有沒有東西在機械地擋」，不是「程式碼哪裡違規」；既有違規多半是規則建立前寫的，命中數只當「開了這個 lint 會咬到多少」的附註，不列成 finding。
 
 | 分類 | 定義 | 證據 | 動作 |
 |---|---|---|---|
@@ -72,7 +72,7 @@ allowed-tools: Bash(python3:*), Bash(rg:*), Bash(git:*), Bash(gh:*), Read, Grep,
 
 ### 6. 交付與授權
 
-產出一份稽核報告，欄位固定：三層盤點表、規則分類表（每條一行：來源行、分類、證據、動作）、標題改寫清單、lint／CI 變更清單、待使用者決定的項目。報告先交，**改專案的 `AGENTS.md`／`CLAUDE.md` 與 lint 設定要另外取得當次授權**（這兩類檔可能是團隊共用；改 CI 設定依 dispatch skill §3 先給 diff）。驗收派 fresh-context verifier：重跑 `rules_index.py --check` 與第 2 步的 lint 狀態指令，對第 3 步的改寫抽樣 5 條判「一行能不能判定適用」。**完成條件**：報告五個欄位都有內容（沒有就寫「無」）；每個改檔動作都對得上使用者當次的授權句；verifier 判定已回且第一行是 CONVERGED 或 PROSE-ONLY，其餘狀態照 dispatch skill §2 處理後才算完成。
+產出一份稽核報告，照 `references/report-template.md` 的結構寫：結論在前、「建議修改」是獨立主章節且每條四行（改什麼、問題、改法、改完避免）、「不用動的」一節、步驟 1 到 3 的表格進附錄並各帶一句解釋、最後一段是可直接貼給 agent 的執行 prompt（建議編號、授權範圍、驗收條件）。報告的讀者是沒讀過本 skill 的人，章節不用步驟名，A／B／C、常駐檔、brief 這些詞第一次出現就解釋。報告先交，**改專案的 `AGENTS.md`／`CLAUDE.md` 與 lint 設定要另外取得當次授權**（這兩類檔可能是團隊共用；改 CI 設定依 dispatch skill §3 先給 diff）。驗收派 fresh-context verifier：重跑 `rules_index.py --check` 與第 2 步的 lint 狀態指令，對第 3 步的改寫抽樣 5 條判「一行能不能判定適用」。**完成條件**：報告通過範本的「寫法檢查」四條（建議每條四行齊全、改什麼指向規則或設定而非程式碼檔、命中數只在尾註或附錄、不翻附錄也能決定）；三組建議與「不用動的」沒有內容就寫「無」；每個改檔動作都對得上使用者當次的授權句；verifier 判定已回且第一行是 CONVERGED 或 PROSE-ONLY，其餘狀態照 dispatch skill §2 處理後才算完成。
 
 ## 不做
 
@@ -83,5 +83,6 @@ allowed-tools: Bash(python3:*), Bash(rg:*), Bash(git:*), Bash(gh:*), Read, Grep,
 
 ## 參考頁
 
+- `references/report-template.md`：稽核報告的結構、每條建議的四行格式與交付前的寫法檢查。
 - `references/dart-flutter.md`：Dart／Flutter 的啟用 lint 查法（`scripts/active_lints_dart.py`）、常見散文規則對應的 lint 名稱、grep 型閘門範例。
 - 其他語言尚無參考頁：第 2 步照「先找列出啟用規則的指令」做，做完把查法補成新的一頁（ESLint `--print-config`、Ruff `ruff rule --all`／`ruff check --show-settings`、.NET `.editorconfig` 的 `dotnet_diagnostic.*` 與 `dotnet format --verify-no-changes` 是已知起點，未實測）。
