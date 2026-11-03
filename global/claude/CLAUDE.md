@@ -22,6 +22,7 @@
 | commit／開 PR | `git-commit`／`create-pr` skill |
 | 開工建 worktree、多個獨立 issue 分 session、清 worktree | `worktree-session` skill |
 | 寫或改長存文件 | `writing-principles` skill |
+| 建立或稽核專案的 AGENTS.md／CLAUDE.md 程式碼規則 | `agent-rules` skill |
 | 完成、證據、驗收狀態 | `~/.claude/rules/judgment.md` |
 | HTTP／port／hook 異常、除錯前 | `<REPO>/docs/debug-environment-first.md` |
 | 修改本系統 | 到 `<REPO>` 開工，讀其 `CLAUDE.md` |
