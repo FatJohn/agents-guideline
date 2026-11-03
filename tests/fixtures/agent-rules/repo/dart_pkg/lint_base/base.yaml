@@ -1,0 +1,5 @@
+linter:
+  rules:
+    - eol_at_end_of_file
+    - file_names
+    - directives_ordering

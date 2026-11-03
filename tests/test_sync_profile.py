@@ -34,7 +34,7 @@ def can_symlink(directory: Path) -> bool:
     return True
 
 
-SHARED_SKILLS = ("dispatch", "handoff", "git-commit", "create-pr", "worktree-session", "writing-principles")
+SHARED_SKILLS = ("dispatch", "handoff", "git-commit", "create-pr", "worktree-session", "writing-principles", "agent-rules")
 
 
 def build_repo(root: Path) -> Path:

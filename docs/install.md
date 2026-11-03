@@ -22,7 +22,7 @@
 | `~/.claude/rubrics/` | `global/shared/rubrics/` | 目錄 |
 | `~/.claude/hooks/` | `global/claude/hooks/` | 目錄 |
 | `~/.claude/ripgreprc` | `global/claude/config/ripgreprc` | 檔 |
-| `~/.claude/skills/<name>`、`~/.agents/skills/<name>` | `global/shared/skills/<name>`，name ∈ dispatch、handoff、git-commit、create-pr、worktree-session、writing-principles | 目錄 |
+| `~/.claude/skills/<name>`、`~/.agents/skills/<name>` | `global/shared/skills/<name>`，name ∈ dispatch、handoff、git-commit、create-pr、worktree-session、writing-principles、agent-rules | 目錄 |
 | `~/.codex/AGENTS.md` | `global/codex/AGENTS.md` | 檔 |
 | `~/.codex/agents/*.toml` | `global/codex/agents/*.toml` | 實體檔（`scripts/sync-codex-agents.py`） |
 
@@ -50,7 +50,7 @@ link_one "$G/shared/rubrics"            ~/.claude/rubrics
 link_one "$G/claude/hooks"              ~/.claude/hooks
 link_one "$G/claude/config/ripgreprc"   ~/.claude/ripgreprc
 link_one "$G/claude/agents/verifier.md" ~/.claude/agents/verifier.md
-for skill in dispatch handoff git-commit create-pr worktree-session writing-principles; do
+for skill in dispatch handoff git-commit create-pr worktree-session writing-principles agent-rules; do
   link_one "$G/shared/skills/$skill" ~/.claude/skills/$skill
 done
 ```
@@ -214,7 +214,7 @@ link_one() {   # link_one <來源> <目的>；已存在就略過，不覆蓋
 }
 mkdir -p ~/.codex/agents ~/.agents/skills
 link_one "$REPO/global/codex/AGENTS.md" ~/.codex/AGENTS.md
-for skill in dispatch handoff git-commit create-pr worktree-session writing-principles; do
+for skill in dispatch handoff git-commit create-pr worktree-session writing-principles agent-rules; do
   link_one "$REPO/global/shared/skills/$skill" ~/.agents/skills/$skill
 done
 
@@ -256,7 +256,7 @@ Codex Memories 是精選長期記憶層，需在 `~/.codex/config.toml` 啟用�
 memories = true
 ```
 
-兩個平台共用的六個 global skills：`dispatch` 負責驗收、派 verifier 與查詢型 subagent、驗收後修正與卡住換路，`handoff` 提供 brief、回報、verifier 判定、session 交接四張固定卡（session 卡有 remember plugin 時交給它存、否則寫專案根 `.agents/HANDOFF.md`），`git-commit` 定 commit message 格式與 squash merge 標題，`create-pr` 負責分析 branch 變更並準備 Pull Request，`worktree-session` 處理開工建 worktree、多個獨立 issue 各開頂層 session 與 worktree 清理（Orca、tmux、分頁只是 session 的容器），`writing-principles` 提供長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則、判定與純標準庫檢查腳本（`scripts/check_docs.py`），寫的人與 verifier 跑同一支。`maintain-guideline` 與 `usage-review` 是 repo-only：Claude 在本 repo 開工時自動可用，Codex 維護本 repo 時直接讀 `.claude/skills/maintain-guideline/SKILL.md`；`usage-review` 只解析 Claude Code 本機 session jsonl（`~/.claude/projects`），不裝到 Codex。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
+兩個平台共用的七個 global skills：`dispatch` 負責驗收、派 verifier 與查詢型 subagent、驗收後修正與卡住換路，`handoff` 提供 brief、回報、verifier 判定、session 交接四張固定卡（session 卡有 remember plugin 時交給它存、否則寫專案根 `.agents/HANDOFF.md`），`git-commit` 定 commit message 格式與 squash merge 標題，`create-pr` 負責分析 branch 變更並準備 Pull Request，`worktree-session` 處理開工建 worktree、多個獨立 issue 各開頂層 session 與 worktree 清理（Orca、tmux、分頁只是 session 的容器），`writing-principles` 提供長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則、判定與純標準庫檢查腳本（`scripts/check_docs.py`），寫的人與 verifier 跑同一支，`agent-rules` 替任何專案 repo 建立或稽核 AGENTS.md／CLAUDE.md 的程式碼規則（三層盤點、機械可驗的規則降級成 lint、常駐檔標題能否單獨判斷適用性、`scripts/rules_index.py` 單一來源產生索引與核對 reviewer 版本的 ID／severity、`scripts/active_lints_dart.py` 解 Dart 的啟用 lint）。`maintain-guideline` 與 `usage-review` 是 repo-only：Claude 在本 repo 開工時自動可用，Codex 維護本 repo 時直接讀 `.claude/skills/maintain-guideline/SKILL.md`；`usage-review` 只解析 Claude Code 本機 session jsonl（`~/.claude/projects`），不裝到 Codex。除錯前的環境檢查清單是文件不是 skill：`docs/debug-environment-first.md`。這不是自動事件史；若未來需要像 Claude remember plugin 一樣的自動時間軸，再用 Codex hooks 補第二階段。
 
 Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身，按需讀 `<REPO>/docs/reviews/codex-tooling-audit-2026-10.md`。
 
@@ -305,7 +305,7 @@ Link-One "$G\claude\agents\verifier.md" "$HOME\.claude\agents\verifier.md"
 # hook 與 ripgreprc（只連結檔案，settings.json 另外加，見上方「SessionStart hook」與「選配」段）
 Link-One "$G\claude\hooks"              "$HOME\.claude\hooks"
 Link-One "$G\claude\config\ripgreprc"   "$HOME\.claude\ripgreprc"
-$skills = 'dispatch','handoff','git-commit','create-pr','worktree-session','writing-principles'
+$skills = 'dispatch','handoff','git-commit','create-pr','worktree-session','writing-principles','agent-rules'
 foreach ($s in $skills) { Link-One "$G\shared\skills\$s" "$HOME\.claude\skills\$s" }
 
 # Codex

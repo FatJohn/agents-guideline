@@ -1,0 +1,10 @@
+include: lint_base/base.yaml
+
+analyzer:
+  exclude:
+    - build/**
+
+linter:
+  rules:
+    directives_ordering: false
+    unawaited_futures: true
