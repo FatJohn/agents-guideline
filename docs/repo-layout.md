@@ -31,7 +31,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/shared/skills/create-pr/SKILL.md` | 分析 branch 變更並準備 Pull Request |
 | `global/shared/skills/worktree-session/SKILL.md` | 開工預設在 worktree、互相獨立的 issue 一 issue 一頂層 session（盤點 session 的 brief、launch、result 欄位）、清理；`references/cli.md`（Orca／純 shell／分頁起 issue session 的實測指令、stop 與清理）、`worktree.md`（位置、忽略、清理的證據條件） |
 | `global/shared/skills/writing-principles/SKILL.md` | 長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則；`scripts/check_docs.py`（純標準庫）判機械項，其餘由 verifier 抽樣；`references/sources.md` 收出處短引、`references/examples.md` 收改寫前後片段 |
-| `global/shared/skills/agent-rules/SKILL.md` | 替任何專案 repo 建立或稽核 AGENTS.md／CLAUDE.md 的程式碼規則：三層盤點、機械可驗的規則降級成 lint 或 CI 檢查、常駐檔每行能否單獨判斷適用性、單一來源產生索引；`scripts/rules_index.py`（產生索引、回寫常駐檔區塊、核對 reviewer 版本 ID／severity）、`scripts/active_lints_dart.py`（解 `analysis_options.yaml` include 鏈列出啟用 lint）、`references/dart-flutter.md`（散文規則對應 lint 名稱表）、`references/report-template.md`（給人讀的稽核報告結構） |
+| `global/shared/skills/agent-rules/SKILL.md` | 替任何專案 repo 建立或稽核 AGENTS.md／CLAUDE.md 的程式碼規則：三層盤點、機械可驗的規則降級成 lint 或 CI 檢查、常駐檔每行能否單獨判斷適用性、單一來源產生索引；`scripts/rules_index.py`（產生索引、回寫常駐檔區塊、核對 reviewer 版本 ID／severity）、`scripts/active_lints_dart.py`（解 `analysis_options.yaml` include 鏈列出啟用 lint）、`scripts/active_lints_android.py`（合併 `lint --show`、Gradle `lint {}` 與 `lint.xml` 列出啟用 issue）、`references/{dart-flutter,kotlin-android,swift-ios}.md`（各語言的啟用規則查法與散文規則對應表）、`references/report-template.md`（給人讀的稽核報告結構） |
 | `global/shared/rubrics/document-quality.md` | 文件類產出的逐條驗收判準（verifier 讀） |
 | `global/shared/rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描、作假偵測與失敗路徑） |
 | `global/shared/rubrics/research-analysis.md` | 研究與盤點類產出的逐條驗收判準 |

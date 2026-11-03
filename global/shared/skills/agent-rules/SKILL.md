@@ -85,4 +85,6 @@ allowed-tools: Bash(python3:*), Bash(rg:*), Bash(git:*), Bash(gh:*), Read, Grep,
 
 - `references/report-template.md`：稽核報告的結構、每條建議的四行格式與交付前的寫法檢查。
 - `references/dart-flutter.md`：Dart／Flutter 的啟用 lint 查法（`scripts/active_lints_dart.py`）、常見散文規則對應的 lint 名稱、grep 型閘門範例。
+- `references/kotlin-android.md`：Android Lint（`scripts/active_lints_android.py` 合併 `lint --show` 的預設開關、`lint {}` 區塊與 `lint.xml`）、ktlint 與 detekt 的啟用集合查法與對應表。
+- `references/swift-ios.md`：SwiftLint `rules --enabled`、swift-format `dump-configuration --effective`、Xcode 編譯設定與對應表。
 - 其他語言尚無參考頁：第 2 步照「先找列出啟用規則的指令」做，做完把查法補成新的一頁（ESLint `--print-config`、Ruff `ruff rule --all`／`ruff check --show-settings`、.NET `.editorconfig` 的 `dotnet_diagnostic.*` 與 `dotnet format --verify-no-changes` 是已知起點，未實測）。

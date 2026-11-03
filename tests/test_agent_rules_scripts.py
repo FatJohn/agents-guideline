@@ -19,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = REPO_ROOT / "global" / "shared" / "skills" / "agent-rules" / "scripts"
 INDEX = SCRIPTS / "rules_index.py"
 LINTS = SCRIPTS / "active_lints_dart.py"
+ANDROID = SCRIPTS / "active_lints_android.py"
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "agent-rules" / "repo"
 
 
@@ -137,6 +138,55 @@ class DartLints(unittest.TestCase):
             p.write_text(p.read_text(encoding="utf-8") + "\nanalyzer:\n  plugins:\n    - custom_lint\n", encoding="utf-8")
             report = json.loads(run(LINTS, "--package", str(tmp / "pkg"), "--json").stdout)
             self.assertEqual(report["plugins"], ["custom_lint"])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+class AndroidLints(unittest.TestCase):
+    MOD = FIXTURE.parent / "android_module"
+    DUMP = MOD / "lint-show.txt"
+
+    def _report(self) -> dict:
+        r = run(ANDROID, "--module", str(self.MOD), "--dump", str(self.DUMP), "--json")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return json.loads(r.stdout)
+
+    def test_default_off_plus_gradle_enable_and_lint_xml(self) -> None:
+        report = self._report()
+        # StopShip: off by default, enabled by gradle `enable +=`; UnusedIds: off by default, lint.xml severity=warning
+        self.assertEqual(report["enabled"], ["StopShip", "UnusedIds"])
+        # GradleDependency: gradle `disable +=`; HardcodedText: lint.xml severity=ignore
+        self.assertEqual(report["disabled_here"], ["GradleDependency", "HardcodedText"])
+        self.assertEqual(report["enabled_here"], ["StopShip"])
+        self.assertEqual(report["unknown_ids_in_config"], ["NewerVersionAvailable"])
+        self.assertEqual(report["total"], 4)
+
+    def test_has_reports_each_state(self) -> None:
+        r = run(ANDROID, "--module", str(self.MOD), "--dump", str(self.DUMP), "--has", "StopShip", "GradleDependency", "Nope")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("StopShip\tenabled", r.stdout)
+        self.assertIn("GradleDependency\tdisabled here", r.stdout)
+        self.assertIn("Nope\tnot an issue id", r.stdout)
+
+    def test_mutation_removing_disable_line_enables_issue(self) -> None:
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            shutil.copytree(self.MOD, tmp / "m")
+            g = tmp / "m" / "build.gradle.kts"
+            g.write_text(g.read_text(encoding="utf-8").replace('disable += setOf("GradleDependency", "NewerVersionAvailable")', ""), encoding="utf-8")
+            report = json.loads(run(ANDROID, "--module", str(tmp / "m"), "--dump", str(self.DUMP), "--json").stdout)
+            self.assertIn("GradleDependency", report["enabled"])
+            self.assertEqual(report["unknown_ids_in_config"], [])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_unparseable_dump_exits_1(self) -> None:
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            (tmp / "dump.txt").write_text("nothing here\n", encoding="utf-8")
+            r = run(ANDROID, "--module", str(self.MOD), "--dump", str(tmp / "dump.txt"))
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("解析不到", r.stderr)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 

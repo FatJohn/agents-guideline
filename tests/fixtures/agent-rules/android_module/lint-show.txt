@@ -1,0 +1,48 @@
+Available issues:
+
+Correctness
+===========
+
+HardcodedText
+-------------
+Summary: Hardcoded text
+
+Priority: 5 / 10
+Severity: Warning
+Category: Internationalization
+
+Hardcoding text attributes directly in layout files is bad.
+
+GradleDependency
+----------------
+Summary: Obsolete Gradle Dependency
+
+Priority: 4 / 10
+Severity: Warning
+Category: Correctness
+
+This detector looks for usages of libraries where the version you are using is not the current stable release.
+
+StopShip
+--------
+Summary: Code contains STOPSHIP marker
+
+Priority: 10 / 10
+Severity: Fatal
+Category: Correctness
+NOTE: This issue is disabled by default!
+You can enable it by adding --enable StopShip
+
+Using the comment // STOPSHIP can be used to flag code that is incomplete.
+
+UnusedIds
+---------
+Summary: Unused id
+
+Priority: 1 / 10
+Severity: Warning
+Category: Performance
+NOTE: This issue is disabled by default!
+You can enable it by adding --enable UnusedIds
+
+This resource id definition appears not to be needed.
