@@ -141,6 +141,22 @@ class DartLints(unittest.TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_top_level_plugins_map_detected(self) -> None:
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            shutil.copytree(self.PKG, tmp / "pkg")
+            p = tmp / "pkg" / "analysis_options.yaml"
+            p.write_text(
+                p.read_text(encoding="utf-8")
+                + "\nplugins:\n  riverpod_lint:\n    version: ^3.1.9\n    diagnostics:\n      missing_provider_scope: false\n  - dart_code_metrics\n",
+                encoding="utf-8",
+            )
+            report = json.loads(run(LINTS, "--package", str(tmp / "pkg"), "--json").stdout)
+            self.assertEqual(report["plugins"], ["riverpod_lint", "dart_code_metrics"])
+            self.assertEqual(report["disabled_here"], ["directives_ordering"])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
 
 class AndroidLints(unittest.TestCase):
     MOD = FIXTURE.parent / "android_module"
