@@ -148,7 +148,7 @@ class DartLints(unittest.TestCase):
             p = tmp / "pkg" / "analysis_options.yaml"
             p.write_text(
                 p.read_text(encoding="utf-8")
-                + "\nplugins:\n  riverpod_lint:\n    version: ^3.1.9\n    diagnostics:\n      missing_provider_scope: false\n  - dart_code_metrics\n",
+                + "\nplugins:\n  riverpod_lint:\n    version: ^3.1.9\n    diagnostics:\n      missing_provider_scope: false\n  dart_code_metrics: ^5.0.0\n",
                 encoding="utf-8",
             )
             report = json.loads(run(LINTS, "--package", str(tmp / "pkg"), "--json").stdout)
