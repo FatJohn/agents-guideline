@@ -17,7 +17,7 @@ python3 <SK>/scripts/active_lints_dart.py --package <repo> --json
 三個要另外看的地方：
 
 - **`disabled_here`**：基底開了、本專案關掉的規則。規則文件還在要求同一件事就是矛盾（例如規則寫「imports 按字母順序」、設定卻 `directives_ordering: false`），二選一。
-- **`plugins`**：plugin 沒列出來，靠它執行的套件就算在 `pubspec.yaml` 裡也沒在跑，它們的規則全部算「B 可擋未擋」，不算 A。兩種寫法：舊式 `analyzer: plugins: [custom_lint]`（`dart_code_metrics` 與 riverpod_lint 2.x 走這條，要另跑 `dart run custom_lint`）；新式頂層 `plugins:`（Dart 3.10 起的 analysis_server_plugin，riverpod_lint 3.x 走這條，`riverpod_lint: {version: ^3.1.9}`），腳本兩種都認。新式還有一個陷阱：**`flutter analyze` 不跑 plugin，只有 `dart analyze` 會報**（2026-11-04 實測：同一個違規 `dart analyze` exit 2、`flutter analyze` No issues）；CI 只跑 `flutter analyze` 的專案，plugin 規則仍算 B，要接 `dart analyze` 才算 A。
+- **`plugins`**：plugin 沒列出來，靠它執行的套件就算在 `pubspec.yaml` 裡也沒在跑，它們的規則全部算「B 可擋未擋」，不算 A。兩種寫法：舊式 `analyzer: plugins: [custom_lint]`（`dart_code_metrics` 與 riverpod_lint 2.x 走這條，要另跑 `dart run custom_lint`）；新式頂層 `plugins:`（Dart 3.10 起的 analysis_server_plugin，riverpod_lint 3.x 走這條且 3.1.9 要 SDK ≥3.13，`riverpod_lint: {version: ^3.1.9}`），腳本兩種都認。新式還有一個陷阱：**`flutter analyze` 不跑 plugin，只有 `dart analyze` 會報**（2026-11-04 在 Flutter 3.47.8 實測：同一個違規 `dart analyze` exit 2、`flutter analyze` No issues；Dart 3.10 CHANGELOG 寫兩者都會報，別的版本要重驗）；CI 只跑 `flutter analyze` 的專案，plugin 規則仍算 B，要接 `dart analyze` 才算 A。
 - **formatter**：`dart format` 管的（縮排、trailing comma 在 `formatter: trailing_commas` 設定下）不是 lint，用 `dart format --output=none --set-exit-if-changed .` 當證據。
 
 ## 散文規則 → 機械守門對應表
