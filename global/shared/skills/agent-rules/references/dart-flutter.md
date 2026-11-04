@@ -17,7 +17,7 @@ python3 <SK>/scripts/active_lints_dart.py --package <repo> --json
 三個要另外看的地方：
 
 - **`disabled_here`**：基底開了、本專案關掉的規則。規則文件還在要求同一件事就是矛盾（例如規則寫「imports 按字母順序」、設定卻 `directives_ordering: false`），二選一。
-- **`plugins`**：`custom_lint` 這類 analyzer plugin 沒列出來，`riverpod_lint`、`dart_code_metrics` 等靠它執行的套件就算在 `pubspec.yaml` 裡也沒在跑；它們的規則全部算「B 可擋未擋」，不算 A。
+- **`plugins`**：plugin 沒列出來，靠它執行的套件就算在 `pubspec.yaml` 裡也沒在跑，它們的規則全部算「B 可擋未擋」，不算 A。兩種寫法：舊式 `analyzer: plugins: [custom_lint]`（`dart_code_metrics` 與 riverpod_lint 2.x 走這條，要另跑 `dart run custom_lint`）；新式頂層 `plugins:`（Dart 3.10 起的 analysis_server_plugin，riverpod_lint 3.x 走這條，`riverpod_lint: {version: ^3.1.9}`），腳本兩種都認。新式還有一個陷阱：**`flutter analyze` 不跑 plugin，只有 `dart analyze` 會報**（2026-11-04 實測：同一個違規 `dart analyze` exit 2、`flutter analyze` No issues）；CI 只跑 `flutter analyze` 的專案，plugin 規則仍算 B，要接 `dart analyze` 才算 A。
 - **formatter**：`dart format` 管的（縮排、trailing comma 在 `formatter: trailing_commas` 設定下）不是 lint，用 `dart format --output=none --set-exit-if-changed .` 當證據。
 
 ## 散文規則 → 機械守門對應表
@@ -40,7 +40,7 @@ python3 <SK>/scripts/active_lints_dart.py --package <repo> --json
 | Freezed 類別宣告為 `abstract`／`sealed` | freezed 3 起非 abstract／sealed 的 class 產生碼無法通過 analyze（未實測，以專案 `flutter analyze` 輸出為準） | 能證明就是 A |
 | 不寫死 hex 顏色 | `rg -n 'Color\(0x' lib --glob '!**/*.g.dart' \| rg -v '<顏色常數檔名>'` | 命中數 0 當 CI 閘門 |
 | 不要 `_build…()` 方法回傳 Widget | `rg -n 'Widget _build\w*\(' lib`；或 `dart_code_metrics` 的 `avoid-returning-widgets` | |
-| 不在 `dispose()` 後碰 `ref` | `riverpod_lint` 的 `avoid_ref_inside_state_dispose` | 要 custom_lint plugin 在跑 |
+| 不在 `dispose()` 後碰 `ref` | `riverpod_lint` 的 `avoid_ref_inside_state_dispose` | 要 plugin 在跑且 CI 用 `dart analyze`（見上面 `plugins`） |
 | Notifier 的 `build()` 必須存在、不要 public 欄位 | `riverpod_lint` 的 `notifier_build`、`avoid_public_notifier_properties` | 同上 |
 | keep-alive 的用法 | `riverpod_lint` 的 `only_use_keep_alive_inside_keep_alive` | 同上 |
 | 依賴方向（feature 不得 import 另一個 feature） | 單元測試掃 import（既有專案的 `test/unit/architecture/*_test.dart` 是範本） | 有測試就是 A，測試只守既有白名單的要在證據寫明 |
@@ -63,3 +63,5 @@ if [ -n "$hits" ]; then printf '%s\n' "寫死 hex 顏色（規則 D-7）：" "$h
 ## 實測紀錄
 
 2026-11-03，一個 Flutter 專案（very_good_analysis 11.0.0，custom_lint 因 analyzer 版本停用）：81 條規則裡至少 8 條已被啟用中的 lint 或編譯期檢查擋住、2 條與專案關掉的 lint 互相矛盾、`riverpod_lint` 整包沒在跑、2 條用一行 `rg` 各抓到 7 與 15 處。這些都是規則文件本身看不出來的。
+
+2026-11-04，同一專案套用建議：riverpod_lint 3.1.9 改走頂層 `plugins:`，不再需要 custom_lint（custom_lint 0.8.1 仍只支援 analyzer ^8）；開啟當下 `dart analyze` 報 52 處（`avoid_public_notifier_properties` 50、`missing_provider_scope` 2 處誤報，後者以 `diagnostics:` 關掉）。15 條 riverpod_lint 規則沒有一條完整覆蓋該專案的 9 條 Riverpod 散文規則，所以散文一條都沒刪。

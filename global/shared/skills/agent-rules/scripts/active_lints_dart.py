@@ -5,8 +5,9 @@ Follows the ``include:`` chain of ``analysis_options.yaml`` (``package:`` URIs a
 through ``.dart_tool/package_config.json``, so run ``dart pub get`` first) and applies each
 file's ``linter: rules:`` on top of the included set, the way the analyzer does.  Reports the
 enabled set, the rules an included file turned on that this package turned off, and whether
-``analyzer: plugins`` (custom_lint and friends) is active, since a package listed in
-``pubspec.yaml`` with the plugin off contributes nothing.
+``analyzer: plugins`` (custom_lint and friends) or the top-level ``plugins:`` map
+(analysis_server_plugin style, e.g. riverpod_lint 3.x) is active, since a package listed
+in ``pubspec.yaml`` with the plugin off contributes nothing.
 
 Pure standard library: the YAML subset this needs (``include``, ``linter.rules`` as a list or
 a ``name: true|false`` map, ``plugins``) is parsed by hand, so the file must use plain
@@ -61,6 +62,12 @@ def parse_options(path: Path) -> dict:
             sub = None
             continue
         indent = len(line) - len(line.lstrip(" "))
+        if section == "plugins" and indent == 2:
+            # top-level ``plugins:`` (analysis_server_plugin, Dart 3.10+): ``- name`` or ``name:``/``name: ^x``
+            m = LIST_ITEM_RE.match(line) or re.match(r"^\s*([\w-]+):", line)
+            if m:
+                plugins.append(m.group(1))
+            continue
         if indent == 2 and line.strip().endswith(":"):
             sub = line.strip()[:-1]
             continue
