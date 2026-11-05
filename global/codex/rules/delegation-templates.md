@@ -107,6 +107,7 @@ finding 品質：每條 finding 發出前依 `<REPO>/global/shared/rubrics/revie
 2.【條件二】
 3.【條件三】
 額外脈絡：【原始需求、風險、禁止修改範圍、已知驗證證據】。
+宣稱對照：【文件首輪必填，格式見 `<REPO>/global/shared/skills/handoff/SKILL.md` §1「brief 卡」；混合 diff 的文件部分也要填；完全不含文件或 delta 輪填「不適用」】。
 找碴範圍：只找驗收條件、行為承載產物與可機械查的事實；行為承載產物的分類依 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」。純措辭、語氣與行文品味不算缺陷。
 回報格式：第一行標 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN` 並附下一步（`PROSE-ONLY`→修完 read-back 結案，不再派 verifier），再列逐條判定、證據位置、缺口與風險；分級依 `<REPO>/global/codex/rules/dispatch.md` §4。`INCONCLUSIVE` 要列缺少的證據；`OPEN` 要說明是低風險機械結案或需 fresh delta 的哪一種路徑。
 ```
@@ -119,6 +120,7 @@ finding 品質：每條 finding 發出前依 `<REPO>/global/shared/rubrics/revie
 目標：對【安全、不可逆、重大架構或正式高風險產出】做 fresh-context 最終驗收。
 動機：【為什麼一般 Terra verifier 不足；要避免的高代價風險】。
 產物：【絕對路徑清單或可 read-back 的實際輸出】。
+宣稱對照：【文件首輪必填，格式見 `<REPO>/global/shared/skills/handoff/SKILL.md` §1「brief 卡」；混合 diff 的文件部分也要填；完全不含文件或 delta 輪填「不適用」】。
 驗收條件（逐條判 PASS/FAIL/UNSURE）：
 1.【需求、approved plan 與高風險邊界是否落地】
 2.【invariants、failure modes、rollback strategy 與驗證證據是否完整】
