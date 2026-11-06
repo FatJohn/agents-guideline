@@ -60,8 +60,6 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 
 腳本判不到的形狀列在它的開頭說明。其中要注意一項：session 在等使用者回答時狀態也是 `idle`，所以 `Status` 與 `Pending authorization` 要由 issue session 誠實填，還在對話的 session 不要先寫 `merged`。
 
-入口邊界 3 與 dispatch skill §5 優先於本節：這兩處還沒寫明這項例外的機器上，照它們先問使用者。
-
 **要先問**：任一條判不出來或不成立就保留 worktree，回報原因；來源不明的 worktree／branch 要使用者明確授權才能刪（鐵律二）。
 
 | 例子 | 判定 | 為什麼 |

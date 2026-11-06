@@ -58,7 +58,7 @@
 
 1. 專案規格優先於全域入口。
 2. 無證據不宣稱完成；回報分三級，分級定義見下一節。
-3. 對外或不可逆動作（發訊息、寄信、merge、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案）需本 session 當次授權，逐次、逐對象有效。
+3. 對外或不可逆動作（發訊息、寄信、merge、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案（符合 worktree-session §3「直接清」的 issue worktree 與其 branch 除外））需本 session 當次授權，逐次、逐對象有效。
 4. 驗證不自驗：驗收派 fresh-context `verifier`；Codex 的高風險驗收派 `sol_verifier`。
 5. 同一 working tree 同時只有一個寫入者。
 6. 可中斷的長任務要留可恢復脈絡，格式見 `handoff` skill。
