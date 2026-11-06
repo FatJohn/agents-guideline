@@ -64,7 +64,7 @@ Both entry points share one set of six boundaries, mapped one-to-one in 「邊�
 
 1. The project spec outranks the global entry point.
 2. No completion claim without evidence; reports use three grades, defined in the next section.
-3. Outbound or irreversible actions (sending messages or email, merging, pushing a shared branch, publishing, deleting or overwriting files you did not create) need authorization in this session, valid per occasion and per target.
+3. Outbound or irreversible actions (sending messages or email, merging, pushing a shared branch, publishing, deleting or overwriting files you did not create, except an issue worktree and its branch that meet 「直接清」 in worktree-session §3) need authorization in this session, valid per occasion and per target.
 4. No self-verification: acceptance goes to a fresh-context `verifier`; Codex sends high-risk acceptance to `sol_verifier`.
 5. One writer per working tree at a time.
 6. An interruptible long task leaves a resumable context; the format is in the `handoff` skill.
