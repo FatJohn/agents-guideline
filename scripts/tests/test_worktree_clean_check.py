@@ -4,6 +4,7 @@
 `idle_problems` 的純函式輸入，另有一組跑真的 lsof／ps。"""
 import importlib.util
 import os
+import signal
 import subprocess
 import tempfile
 import time
@@ -441,6 +442,11 @@ class Tree(Base):
         (self.wt / "a.txt").write_text("z\n")
         self.assertTrue(any("skip-worktree" in p for p in self.check(self.m)))
 
+    def test_assume_unchanged(self):
+        git(self.wt, "update-index", "--assume-unchanged", "a.txt")
+        (self.wt / "a.txt").write_text("z\n")
+        self.assertTrue(any("assume-unchanged" in p for p in self.check(self.m)))
+
     def test_ignored_env_is_blocked(self):
         (self.wt / "x.env").write_text("s\n")
         self.assertTrue(any("ignored" in p for p in self.check(self.m)))
@@ -481,6 +487,170 @@ class Tree(Base):
         (self.wt / "node_modules").mkdir()
         (self.wt / "node_modules" / "p.js").write_text("p\n")
         self.assertEqual(self.check(self.m), [])
+
+    def self_ignoring(self, root, gitignore="*\n", *rel):
+        """工具在自己的目錄放 `*` 的 .gitignore：status 會逐檔列出，不會回報成目錄（pytest、venv 都是這個形狀）。"""
+        (self.wt / root).mkdir(parents=True, exist_ok=True)
+        (self.wt / root / ".gitignore").write_text(gitignore)
+        return self.ignored(*(rel or (f"{root}/README.md", f"{root}/v/cache/lastfailed")))
+
+    def test_self_ignoring_cache_passes(self):
+        self.assertEqual(self.self_ignoring(".pytest_cache", "# Created by pytest automatically.\n*\n"), [])
+
+    def test_self_ignoring_venv_passes(self):
+        self.assertEqual(self.self_ignoring(".venv", "# Created by venv\n*\n", ".venv/pyvenv.cfg"), [])
+
+    def test_self_ignoring_dir_below_root_is_blocked(self):
+        for root in ("pkg/.venv", "a\rb/.venv", "Äx/.pytest_cache"):
+            with self.subTest(root=root):
+                self.assertTrue(any("ignored" in p for p in self.self_ignoring(root, "*\n", f"{root}/a")))
+
+    def test_root_venv_does_not_vouch_for_subdir_venv(self):
+        git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
+        (self.root / "ex").write_text("*.key\n")
+        self.self_ignoring(".venv", "*\n", ".venv/a")
+        self.assertTrue(any("pkg/.venv/a.key" in p for p in self.ignored("pkg/.venv/a.key")))
+
+    def test_similarly_named_tracked_dir_does_not_block(self):
+        (self.wt / ".venv2").mkdir()
+        (self.wt / ".venv2" / "t").write_text("t\n")
+        git(self.wt, "add", ".venv2/t")
+        git(self.wt, "commit", "-qm", "tracked")
+        self.assertFalse(any("ignored" in p for p in self.self_ignoring(".venv", "*\n", ".venv/a")))
+
+    def test_self_ignoring_generic_dir_is_blocked(self):
+        self.assertTrue(any("ignored" in p for p in self.self_ignoring("build", "*\n", "build/deploy.key")))
+
+    def test_rebuildable_name_without_star_gitignore_is_blocked(self):
+        for content in ("*.key\n.gitignore\n", "# *\n*.key\n.gitignore\n", "/*\n", " *\n.gitignore\n*.key\n"):
+            with self.subTest(content=content):
+                self.assertTrue(any("ignored" in p for p in self.self_ignoring(".venv", content, ".venv/a.key")))
+
+    def test_rebuildable_name_ignored_by_outside_rule_is_blocked(self):
+        git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
+        (self.root / "ex").write_text("*.key\n.gitignore\n")
+        self.assertTrue(any("ignored" in p for p in self.ignored(".venv/.gitignore", ".venv/a.key")))
+
+    def test_negated_file_in_self_ignoring_dir_is_blocked(self):
+        problems = self.self_ignoring(".venv", "*\n!keep.txt\n", ".venv/keep.txt", ".venv/a")
+        self.assertTrue(any("不乾淨" in p for p in problems))
+
+    def test_tracked_gitignore_in_self_ignoring_dir_is_blocked(self):
+        (self.wt / ".venv").mkdir()
+        (self.wt / ".venv" / ".gitignore").write_text("*\n")
+        git(self.wt, "add", "-f", ".venv/.gitignore")
+        git(self.wt, "commit", "-qm", "tracked")
+        self.assertTrue(any("ignored" in p for p in self.ignored(".venv/a.key")))
+
+    def test_tracked_file_in_self_ignoring_dir_is_blocked(self):
+        (self.wt / ".venv").mkdir()
+        (self.wt / ".venv" / "t.txt").write_text("t\n")
+        git(self.wt, "add", ".venv/t.txt")
+        git(self.wt, "commit", "-qm", "tracked")
+        self.assertTrue(any("ignored" in p for p in self.self_ignoring(".venv", "*\n", ".venv/a.key")))
+
+    def test_gitignore_directory_in_rebuildable_name_is_blocked(self):
+        git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
+        (self.root / "ex").write_text("*.key\n.gitignore\n")
+        self.assertTrue(any("ignored" in p for p in self.ignored(".venv/.gitignore/x", ".venv/a.key")))
+
+    def test_symlinked_self_ignoring_dir_is_blocked(self):
+        git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
+        (self.root / "ex").write_text(".venv\n")
+        (self.root / "secrets").mkdir()
+        (self.root / "secrets" / ".gitignore").write_text("*\n")
+        os.symlink(self.root / "secrets", self.wt / ".venv")
+        self.assertTrue(any("ignored" in p for p in self.check(self.m)))
+
+    def test_symlinked_gitignore_is_blocked(self):
+        git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
+        (self.root / "ex").write_text(".gitignore\n*.key\n")
+        (self.root / "star").write_text("*\n")
+        (self.wt / ".venv").mkdir()
+        os.symlink(self.root / "star", self.wt / ".venv" / ".gitignore")
+        self.assertTrue(any("ignored" in p for p in self.ignored(".venv/a.key")))
+
+    def test_unreadable_gitignore_is_blocked(self):
+        (self.wt / ".venv").mkdir()
+        (self.wt / ".venv" / ".gitignore").write_text("*\n")
+        (self.wt / ".venv" / "a").write_text("a\n")
+        with mock.patch.object(Path, "read_bytes", side_effect=OSError):
+            self.assertTrue(any("ignored" in p for p in self.check(self.m)))
+
+    def test_ls_files_failure_is_blocked(self):
+        real = wcc.git
+        fail = lambda path, *a: (1, "") if "ls-files" in a else real(path, *a)
+        with mock.patch.object(wcc, "git", side_effect=fail):
+            self.assertTrue(any("ls-files" in p for p in self.check(self.m)))
+
+    def test_special_gitignore_is_not_read(self):
+        """symlink 指到 FIFO 或超大檔：不能掛住，也不能放行。"""
+        git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
+        (self.root / "ex").write_text(".gitignore\n*.key\n")
+        os.mkfifo(self.root / "pipe")
+        (self.wt / ".venv").mkdir()
+        os.symlink(self.root / "pipe", self.wt / ".venv" / ".gitignore")
+        signal.signal(signal.SIGALRM, signal.default_int_handler)
+        signal.alarm(20)
+        self.addCleanup(signal.alarm, 0)
+        self.assertTrue(any("ignored" in p for p in self.ignored(".venv/a.key")))
+
+    def test_oversized_gitignore_is_blocked(self):
+        self.assertTrue(self.star_rule_blocked(b"#" * wcc.MARKER_MAX_BYTES + b"\n*\n"))
+
+    def test_tracked_file_with_literal_pathspecs_env_is_blocked(self):
+        (self.wt / ".venv").mkdir()
+        (self.wt / ".venv" / "t").write_text("t\n")
+        git(self.wt, "add", "-f", ".venv/t")
+        git(self.wt, "commit", "-qm", "tracked")
+        with mock.patch.dict(os.environ, {"GIT_LITERAL_PATHSPECS": "1"}):
+            self.assertTrue(any("ignored" in p for p in self.self_ignoring(".venv", "*\n", ".venv/a.key")))
+
+    def star_rule_blocked(self, content):
+        (self.wt / ".venv").mkdir(exist_ok=True)
+        (self.wt / ".venv" / ".gitignore").write_bytes(content)
+        return bool(self.ignored(".venv/a.key"))
+
+    def test_line_separators_git_does_not_honor_are_blocked(self):
+        """Python 的 splitlines 會切、git 不會切的字元：git 沒有 `*` 規則，a.key 是被 *.key 忽略的。"""
+        for sep in (b"\f", b"\x0b", b"\x1c", b"\x1d", b"\x1e", b"\xc2\x85", b"\xe2\x80\xa8", b"\xe2\x80\xa9", b"\r"):
+            with self.subTest(sep=sep):
+                self.assertTrue(self.star_rule_blocked(b"*.key\n.gitignore\n#" + sep + b"*\n"))
+
+    def test_lone_cr_file_is_blocked(self):
+        self.assertTrue(self.star_rule_blocked(b"*.key\r.gitignore\r*\r"))
+
+    def test_cr_inside_comment_hiding_star_is_blocked(self):
+        git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
+        (self.root / "ex").write_text("*.key\n.gitignore\n")
+        self.assertTrue(self.star_rule_blocked(b"# note\r*\n"))
+
+    def test_extra_rules_besides_star_are_blocked(self):
+        for content in (b"*\n!sub/\nsub/*\n", b"*.key\n*\n", b"*\n*\n", b"\xff\n*\n"):
+            with self.subTest(content=content):
+                self.assertTrue(self.star_rule_blocked(content))
+
+    def test_crlf_star_passes(self):
+        self.assertFalse(self.star_rule_blocked(b"# Created by venv\r\n*\r\n"))
+
+    def test_self_ignoring_other_rebuildable_name_is_blocked(self):
+        for root in (".gradle", "__pycache__", "Pods"):
+            with self.subTest(root=root):
+                self.assertTrue(any("ignored" in p for p in self.self_ignoring(root, "*\n", f"{root}/a")))
+
+    def test_tracked_file_with_different_case_is_blocked(self):
+        (self.wt / ".VENV").mkdir()
+        (self.wt / ".VENV" / "t").write_text("t\n")
+        git(self.wt, "add", "-f", ".VENV/t")
+        git(self.wt, "commit", "-qm", "tracked")
+        if not (self.wt / ".venv").exists():
+            self.skipTest("需要大小寫不敏感的檔案系統")
+        os.rename(self.wt / ".VENV", self.wt / "tmpx")
+        os.rename(self.wt / "tmpx", self.wt / ".venv")
+        self.assertTrue(any("ignored" in p for p in self.self_ignoring(".venv", "*\n", ".venv/a.key")))
+
+    def test_nested_generic_dir_in_self_ignoring_root_passes(self):
+        self.assertEqual(self.self_ignoring(".venv", "*\n", ".venv/lib/python/site.py", ".venv/build/x"), [])
 
     def test_other_file_in_dot_worktrees_is_blocked(self):
         (self.wt / ".worktrees" / "notes.md").write_text("n\n")

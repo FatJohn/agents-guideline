@@ -13,6 +13,8 @@ worktree 並回報。全部檢查都會跑完，一次列出所有原因。exit 
   - 手寫的 result.md：來源與 `Base SHA` 都是交付檔的自報（交付清單另外併入 PR 的 files，自報只會多比不會少比
     PR 內的檔）；result.md 模板之外的備註不判讀語意；
   - 工具專屬產物目錄（REBUILDABLE）的內容不逐檔檢查；
+  - 根目錄 `.venv`、`.pytest_cache` 內「沒有 tracked 檔」的比對（fold_path）只在 APFS 窮舉過：HFS+ 會忽略零寬字元，
+    commit 路徑 `.ve<U+200C>nv/t` 比對不到；ext4 casefold、ZFS、NTFS 未驗；
   - 互動 shell 只跑 builtin 迴圈、沒有子程序時，看起來和閒置相同；
   - session 在等使用者回答時，stall-check 的狀態也是 idle；
   - stacked PR：內容核對的對象是該 PR 的 base branch，不一定是 main。
@@ -21,17 +23,21 @@ import argparse
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 STALL_CHECK = Path(__file__).resolve().parent / "stall-check.py"
 TIMEOUT = 60
 SHELLS = {"zsh", "bash", "sh", "fish", "dash"}  # 只有 idle 的 claude 當子程序時也算閒置：Orca 的分頁是 `-zsh -l` → `claude`
 # 工具專屬、重建得回來的 ignored 目錄。build、bin、out 這類泛用名不列：常是一般目錄，裡面可能放密鑰或本地 commit。
-# 只比對 status 回報為目錄（尾 `/`）的最後一段；沒列到的 ignored 項目一律當成清掉就回不來。
+# 比對 status 回報為目錄（尾 `/`）的最後一段，或 self_ignoring_root 認得的自我忽略目錄；沒列到的 ignored 項目一律當成清掉就回不來。
 REBUILDABLE = {"node_modules", "DerivedData", "Pods", ".dart_tool", ".gradle", ".next", ".venv", "__pycache__", ".pytest_cache"}
 REBUILDABLE_NAMES = {".DS_Store"}
+MARKER_MAX_BYTES = 4096
+SELF_IGNORING = {".pytest_cache", ".venv"}  # 實測過會在目錄內放 `*` 的 .gitignore 的工具；其他名稱沒有這個形狀，不放行
 KEYS = ("Issue", "Status", "Worktree", "Branch", "Base SHA", "Candidate SHA", "Dirty", "Files changed", "Verification",
         "PR / CI", "Cross-issue risk", "Pending authorization", "Blocker", "Merged")
 # 模板裡只有這兩行是同一行多欄；其他欄的值就是整行剩下的內容，判定欄不能藏在別的欄後面。
@@ -193,6 +199,38 @@ def check_delivery(repo, wt, fields, branch, head, fetch=True):
     return problems
 
 
+def fold_path(path):
+    """比對 index 與磁碟的寫法：大小寫不敏感的 FS 上，index 可能記成 `.VENV/t`。"""
+    return unicodedata.normalize("NFD", unicodedata.normalize("NFD", path).casefold())
+
+
+def self_ignoring_root(wt, parts, tracked, cache):
+    """工具把 `*` 寫進自己目錄的 .gitignore 時（pytest、venv），status 逐檔列出、不回報成目錄。
+    只認 worktree 根目錄：路徑是固定的 ASCII 名稱，不必重做 FS 與 git 對父目錄名的語意（2026-11-06 三輪驗收都在這裡找到新形狀）。
+    只認一般檔（不是 symlink、FIFO）、除了註解只有 `*` 這條規則的 .gitignore，且目錄內沒有 tracked 檔；其他形狀維持判不出。
+    照 git 的語意解析：只以 \\n 分行，行尾容許一個 \\r，所以用 bytes 讀，不用 splitlines（`#\\f*` 對 git 是註解）。
+    tracked 由呼叫端列出全部路徑後比對，不用 pathspec：pathspec 比對不到時回空，和「沒有 tracked 檔」分不開。
+    .gitignore 若 untracked 又沒被忽略，status 已回報工作區不乾淨。"""
+    root = parts[0]
+    if len(parts) < 2 or root not in SELF_IGNORING:  # 只有一段：是 symlink 或檔案本身，不是目錄內容
+        return False
+    if root not in cache:
+        marker = Path(wt) / root / ".gitignore"
+        try:
+            info = os.lstat(marker)
+            ok = stat.S_ISREG(info.st_mode) and info.st_size <= MARKER_MAX_BYTES
+            if ok:
+                lines = [ln.removesuffix(b"\r") for ln in marker.read_bytes().split(b"\n")]
+                ok = [ln for ln in lines if ln and not ln.startswith(b"#")] == [b"*"]
+        except OSError:
+            ok = False
+        if ok:
+            prefix = fold_path(root) + "/"
+            ok = not any(path.startswith(prefix) for path in tracked)
+        cache[root] = ok
+    return cache[root]
+
+
 def check_tree(wt):
     """工作區乾淨，且沒有清掉就回不來的 ignored 檔。不受 status.showUntrackedFiles 等設定影響。"""
     rc, out = git(wt, "status", "--porcelain", "-z", "--untracked-files=all", "--ignored=matching",
@@ -207,14 +245,17 @@ def check_tree(wt):
             ignored.append(entry[3:])
         else:
             problems.append(f"工作區不乾淨：{entry[:80]}")
-    rc, out = git(wt, "ls-files", "-v")
+    rc, out = git(wt, "ls-files", "-v", "-z")
+    tracked = set()
     if rc != 0:
         problems.append("git ls-files 失敗")
     else:
-        hidden = [ln[2:] for ln in out.splitlines() if ln and (ln[0] == "S" or ln[0].islower())]
+        entries = [ln for ln in out.split("\0") if ln]
+        tracked = {fold_path(ln[2:]) for ln in entries}
+        hidden = [ln[2:] for ln in entries if ln[0] == "S" or ln[0].islower()]
         if hidden:
             problems.append(f"有 skip-worktree／assume-unchanged 的檔：{hidden[:3]}")
-    unknown = []
+    unknown, roots = [], {}
     for rel in ignored:
         parts = rel.rstrip("/").split("/")
         if parts[0] == ".worktrees":
@@ -222,6 +263,8 @@ def check_tree(wt):
         if rel.endswith("/") and parts[-1] in REBUILDABLE:
             continue
         if not rel.endswith("/") and parts[-1] in REBUILDABLE_NAMES:
+            continue
+        if self_ignoring_root(wt, parts, tracked, roots):
             continue
         unknown.append(rel)
     if unknown:

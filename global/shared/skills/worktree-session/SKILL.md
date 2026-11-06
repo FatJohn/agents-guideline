@@ -56,7 +56,7 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 2. **已交付**：`Issue` 有值，`Status` 是 `merged`，`Merged` 欄等於 PR 的 merge commit，`Pending authorization` 與 `Blocker` 都是「無」，PR read-back 是 `MERGED`，且 PR head 等於 worktree HEAD。多 repo issue 逐個 worktree 判定，不以其中一個 PR 代表全部。
 3. **閒置**：該 worktree 內的 claude session 全部是 `idle`，且 cwd 在 worktree 內的 process 只剩這些 session 與互動 shell（shell 的子程序只能是這些 session）。
 4. **內容已在 base**：`references/worktree.md`「清理的證據條件」成立；工作區連隱藏狀態（skip-worktree、被設定隱藏的 untracked）都是乾淨的，完整交付清單（含刪除與更名前的舊路徑）與 PR 的 base 內容相同。
-5. **沒有清掉就回不來的檔**：ignored 項目只有工具專屬產物目錄（`node_modules`、`.dart_tool`、`.gradle` 等，清單在腳本的 `REBUILDABLE`；`build`、`bin`、`out` 這類泛用名不算），`.worktrees/` 內只有 `result.md`，底下沒有巢狀 worktree。ignored 檔不算 dirty，會隨 worktree 一起消失。
+5. **沒有清掉就回不來的檔**：ignored 項目只有工具專屬產物目錄（`node_modules`、`.dart_tool`、`.gradle` 等，清單在腳本的 `REBUILDABLE`；`build`、`bin`、`out` 這類泛用名不算；worktree 根目錄的 `.pytest_cache`、`.venv` 內的 `.gitignore` 除了註解只有 `*` 時，git 會逐檔列出，也算；子目錄裡的不算），`.worktrees/` 內只有 `result.md`，底下沒有巢狀 worktree。ignored 檔不算 dirty，會隨 worktree 一起消失。
 
 腳本判不到的形狀列在它的開頭說明。其中要注意一項：session 在等使用者回答時狀態也是 `idle`，所以 `Status` 與 `Pending authorization` 要由 issue session 誠實填，還在對話的 session 不要先寫 `merged`。
 
