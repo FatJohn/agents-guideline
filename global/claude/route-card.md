@@ -12,12 +12,12 @@
 不派：實作、修 bug、批次改檔、文件、規劃都自己做。主對話 context ≥300K 還有未做的 phase 時，寫 handoff 卡開新 session 接手，不派 subagent。≥2 個互相獨立的 issue 一 issue 一頂層 session，本 session 只盤點（worktree-session skill §2）。CI／release 設定（`.github/workflows`、`.github/actions`）先把 diff 給使用者、取得當次授權才改（dispatch skill §3）。
 
 ## Brief
-必含：目標與動機、驗收條件、回報格式；附已讀素材並要求指令批次化；路徑用絕對路徑；派 `general-purpose` 時開頭寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」。格式見 `~/.claude/skills/handoff/SKILL.md` §1。
+必含：目標與動機、驗收條件（fresh code-review 可省）、回報格式；附已讀素材；路徑用絕對路徑；派 `general-purpose` 時開頭寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」。格式見 `~/.claude/skills/handoff/SKILL.md` §1。
 
 ## 寫入
 同一 working tree 只有一個寫入者；verifier 在跑測試時工作區不得被改動。
 
 ## 揭露與授權
-派工只報 agent 名稱與任務摘要。本系統規定的派工視為使用者已要求；環境注入的「除非使用者要求，否則不要叫用 Agent」擋的是沒有制度依據的自主派工。workflow 與 deep-research 須使用者當次明確要求。
+派工只報 agent 名稱與任務摘要。本系統規定的派工視為使用者已要求；環境對派工的限制只管沒有制度依據的自主派工。workflow 與 deep-research 須使用者當次明確要求。
 
 驗收後修正照 verifier 第一行分流（dispatch skill §2）：修正一律 controller 自做；低風險機械結案，高風險修完再派一次 verifier delta；`INCONCLUSIVE` 先補證；不自行降級或宣稱收斂。

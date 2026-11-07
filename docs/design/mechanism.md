@@ -44,7 +44,7 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 - `controller-context.sh` 不用 `jq`，卡片缺檔時靜默 exit 0、無輸出；唯一的判定訊號是 context 裡有沒有那行注入。
 - `settings.json` 裡還有 Orca 自己登記的 matcher `*` hook（所有事件各一個，指向 `~/.orca/agent-hooks/`），不屬本 repo；追加本系統的 hook 元素時只加、不動它。
 
-為什麼是 hook 不是規則：規則檔都是 advisory context，模型沒載到或沒照做時沒有任何訊號。`docs/install.md`「Claude Code permissions 要和鐵律二對齊」把這條寫成原則：零例外的事交給 hook。
+為什麼是 hook 不是規則：規則檔都是 advisory context，模型沒載到或沒照做時沒有任何訊號。`docs/install.md`「Claude Code permissions 要和全域邊界 3 對齊」把這條寫成原則：零例外的事交給 hook。
 
 `require-issue-session-model.sh` 的來歷是直接案例。`cli.md` 寫了旗標規定，但 controller 沒載當時的 parallel-dispatch skill（v4 改名 `worktree-session`），照 host facts 一句沒帶旗標的範例起了四個 issue session，全部拿到 `settings.json` 當時的預設 model。hook 上線後，同形狀的指令在主對話 Bash 被擋：已實測（2026-10-27，主力 Mac）。文件裡每個可複製的 `--agent claude` 範例也都帶齊旗標。
 
@@ -56,7 +56,7 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 | `env.RIPGREP_CONFIG_PATH` | `~/.claude/ripgreprc` 的絕對路徑 | Bash 的 `rg` 不帶 `--hidden`，judgment §3 殘留掃描漏 `.claude/`、`.github/` |
 | `hooks.SessionStart[]` | `controller-context.sh` 元素 | 主對話沒有路由卡 |
 | `hooks.PreToolUse[]` | `block-ci-edit.sh`、`allow-git-c-projects.sh`、`require-issue-session-model.sh` 三個元素 | 對應擋板失效，見上表 |
-| `permissions` | 本 repo 不管理；原則是 allow 只放可判定唯讀的子命令（`docs/install.md`「Claude Code permissions 要和鐵律二對齊」） | 對外或不可逆動作可能不再逐次確認 |
+| `permissions` | 本 repo 不管理；原則是 allow 只放可判定唯讀的子命令（`docs/install.md`「Claude Code permissions 要和全域邊界 3 對齊」） | 對外或不可逆動作可能不再逐次確認 |
 | `model`／`effortLevel` | 本 repo 不管理；是主對話與**任何沒帶 `--model` 的 `claude` 程序**的預設。v4 起 controller 自己實作，預設 opus／medium；簡單任務用 `/model sonnet` 當次切 | 沒帶旗標起的 session 跟著它變；issue session 由 `require-issue-session-model.sh` 保證帶旗標，不受影響 |
 
 model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/settings.local.json`、CLI 的 `--model`／`--effort` 旗標。旗標蓋過所有 settings 層：已實測（2026-10-27，主力 Mac），settings 設 sonnet／high、旗標給 opus／medium 時，init 訊息與 session jsonl 都是 opus／medium。
@@ -94,7 +94,7 @@ model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/set
 - **plugins**（`enabledPlugins`）：各自帶 skill 與 hook，與本系統無關；盤點與瘦身見 `docs/reviews/codex-tooling-audit-2026-10.md`。
 - **statusline**（ccstatusline）：`model` 欄讀 Claude Code 餵的 status JSON，反映該 session 實際 model；`thinking-effort` 欄沒拿到 status JSON 的 `effort.level`、該 session 又沒跑過 `/effort` 或 `/model` 時，退回顯示 `settings.json` 的 `effortLevel`，不反映 `--effort` 旗標。要確認某個 session 的 effort，看它 jsonl 的 `"effort"` 欄位。
 - **Orca**：`settings.json` 的 matcher `*` hooks 與 `~/.orca/` 由 Orca 安裝；`orca worktree create --agent claude` 翻成 `claude --model … --effort … <prompt>` 起頂層 session，旗標語意見 `global/shared/skills/worktree-session/references/cli.md`。Orca 另會以 `orca skills install` 把 `orca-cli`／`orchestration`／`computer-use` 三個 skill 裝進 `~/.agents/skills/` 並 symlink 進各 agent 的 skills 資料夾，其 description 會把 worktree 與交接導向 Orca、與本系統 `handoff` skill 撞觸發詞；本系統不依賴它們，主力 Mac 已刪（見 `global/shared/hosts/macos.md`），新機器裝 Orca 後照做。
-- **`settings.json` 的 permissions**：安裝後另行 audit，原則見 `docs/install.md`「Claude Code permissions 要和鐵律二對齊」。
+- **`settings.json` 的 permissions**：安裝後另行 audit，原則見 `docs/install.md`「Claude Code permissions 要和全域邊界 3 對齊」。
 
 ## Codex 端的對照
 

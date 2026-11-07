@@ -24,7 +24,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Bash(orca:*), Read, Grep, Glob
 
 **盤點 session**（通常是使用者正在用的那個）只做五件事：現查 tracker 與 open PR，列出可做／blocked 項目、優先序與共用觸點，有共用觸點的 issue 序列開、不同時開；每個 issue 寫一份 brief 到 `<repo>/.worktrees/briefs/<issue>.md`；逐一起 issue session（指令與 fallback 見 `references/cli.md`「盤點 session 與 issue session」）；收結果時只讀各 worktree 的 `.worktrees/result.md` 與 `gh pr view`；交付後依 §3 清 worktree。不逐票讀 source、不收完整回報、不追各 issue 的 CI；欄位不足或 `unknown` 就送回該 issue session 補，不自己重跑它的探索或驗收。一個 issue 交付後要換主題，開新 session，不在大 context 上接新主題。
 
-**brief**：目標與動機、tracker 連結、base ref、共用觸點與禁止碰的路徑、完成定義、授權、交付檔路徑，以及「需要使用者決策或授權時：寫進 `result.md` 的 Pending authorization／Blocker，繼續做不被該答案擋住的部分，不用等鍵盤回答的工具停住等」。**授權**以 session 為單位（鐵律二）：brief 只能逐字引用使用者在盤點 session 對**該 issue** 明說的動作與對象，以「使用者原話：」開頭並註明對象 issue，上限 push feature branch＋開 PR；沒說就寫「無」。issue session 只認這段，merge、對外訊息與 brief 沒列的動作一律等使用者在該 issue 的分頁親口授權。
+**brief**：目標與動機、tracker 連結、base ref、共用觸點與禁止碰的路徑、完成定義、授權、交付檔路徑，以及「需要使用者決策或授權時：寫進 `result.md` 的 Pending authorization／Blocker，繼續做不被該答案擋住的部分，不用等鍵盤回答的工具停住等」。**授權**以 session 為單位（全域邊界 3）：brief 只能逐字引用使用者在盤點 session 對**該 issue** 明說的動作與對象，以「使用者原話：」開頭並註明對象 issue，上限 push feature branch＋開 PR；沒說就寫「無」。issue session 只認這段，merge、對外訊息與 brief 沒列的動作一律等使用者在該 issue 的分頁親口授權。
 
 **issue session result**（issue session → 盤點 session）：落地位置 `$(git rev-parse --show-toplevel)/.worktrees/result.md`（自己的 worktree 內）。填不出來的欄寫 `unknown`＋原因，不留空。多 repo issue 在每個子 repo 的 worktree 各寫一份（`Issue` 相同，其餘欄寫該 worktree 自己的事實）：
 
@@ -60,7 +60,7 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 
 腳本判不到的形狀列在它的開頭說明。其中要注意一項：session 在等使用者回答時狀態也是 `idle`，所以 `Status` 與 `Pending authorization` 要由 issue session 誠實填，還在對話的 session 不要先寫 `merged`。
 
-**要先問**：任一條判不出來或不成立就保留 worktree，回報原因；來源不明的 worktree／branch 要使用者明確授權才能刪（鐵律二）。
+**要先問**：任一條判不出來或不成立就保留 worktree，回報原因；來源不明的 worktree／branch 要使用者明確授權才能刪（全域邊界 3）。
 
 | 例子 | 判定 | 為什麼 |
 |---|---|---|
@@ -76,4 +76,4 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 
 ## 4. 邊界
 
-不做：把 issue 拆給 subagent 當實作者；在 worktree 之間用複製檔案代替 git 合併；為了用某個 workspace 工具（Orca、Herdr、tmux、VS Code 分頁）而改變上述任何一步，它們只是 session 的容器，只提供 `references/container.md` 列的五個動作；讓 issue session 取得 brief 沒逐字引用的授權；把 git 無 conflict 當語意安全。同一 issue 內切片給多個 agent 平行做的 divide-and-conquer 與 agent race 流程已於 2026-10 日落，舊設計與理由見 `<REPO>/docs/reviews/parallel-dispatch-design-2026-09.md`。
+不做：把 issue 拆給 subagent 當實作者；在 worktree 之間用複製檔案代替 git 合併；為了用某個 workspace 工具（Orca、Herdr、tmux、VS Code 分頁）而改變上述任何一步，它們只是 session 的容器，只提供 `references/container.md` 列的五個動作；讓 issue session 取得 brief 沒逐字引用的授權；把 git 無 conflict 當語意安全。同一 issue 內不切片給多個 agent 平行做（divide-and-conquer、agent race），理由見 `<REPO>/docs/reviews/parallel-dispatch-design-2026-09.md`。

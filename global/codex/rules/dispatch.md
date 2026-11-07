@@ -4,7 +4,7 @@
 > 本檔是 `<REPO>/global/shared/skills/dispatch/SKILL.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
 > 下文的 `<REPO>` 同 `~/.codex/AGENTS.md` 的 Bootstrap 段定義（依機器而異；該段有對照表，`readlink ~/.codex/AGENTS.md` 只在 symlink 安裝的機器上有效）。本檔位在 `<REPO>/global/codex/rules/`，寫成裸 `rules/…` 從這裡解析不到。
 
-controller 在主對話自己做實作與文件；subagent 只剩三類：fresh-context 驗收（`verifier`／`sol_verifier`）、fresh review（`reviewer`）、旁支查詢（`scanner`／`explorer`）。實作型角色（worker、pro_worker、recovery_worker、escalation_worker）與規劃型角色（planner、escalation_planner）於 v4（2026-10-29）日落，理由與量測見 `<REPO>/docs/reviews/v4-2026-10.md`。平行開發與多 issue 走 `<REPO>/global/shared/skills/worktree-session/SKILL.md`：一 issue 一頂層 session，各在自己的 worktree，不派實作型 subagent。
+controller 在主對話自己做實作與文件；subagent 只剩三類：fresh-context 驗收（`verifier`／`sol_verifier`）、fresh review（`reviewer`）、旁支查詢（`scanner`／`explorer`）。實作與規劃不派 subagent，理由與量測見 `<REPO>/docs/reviews/v4-2026-10.md`。平行開發與多 issue 走 `<REPO>/global/shared/skills/worktree-session/SKILL.md`：一 issue 一頂層 session，各在自己的 worktree，不派實作型 subagent。
 
 ## 0. Codex 角色與 runtime adapter（以當前 session 實際工具為準）
 
@@ -106,7 +106,7 @@ controller 應在 brief 附上仍有效的 diff、檔案行號／段落與測試
 
 任一指定 model 回報 unsupported 或 unavailable → 停止宣稱該 model mapping 已驗證，改用已核准的 fallback 並標記「模型未驗證」；不得靜默繼承另一個 model。`Sol high` 卡住 → 先換 fresh-context Sol、取得獨立第二意見或重定義問題與驗收條件；只有仍有明確邊際價值時，controller 才可顯式使用 xhigh／max。Ultra 不是一般 coding route。
 
-## 6. 驗證語意（鐵律三）
+## 6. 驗證語意
 
 - **先定深度再派**：低風險小改＝同時成立：文件只改數句（事實更正、連結、措辭）或程式碼只改單點素材／設定／字串／幾行邏輯；不含外部呼叫、權限請求或不可逆副作用（`<REPO>/global/shared/rules/judgment.md` 第 2 條）；不屬 judgment 第 1 條的高風險產出（含並行、資料一致性、安全相關的邏輯，即使只有幾行）；不是使用者回報的 bug；製作者已附機械檢查輸出。走輕量路徑：文件派 `verifier` 做 read-back 級（逐句對照來源、跑 repo 的文件檢查腳本、查引用存在，brief 寫明不跑 repo 全套驗證）；程式碼由製作者機械驗證＋一次 fresh-context `reviewer`，不派 `verifier`。**只改文件的 diff 不派 `reviewer`**（含規格、`AGENTS.md`、rules 等行為承載文件），文件正確性由 `verifier` 逐句對照；混合 diff 以程式碼部分定級，文件部分併入同一份 verifier brief。**中間層**程式碼（超過低風險小改、不含外部呼叫／權限請求／不可逆副作用、非高風險或使用者回報 bug）同樣只派一次 `reviewer`，不派 `verifier`。同一產物（同一 issue／PR／分支的後續 commit）第 2 輪起一律 delta brief，不重用首輪 brief 整輪重驗；verifier 第一行寫低風險機械結案就不再對同一產物派 delta，只有修正本身落入高風險側（放寬既有檢查、改權限模型、不可逆）才改派 fresh delta；`reviewer` finding 的修正由 controller 用同一組高風險判準自判，不落入高風險側且有確定性檢查能證明已修就併入同一次機械結案，「修 finding 時動到程式」不是再派 delta 的理由，delta 輪只派驗收角色（一般 `verifier`、高風險 `sol_verifier`），不再配 `reviewer`（canonical：`<REPO>/global/shared/skills/dispatch/SKILL.md` §2「修正與驗收輪次」）；高風險程式碼的 `reviewer` 與 `sol_verifier` 同時派、等兩邊回報、合併 finding 修一次再分流；驗收期間不動工作區、不 kill 在途 verifier 改派新 HEAD。各級通用：製作者已附全套測試／build／lint 輸出時，verifier 只重跑判定所需的受影響 spec、檢查腳本與自己的探針，全套交 CI；多引擎、多模式、多環境的探測只在驗收條件明列時做；brief 附全套輸出的路徑並列出受影響的 spec，verifier 據此決定重跑範圍。判準與 Claude 端同步：`<REPO>/global/shared/skills/dispatch/SKILL.md` §1「驗證不自驗」。
 - 主觀判斷、一般文件與一般驗收依原有首次驗收分工交給獨立 fresh-context `verifier/Terra high` read-back，逐條判 PASS/FAIL/UNSURE；安全、不可逆、重大架構與正式高風險產出改用獨立 fresh-context `sol_verifier/Sol high`。named role unavailable 時依 §0 direct CLI review branch，指定 model／effort、強制對應 sandbox 並貼完整同角色 contract；證據完整即可作有效獨立驗收，身份仍標 generic／direct CLI，不冒稱 custom。

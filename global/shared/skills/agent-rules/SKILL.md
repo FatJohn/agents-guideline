@@ -1,12 +1,12 @@
 ---
 name: agent-rules
-description: 建立或稽核某個專案 repo 的 AGENTS.md／CLAUDE.md 程式碼規則時使用：盤點常駐檔、詳細規則、AI reviewer 版本三層；把機械可驗的規則降級成 lint 或 CI 檢查而不留成散文；稽核常駐檔每條規則的標題能不能單獨判斷適用性；用單一來源加腳本產生索引並核對 reviewer 版本的 ID 與 severity。觸發詞：建 AGENTS.md、稽核 CLAUDE.md、整理專案規則、規則太多、哪些規則可以改 lint、"audit AGENTS.md"、"set up coding rules for agents"。不用於本工作系統自己的 rules／agents／skills（走 maintain-guideline），也不用於 README 等一般文件（走 writing-principles）。
+description: 建立或稽核某個專案 repo 的 AGENTS.md／CLAUDE.md 程式碼規則時使用：盤點常駐檔、詳細規則、AI reviewer 版本三層；把機械可驗的規則降級成 lint 或 CI 檢查而不留成散文；稽核常駐檔每條規則的標題能不能單獨判斷適用性；用單一來源加腳本產生索引並核對 reviewer 版本的 ID 與 severity。Use for auditing or setting up a repo's agent coding rules.不用於本工作系統自己的 rules／agents／skills（走 maintain-guideline），也不用於 README 等一般文件（走 writing-principles）。
 allowed-tools: Bash(python3:*), Bash(rg:*), Bash(git:*), Bash(gh:*), Read, Grep, Glob
 ---
 
 # agent-rules — 專案規則的三層、降級與標題稽核
 
-> 讀者：要替一個專案 repo 建立或稽核 coding agent 規則的 session，語言不限。`<SK>` 指本 skill 的目錄（安裝後通常是 `~/.claude/skills/agent-rules` 或 `~/.agents/skills/agent-rules`）。寫法原則（context pointer、no-op 句、單一來源）引用 `writing-for-agents` skill（mattpocock-skills plugin），本檔不重述；裝了就讀它，沒裝不影響本檔流程。
+> 讀者：要替一個專案 repo 建立或稽核 coding agent 規則的 session，語言不限。`<SK>` 指本 skill 的目錄（安裝後通常是 `~/.claude/skills/agent-rules` 或 `~/.agents/skills/agent-rules`）。寫法原則（context pointer、no-op 句、單一來源）引用 `writing-for-agents` skill（第三方，放在 `~/.agents/skills`，Claude 端靠 `~/.claude/skills` 的 symlink 讀取），本檔不重述；裝了就讀它，沒裝不影響本檔流程。
 
 ## 前提：只有常駐檔會被讀到
 

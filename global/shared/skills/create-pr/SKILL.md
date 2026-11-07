@@ -196,7 +196,7 @@ rm -f "$PR_BODY_FILE"
 
 3. 輸出 PR URL。
 4. 開完 PR 後停在 PR URL 回報，**預設不等 CI、不等 bot review（Gemini、Copilot 等）、不問「CI 全綠後是否直接 merge」**。要不要等、要不要先處理 review，由使用者在下 merge 指令時決定：使用者說「merge」就在當下照 §2.8 merge；使用者明說「綠了再 merge」「等 review 處理完」才等。repo 文件規定了 review 流程（例如 draft → bot review → ready）時，照專案規格開成 draft 並在回報指出流程的下一步，但等待本身仍由使用者決定，不自動掛著等 bot。
-   - 使用者的 merge 指令只限這個 PR，不延伸到其他 PR 或之後的 PR（鐵律二逐次逐對象）。
+   - 使用者的 merge 指令只限這個 PR，不延伸到其他 PR 或之後的 PR（全域邊界 3：逐次、逐對象）。
    - 為什麼不等：等 CI 與 bot review 的牆鐘常超過整個改動本身，而 CI 紅了很快就看得到、使用者會自己下修正指令；見 `<REPO>/docs/lessons-archive.md` 2026-10-23。
 
 ### 2.8 merge 時的標題覆寫

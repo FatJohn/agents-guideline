@@ -21,7 +21,7 @@
 | 開工建 worktree、多個獨立 issue 分 session、清 worktree | `worktree-session` skill |
 | 寫或改長存文件 | `writing-principles` skill |
 | 建立或稽核專案的 AGENTS.md／CLAUDE.md 程式碼規則 | `agent-rules` skill |
-| 完成、證據、驗收狀態 | `<REPO>/global/shared/rules/judgment.md` |
+| 寫或改程式碼的範圍、完成、證據、驗收狀態 | `<REPO>/global/shared/rules/judgment.md` |
 | HTTP／port／hook 異常、除錯前 | `<REPO>/docs/debug-environment-first.md` |
 | 修改本系統 | 到 `<REPO>` 開工，讀其 `AGENTS.md` |
 

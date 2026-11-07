@@ -1,6 +1,6 @@
 ---
 name: usage-review
-description: 量 Claude Code 本機 session jsonl 的用量與派工行為時使用：成本按 subagent 角色×model 拆帳、cache write 1h／5m 與過期重寫、主對話 context 膨脹、subagent 回報長度、派工平行度與 controller 自修次數、verifier 判定分布。觸發詞：量用量、成本拆帳、subagent 成本、context 膨脹、cache 過期重寫、派工行為、"usage review"、"token cost by agent"、"cost breakdown by subagent"。這不是帳單，也算不出訂閱額度百分比。
+description: 量 Claude Code 本機 session jsonl 的用量與派工行為時使用：成本按 subagent 角色×model 拆帳、cache write 1h／5m 與過期重寫、主對話 context 膨脹、subagent 回報長度、派工平行度與 controller 自修次數、verifier 判定分布。Use for usage or token-cost reviews by agent.這不是帳單，也算不出訂閱額度百分比。
 allowed-tools: Bash(python3:*), Read, Grep, Glob
 ---
 
@@ -44,7 +44,7 @@ python3 <SK>/scripts/report.py dispatch --data "$TMPDIR/ur-data.json" \
 | `context` | 主對話 ctx 中位／P90／分桶／>400K 占比；subagent 首個 request 的 ctx（固定注入量代理）；compact 次數 | |
 | `reports` | subagent 最終報告長度（依 type）與 handback 比率；Agent tool_result 長度 | tool_result 常只是啟動說明，以 `final_chars` 為準 |
 | `dispatch` | Agent 呼叫的參數組合；錯誤數；notification status；平行度（連通的在途區間） | 在途區間是近似值 |
-| `controller` | 主對話 Edit／Write 與 Bash 寫檔 vs 派工數（逐專案目錄）；worker 交回後到下一個 verifier 派出前的改檔次數 | Bash 寫檔與「交回後」皆為啟發式 |
+| `controller` | 主對話 Edit／Write 與 Bash 寫檔 vs 派工數（逐專案目錄）；worker 交回後到下一個 verifier 派出前的改檔次數（只有含 worker 派工的 session 才有值） | Bash 寫檔與「交回後」皆為啟發式 |
 | `verifier` | verifier 判定分布與各自成本 | 判定由 `final_head` 的 regex 抓，為啟發式 |
 | `agents` | 每種 subagent 的 request 數、工具數、牆鐘、成本（中位／P90）、通知 token 中位 | |
 | `sessions` | 最貴前 N 個 session（含 subagent 成本）、ctx 中位、派工數、人類訊息數 | 人類訊息只算 `human`＋`ask_answer` |

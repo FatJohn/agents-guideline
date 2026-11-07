@@ -25,7 +25,7 @@ controller 在主對話自己做實作與文件；subagent 只剩三類：fresh-
 
 Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`：frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑；真的 fallback 時另帶與 verifier frontmatter 相同的 `effort`，否則 effort 落到 session 設定。改用 `model: fable` 前，說明訊號與證據並取得當次同意（訊號清單見 `<REPO>/docs/reviews/verification-policy-history.md`「fable 升檔訊號」）；使用者當次直接指定 fable 不必再問。Codex 刻意維持 `sol_verifier/Sol high`，見 `<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』。
 
-**第二個現場**是取樣，不是本次必修清單；verifier 交回的 N 個實例清單同樣是取樣。逐個修完之前先問「是什麼產生它們」，再決定修哪一層。範圍內依 §2 修正分流；範圍外不擴修，登記該 repo issue 並附連結（對外授權仍依鐵律二，未授權先保留待登記項目）。連續兩輪發現都在範圍外就停手回報，不把下一批工作塞進本次。
+**第二個現場**是取樣，不是本次必修清單；verifier 交回的 N 個實例清單同樣是取樣。逐個修完之前先問「是什麼產生它們」，再決定修哪一層。範圍內依 §2 修正分流；範圍外不擴修，登記該 repo issue 並附連結（對外授權仍依全域邊界 3，未授權先保留待登記項目）。連續兩輪發現都在範圍外就停手回報，不把下一批工作塞進本次。
 
 **唯讀角色也受影響**：verifier 與寫入者共用 working tree 時，它的唯讀結論（檔案內容、路徑與指令是否存在）仍可信，但任何跑測試／build 取得的數字都被污染。驗收期間 controller 不動工作區，也不 kill 在途 verifier 改派新 HEAD；要驗新 commit 就等它回報，再依 §2 派 delta。等不了就給 verifier 自己的 worktree（`isolation: worktree`）。
 
@@ -55,7 +55,7 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 
 **CI／release 設定**（`.github/workflows`、`.github/actions` 等會被執行的設定）不派也不靜默自改：先把 diff 給使用者、取得當次授權，再套上並照 §1 派 verifier。裝了 `block-ci-edit` hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open），訊息要求先取授權；授權後以 `git apply` 套上給使用者看過的 patch，未授權不得改用 Bash 繞過。
 
-**brief 必含三段**（欄位模板見 `~/.claude/skills/handoff/SKILL.md` §1『brief 卡』），缺一段就是不合格的派工：目標與動機（subagent 看不到主對話，脈絡要自帶）；驗收條件（可機械判定，自我檢查見 `~/.claude/rules/judgment.md` 12）；回報格式。三個非顯然的必要條件：**把已讀過的素材附進 prompt並要求指令批次化**（subagent 是冷啟動，每個它自己去讀的檔都是一輪完整推理）；**路徑一律絕對路徑**；派 `general-purpose` 時 **prompt 開頭明寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」**（它會讀到全域 `CLAUDE.md` 與 `~/.claude/rules/`，不加這句會把自己當 controller 逐層轉包；`Explore`／`verifier` 沒有 Agent 工具，可省）。要求 subagent 補齊某個格式欄位時同時規定「查無來源就留空」，否則原檔沒有的內容會被當場發明。
+**brief 必含三段**（欄位模板見 `~/.claude/skills/handoff/SKILL.md` §1『brief 卡』），缺一段就是不合格的派工（fresh `code-review` 從 diff 推 bug，驗收條件可省，見 §1）：目標與動機（subagent 看不到主對話，脈絡要自帶）；驗收條件（可機械判定，自我檢查見 `~/.claude/rules/judgment.md` 12）；回報格式。三個非顯然的必要條件：**把已讀過的素材附進 prompt**（subagent 是冷啟動，每個它自己去讀的檔都是一輪完整推理）；**路徑一律絕對路徑**；派 `general-purpose` 時 **prompt 開頭明寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」**（它會讀到全域 `CLAUDE.md` 與 `~/.claude/rules/`，不加這句會把自己當 controller 逐層轉包；`Explore`／`verifier` 沒有 Agent 工具，可省）。要求 subagent 補齊某個格式欄位時同時規定「查無來源就留空」，否則原檔沒有的內容會被當場發明。
 
 **派工揭露（controller → 使用者）**：派工當下只講 agent 名稱與任務摘要；實際派送不是指定的 named role 就在名稱後標 `fallback` 並簡述差異，建立失敗回報「`<agent>` 未建立」與 runtime 原因。model／effort 平常不報，被問到、runtime 不一致或稽核時才展開（`<REPO>/docs/harness-facts.md`「被問到 model／effort 時怎麼答」）。Codex 端 `<REPO>/global/codex/rules/dispatch.md` §3 用同一套揭露。
 
@@ -77,7 +77,7 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 
 符合任一條就停，其餘情況自主前進不要問：
 
-- 動作屬於**發訊息或寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案（符合 worktree-session §3「直接清」的 issue worktree 與其 branch 除外）、改 CI／release 設定**，且本 session 尚未明確授權（鐵律二）。未授權就停止；已在本 session 明確授權時直接執行，不重複詢問。
+- 動作屬於**發訊息或寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案（符合 worktree-session §3「直接清」的 issue worktree 與其 branch 除外）、改 CI／release 設定**，且本 session 尚未明確授權（全域邊界 3）。未授權就停止；已在本 session 明確授權時直接執行，不重複詢問。
 - 發現必須擴大**功能、契約、權限或外部影響**，而非只是在已授權 scope 內補齊必要實作檔與 dependency。前者停下確認；後者自主完成並在回報說明。
 - 是品味／模糊題且第二意見後仍無收斂（例如文案語氣、提案方向）。
 - 驗證或動作需要使用者**本人在場**（live 登入、實機操作、手動觸發）且會阻塞後續工作：先問可用時段，其餘已授權且不依賴使用者的工作照常繼續。
@@ -91,5 +91,5 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 **修法**：
 
 - 原始內容後續不需逐行引用、經搜尋與節錄仍要帶入大量原文時，派旁支查詢（§3）只拿結論；能用有界讀取（`rg`、`sed -n a,bp`、`head`）處理的短內容留在主對話。檔案數、網頁、完整 log 本身不是派出理由，看的是帶回來的量與之後引用的方式。
-- controller 看不到 statusline，要自己量：用 `<REPO>/docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」的 jq 指令取最後一筆 usage 的三項和。每個實作 phase 開始前、打算一次讀入 ≥5 個未讀檔前各量一次。**≥300K 且還有未做的 phase**：寫 `~/.claude/skills/handoff/SKILL.md` §4『session 交接卡』，剩下的 phase 開新 session 接手，不派 subagent（subagent 不繼承 context，等於重新開始，還少了完整的 CLAUDE.md、hook 與記憶）。
+- controller 看不到 statusline，要自己量：用 `<REPO>/docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」的 jq 指令取最後一筆 usage 的三項和。phase 交界與大量讀檔之後量。**≥300K 且還有未做的 phase**：寫 `~/.claude/skills/handoff/SKILL.md` §4『session 交接卡』，剩下的 phase 開新 session 接手，不派 subagent（subagent 不繼承 context，等於重新開始，還少了完整的 CLAUDE.md、hook 與記憶）。
 - 何時 compact 由使用者決定，controller 不主動提醒，也不能自己 compact。使用者說要 compact、要離開 >1h（prompt cache 1h 過期，回來整段重寫）或要「新 prompt」時，給一段可直接貼在 `/compact` 後面的**保留指示**，內容是交接卡的精簡版：目標、授權、未完成項目、在途 subagent（名稱、任務）、產物證據位置。有在途 subagent 時先告知，建議等回報後再 compact。
