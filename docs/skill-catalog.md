@@ -4,7 +4,7 @@
 
 原則：動手前先想「這類問題有沒有現成 skill」，有就用，不要土炮重造；但真正符合任務才叫用（優先權排序依平台見全域 `CLAUDE.md`／`AGENTS.md`）。
 
-- **開發流程**：兩端共用本 repo 的 `docs/debug-environment-first.md`（原為 skill，2026-09-02 降為文件，直接讀檔）；其他 skill 必須以當前 session 公開的清單為準，不跨平台猜名稱。若 Claude 當前有公開 `mattpocock-skills:` 或 `andrej-karpathy-skills:`，可依任務叫用；Codex 只有在自己的清單也公開對應 skill 時才能叫用，否則依當前可用 skill 或主流程完成。這些 skill 管「執行者怎麼做好一件事」，本系統管「指揮官怎麼調度與驗收」；宣稱完成前由 `<REPO>/global/shared/rules/judgment.md` 第 1 條「完成的三個條件」與 verifier 把關。
+- **開發流程**：兩端共用本 repo 的 `docs/debug-environment-first.md`（原為 skill，2026-09-02 降為文件，直接讀檔）；其他 skill 必須以當前 session 公開的清單為準，不跨平台猜名稱。第三方 skill（`grilling`、`tdd`、`diagnosing-bugs` 等）放在 `~/.agents/skills` 兩端共用，Claude 端要在 `~/.claude/skills` 建 symlink 才讀得到（2026-11-07 現查）；當前清單有公開就可依任務叫用，否則依當前可用 skill 或主流程完成。`code-review` 例外：只給 Codex，不接進 Claude，避免與內建同名 skill 衝突。這些 skill 管「執行者怎麼做好一件事」，本系統管「指揮官怎麼調度與驗收」；宣稱完成前由 `<REPO>/global/shared/rules/judgment.md` 第 1 條「完成的三個條件」與 verifier 把關。
 - **查網頁／爬資料**：Claude 使用當前 session 公開的 web search／fetch 或已註冊的文件 MCP；Codex 使用自己當前 session 公開的 web／browser 工具。這份跨機器檔不固定暫時的 tool 名稱；每次現查，不把另一平台的名稱直接套用。適合派工時只把結論帶回主對話。
 - **產出文件**：兩端都只使用當前 session 公開的文件產出 skill；Claude／Codex 的實際名稱可能不同，以各自當前清單為準，不跨平台猜名稱。
 - **寫或改長存文件**：用 `writing-principles` skill（兩端同名），README、接入指南、設計說明、流程、參考頁、wiki 頁都適用；寫的人與 verifier 跑同一支 `scripts/check_docs.py`，專案自訂值放專案 AGENTS.md。
