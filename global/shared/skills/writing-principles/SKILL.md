@@ -1,6 +1,6 @@
 ---
 name: writing-principles
-description: 寫或改長存文件時使用——README、接入指南（quickstart／integration）、架構或設計說明、開發與發版流程、參考頁、wiki 頁（如 ClickUp、Confluence），新寫、改寫、整理都算；驗收這類文件時 verifier 也用本 skill 的判定與檢查腳本。觸發詞：寫文件、改寫 README、整理 docs、文件太亂、接入指南、架構說明、"rewrite the docs"、"doc cleanup"。不用於程式註解、commit message、PR 描述、issue、ADR、CHANGELOG，以及本工作系統的 rules／agent 定義／skill（那些走 maintain-guideline）。
+description: 寫或改長存文件時使用——README、接入指南（quickstart／integration）、架構或設計說明、開發與發版流程、參考頁、wiki 頁（如 ClickUp、Confluence），新寫、改寫、整理都算；驗收這類文件時 verifier 也用本 skill 的判定與檢查腳本。Use for writing or cleaning up long-lived docs.不用於程式註解、commit message、PR 描述、issue、ADR、CHANGELOG，以及本工作系統的 rules／agent 定義／skill（那些走 maintain-guideline）。
 allowed-tools: Bash(python3:*), Bash(git:*), Read, Grep, Glob
 ---
 

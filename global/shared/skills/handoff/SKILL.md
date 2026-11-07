@@ -19,14 +19,14 @@ single-writer：本 working tree 目前只有你在寫；落地位置 <絕對路
 已附素材：<附了哪些 diff、行號、關鍵段落、指令輸出>   不要重讀：<檔案>   請自讀：<檔案:行號範圍>
 Invariants：<修完後必須成立的條件>
 Phases：<逐 phase；每 phase 跑哪些驗證>
-Validation commands：<逐條可執行；能一次串完的批次化>
+Validation commands：<逐條可執行>
 驗收條件：<逐條、可機械判定>
 回報格式：依回報卡（§2）；長產物落檔 <絕對路徑>，檔名不以 report／summary／findings／analysis 開頭
 ```
 
 - 路徑一律絕對路徑；已讀過的素材直接附，不叫 subagent 重讀。
 - 要求補齊某個格式欄位時加一句「查無來源就留空」。
-- subagent 不寫 repo（verifier 只寫 repo 外探針目錄），所以派 verifier 與查詢型 subagent 時省 single-writer、Invariants、Phases 三欄，Validation 改填「驗收用的探針與 repo 外落檔路徑」，其餘欄不省。這三欄是給 controller 自做用的：同一張卡就是開工前的 plan，目標、Scope、Invariants、Phases、Validation、驗收條件寫在第一次改檔前，之後的 verifier brief 逐字沿用。
+- subagent 不寫 repo（verifier 只寫 repo 外探針目錄），所以派 verifier 與查詢型 subagent 時省 single-writer、Invariants、Phases 三欄，Validation 改填「驗收用的探針與 repo 外落檔路徑」，其餘欄不省；fresh `code-review` 從 diff 推 bug，驗收條件也可省。這三欄是給 controller 自做用的：同一張卡就是開工前的 plan，目標、Scope、Invariants、Phases、Validation、驗收條件寫在第一次改檔前，之後的 verifier brief 逐字沿用。
 - 新增或修改測試斷言與守門檢查者，在 Validation 列各自的突變指令、可暫時碰觸的路徑與還原指令。
 - **宣稱對照**（派 verifier 驗文件的首輪必附，含混合 diff 的文件部分；放在「已附素材」）：新寫或改寫的句子裡，下列三種每句一列「句子所在 `檔案:行號`→證據」，證據是指令的關鍵輸出行或來源的 `檔案:行號`，不是「已確認」：(1) 封閉量詞（唯一、都、一律、只有、相同）；(2) 數字與清單條數；(3) 現況與行為宣稱（已生效、會產生、不會）。改寫或搬移既有段落時另列兩項：被刪掉的限定詞與「未實測」這類註記各自的去向（保留在哪一行，或為什麼可以刪）；同一說法在其他檔的副本，附 `rg --hidden` 指令與結果，搜尋詞含同義寫法與舊數字。對不出證據的句子先改成開放式或標未驗證再派。只改措辭、不含上述三種句子時寫「無可證偽宣稱」。
 
@@ -77,7 +77,7 @@ session → 未來的 session 或另一個 agent，兩平台同一格式：
 **為什麼這樣做**：<關鍵決定、被排除的方案、接手者必須保留的限制>
 ```
 
-- **何時寫**：收尾、要離開、要 compact、交給另一個 agent、長任務每個 phase 結束（可恢復脈絡的要求見 `~/.claude/rules/judgment.md` 15『可中斷的長任務要留可恢復脈絡』）。
+- **何時寫**：收尾、要離開、要 compact、要等人、交給另一個 agent、多階段長任務每個 phase 結束（全域邊界 6）。單輪可完成的小任務不必寫。
 - **寫到哪**：使用者給路徑優先。否則，平台裝有 remember plugin 時（Claude：`remember:remember` skill 存在）把寫好的卡交給該 skill 存檔——內容用本節格式取代它自己的三段格式，路徑由它的腳本決定、不要自己猜或解析，下個 session 開頭會自動注入，store 由 plugin 自己備份；它回 `REFUSED` 就照下一句處理。沒有 plugin 或被拒時寫專案根 `.agents/HANDOFF.md`；不能寫就把卡回在對話並明說沒寫檔。更新 `.agents/HANDOFF.md` 時保留仍有效的內容，移除已過時的完成項；走 plugin 時是整份取代，上一份已在 session 開頭注入過，把其中仍有效的項目寫進新卡。
 - **內容**：只寫耐久狀態，不重述對話；事實與猜測分開；完成項附驗證分級，沒驗就寫未驗證；不寫 secrets、token、憑證與原始 log，必要時只引關鍵一行；短到一分鐘內掃得完。
 - **compact 保留指示**就是這張卡的精簡版：目標、授權、未完成項目、在途 subagent（名稱、任務、worktree／分支）、產物證據位置；規則見 dispatch §6『主對話 context 管理』。

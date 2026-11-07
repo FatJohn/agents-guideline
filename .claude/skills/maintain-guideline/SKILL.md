@@ -37,7 +37,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 |---|---|---|
 | `global/claude/CLAUDE.md` | `global/codex/AGENTS.md` | 邊界六條、路由表、Bootstrap |
 | `global/claude/agents/verifier.md` | `global/codex/agents/{verifier,sol_verifier}.toml` | 找碴範圍、逐條判定、收斂狀態；Codex 高風險派 `sol_verifier` 是刻意分版 |
-| `global/claude/route-card.md`＋`global/shared/skills/dispatch/SKILL.md` | `global/codex/rules/dispatch.md` | 派工時機、升降級、驗證不自驗 |
+| `global/claude/route-card.md`＋`global/shared/skills/dispatch/SKILL.md` | `global/codex/rules/dispatch.md` | 派工時機、升檔條件、驗證不自驗 |
 
 沒有對照的檔是刻意的（`global/claude/{hooks,config}`、Codex 的 `delegation-templates.md` 與其餘角色 TOML），理由見 `<REPO>/docs/repo-layout.md`。
 
@@ -71,7 +71,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 - **本 repo 是公開 repo，不寫非公開專案的真名**：外部專案標技術領域（`[flutter]`、`[android]`、`[ci]`）或代號（`project-a`、`project-b`…，新專案依序給下一個；代號對照只留本機記憶，不進 repo）；本 repo 自身工作標 `[agents-guideline]`；跨專案通用標 `[global]`。同一規則適用 docs、hosts 紀錄、commit message 與 issue，範例 repo 用 `acme/widgets`。來源追溯依教訓日期回查 `~/.claude/projects/<專案目錄>/*.jsonl`（受 `cleanupPeriodDays` 限制）。
 - 值得寫的門檻：會讓下個 session 多花 10 分鐘以上，且從 repo／git log 看不出來。
 - **情境壓在一行、上限 80 字**：只留「觸發訊號 → 該怎麼做」，事故脈絡留在當時的 PR／commit。
-- **活躍教訓硬上限 8 條**：滿 8 條要記新教訓，必須先升級或封存一條，不准「先加了再說」。
+- **活躍教訓硬上限 8 條**：滿 8 條時，先升級或封存一條再記新教訓。
 - **同一個坑踩第二次＝升級成正式判準**：先問使用者，提案修改 `<REPO>/global/shared/rules/judgment.md`。
 - **升級落地後把該條移到 `<REPO>/docs/lessons-archive.md`**，原文全保留、只搬位置；`docs/lessons.md` 只留「尚未」有判準承接的條目。
 
@@ -87,7 +87,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 ## 5. 瘦身協議
 
 - **tripwire**（觸發審查，不是優化目標）：`global/claude/CLAUDE.md` 超過 2,500 bytes、`global/claude/route-card.md` 超過 3,000 bytes、`global/shared/rules/judgment.md` 超過 15 條。碰到就排一次日落審查，不是砍到剛好低於門檻（門檻被當目標時，最先被砍的是『不算違規』邊界句）；沒碰到也可以瘦身。bytes 是常駐 context 的代理量，不等於 token。使用率用 `python3 <REPO>/scripts/dispatch-usage.py --days 45` 量。
-- **硬上限**：judgment 15 條、活躍教訓 8 條（見 §3）。加一條要先合併或日落一條，不准「先加了再說」；合併後總數 ≤15、或整條搬走且不留只剩動詞與檔名的骨架，才算空出名額。每條判準目標 ≤450 bytes：觸發情境、要做什麼、不算違規、指向。機制事實、指令、數字與『不算違規』邊界砍不動而超標**不算違規**，回報實際 bytes；砍到邊界句才是違規。
+- **硬上限**：judgment 15 條、活躍教訓 8 條（見 §3）。加一條要先合併或日落一條；合併後總數 ≤15、或整條搬走且不留只剩動詞與檔名的骨架，才算空出名額。每條判準目標 ≤450 bytes：觸發情境、要做什麼、不算違規、指向。機制事實、指令、數字與『不算違規』邊界砍不動而超標**不算違規**，回報實際 bytes；砍到邊界句才是違規。
 - **正反例進 rationale**：✅／❌、訂條理由、事故脈絡與鄰條分工說明一律寫在 `<REPO>/docs/judgment-rationale.md` 同編號章節（原句搬入），常駐正文只留判準；判準仍要讓另一個 agent 只憑這句判得了過或不過。要省空間就整條日落或搬走。
 - **驗證方法細節進 `<REPO>/docs/debug-environment-first.md`**：各工具的檢查指令、觸發詞、失敗現場寫那裡，judgment 只留一句判準與指向。
 - **只在特定情境用到的內容不放常駐**：常駐＝入口、`host-facts`、`rules/judgment.md`（每 session 全文載入，subagent 也付）與 route card（只注入主對話）。維護協議、rubric、封存教訓、派工範例放 skill、rubric 或 docs。

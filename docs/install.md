@@ -63,7 +63,7 @@ symlink 的好處：session 依規則更新事實、寫教訓時直接改到 rep
 
 ⚠️ **`~/.claude/rules/` 是無條件常駐區**：Claude Code 會把該目錄下無 `paths` frontmatter 的 `*.md` 每 session 全文載入（subagent 也付），是每個 session 的固定 context 成本，所以只有「每次開工都需要」的內容放這裡，目前只有 `judgment.md`。只在特定情境才用的長內容放 skill、`rubrics/` 或 `docs/`，這幾處不會自動載入。`route-card.md` 刻意放在 `rules/` 外面，理由見下方「SessionStart hook」。
 
-### Claude Code permissions 要和鐵律二對齊
+### Claude Code permissions 要和全域邊界 3 對齊
 
 `CLAUDE.md` 是 advisory context，不是 permission gate。`~/.claude/settings.json` 的全域 allowlist 不要放 `Bash(git push:*)`、`Bash(gh pr:*)` 或 `Bash(gh api:*)` 這類同時涵蓋唯讀與對外寫入的 wildcard；否則 push、merge 或任意 GitHub API 寫入可能不會出現逐次權限確認。只預先允許可明確判定為唯讀的子命令，例如 `git status`／`git diff`／`git log` 與 `gh pr view`／`gh pr checks`／`gh pr diff`。需要零例外硬擋時使用 `PreToolUse` hook 驗證 Bash command；不要把「規則文字通常會被遵守」當成 deterministic enforcement（見 [Anthropic 的 steering 指南](https://claude.com/blog/steering-claude-code-skills-hooks-rules-subagents-and-more)）。本 repo 不管理 `settings.json`，新機器安裝後要另行 audit。
 
