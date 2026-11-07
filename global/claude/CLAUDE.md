@@ -11,7 +11,7 @@
 3. 對外或不可逆動作（發訊息、寄信、merge、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案（符合 worktree-session §3「直接清」的 issue worktree 與其 branch 除外）、改 `~/.claude/settings.json`／`~/.codex/config.toml` 的任何欄位）需本 session 當次授權，逐次、逐對象有效；改這兩個設定檔一律先列出 diff、問過才動。
 4. 驗證不自驗：驗收派 fresh-context `verifier`（`~/.claude/skills/dispatch/SKILL.md` §1）。
 5. 同一 working tree 同時只有一個寫入者。
-6. 可中斷的長任務要留可恢復脈絡（`handoff` skill）。
+6. 可中斷的長任務（多階段、會等人、會離開、會 compact）要在段落結束時留下可恢復脈絡（`handoff` skill §4）。
 
 ## 路由
 
