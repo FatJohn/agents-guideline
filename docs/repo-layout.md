@@ -29,7 +29,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/shared/skills/handoff/SKILL.md` | 四張固定卡：brief 卡、回報卡、verifier 判定卡、session 交接卡 |
 | `global/shared/skills/git-commit/SKILL.md` | commit message 固定格式與 squash merge 標題；專案規格有自己的慣例時以專案為準 |
 | `global/shared/skills/create-pr/SKILL.md` | 分析 branch 變更並準備 Pull Request |
-| `global/shared/skills/worktree-session/SKILL.md` | 開工預設在 worktree、互相獨立的 issue 一 issue 一頂層 session（盤點 session 的 brief、launch、result 欄位）、清理；`references/cli.md`（Orca／純 shell／分頁起 issue session 的實測指令、stop 與清理）、`worktree.md`（位置、忽略、清理的證據條件） |
+| `global/shared/skills/worktree-session/SKILL.md` | 開工預設在 worktree、互相獨立的 issue 一 issue 一頂層 session（盤點 session 的 brief、launch、result 欄位）、清理；`references/cli.md`（Orca／純 shell／分頁起 issue session 的實測指令、stop 與清理）、`worktree.md`（位置、忽略、清理的證據條件）、`container.md`（容器契約：五個動作、不隨容器變的東西、換容器要動的檔、Orca／shell／Herdr 對照） |
 | `global/shared/skills/writing-principles/SKILL.md` | 長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則；`scripts/check_docs.py`（純標準庫）判機械項，其餘由 verifier 抽樣；`references/sources.md` 收出處短引、`references/examples.md` 收改寫前後片段 |
 | `global/shared/skills/agent-rules/SKILL.md` | 替任何專案 repo 建立或稽核 AGENTS.md／CLAUDE.md 的程式碼規則：三層盤點、機械可驗的規則降級成 lint 或 CI 檢查、常駐檔每行能否單獨判斷適用性、單一來源產生索引；`scripts/rules_index.py`（產生索引、回寫常駐檔區塊、核對 reviewer 版本 ID／severity）、`scripts/active_lints_dart.py`（解 `analysis_options.yaml` include 鏈列出啟用 lint）、`scripts/active_lints_android.py`（合併 `lint --show`、Gradle `lint {}` 與 `lint.xml` 列出啟用 issue）、`references/{dart-flutter,kotlin-android,swift-ios}.md`（各語言的啟用規則查法與散文規則對應表）、`references/report-template.md`（給人讀的稽核報告結構） |
 | `global/shared/rubrics/document-quality.md` | 文件類產出的逐條驗收判準（verifier 讀） |
@@ -92,7 +92,7 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | `docs/reviews/codex-named-agent-registration.md` | Codex named agent 實體 TOML 同步、註冊實測差異與限制 |
 | `docs/reviews/codex-tooling-audit-*.md` | Codex 的 LSP／語意工具、plugin／skill context 盤點與瘦身 |
 | `docs/reviews/verification-policy-history.md` | 驗收政策的歷史背景與 `fable` 升檔訊號清單 |
-| `docs/reviews/` | 帶日期的量測、試行、審查、計畫與 brief，查詢用、不是現行規則：`dispatch-cost-review-*`、`worker-sonnet55-trial-*`、`issue-session-trial-*`、`v3-trial-*`、`v4-*`、`workflow-cost-improvement-brief-*`（派工成本與 model 試行）；`parallel-dispatch-design-*`（2026-09 同 issue 內切片平行的設計，v4 日落）；`codex-tooling-audit-*`、`codex-named-agent-registration`（Codex 工具鏈盤點與 named agent 診斷）；`restructure-plan-*`、`global-policy-ownership-review-*`、`global-rules-token-review-*`、`agents-guideline-self-review-*`（全域規則重構的計畫與輸入審查）；`verification-policy-history`、`verification-round-inventory-*`（驗收政策的歷史背景與輪次盤點）；`superpowers/`（2026-07 的 Codex 路由 plan／spec） |
+| `docs/reviews/` | 帶日期的量測、試行、審查、計畫與 brief，查詢用、不是現行規則：`dispatch-cost-review-*`、`worker-sonnet55-trial-*`、`issue-session-trial-*`、`v3-trial-*`、`v4-*`、`workflow-cost-improvement-brief-*`（派工成本與 model 試行）；`parallel-dispatch-design-*`（2026-09 同 issue 內切片平行的設計，v4 日落）；`codex-tooling-audit-*`、`codex-named-agent-registration`（Codex 工具鏈盤點與 named agent 診斷）；`restructure-plan-*`、`global-policy-ownership-review-*`、`global-rules-token-review-*`、`agents-guideline-self-review-*`（全域規則重構的計畫與輸入審查）；`verification-policy-history`、`verification-round-inventory-*`（驗收政策的歷史背景與輪次盤點）；`ade-survey-*`（issue session 容器的調查：Orca 近況、Herdr 評估、搬移成本與決定）；`superpowers/`（2026-07 的 Codex 路由 plan／spec） |
 | `scripts/sync-profile.py` | 把 `global/` 寫成 `~/.claude`、`~/.codex`、`~/.agents` 的實體檔複本（不能提權的機器用），偵測並列出 v1 舊安裝殘留 |
 | `scripts/sync-codex-agents.py` | 把 `global/codex/agents/*.toml` 寫成 `~/.codex/agents` 的實體檔 |
 | `scripts/dispatch-usage.py` | 日落審查用：量主對話自寫與派 subagent 的使用率（量法見 `maintain-guideline` §5） |

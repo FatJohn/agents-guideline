@@ -12,7 +12,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Bash(orca:*), Read, Grep, Glob
 
 會改檔的工作一律在自己的 worktree 做，main working tree 只留給盤點、讀碼與 merge；單一任務也一樣，不等到要平行才開。理由：同一 working tree 同一時間只能有一個寫入者（全域邊界 5），worktree 讓這條規則變成目錄邊界而不靠自律；verifier 跑測試時工作區不會被改動；開第二個 session 不必先問第一個做到哪。
 
-- 建法與位置：`git -C <repo> worktree add <repo>/.worktrees/<名> -b <branch> <base-ref>`，或 Orca 的 `orca worktree create`（位置 `<repo>/.orca/workspaces/<repo-name>/<名>`）；Claude Code 內建 `isolation: worktree` 另放 `<repo>/.claude/worktrees/`。三個位置的忽略方式、搜尋副作用與 `check-ignore` 驗證見 `references/worktree.md`「所有權與路徑」。
+- 建法與位置：`git -C <repo> worktree add <repo>/.worktrees/<名> -b <branch> <base-ref>`，或 Orca 的 `orca worktree create`（位置 `<repo>/.orca/workspaces/<repo-name>/<名>`）；Claude Code 內建 `isolation: worktree` 另放 `<repo>/.claude/worktrees/`。三個位置的忽略方式、搜尋副作用與 `check-ignore` 驗證見 `references/worktree.md`「所有權與路徑」。Orca、Herdr、tmux、分頁都只是容器，容器要提供的五個動作（launch／locate／overview／stop／rm）、什麼不隨容器變、換容器要動哪幾個檔見 `references/container.md`。
 - 建立後 `git worktree list` read-back，記下絕對路徑、branch、base SHA；之後所有 git／gh 指令逐條綁定（`git -C <path>`、`gh pr view <n> -R <owner/repo>`），不靠 cwd（`~/.claude/rules/judgment.md` 11）。
 - 使用者已在某個 worktree 裡開 session（cwd 就是 worktree）時不再另開；`git -C . rev-parse --git-common-dir` 不等於 `.git` 就是在 worktree 裡。
 - 已在 main working tree 做了未提交的改動才想起要開：先 `git stash` 或先 commit 到暫時 branch 再開，不把改動複製到 worktree（另一邊的 base 可能已前進，複製會覆蓋新 code）。
@@ -76,4 +76,4 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 
 ## 4. 邊界
 
-不做：把 issue 拆給 subagent 當實作者；在 worktree 之間用複製檔案代替 git 合併；為了用某個 workspace 工具（Orca、tmux、VS Code 分頁）而改變上述任何一步，它們只是 session 的容器；讓 issue session 取得 brief 沒逐字引用的授權；把 git 無 conflict 當語意安全。同一 issue 內切片給多個 agent 平行做的 divide-and-conquer 與 agent race 流程已於 2026-10 日落，舊設計與理由見 `<REPO>/docs/reviews/parallel-dispatch-design-2026-09.md`。
+不做：把 issue 拆給 subagent 當實作者；在 worktree 之間用複製檔案代替 git 合併；為了用某個 workspace 工具（Orca、Herdr、tmux、VS Code 分頁）而改變上述任何一步，它們只是 session 的容器，只提供 `references/container.md` 列的五個動作；讓 issue session 取得 brief 沒逐字引用的授權；把 git 無 conflict 當語意安全。同一 issue 內切片給多個 agent 平行做的 divide-and-conquer 與 agent race 流程已於 2026-10 日落，舊設計與理由見 `<REPO>/docs/reviews/parallel-dispatch-design-2026-09.md`。
