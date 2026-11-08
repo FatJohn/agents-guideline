@@ -52,16 +52,22 @@
 #     --upload-pack, --force, -f, --recurse-submodules, -o (fetch); -f, --force,
 #     --chmod, --pathspec-from-file (add); --amend, --no-verify, -n, -c, -C,
 #     --fixup, --squash, --author, --date (commit).
-#   - fetch: the first non-option <arg> must be a plain remote name (letters,
-#     digits, "_", ".", "-", not starting with "."), so a URL, a path or
-#     ext::... is out; later <arg>s are branch or ref names and may not start
-#     with "+" or contain ":" (they would write a local ref)  -> else no opinion
+#   - diff: a non-option <arg> may not be absolute or have a ".." segment (a
+#     path outside the repo makes git switch to no-index, the same as
+#     --no-index)                                             -> else no opinion
+#   - fetch: the first non-option <arg> must be a name (letters, digits, "_",
+#     ".", "-", not starting with ".") configured as remote.<name>.url in that
+#     repo, so a URL, a path, a bundle or ext::... is out; later <arg>s may not
+#     be "tag", start with "+" or contain ":" (they would write a local ref)
+#                                                             -> else no opinion
+#   - commit: needs a message source (-m, -am, --message=, -F, --file=), since
+#     without one git opens an editor                         -> else no opinion
 #     Like push this reads the command string only. Repo config and git hooks
 #     (diff.external, core.fsmonitor, core.sshCommand, pre-commit ...) still
 #     apply, as with the `Bash(git status*)` family of allow rules.
+#     -F may name any readable file, as `Bash(git commit*)` allows.
 #     The character whitelist also keeps HEAD~1, HEAD^, @{u} and a quoted
-#     commit message at no opinion: commit passes only with -m <one word> or
-#     -F <file>.
+#     commit message at no opinion, so a multi-word message goes through -F.
 #   everything matches -> stdout allow JSON, reason "allow-git-c-projects: <path>".
 #
 # GIT_C_ALLOW_ROOT (optional) replaces <root>; it does not add a second root.
@@ -98,7 +104,7 @@
 #
 # Offline tests: tests/test-allow-git-c-projects.sh. Install and limits: docs/install.md.
 #
-# Needs: bash, jq, tr. No python. Works in macOS bash 3.2 and Git Bash.
+# Needs: bash, jq, tr, git. No python. Works in macOS bash 3.2 and Git Bash.
 
 # byte-wise character ranges in the whitelist below, whatever the user locale
 export LC_ALL=C
@@ -261,24 +267,37 @@ check() {
   if [ "$sub" != "cleanup" ] && [ "$sub" != "push" ]; then
     shift 4
     remote_seen=""
+    has_message=""
     for a in "$@"; do
       case "$a" in
         -*)
           flag_allowed "$sub" "$a" || { reason="flag-not-allowed"; return; }
+          case "$a" in
+            -m|-am|--message=*|-F|--file=*) has_message=1 ;;
+          esac
           continue ;;
       esac
+      if [ "$sub" = "diff" ]; then
+        case "$a" in
+          /*|..|../*|*/..|*/../*) reason="diff-path-outside-repo"; return ;;
+        esac
+      fi
       [ "$sub" = "fetch" ] || continue
       if [ -z "$remote_seen" ]; then
         case "$a" in
           .*|*[!A-Za-z0-9_.-]*) reason="fetch-remote-not-a-name"; return ;;
         esac
+        git -C "$p" config --get "remote.$a.url" >/dev/null 2>&1 || { reason="fetch-remote-not-configured"; return; }
         remote_seen=1
       else
         case "$a" in
-          +*|*:*) reason="fetch-writes-local-ref"; return ;;
+          tag|+*|*:*) reason="fetch-writes-local-ref"; return ;;
         esac
       fi
     done
+    if [ "$sub" = "commit" ] && [ -z "$has_message" ]; then
+      reason="commit-without-message"; return
+    fi
   elif [ "$sub" = "push" ]; then
     # args after "push": an optional -u/--set-upstream first, then none may
     # start with "-", "+" (forced refspec) or ":" (remote ref delete)

@@ -677,6 +677,19 @@ class Tree(Base):
             with self.subTest(marker=marker):
                 self.assertTrue(any("ignored" in p for p in self.fresh_husky(".husky/_", marker, "keep", "h")))
 
+    def test_non_generated_content_in_husky_is_blocked(self):
+        for name in ("my-notes.env", "sub/precious.txt", "sub/pre-commit"):
+            with self.subTest(name=name):
+                self.assertTrue(any("ignored" in p for p in self.fresh_husky(".husky/_", "*", name)))
+
+    def test_directory_named_like_husky_file_is_blocked(self):
+        self.assertTrue(any("ignored" in p for p in self.fresh_husky(".husky/_", "*", "h/x")))
+
+    def test_nested_repo_in_husky_is_blocked(self):
+        (self.wt / ".husky" / "_" / "pre-push").mkdir(parents=True)
+        git(self.wt / ".husky" / "_" / "pre-push", "init", "-q")
+        self.assertTrue(any("ignored" in p for p in self.self_ignoring(".husky/_", "*", ".husky/_/h")))
+
     def test_tracked_file_in_husky_is_blocked(self):
         (self.wt / ".husky" / "_").mkdir(parents=True)
         (self.wt / ".husky" / "_" / "t").write_text("t\n")

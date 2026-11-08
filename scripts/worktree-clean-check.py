@@ -36,6 +36,10 @@ SHELLS = {"zsh", "bash", "sh", "fish", "dash"}  # 只有 idle 的 claude 當子�
 # 比對 status 回報為目錄（尾 `/`）的最後一段，或 self_ignoring_root 認得的自我忽略目錄；沒列到的 ignored 項目一律當成清掉就回不來。
 REBUILDABLE = {"node_modules", "DerivedData", "Pods", ".dart_tool", ".gradle", ".next", ".venv", "__pycache__", ".pytest_cache"}
 REBUILDABLE_NAMES = {".DS_Store"}
+# husky 在 .husky/_ 產生的檔名（實測本機 husky 目錄）；這裡以外的東西可能是使用者放的，不放行
+HUSKY_GENERATED = {".gitignore", "h", "husky.sh", "applypatch-msg", "commit-msg", "post-applypatch", "post-checkout", "post-commit",
+                   "post-merge", "post-rewrite", "pre-applypatch", "pre-auto-gc", "pre-commit", "pre-merge-commit", "pre-push",
+                   "pre-rebase", "prepare-commit-msg"}
 MARKER_MAX_BYTES = 4096
 SELF_IGNORING = {".pytest_cache", ".venv", ".husky/_"}  # 實測過會在目錄內放 `*` 的 .gitignore 的工具（相對 worktree 根目錄）；其他路徑沒有這個形狀，不放行
 KEYS = ("Issue", "Status", "Worktree", "Branch", "Base SHA", "Candidate SHA", "Dirty", "Files changed", "Verification",
@@ -204,8 +208,18 @@ def fold_path(path):
     return unicodedata.normalize("NFD", unicodedata.normalize("NFD", path).casefold())
 
 
+def husky_generated_file(wt, parts):
+    """`.husky/_` 不像 .venv 整包可重建：只收 husky 產生的扁平一般檔，子目錄、巢狀 repo、其他檔名都維持判不出。"""
+    if len(parts) != 3 or parts[2] not in HUSKY_GENERATED:
+        return False
+    try:
+        return stat.S_ISREG(os.lstat(Path(wt, *parts)).st_mode)
+    except OSError:
+        return False
+
+
 def self_ignoring_root(wt, parts, tracked, cache):
-    """工具把 `*` 寫進自己目錄的 .gitignore 時（pytest、venv），status 逐檔列出、不回報成目錄。
+    """工具把 `*` 寫進自己目錄的 .gitignore 時（pytest、venv、husky），status 逐檔列出、不回報成目錄。
     只認 worktree 根目錄：路徑是固定的 ASCII 名稱，不必重做 FS 與 git 對父目錄名的語意（2026-11-06 三輪驗收都在這裡找到新形狀）。
     只認一般檔（不是 symlink、FIFO）、除了註解只有 `*` 這條規則的 .gitignore，且目錄內沒有 tracked 檔；其他形狀維持判不出。
     照 git 的語意解析：只以 \\n 分行，行尾容許一個 \\r，所以用 bytes 讀，不用 splitlines（`#\\f*` 對 git 是註解）。
@@ -213,6 +227,8 @@ def self_ignoring_root(wt, parts, tracked, cache):
     .gitignore 若 untracked 又沒被忽略，status 已回報工作區不乾淨。"""
     root = next((r for r in SELF_IGNORING if parts[:r.count("/") + 1] == r.split("/")), None)
     if root is None or len(parts) <= root.count("/") + 1:  # 段數沒有多於 root：是 symlink 或檔案本身，不是目錄內容
+        return False
+    if root == ".husky/_" and not husky_generated_file(wt, parts):
         return False
     if root not in cache:
         marker = Path(wt) / root / ".gitignore"
