@@ -37,7 +37,11 @@
 #     with ":" (deletes the remote ref)                       -> else no opinion
 #     This gives `git -C <path> push` the scope of a `Bash(git push*)` allow
 #     rule minus force, delete and option shapes; it does not check the remote
-#     (a URL or path remote is allowed, as `git push*` allows it).
+#     (a URL or path remote is allowed, as `git push*` allows it). It reads
+#     the command string only: repo config such as a "+" refspec in
+#     remote.<name>.push or remote.<name>.mirror=true still makes an allowed
+#     `push origin` force or delete, and pre-push hooks still run, as with
+#     `git push*`.
 #   everything matches -> stdout allow JSON, reason "allow-git-c-projects: <path>".
 #
 # GIT_C_ALLOW_ROOT (optional) replaces <root>; it does not add a second root.
