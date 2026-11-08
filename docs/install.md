@@ -65,7 +65,7 @@ symlink 的好處：session 依規則更新事實、寫教訓時直接改到 rep
 
 ### Claude Code permissions 要和全域邊界 3 對齊
 
-`CLAUDE.md` 是 advisory context，不是 permission gate。`~/.claude/settings.json` 的全域 allowlist 不要放 `Bash(git push:*)`、`Bash(gh pr:*)` 或 `Bash(gh api:*)` 這類同時涵蓋唯讀與對外寫入的 wildcard；否則 push、merge 或任意 GitHub API 寫入可能不會出現逐次權限確認。只預先允許可明確判定為唯讀的子命令，例如 `git status`／`git diff`／`git log` 與 `gh pr view`／`gh pr checks`／`gh pr diff`。需要零例外硬擋時使用 `PreToolUse` hook 驗證 Bash command；不要把「規則文字通常會被遵守」當成 deterministic enforcement（見 [Anthropic 的 steering 指南](https://claude.com/blog/steering-claude-code-skills-hooks-rules-subagents-and-more)）。本 repo 不管理 `settings.json`，新機器安裝後要另行 audit。
+`CLAUDE.md` 是 advisory context，不是 permission gate。`~/.claude/settings.json` 的全域 allowlist 不要放 `Bash(gh pr:*)` 或 `Bash(gh api:*)` 這類同時涵蓋唯讀與對外寫入的 wildcard；否則 merge 或任意 GitHub API 寫入可能不會出現逐次權限確認。`git push` 例外：本系統的政策是 push 免確認、只擋 force push，所以 allowlist 放 `Bash(git push*)`、deny 放 `Bash(git push --force*)`、`Bash(git push -f*)`，`git -C <path> push` 寫法由下方 `allow-git-c-projects.sh` 補上。只預先允許可明確判定為唯讀的子命令，例如 `git status`／`git diff`／`git log` 與 `gh pr view`／`gh pr checks`／`gh pr diff`。需要零例外硬擋時使用 `PreToolUse` hook 驗證 Bash command；不要把「規則文字通常會被遵守」當成 deterministic enforcement（見 [Anthropic 的 steering 指南](https://claude.com/blog/steering-claude-code-skills-hooks-rules-subagents-and-more)）。本 repo 不管理 `settings.json`，新機器安裝後要另行 audit。
 
 ### SessionStart hook：注入 controller 路由卡
 
@@ -143,7 +143,7 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 
 `hooks/allow-git-c-projects.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。目的：permission 規則寫成 `Bash(git -C * worktree remove *)`、`Bash(git -C * branch -D *)` 時，Claude Code 啟動會警告子指令前的 `*` 也放行任意 option（例如 `git -C -c core.pager=...`、`--exec-path`），連 `git -C /Users/<user>/Projects/* ...` 也一樣報，逐 repo 寫確切路徑又太多條。這個 `PreToolUse` hook 是自己實作的嚴格版「專案根目錄前綴規則」（根目錄預設 `$HOME/Projects`，可用 `GIT_C_ALLOW_ROOT` 改，見下）：形狀全部符合才回 `permissionDecision: allow`，其餘一律不表態（exit 0、無輸出），交回正常 permission 流程。
 
-push 形狀是為了讓遵守 `<REPO>/global/shared/rules/judgment.md` 第 11 條「指令自己綁定目標」寫成 `git -C <path> push …` 的指令，拿到 `Bash(git push*)` 這條 allow 規則給 `git push …` 的放行，再扣掉指令裡的強制、刪除 refspec 與其他 option；`Bash(git push*)` 只比對以 `git push` 開頭的指令，對不上 `git -C` 寫法。它只看指令字串：不看 remote 是什麼（URL 或本機路徑當 remote 也放行，與 `git push*` 相同）；不讀 repo 設定與 git hooks，所以 repo 設了 `remote.<name>.push` 的 `+` refspec 或 `remote.<name>.mirror` 時，放行的 `git -C <path> push origin` 仍會強制推送或刪除遠端 ref（verifier 在本機 bare repo 實測），`.git/hooks/pre-push` 也照常執行，這點與 `Bash(git push*)` 放行 `git push origin` 相同，settings 的 `deny` `git push --force*` 也擋不到；也不看 settings 有沒有 `Bash(git push*)`：啟用這個 hook 的機器，`git -C <path> push` 就會免確認，和上面「全域 allowlist 不要放 `Bash(git push:*)`」的建議方向相反，沒有放 push allow 規則的機器要先決定接不接受。
+push 形狀是為了讓遵守 `<REPO>/global/shared/rules/judgment.md` 第 11 條「指令自己綁定目標」寫成 `git -C <path> push …` 的指令，拿到 `Bash(git push*)` 這條 allow 規則給 `git push …` 的放行，再扣掉指令裡的強制、刪除 refspec 與其他 option；`Bash(git push*)` 只比對以 `git push` 開頭的指令，對不上 `git -C` 寫法。它只看指令字串：不看 remote 是什麼（URL 或本機路徑當 remote 也放行，與 `git push*` 相同）；不讀 repo 設定與 git hooks，所以 repo 設了 `remote.<name>.push` 的 `+` refspec 或 `remote.<name>.mirror` 時，放行的 `git -C <path> push origin` 仍會強制推送或刪除遠端 ref（verifier 在本機 bare repo 實測），`.git/hooks/pre-push` 也照常執行，這點與 `Bash(git push*)` 放行 `git push origin` 相同，settings 的 `deny` `git push --force*` 也擋不到；也不看 settings 有沒有 `Bash(git push*)`：啟用這個 hook 的機器，`git -C <path> push` 就會免確認，這是刻意的（push 免確認、只擋 force push，見上方 allowlist 段）。
 
 放行條件（全部成立）：
 
