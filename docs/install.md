@@ -139,17 +139,19 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 - `RIPGREP_CONFIG_PATH` 寫 Windows 路徑，建議正斜線：`C:/Users/<user>/.claude/ripgreprc`（`rg` 是原生 exe，推測讀不懂 MSYS 的 `/c/Users/...`）。另外該機 `rg` 走 `WinGet\Links` symlink，Git Bash 開不了（見 `docs/hosts-detail.md`），ripgreprc 目前沒有東西可影響，hook 可先裝。
 - 該機的 `settings.json` 要自己加同樣兩段。
 
-### 選配：自動放行專案根目錄（預設 `$HOME/Projects/`）底下的 `git -C` 清理指令
+### 選配：自動放行專案根目錄（預設 `$HOME/Projects/`）底下的 `git -C` 清理與 push 指令
 
 `hooks/allow-git-c-projects.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。目的：permission 規則寫成 `Bash(git -C * worktree remove *)`、`Bash(git -C * branch -D *)` 時，Claude Code 啟動會警告子指令前的 `*` 也放行任意 option（例如 `git -C -c core.pager=...`、`--exec-path`），連 `git -C /Users/<user>/Projects/* ...` 也一樣報，逐 repo 寫確切路徑又太多條。這個 `PreToolUse` hook 是自己實作的嚴格版「專案根目錄前綴規則」（根目錄預設 `$HOME/Projects`，可用 `GIT_C_ALLOW_ROOT` 改，見下）：形狀全部符合才回 `permissionDecision: allow`，其餘一律不表態（exit 0、無輸出），交回正常 permission 流程。
+
+push 形狀是為了讓遵守 `<REPO>/global/shared/rules/judgment.md` 第 11 條「指令自己綁定目標」寫成 `git -C <path> push …` 的指令，拿到 `Bash(git push*)` 這條 allow 規則給 `git push …` 的放行，再扣掉強制、刪除與其他 option；`Bash(git push*)` 只比對以 `git push` 開頭的指令，對不上 `git -C` 寫法。它不看 remote 是什麼（URL 或本機路徑當 remote 也放行，與 `git push*` 相同），也不看 settings 有沒有 `Bash(git push*)`：啟用這個 hook 的機器，`git -C <path> push` 就會免確認，和上面「全域 allowlist 不要放 `Bash(git push:*)`」的建議方向相反，沒有放 push allow 規則的機器要先決定接不接受。
 
 放行條件（全部成立）：
 
 - `tool_name` 是 `Bash`，command 去掉頭尾空白後只含 `A-Za-z0-9 _ . / : @ % + = ,` 與 `-`。
-- 以空白切 token，恰為 `git -C <path> worktree remove <arg>…` 或 `git -C <path> branch -D <arg>…`，至少一個 `<arg>`，每個 `<arg>` 都不以 `-` 開頭。
+- 以空白切 token，恰為 `git -C <path> worktree remove <arg>…` 或 `git -C <path> branch -D <arg>…`，至少一個 `<arg>`，每個 `<arg>` 都不以 `-` 開頭；或恰為 `git -C <path> push [-u|--set-upstream] [<arg>…]`，`<arg>` 可為零個，緊接 `push` 的第一個 token 可以是 `-u` 或 `--set-upstream`，其餘每個 `<arg>` 都不以 `-`、`+`（強制推送的 refspec）或 `:`（刪除遠端 ref）開頭。
 - `<path>` 以 `<root>/` 開頭（絕對路徑；`<root>` 預設 `$HOME/Projects`）、其後的餘段不能只由 `.` 與 `/` 組成（`<root>/`、`<root>/.`、`<root>/./` 本身不放行）、沒有 `..` 段，且 `[ -d ]` 為真。
 
-不放行（交回正常流程）的形狀：`;`、`&&`、`||`、`|`、反引號、`$`、`(`、換行、`>`、`<`、`#`、引號、反斜線、`~`、萬用字元；`-C<path>` 黏寫、`-c`、`--git-dir`、`--exec-path` 等任何其他 option 或前綴；路徑不存在、在 `<root>/` 外、就是 `<root>/` 本身（含 `.`、`./`）或含 `..`；`--force`、`-f` 等以 `-` 開頭的參數，所以 settings `deny` 裡的 `git worktree remove --force*` 不會被繞過（官方文件寫明 hook 回 allow 後 deny／ask 規則仍會評估，hook 輸出格式見腳本檔頭註解）。
+不放行（交回正常流程）的形狀：`;`、`&&`、`||`、`|`、反引號、`$`、`(`、換行、`>`、`<`、`#`、引號、反斜線、`~`、萬用字元；`-C<path>` 黏寫、`-c`、`--git-dir`、`--exec-path` 等任何其他 option 或前綴；路徑不存在、在 `<root>/` 外、就是 `<root>/` 本身（含 `.`、`./`）或含 `..`；`--force`、`-f` 等以 `-` 開頭的參數（push 只例外放行緊接 `push` 的 `-u`／`--set-upstream`，所以 `--force-with-lease`、`--delete`、`--mirror`、`--all`、`--tags`、`-o`、`--no-verify` 等都不放行）；push 的 `+` 開頭或 `:` 開頭 refspec。所以 settings `deny` 裡的 `git worktree remove --force*` 不會被繞過（官方文件寫明 hook 回 allow 後 deny／ask 規則仍會評估，hook 輸出格式見腳本檔頭註解）。
 
 **追加**到既有的 `hooks.PreToolUse` 陣列（不要取代 `block-ci-edit` 或其他元素；片段同樣收在 `<REPO>/global/claude/settings.snippets.json`）：
 

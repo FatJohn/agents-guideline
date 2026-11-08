@@ -1,5 +1,5 @@
 #!/bin/bash
-# PreToolUse hook: auto-allow two narrow `git -C <path>` cleanup commands.
+# PreToolUse hook: auto-allow three narrow `git -C <path>` commands.
 #
 # Why: permission rules like `Bash(git -C * worktree remove *)` make Claude Code
 # warn that a `*` before the subcommand also admits arbitrary options
@@ -8,6 +8,7 @@
 # "`-C` under the projects root" prefix rule: it only says allow for the exact shapes
 #   git -C <path> worktree remove <arg>...
 #   git -C <path> branch -D <arg>...
+#   git -C <path> push [-u|--set-upstream] [<arg>...]
 # and says nothing (prints nothing, exit 0) for everything else, so the normal
 # permission flow (allow/ask/deny rules, prompts) decides.
 #
@@ -16,17 +17,27 @@
 #   - trimmed command has any char outside [A-Za-z0-9 _./:@%+=,-]
 #     (covers ; & | ` $ ( ) < > # quotes backslash newline tab glob chars ~)
 #                                                             -> no opinion
-#   - tokens (split on spaces) are not exactly one of the two shapes above
+#   - tokens (split on spaces) are not exactly one of the three shapes above
 #     (-C<path> glued, --git-dir, -c, extra options before -C ...) -> no opinion
 #   - <path> must start with "<root>/" (absolute, no ~), have a remainder that
 #     is not just "." and "/" segments (so <root>/ itself, <root>/. and
 #     <root>/./ are out), contain no ".." segment, not start with "-", and
 #     be an existing directory ([ -d ])                       -> else no opinion
 #     <root> is "$HOME/Projects" unless GIT_C_ALLOW_ROOT is set (see below).
-#   - at least one <arg>, and no <arg> may start with "-"     -> else no opinion
+#   - worktree remove / branch -D: at least one <arg>, and no <arg> may start
+#     with "-"                                                -> else no opinion
 #     (so --force / -f never auto-allow; settings deny rules such as
 #     `git worktree remove --force*` stay in charge. Per the docs, deny and ask
 #     rules are still evaluated whatever a hook returns.)
+#   - push: zero or more <arg> (remote, refspecs). Only the token right after
+#     "push" may be exactly "-u" or "--set-upstream"; any other <arg> starting
+#     with "-" (--force, -f, --force-with-lease, --delete, -d, --mirror, --all,
+#     --tags, --prune, -o, --push-option, --receive-pack, --exec, --no-verify,
+#     "--", a second -u, bundles like -uf ...), with "+" (forced refspec) or
+#     with ":" (deletes the remote ref)                       -> else no opinion
+#     This gives `git -C <path> push` the scope of a `Bash(git push*)` allow
+#     rule minus force, delete and option shapes; it does not check the remote
+#     (a URL or path remote is allowed, as `git push*` allows it).
 #   everything matches -> stdout allow JSON, reason "allow-git-c-projects: <path>".
 #
 # GIT_C_ALLOW_ROOT (optional) replaces <root>; it does not add a second root.
@@ -146,13 +157,18 @@ check() {
   set -- $cmd
   set +f
 
-  [ $# -ge 6 ] || { reason="too-few-tokens"; return; }
+  [ $# -ge 4 ] || { reason="too-few-tokens"; return; }
   [ "$1" = "git" ] && [ "$2" = "-C" ] || { reason="not-git-C"; return; }
   p=$3
-  case "$4 $5" in
-    "worktree remove"|"branch -D") ;;
-    *) reason="other-subcommand"; return ;;
-  esac
+  if [ "$4" = "push" ]; then
+    sub=push
+  else
+    [ $# -ge 6 ] || { reason="too-few-tokens"; return; }
+    case "$4 $5" in
+      "worktree remove"|"branch -D") sub=cleanup ;;
+      *) reason="other-subcommand"; return ;;
+    esac
+  fi
 
   # path checks
   prefix="$root/"
@@ -170,13 +186,29 @@ check() {
   esac
   [ -d "$p" ] || { reason="path-not-dir"; return; }
 
-  # args after the subcommand: none may start with "-"
-  shift 5
-  for a in "$@"; do
-    case "$a" in
-      -*) reason="arg-starts-with-dash"; return ;;
+  if [ "$sub" = "push" ]; then
+    # args after "push": an optional -u/--set-upstream first, then none may
+    # start with "-", "+" (forced refspec) or ":" (remote ref delete)
+    shift 4
+    case "${1-}" in
+      -u|--set-upstream) shift ;;
     esac
-  done
+    for a in "$@"; do
+      case "$a" in
+        -*) reason="arg-starts-with-dash"; return ;;
+        +*) reason="push-force-refspec"; return ;;
+        :*) reason="push-delete-refspec"; return ;;
+      esac
+    done
+  else
+    # args after the subcommand: none may start with "-"
+    shift 5
+    for a in "$@"; do
+      case "$a" in
+        -*) reason="arg-starts-with-dash"; return ;;
+      esac
+    done
+  fi
 
   decision="allow"
   path=$p
