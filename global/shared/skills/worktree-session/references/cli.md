@@ -25,7 +25,7 @@
 直接清（SKILL §3）不分容器，都先做這兩步，成功才往下：
 
 1. `python3 <REPO>/scripts/worktree-clean-check.py --repo <repo> --worktree <wt>`，exit 0 才繼續。
-2. 備份：`mkdir -p <repo>/.worktrees/results && { test -e <備份路徑> || cp <wt>/.worktrees/result.md <備份路徑>; }`，`<備份路徑>` 是 `<repo>/.worktrees/results/<worktree 名>-<HEAD 前 7 碼>.md`。`<repo>/.worktrees/` 已被全域 gitignore 忽略；檔名帶 HEAD，同名 worktree 不會互蓋，同一個 HEAD 重跑也不會覆蓋舊備份（不用 `cp -n`：實測 macOS 上目標已存在時回 rc=1）。使用者明確授權清、且 worktree 沒有 `result.md` 時略過這兩步，改核對 `worktree.md`「清理的證據條件」第 2 條。
+2. 讀 `<wt>/.worktrees/result.md`，把後續事項帶進下一個相關 brief 或 handoff；檔案隨 worktree 一起刪。使用者明確授權清、且 worktree 沒有 `result.md` 時略過這兩步，改核對 `worktree.md`「清理的證據條件」第 2 條。
 
 Orca 建的 worktree 依序做：
 
@@ -34,3 +34,8 @@ Orca 建的 worktree 依序做：
 3. 跑「stop」的 process 檢查，回空且 `git -C <wt> status --short` 仍為空才往下。
 4. `orca worktree rm --worktree path:<wt> --delete-branch --json`。selector 用 `path:`：`orca worktree rm` 沒有 `--repo`，多 repo issue 的同名 worktree 用 `name:<issue>` 會有歧義（`orca terminal list --worktree name:main` 實測回 `selector_ambiguous`；`orca worktree rm` 沒有對歧義名實跑）。不帶 `--force`：工作區有改動時實測回 `ok: false`，不刪。
 5. read-back：`git -C <repo> worktree list` 與 `git -C <repo> branch --list <branch>`。回傳可能帶 `removing: true`（非同步，曾實測回 `{"removed": true, "removing": true}`），等幾秒再查。不帶 `--delete-branch` 時 branch 會留著（2026-11-06 實測）。帶了之後，Orca 證得出已合併就刪（實測內容相同、SHA 不同的 branch 被刪），證不出就回 `preservedBranch` 並保留（實測 base 上沒有的 commit）；第 1 步已核對內容在 base 上時，用 `git -C <repo> branch -D <branch>` 刪。`.orca/` 由使用者全域 gitignore 忽略，與 `.worktrees/` 同一機制，見 `worktree.md`「所有權與路徑」。
+
+使用者說「做完」時（SKILL §3），worktree 清完再做這兩項，其中一項做不到不影響另一項，回報原因：
+
+- **關 issue**：`Issue` 欄是 GitHub issue 時，先 `gh issue view <n> -R <owner/repo> --json state`，`OPEN` 才 `gh issue close <n> -R <owner/repo>`（PR 可能已自動關掉）。其他 tracker 用該 tracker 的工具改狀態；對應不到就不動，回報一行寫「未動」與原因。
+- **匿名 docker volume**：`docker ps -a --filter label=com.docker.compose.project --format '{{.ID}} {{.State}} {{.Label "com.docker.compose.project.working_dir"}}'`，只處理 working_dir 等於 `<wt>` 或在 `<wt>/` 底下、狀態是 `exited` 或 `created` 的 container，逐個 `docker rm -v <id>`（2026-11-09 實測 Docker 29.9.2：compose 建的 container，`docker rm -v` 刪掉匿名 volume，具名 volume 留著；`docker compose down` 不帶 `-v` 時匿名 volume 留著）。不加 `-f`，還在跑的 container 不動，回報。沒有這個 label 的 container（`docker run` 起的）與已經沒有 container 的 volume，證明不了屬於該 session，不刪，回報。

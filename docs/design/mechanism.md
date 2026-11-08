@@ -33,7 +33,7 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 |---|---|---|---|---|
 | `controller-context.sh` | `SessionStart`（無 matcher） | 把路由卡印到 stdout，注入主對話 | 路由卡只給 controller，subagent 不付這份 context（`docs/harness-facts.md`「controller 專用規則分流」） | `tests/test-controller-context.sh` |
 | `block-ci-edit.sh` | `PreToolUse`，`Edit\|Write\|MultiEdit\|NotebookEdit` | 主對話（stdin 沒有 `agent_id`）改 `.github/workflows`／`.github/actions` 時 exit 2 | dispatch skill §3「派工合約與回報」：CI／release 設定不靜默自改，先給使用者看 diff | `tests/test-block-ci-edit.sh` |
-| `allow-git-c-projects.sh` | `PreToolUse`，`Bash` | 嚴格形狀的 `git -C <projects 下路徑> worktree remove`／`branch -D`／`push`（指令裡不帶強制、刪除 refspec 與其他 option）回 allow，其餘不表態 | 替代會觸發 Claude Code 警告的 `Bash(git -C * …)` wildcard 規則 | `tests/test-allow-git-c-projects.sh` |
+| `allow-git-c-projects.sh` | `PreToolUse`，`Bash` | 嚴格形狀的 `git -C <projects 下路徑> worktree remove`／`branch -D`／`push`（指令裡不帶強制、刪除 refspec 與其他 option），以及 `status`、`diff`、`log`、`show`、`rev-parse`、`rev-list`、`merge-base`、`ls-files`、`fetch`、`add`、`commit`（旗標限逐子命令清單）回 allow，其餘不表態 | 替代會觸發 Claude Code 警告的 `Bash(git -C * …)` wildcard 規則 | `tests/test-allow-git-c-projects.sh` |
 | `require-issue-session-model.sh` | `PreToolUse`，`Bash` | `orca worktree create`／`orca agent launch` 帶 `--agent claude` 卻缺 `--model` 或 `--effort` 時 exit 2 | worktree-session `references/cli.md`「盤點 session 與 issue session」：issue session 一律帶固定旗標，不隨主對話預設 | `tests/test-require-issue-session-model.sh` |
 
 各支的性質：

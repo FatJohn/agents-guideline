@@ -56,9 +56,11 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 2. **已交付**：`Issue` 有值，`Status` 是 `merged`，`Merged` 欄等於 PR 的 merge commit，`Pending authorization` 與 `Blocker` 都是「無」，PR read-back 是 `MERGED`，且 PR head 等於 worktree HEAD。多 repo issue 逐個 worktree 判定，不以其中一個 PR 代表全部。
 3. **閒置**：該 worktree 內的 claude session 全部是 `idle`，且 cwd 在 worktree 內的 process 只剩這些 session 與互動 shell（shell 的子程序只能是這些 session）。
 4. **內容已在 base**：`references/worktree.md`「清理的證據條件」成立；工作區連隱藏狀態（skip-worktree、被設定隱藏的 untracked）都是乾淨的，完整交付清單（含刪除與更名前的舊路徑）與 PR 的 base 內容相同。
-5. **沒有清掉就回不來的檔**：ignored 項目只有工具專屬產物目錄（`node_modules`、`.dart_tool`、`.gradle` 等，清單在腳本的 `REBUILDABLE`；`build`、`bin`、`out` 這類泛用名不算；worktree 根目錄的 `.pytest_cache`、`.venv` 內的 `.gitignore` 除了註解只有 `*` 時，git 會逐檔列出，也算；子目錄裡的不算），`.worktrees/` 內只有 `result.md`，底下沒有巢狀 worktree。ignored 檔不算 dirty，會隨 worktree 一起消失。
+5. **沒有清掉就回不來的檔**：ignored 項目只有工具專屬產物目錄（`node_modules`、`.dart_tool`、`.gradle` 等，清單在腳本的 `REBUILDABLE`；`build`、`bin`、`out` 這類泛用名不算；worktree 根目錄的 `.pytest_cache`、`.venv`、`.husky/_` 內的 `.gitignore` 除了註解只有 `*`、且裡面沒有 tracked 檔時，git 會逐檔列出，也算；子目錄裡的同名目錄不算），`.worktrees/` 內只有 `result.md`，底下沒有巢狀 worktree。ignored 檔不算 dirty，會隨 worktree 一起消失。
 
 腳本判不到的形狀列在它的開頭說明。其中要注意一項：session 在等使用者回答時狀態也是 `idle`，所以 `Status` 與 `Pending authorization` 要由 issue session 誠實填，還在對話的 session 不要先寫 `merged`。
+
+**使用者說「做完」**：使用者在盤點 session 說某個 issue session 做完，且上面五條全部成立（腳本 exit 0），這句話就是該 issue 下列動作的當次授權（全域邊界 3），盤點 session 直接收尾，不再逐項問：關 issue（多 repo issue 等每個 worktree 都判定過才關）、關該 session 和 terminal、清 worktree 與 branch、刪該 session 留下的匿名 docker volume。步驟見 `references/cli.md`「清理」。merge、改 CI、不屬於該 session 的刪除、花錢或對外的新決定照舊要問。使用者沒說做完時只做上面的直接清，不關 issue、不刪 volume。
 
 **要先問**：任一條判不出來或不成立就保留 worktree，回報原因；來源不明的 worktree／branch 要使用者明確授權才能刪（全域邊界 3）。
 
@@ -72,7 +74,7 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 | Codex issue session 還開著 | 要先問 | `stall-check.py` 讀不到 Codex，它的 process 不會被算成閒置 |
 | worktree 內有 ignored 的 `.env` 或 `build/` | 要先問 | 判不出能否重建 |
 
-**事後回報一行**：`已清 <issue>：<worktree 路徑>，<branch>@<完整 HEAD SHA>，PR <連結>，Merged <SHA>，result 留在 <備份路徑>`。`result.md` 會隨 worktree 一起消失，裡面的驗收結果與備註 PR 上不一定有，所以關 session 之前先備份，步驟見 `references/cli.md`「清理」。要救回 branch：`git -C <repo> branch <branch> <SHA>`。
+**事後回報一行**：`已清 <issue>：<worktree 路徑>，<branch>@<完整 HEAD SHA>，PR <連結>，Merged <SHA>，issue <已關｜未動（原因）>，docker volume <名稱｜無>`。`result.md` 隨 worktree 一起刪：盤點 session 收結果時讀完，把後續事項帶進下一個相關 brief 或 handoff。要救回 branch：`git -C <repo> branch <branch> <SHA>`。
 
 ## 4. 邊界
 

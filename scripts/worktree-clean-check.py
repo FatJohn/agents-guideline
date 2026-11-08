@@ -13,7 +13,7 @@ worktree 並回報。全部檢查都會跑完，一次列出所有原因。exit 
   - 手寫的 result.md：來源與 `Base SHA` 都是交付檔的自報（交付清單另外併入 PR 的 files，自報只會多比不會少比
     PR 內的檔）；result.md 模板之外的備註不判讀語意；
   - 工具專屬產物目錄（REBUILDABLE）的內容不逐檔檢查；
-  - 根目錄 `.venv`、`.pytest_cache` 內「沒有 tracked 檔」的比對（fold_path）只在 APFS 窮舉過：HFS+ 會忽略零寬字元，
+  - 根目錄 `.venv`、`.pytest_cache`、`.husky/_` 內「沒有 tracked 檔」的比對（fold_path）只在 APFS 窮舉過：HFS+ 會忽略零寬字元，
     commit 路徑 `.ve<U+200C>nv/t` 比對不到；ext4 casefold、ZFS、NTFS 未驗；
   - 互動 shell 只跑 builtin 迴圈、沒有子程序時，看起來和閒置相同；
   - session 在等使用者回答時，stall-check 的狀態也是 idle；
@@ -37,7 +37,7 @@ SHELLS = {"zsh", "bash", "sh", "fish", "dash"}  # 只有 idle 的 claude 當子�
 REBUILDABLE = {"node_modules", "DerivedData", "Pods", ".dart_tool", ".gradle", ".next", ".venv", "__pycache__", ".pytest_cache"}
 REBUILDABLE_NAMES = {".DS_Store"}
 MARKER_MAX_BYTES = 4096
-SELF_IGNORING = {".pytest_cache", ".venv"}  # 實測過會在目錄內放 `*` 的 .gitignore 的工具；其他名稱沒有這個形狀，不放行
+SELF_IGNORING = {".pytest_cache", ".venv", ".husky/_"}  # 實測過會在目錄內放 `*` 的 .gitignore 的工具（相對 worktree 根目錄）；其他路徑沒有這個形狀，不放行
 KEYS = ("Issue", "Status", "Worktree", "Branch", "Base SHA", "Candidate SHA", "Dirty", "Files changed", "Verification",
         "PR / CI", "Cross-issue risk", "Pending authorization", "Blocker", "Merged")
 # 模板裡只有這兩行是同一行多欄；其他欄的值就是整行剩下的內容，判定欄不能藏在別的欄後面。
@@ -211,8 +211,8 @@ def self_ignoring_root(wt, parts, tracked, cache):
     照 git 的語意解析：只以 \\n 分行，行尾容許一個 \\r，所以用 bytes 讀，不用 splitlines（`#\\f*` 對 git 是註解）。
     tracked 由呼叫端列出全部路徑後比對，不用 pathspec：pathspec 比對不到時回空，和「沒有 tracked 檔」分不開。
     .gitignore 若 untracked 又沒被忽略，status 已回報工作區不乾淨。"""
-    root = parts[0]
-    if len(parts) < 2 or root not in SELF_IGNORING:  # 只有一段：是 symlink 或檔案本身，不是目錄內容
+    root = next((r for r in SELF_IGNORING if parts[:r.count("/") + 1] == r.split("/")), None)
+    if root is None or len(parts) <= root.count("/") + 1:  # 段數沒有多於 root：是 symlink 或檔案本身，不是目錄內容
         return False
     if root not in cache:
         marker = Path(wt) / root / ".gitignore"

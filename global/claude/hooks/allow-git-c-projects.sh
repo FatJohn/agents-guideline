@@ -1,5 +1,5 @@
 #!/bin/bash
-# PreToolUse hook: auto-allow three narrow `git -C <path>` commands.
+# PreToolUse hook: auto-allow narrow `git -C <path>` commands.
 #
 # Why: permission rules like `Bash(git -C * worktree remove *)` make Claude Code
 # warn that a `*` before the subcommand also admits arbitrary options
@@ -9,6 +9,7 @@
 #   git -C <path> worktree remove <arg>...
 #   git -C <path> branch -D <arg>...
 #   git -C <path> push [-u|--set-upstream] [<arg>...]
+#   git -C <path> status|diff|log|show|rev-parse|rev-list|merge-base|ls-files|fetch|add|commit [<arg>...]
 # and says nothing (prints nothing, exit 0) for everything else, so the normal
 # permission flow (allow/ask/deny rules, prompts) decides.
 #
@@ -17,7 +18,7 @@
 #   - trimmed command has any char outside [A-Za-z0-9 _./:@%+=,-]
 #     (covers ; & | ` $ ( ) < > # quotes backslash newline tab glob chars ~)
 #                                                             -> no opinion
-#   - tokens (split on spaces) are not exactly one of the three shapes above
+#   - tokens (split on spaces) are not exactly one of the shapes above
 #     (-C<path> glued, --git-dir, -c, extra options before -C ...) -> no opinion
 #   - <path> must start with "<root>/" (absolute, no ~), have a remainder that
 #     is not just "." and "/" segments (so <root>/ itself, <root>/. and
@@ -42,6 +43,25 @@
 #     remote.<name>.push or remote.<name>.mirror=true still makes an allowed
 #     `push origin` force or delete, and pre-push hooks still run, as with
 #     `git push*`.
+#   - status, diff, log, show, rev-parse, rev-list, merge-base, ls-files, fetch,
+#     add, commit: every <arg> starting with "-" must be on that subcommand's
+#     list in flag_allowed, spelled exactly. It is an allowlist because git also
+#     accepts abbreviations (--outp=x is --output=x), which a denylist cannot
+#     enumerate.                                              -> else no opinion
+#     Off the list on purpose: --output, --ext-diff, --no-index, -O (diff family);
+#     --upload-pack, --force, -f, --recurse-submodules, -o (fetch); -f, --force,
+#     --chmod, --pathspec-from-file (add); --amend, --no-verify, -n, -c, -C,
+#     --fixup, --squash, --author, --date (commit).
+#   - fetch: the first non-option <arg> must be a plain remote name (letters,
+#     digits, "_", ".", "-", not starting with "."), so a URL, a path or
+#     ext::... is out; later <arg>s are branch or ref names and may not start
+#     with "+" or contain ":" (they would write a local ref)  -> else no opinion
+#     Like push this reads the command string only. Repo config and git hooks
+#     (diff.external, core.fsmonitor, core.sshCommand, pre-commit ...) still
+#     apply, as with the `Bash(git status*)` family of allow rules.
+#     The character whitelist also keeps HEAD~1, HEAD^, @{u} and a quoted
+#     commit message at no opinion: commit passes only with -m <one word> or
+#     -F <file>.
 #   everything matches -> stdout allow JSON, reason "allow-git-c-projects: <path>".
 #
 # GIT_C_ALLOW_ROOT (optional) replaces <root>; it does not add a second root.
@@ -142,6 +162,52 @@ if [ -n "${GIT_C_ALLOW_ROOT-}" ]; then
   fi
 fi
 
+# flag_allowed <subcommand> <token starting with "-">: exact spellings only
+flag_allowed() {
+  case "$1" in
+    diff|log|show)
+      case "$2" in
+        --stat|--shortstat|--numstat|--name-only|--name-status|--no-renames|--no-color) return 0 ;;
+        -p|--patch|-s|--no-patch|-z|-w|-M|--diff-filter=*|--unified=*|-U[0-9]|-U[0-9][0-9]|--) return 0 ;;
+      esac ;;
+  esac
+  case "$1" in
+    log|show)
+      case "$2" in
+        --oneline|--format=*|--pretty=*|--date=*) return 0 ;;
+      esac ;;
+  esac
+  case "$1" in
+    log|rev-list)
+      case "$2" in
+        --all|--no-merges|--merges|--first-parent|--reverse|--max-count=*|-n) return 0 ;;
+        --since=*|--until=*|--after=*|--before=*|--author=*|--grep=*) return 0 ;;
+        -[1-9]|-[1-9][0-9]|-[1-9][0-9][0-9]) return 0 ;;
+      esac ;;
+  esac
+  case "$1:$2" in
+    diff:--cached|diff:--staged|diff:--check|diff:--quiet|diff:--exit-code) return 0 ;;
+    log:--graph|log:--decorate|log:--follow) return 0 ;;
+    rev-list:--count|rev-list:--left-right|rev-list:--) return 0 ;;
+    status:-s|status:--short|status:-b|status:--branch|status:-sb|status:--porcelain|status:--porcelain=*) return 0 ;;
+    status:-z|status:-uall|status:-uno|status:--untracked-files=*|status:--ignored|status:--ignored=*|status:--) return 0 ;;
+    rev-parse:--show-toplevel|rev-parse:--show-prefix|rev-parse:--show-cdup|rev-parse:--git-dir) return 0 ;;
+    rev-parse:--git-common-dir|rev-parse:--absolute-git-dir|rev-parse:--is-inside-work-tree) return 0 ;;
+    rev-parse:--is-bare-repository|rev-parse:--abbrev-ref|rev-parse:--symbolic-full-name) return 0 ;;
+    rev-parse:--short|rev-parse:--short=*|rev-parse:--verify|rev-parse:-q|rev-parse:--quiet|rev-parse:--) return 0 ;;
+    merge-base:--is-ancestor|merge-base:--all|merge-base:--octopus|merge-base:--fork-point) return 0 ;;
+    ls-files:-z|ls-files:-v|ls-files:-c|ls-files:--cached|ls-files:-o|ls-files:--others) return 0 ;;
+    ls-files:-m|ls-files:--modified|ls-files:-d|ls-files:--deleted|ls-files:-s|ls-files:--stage) return 0 ;;
+    ls-files:-u|ls-files:--unmerged|ls-files:-i|ls-files:--ignored|ls-files:--exclude-standard) return 0 ;;
+    ls-files:--full-name|ls-files:--error-unmatch|ls-files:--) return 0 ;;
+    fetch:--prune|fetch:-p|fetch:--all|fetch:-q|fetch:--quiet|fetch:--no-tags) return 0 ;;
+    add:-A|add:--all|add:-u|add:--update|add:-v|add:--verbose|add:-n|add:--dry-run|add:--) return 0 ;;
+    commit:-m|commit:--message=*|commit:-F|commit:--file=*|commit:-a|commit:--all|commit:-am) return 0 ;;
+    commit:-q|commit:--quiet|commit:-s|commit:--signoff|commit:--) return 0 ;;
+  esac
+  return 1
+}
+
 check() {
   [ "$tool" = "Bash" ] || { reason="not-bash"; return; }
 
@@ -164,9 +230,11 @@ check() {
   [ $# -ge 4 ] || { reason="too-few-tokens"; return; }
   [ "$1" = "git" ] && [ "$2" = "-C" ] || { reason="not-git-C"; return; }
   p=$3
-  if [ "$4" = "push" ]; then
-    sub=push
-  else
+  case "$4" in
+    push|status|diff|log|show|rev-parse|rev-list|merge-base|ls-files|fetch|add|commit) sub=$4 ;;
+    *) sub="" ;;
+  esac
+  if [ -z "$sub" ]; then
     [ $# -ge 6 ] || { reason="too-few-tokens"; return; }
     case "$4 $5" in
       "worktree remove"|"branch -D") sub=cleanup ;;
@@ -190,7 +258,28 @@ check() {
   esac
   [ -d "$p" ] || { reason="path-not-dir"; return; }
 
-  if [ "$sub" = "push" ]; then
+  if [ "$sub" != "cleanup" ] && [ "$sub" != "push" ]; then
+    shift 4
+    remote_seen=""
+    for a in "$@"; do
+      case "$a" in
+        -*)
+          flag_allowed "$sub" "$a" || { reason="flag-not-allowed"; return; }
+          continue ;;
+      esac
+      [ "$sub" = "fetch" ] || continue
+      if [ -z "$remote_seen" ]; then
+        case "$a" in
+          .*|*[!A-Za-z0-9_.-]*) reason="fetch-remote-not-a-name"; return ;;
+        esac
+        remote_seen=1
+      else
+        case "$a" in
+          +*|*:*) reason="fetch-writes-local-ref"; return ;;
+        esac
+      fi
+    done
+  elif [ "$sub" = "push" ]; then
     # args after "push": an optional -u/--set-upstream first, then none may
     # start with "-", "+" (forced refspec) or ":" (remote ref delete)
     shift 4

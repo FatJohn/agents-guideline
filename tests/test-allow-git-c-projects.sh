@@ -130,6 +130,50 @@ c "push -C glued -> skip"               skip  "git -C$P push origin a"
 c "push-x subcommand -> skip"           skip  "git -C $P push-x origin a"
 c "Push capitalised -> skip"            skip  "git -C $P Push origin a"
 c "git -C <path> alone -> skip"         skip  "git -C $P"
+# --- read-only and index subcommands: flags must be on the per-subcommand list ---
+for ok in "status" "status --short" "status -sb" "status --porcelain=v2 --branch -uall" "status -- src" \
+          "diff" "diff --stat origin/main...HEAD" "diff --cached --name-only" "diff --name-only -z a HEAD -- x/y" "diff -U0 --no-color a b" \
+          "log" "log --oneline -5" "log --oneline -n 5 --all --graph" "log --format=%H -1 main" "log --max-count=3 --since=2026-01-01 --name-only" \
+          "show" "show HEAD:a/b.txt" "show --stat --format=%s HEAD" "show -s --format=%H" \
+          "rev-parse HEAD" "rev-parse --show-toplevel" "rev-parse --abbrev-ref HEAD" "rev-parse --short=7 HEAD" "rev-parse --git-common-dir" \
+          "rev-list --count origin/main..HEAD" "rev-list --left-right --count a...b" \
+          "merge-base a b" "merge-base --is-ancestor a b" "ls-files" "ls-files -z --cached --others --exclude-standard" "ls-files -v" \
+          "fetch" "fetch origin" "fetch origin main" "fetch origin refs/heads/a" "fetch --prune origin" "fetch -q --all" \
+          "add a b/c" "add ." "add -A" "add -u -- src" \
+          "commit -m word" "commit -am word" "commit -a -m word" "commit -F /tmp/msg" "commit --file=/tmp/msg"; do
+  c "$ok -> allow" allow "git -C $P $ok"
+done
+for bad in "diff --output=/tmp/x" "diff --outp=/tmp/x" "diff --ext-diff" "diff --no-index /etc/passwd /tmp/y" "diff -O/tmp/o" \
+           "log --output=/tmp/x" "log --ext-diff -p" "log --exec=x" "log --outpu=/tmp/x" "show --output=/tmp/x" "show --ext-diff" \
+           "status --output=/tmp/x" "status -c" "rev-parse --parseopt" "rev-parse --sq-quote a" "rev-list --stdin" "ls-files --format=x" \
+           "merge-base --bogus a b" \
+           "fetch --upload-pack=/tmp/x origin" "fetch --force origin" "fetch -f origin" "fetch origin +main:main" "fetch origin main:main" \
+           "fetch origin +a" "fetch ext::sh" "fetch https://example.com/x.git" "fetch /tmp/x" "fetch ../x" "fetch ." \
+           "fetch --recurse-submodules origin" "fetch -o x origin" "fetch --unshallow origin" \
+           "add -f a" "add --force a" "add --chmod=+x a" "add --pathspec-from-file=/tmp/x" "add -p" \
+           "commit --amend" "commit --amend -m word" "commit -m word --amend" "commit --no-verify -m word" "commit -n -m word" \
+           "commit -c HEAD" "commit -C HEAD" "commit --fixup=HEAD" "commit --squash=HEAD" "commit --author=x -m word" "commit -F -" "commit -m --amend" \
+           "reset --hard" "reset HEAD" "clean -fdx" "checkout main" "checkout -- a" "rebase main" "config user.name x" "config --get user.name" "stash"; do
+  c "$bad -> skip" skip "git -C $P $bad"
+done
+for s in status diff log show rev-parse rev-list merge-base ls-files fetch add commit; do
+  c "$s: -c after path -> skip"       skip "git -C $P -c core.pager=x $s"
+  c "$s: --exec-path after path -> skip" skip "git -C $P --exec-path=/tmp/x $s"
+  c "$s: --git-dir after path -> skip" skip "git -C $P --git-dir=/tmp/x $s"
+  c "$s: -c before -C -> skip"        skip "git -c core.pager=x -C $P $s"
+  c "$s: -c as -C path -> skip"       skip "git -C -c core.pager=x $s"
+  c "$s: outside Projects -> skip"    skip "git -C $H/outside $s"
+  c "$s: Projects root -> skip"       skip "git -C $H/Projects/ $s"
+  c "$s: chaining -> skip"            skip "git -C $P $s; id"
+  c "$s: capitalised -> skip"         skip "git -C $P $(printf '%s' "$s" | tr 'a-z' 'A-Z')"
+done
+c "quoted commit message -> skip"       skip "git -C $P commit -m \"two words\""
+c "HEAD~1 -> skip"                      skip "git -C $P diff HEAD~1"
+c "env prefix on diff -> skip"          skip "GIT_EXTERNAL_DIFF=x git -C $P diff"
+c "redirect on log -> skip"             skip "git -C $P log > /tmp/x"
+c "status-x subcommand -> skip"         skip "git -C $P status-x"
+ce "$H/alt" "status under env root -> allow" allow "git -C $H/alt/foo status"
+ce "$H/alt" "status env root replaces default -> skip" skip "git -C $P status"
 ce "$H/alt" "push under env root -> allow" allow "git -C $H/alt/foo push -u origin a"
 ce "$H/alt" "push env root replaces default -> skip" skip "git -C $P push origin a"
 ce "$H/alt" "push env root, --force -> skip" skip "git -C $H/alt/foo push --force origin a"
