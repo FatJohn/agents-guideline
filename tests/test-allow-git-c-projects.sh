@@ -131,8 +131,9 @@ c "push-x subcommand -> skip"           skip  "git -C $P push-x origin a"
 c "Push capitalised -> skip"            skip  "git -C $P Push origin a"
 c "git -C <path> alone -> skip"         skip  "git -C $P"
 # --- read-only and index subcommands: flags must be on the per-subcommand list ---
+git init -q "$P" && git -C "$P" remote add origin /nonexistent || exit 1
 for ok in "status" "status --short" "status -sb" "status --porcelain=v2 --branch -uall" "status -- src" \
-          "diff" "diff --stat origin/main...HEAD" "diff --cached --name-only" "diff --name-only -z a HEAD -- x/y" "diff -U0 --no-color a b" \
+          "diff" "diff --stat origin/main...HEAD" "diff --cached --name-only" "diff --name-only -z a HEAD -- x/y" "diff -U0 --no-color a b" "diff a...b" "diff a..b -- x/y" \
           "log" "log --oneline -5" "log --oneline -n 5 --all --graph" "log --format=%H -1 main" "log --max-count=3 --since=2026-01-01 --name-only" \
           "show" "show HEAD:a/b.txt" "show --stat --format=%s HEAD" "show -s --format=%H" \
           "rev-parse HEAD" "rev-parse --show-toplevel" "rev-parse --abbrev-ref HEAD" "rev-parse --short=7 HEAD" "rev-parse --git-common-dir" \
@@ -153,6 +154,9 @@ for bad in "diff --output=/tmp/x" "diff --outp=/tmp/x" "diff --ext-diff" "diff -
            "add -f a" "add --force a" "add --chmod=+x a" "add --pathspec-from-file=/tmp/x" "add -p" \
            "commit --amend" "commit --amend -m word" "commit -m word --amend" "commit --no-verify -m word" "commit -n -m word" \
            "commit -c HEAD" "commit -C HEAD" "commit --fixup=HEAD" "commit --squash=HEAD" "commit --author=x -m word" "commit -F -" "commit -m --amend" \
+           "diff /etc/hosts /tmp/y" "diff -- /etc/hosts /tmp/y" "diff ../../a ../../b" "diff x/../../a b" "diff .." \
+           "fetch sub" "fetch bun" "fetch origin tag v1" "fetch nosuchremote main" \
+           "commit" "commit -a" "commit -s" "commit --" \
            "reset --hard" "reset HEAD" "clean -fdx" "checkout main" "checkout -- a" "rebase main" "config user.name x" "config --get user.name" "stash"; do
   c "$bad -> skip" skip "git -C $P $bad"
 done
