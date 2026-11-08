@@ -4,6 +4,7 @@
 `idle_problems` 的純函式輸入，另有一組跑真的 lsof／ps。"""
 import importlib.util
 import os
+import shutil
 import signal
 import subprocess
 import tempfile
@@ -648,6 +649,48 @@ class Tree(Base):
         os.rename(self.wt / ".VENV", self.wt / "tmpx")
         os.rename(self.wt / "tmpx", self.wt / ".venv")
         self.assertTrue(any("ignored" in p for p in self.self_ignoring(".venv", "*\n", ".venv/a.key")))
+
+    def fresh_husky(self, root, marker="*", *names):
+        """跑一個形狀後清掉，同一個 test 的下一個形狀不受前一個的檔案影響。"""
+        try:
+            return self.self_ignoring(root, marker, *(f"{root}/{n}" for n in (names or ("h", "pre-commit"))))
+        finally:
+            shutil.rmtree(self.wt / root.split("/")[0])
+
+    def test_root_husky_passes(self):
+        for marker in ("*", "*\n"):
+            with self.subTest(marker=marker):
+                self.assertEqual(self.fresh_husky(".husky/_", marker), [])
+
+    def test_husky_below_root_is_blocked(self):
+        for root in ("pkg/.husky/_", "a/b/.husky/_"):
+            with self.subTest(root=root):
+                self.assertTrue(any("ignored" in p for p in self.fresh_husky(root)))
+
+    def test_husky_lookalike_paths_are_blocked(self):
+        for root in (".husky/x", ".husky/_x", ".husky", "_", ".husky/_/sub"):
+            with self.subTest(root=root):
+                self.assertTrue(any("ignored" in p for p in self.fresh_husky(root)))
+
+    def test_husky_marker_must_be_only_star(self):
+        for marker in ("*\n!keep\n", "h\n"):
+            with self.subTest(marker=marker):
+                self.assertTrue(any("ignored" in p for p in self.fresh_husky(".husky/_", marker, "keep", "h")))
+
+    def test_tracked_file_in_husky_is_blocked(self):
+        (self.wt / ".husky" / "_").mkdir(parents=True)
+        (self.wt / ".husky" / "_" / "t").write_text("t\n")
+        git(self.wt, "add", ".husky/_/t")
+        git(self.wt, "commit", "-qm", "t")
+        self.assertTrue(any("ignored" in p for p in self.self_ignoring(".husky/_", "*", ".husky/_/h")))
+
+    def test_symlinked_husky_marker_is_blocked(self):
+        git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
+        (self.root / "ex").write_text(".husky/_/h\n.husky/_/.gitignore\n")
+        (self.root / "star").write_text("*")
+        (self.wt / ".husky" / "_").mkdir(parents=True)
+        os.symlink(self.root / "star", self.wt / ".husky" / "_" / ".gitignore")
+        self.assertTrue(any("ignored" in p for p in self.ignored(".husky/_/h")))
 
     def test_nested_generic_dir_in_self_ignoring_root_passes(self):
         self.assertEqual(self.self_ignoring(".venv", "*\n", ".venv/lib/python/site.py", ".venv/build/x"), [])
