@@ -52,7 +52,7 @@
 #     --upload-pack, --force, -f, --recurse-submodules, -o (fetch); -f, --force,
 #     --chmod, --pathspec-from-file (add); --amend, --no-verify, -n, -c, -C,
 #     --fixup, --squash, --author, --date (commit).
-#   - diff: a non-option <arg> may not be absolute or have a ".." segment (a
+#   - diff: a non-option <arg> may not be absolute (/ or X:/) or have a ".." segment (a
 #     path outside the repo makes git switch to no-index, the same as
 #     --no-index)                                             -> else no opinion
 #   - fetch: the first non-option <arg> must be a name (letters, digits, "_",
@@ -60,7 +60,7 @@
 #     repo, so a URL, a path, a bundle or ext::... is out; later <arg>s may not
 #     be "tag", start with "+" or contain ":" (they would write a local ref)
 #                                                             -> else no opinion
-#   - commit: needs a message source (-m, -am, --message=, -F, --file=), since
+#   - commit: needs a message source (-m, -am, --message=, -F, --file=) before any "--", since
 #     without one git opens an editor                         -> else no opinion
 #     Like push this reads the command string only. Repo config and git hooks
 #     (diff.external, core.fsmonitor, core.sshCommand, pre-commit ...) still
@@ -268,18 +268,22 @@ check() {
     shift 4
     remote_seen=""
     has_message=""
+    after_dashdash=""
     for a in "$@"; do
       case "$a" in
         -*)
           flag_allowed "$sub" "$a" || { reason="flag-not-allowed"; return; }
-          case "$a" in
-            -m|-am|--message=*|-F|--file=*) has_message=1 ;;
-          esac
+          [ "$a" = "--" ] && after_dashdash=1
+          if [ -z "$after_dashdash" ]; then
+            case "$a" in
+              -m|-am|--message=*|-F|--file=*) has_message=1 ;;
+            esac
+          fi
           continue ;;
       esac
       if [ "$sub" = "diff" ]; then
         case "$a" in
-          /*|..|../*|*/..|*/../*) reason="diff-path-outside-repo"; return ;;
+          /*|[A-Za-z]:/*|..|../*|*/..|*/../*) reason="diff-path-outside-repo"; return ;;
         esac
       fi
       [ "$sub" = "fetch" ] || continue

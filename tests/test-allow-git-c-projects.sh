@@ -141,7 +141,7 @@ for ok in "status" "status --short" "status -sb" "status --porcelain=v2 --branch
           "merge-base a b" "merge-base --is-ancestor a b" "ls-files" "ls-files -z --cached --others --exclude-standard" "ls-files -v" \
           "fetch" "fetch origin" "fetch origin main" "fetch origin refs/heads/a" "fetch --prune origin" "fetch -q --all" \
           "add a b/c" "add ." "add -A" "add -u -- src" \
-          "commit -m word" "commit -am word" "commit -a -m word" "commit -F /tmp/msg" "commit --file=/tmp/msg"; do
+          "commit -m word" "commit -am word" "commit -a -m word" "commit -m word -- a" "commit -F /tmp/msg" "commit --file=/tmp/msg"; do
   c "$ok -> allow" allow "git -C $P $ok"
 done
 for bad in "diff --output=/tmp/x" "diff --outp=/tmp/x" "diff --ext-diff" "diff --no-index /etc/passwd /tmp/y" "diff -O/tmp/o" \
@@ -156,7 +156,7 @@ for bad in "diff --output=/tmp/x" "diff --outp=/tmp/x" "diff --ext-diff" "diff -
            "commit -c HEAD" "commit -C HEAD" "commit --fixup=HEAD" "commit --squash=HEAD" "commit --author=x -m word" "commit -F -" "commit -m --amend" \
            "diff /etc/hosts /tmp/y" "diff -- /etc/hosts /tmp/y" "diff ../../a ../../b" "diff x/../../a b" "diff .." \
            "fetch sub" "fetch bun" "fetch origin tag v1" "fetch nosuchremote main" \
-           "commit" "commit -a" "commit -s" "commit --" \
+           "commit" "commit -a" "commit -s" "commit --" "commit -- -m" "commit -- --file=x" "commit -a -- -m" "diff C:/a D:/b" \
            "reset --hard" "reset HEAD" "clean -fdx" "checkout main" "checkout -- a" "rebase main" "config user.name x" "config --get user.name" "stash"; do
   c "$bad -> skip" skip "git -C $P $bad"
 done
