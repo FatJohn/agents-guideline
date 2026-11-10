@@ -50,7 +50,7 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 **三類 subagent 與參數**。Agent 工具的 `model` 參數只接受 harness 注入的 alias（`haiku`／`sonnet`／`opus`／`fable`），完整 model ID 只能寫在 agent frontmatter；對照見 `<REPO>/docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」。
 
 - `verifier`：顯式 `model: opus`、不帶 `effort`（帶了會蓋過 frontmatter）；派前讀 `~/.claude/agents/verifier.md`，只提供該檔要求的素材，不重述其職責。
-- fresh `code-review`：派 `general-purpose` 執行內建 `code-review` skill，`effort: medium`；`model` 依 §1 等級：高風險程式碼與使用者回報的 bug 用 `fable`，中間層與低風險小改用 `opus`（與路由卡一致）；brief 附 `~/.claude/rubrics/review-findings.md`，要求每條 finding 發出前自查該檔 §1–§3，並先讀目標 repo 自己的 review 判準。
+- fresh `code-review`：派 `general-purpose` 執行內建 `code-review` skill，`effort: medium`；`model` 依 §1 等級：高風險程式碼與使用者回報的 bug 用 `fable`，中間層與低風險小改用 `opus`（與路由卡一致）。Codex 刻意不對照本節與 §4 的 fable 入口：使用者回報 bug 的 review 維持 `reviewer`（Terra high），換路第二意見照原條件才升 Sol（`<REPO>/global/codex/rules/dispatch.md` §5『卡住時』、§6『驗證語意』）；理由是 Fable 只開在量小、最需推理的位置，Codex 的 Sol 已有自己的升檔條件；brief 附 `~/.claude/rubrics/review-findings.md`，要求每條 finding 發出前自查該檔 §1–§3，並先讀目標 repo 自己的 review 判準。
 - 旁支查詢：答案在檔案裡的用 `Explore`（`model: haiku`）；要讀多份長文歸納、跨來源比對、結論帶推理的用 `general-purpose`（`model: sonnet`）；要落檔原文也派 `general-purpose`（Explore／Plan 的角色指示禁止寫檔，見 `<REPO>/docs/harness-facts.md`「常用 subagent 類型」）。第二意見用 `codex:codex-rescue`（外部模型，不占 Claude 配額）。簡化剛改過的程式碼用內建 `simplify` skill。
 
 **CI／release 設定**（`.github/workflows`、`.github/actions` 等會被執行的設定）不派也不靜默自改：先把 diff 給使用者、取得當次授權，再套上並照 §1 派 verifier。裝了 `block-ci-edit` hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open），訊息要求先取授權；授權後以 `git apply` 套上給使用者看過的 patch，未授權不得改用 Bash 繞過。
