@@ -30,7 +30,7 @@
 | `haiku` | claude-haiku-4-5 | 平台可用模型；不列入本制度 active routing |
 | `sonnet` | claude-sonnet-5-5（2026-09-29 由 `claude -p --model sonnet --output-format json` 的 `modelUsage` 現查；原為 claude-sonnet-5） | 掃描、總結、查網頁的讀取車道主力；`worker` 標準實作車道（frontmatter 鎖完整 ID） |
 | `opus` | claude-opus-5-5（2026-09-23 由 verifier transcript 的 `"model":"claude-opus-5-5"` 現查；2026-08-30 原為 claude-opus-5） | 難題升級、高風險判斷 |
-| `fable` | claude-fable-5-1（2026-09-29 由 09-26 subagent transcript 的 assistant message.model 現查，n=25 request；原為 claude-fable-5） | 最高階；高風險實作／規劃（驗收不自動走這條，見 `<REPO>/global/shared/skills/dispatch/SKILL.md` §1「驗證不自驗」） |
+| `fable` | claude-fable-5-2（2026-11-10 由 `claude -p --model fable --output-format json` 的 `modelUsage` 現查，是 CLI 的 alias；Agent 工具的 `model: fable` 未另外實跑。2026-09-29 為 claude-fable-5-1，更早為 claude-fable-5） | 最高階；高風險實作／規劃（驗收不自動走這條，見 `<REPO>/global/shared/skills/dispatch/SKILL.md` §1「驗證不自驗」） |
 
 alias 會隨平台改版重新指向新一代同層模型——要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準，不引用本表。
 
@@ -45,6 +45,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
   ```
   tail -r ~/.claude/projects/*/<session-id>.jsonl | jq -c 'select(.type=="assistant" and .message.usage!=null) | .message.usage | (.input_tokens+.cache_read_input_tokens+.cache_creation_input_tokens)' | head -1
   ```
+- **PostToolUse hook 的 `additionalContext` 會進主對話 context**（2026-11-10 實測，主力 Mac，Claude Code 2.1.321，scratchpad 目錄 `claude -p --model haiku --settings <只含這個 hook 的 json>`，門檻用 `CLAUDE_CTX_NUDGE_THRESHOLD=1000` 壓低）：請模型連跑兩次 `echo hi`，第一次工具呼叫後模型逐字引出 `context-size-nudge.sh` 注入的那句（開頭「主對話 context 約 33K」），第二次沒有再收到；stream-json 輸出裡該句出現 2 次，都是模型的文字（`assistant` 訊息與 `result` 各一；stream-json 不含 PostToolUse 的 hook 輸出記錄，注入成立的依據是模型逐字引述），狀態檔以 session id 為檔名、內容 `1`。主對話的 hook stdin 帶 `transcript_path`、不帶 `agent_id`。subagent 內不提醒只有離線測試（合成 stdin），未在真 subagent 實跑。
 - **prompt cache 為 1h TTL**：窗口 C 的 cache_write 全為 1h、5m 為 0。request 間隔 5–60 分的 137 次全部未過期；間隔 >60 分（71–501 分）的 9 次全部整段重寫，cache_write $40.68（含 cache_read 的 request 總額約 $41）。cache 完整重寫合計 11 次、$45.53；ToolSearch 載入 deferred tool 會改 prefix 而觸發重寫，2 次、$4.52（$45.53 與 $4.52 都是 request 總額口徑）。
 - **subagent 的 prompt cache 是 5 分鐘**（2026-10-10 實測，project-f 2026-10-05 19:00～10-10 21:51 CST 的 session jsonl）：subagent request 的 cache_write 全為 5m（74,533,633 token）、1h 為 0；同期主對話全為 1h（22,773,764 token）、5m 為 0。subagent 相鄰 request 間隔超過 5 分後整段重寫 92 次、cache_write $78（API 等價），間隔中位 9.7 分；前一個工具呼叫是 Bash 的 81 次，其中約 43 次是 sleep／輪詢等背景輸出、24 次是前景測試／build／突變、14 次是 codex-companion（啟發式分類），另 11 次發生在 subagent 交回後被續用；最大一例是一個 verifier 每 10 分醒一次、連等 9 次，該 verifier 共 $24、其中 cache_write $14.8。cache 命中時讀取是輸入價 0.1×，5m 寫入是 1.25×，所以等待切成每次 ≤4 分鐘比一次等 10 分鐘便宜；對應規則（預期超過 4 分鐘的指令切成 ≤4 分鐘的輪詢）在 v4 前寫於 worker 合約規則 7，現只剩 `<REPO>/global/claude/agents/verifier.md` 規則 0。 subagent 內前景單獨 `sleep 30`／`sleep 65` 會被 harness 擋（`sleep 5` 可跑），前景 `until` 迴圈內含短 sleep 可跑；本機 macOS 沒有 `timeout` 指令；Bash 工具的 `timeout` 參數到期不會終止指令，而是把它移到背景（永不結束的 `until` 迴圈要手動 `pkill`）（2026-10-10 verifier 實測）。
 - **主對話成本拆解**：69% 是 cache_read；context 中位 344K、P90 770K，>400K 的 request 占 62% 成本；最貴 3 個 session 占 82%；前兩名 context 中位 571K／674K、窗口內未 compact，第三名中位 293K、最大 494K、compact 1 次。連續唯讀工具 request（每段第一個以外）369 個、$84.45＝23.8%。subagent 回報中位 5.2K 字，全文留在主對話 context、每輪重讀，占位估 $72.19（20.4%，估算值）。

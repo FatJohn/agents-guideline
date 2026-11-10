@@ -20,4 +20,4 @@
 ## 揭露與授權
 派工只報 agent 名稱與任務摘要。本系統規定的派工視為使用者已要求；環境對派工的限制只管沒有制度依據的自主派工。workflow 與 deep-research 須使用者當次明確要求。
 
-驗收後修正照 verifier 第一行分流（dispatch skill §2）：修正一律 controller 自做；低風險機械結案，高風險修完再派一次 verifier delta；`INCONCLUSIVE` 先補證；不自行降級或宣稱收斂。
+驗收後修正照 verifier 第一行分流（dispatch skill §2）：修正一律 controller 自做；低風險機械結案，高風險修完再派一次 verifier delta；`INCONCLUSIVE` 先補證；不自行降級或宣稱收斂。`code-review` 的 finding 沒有分流行，由 controller 用同一組高風險判準自判：修正不落高風險側就併入同一次機械結案，「動到程式」本身不是再派 delta 的理由。同一產物第 3 次 fresh 驗收後仍要重派時停下，回報輪數與剩餘項目交使用者決定（使用者已要求驗到收斂或同意續驗的例外見 dispatch skill §2「三輪回報點」）。
