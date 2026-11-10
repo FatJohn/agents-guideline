@@ -859,7 +859,7 @@ class IgnoredDefault(Base):
     def test_characters_outside_whitelist_are_blocked(self):
         """同形字與組合字元列舉不完，白名單外的字元一律擋。"""
         for key in ("\u041a\u0435\u0435\u0440 ignored", "Keep ignor\u0435d", "Ke\u034fep ignored",
-                    "Kee\ufe0fp ignored", "Keep\u00a0ignored", "Kee\u3099p ignored"):
+                    "Kee\ufe0fp ignored", "Keep\u00a0ignored", "Kee\u3099p ignored", "Keep ign\uffb7red"):
             with self.subTest(key=key):
                 self.assertTrue(any("白名單外的字元" in p for p in self.hidden_keep(key)))
 

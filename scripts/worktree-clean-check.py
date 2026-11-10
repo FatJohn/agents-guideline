@@ -17,6 +17,9 @@ worktree 並回報。全部檢查都會跑完，一次列出所有原因。exit 
     都要靠 issue session 在 `Keep ignored` 欄宣告；
   - 根目錄 `.venv`、`.pytest_cache`、`.husky/_` 內「沒有 tracked 檔」的比對（fold_path）只在 APFS 窮舉過：HFS+ 會忽略零寬字元，
     commit 路徑 `.ve<U+200C>nv/t` 比對不到；ext4 casefold、ZFS、NTFS 未驗；
+  - result.md 備註或其他欄裡用白名單內字元寫成的第二份 Keep 宣告：數字或 CJK 同形字代字母（`Keep ign0red`、
+    `ign〇red`）、沒有分號的 HTML entity（`Keep&nbspignored`）；腳本只採用行首嚴格的 `Keep ignored:` 那一行
+    （2026-11-11 使用者決定接受這個殘留，不再列舉）；
   - 讀不到的目錄：git status 只在 stderr 警告、不列出它（ignored 目錄底下讀不到的子目錄另會擋）；
   - 互動 shell 只跑 builtin 迴圈、沒有子程序時，看起來和閒置相同；
   - session 在等使用者回答時，stall-check 的狀態也是 idle；
@@ -72,9 +75,10 @@ LOCKED = object()
 HEX_RE = re.compile(r"[0-9a-fA-F]{7,40}")
 KEEP_LOOSE_RE = re.compile("[\\W_]*".join("keep") + "[\\W_]*" + "[\\W_]*".join("ignored"))  # 字母之間可夾任何非字母
 # result.md 的字元白名單（2026-11-11 使用者決定）：同形字、組合字元、HTML entity 列舉不完，白名單外一律擋。
-# ASCII、§·×、一般標點（U+2010–2027：破折號、引號、刪節號）、箭頭、CJK 標點與假名、注音、CJK 漢字、全形字（NFKC 後再比）。
+# ASCII、§·×、一般標點（U+2010–2027：破折號、引號、刪節號）、箭頭、CJK 標點與假名、注音、CJK 漢字、全形字與半形片假名
+# （NFKC 後再比）；半形韓文 U+FFA0–FFDC 不收。
 ALLOWED_RANGES = ((0x20, 0x7E), (0xA7, 0xA7), (0xB7, 0xB7), (0xD7, 0xD7), (0x2010, 0x2027), (0x2190, 0x21FF),
-                  (0x3000, 0x30FF), (0x3100, 0x312F), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xFF01, 0xFFEF))
+                  (0x3000, 0x30FF), (0x3100, 0x312F), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xFF01, 0xFF9F), (0xFFE0, 0xFFEF))
 ENTITY_RE = re.compile(r"&#?\w+;")
 
 
