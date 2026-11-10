@@ -75,7 +75,7 @@ model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/set
 | 主對話（controller） | `settings.json` 的 `model`／`effortLevel`，可被專案 `.claude/settings.local.json` 與 `/model` 蓋過 | 本機 settings，使用者自選 | v4 起 controller 自己實作，預設 opus／medium（2026-10-29 設定）；簡單任務 `/model sonnet` 當次切，不改 settings |
 | issue session（獨立 controller） | `claude-opus-5-5`／medium | `orca worktree create` 的 `--model`／`--effort` 旗標，`require-issue-session-model.sh` 保證帶齊 | 固定值，寫在 worktree-session `references/cli.md`；要換值改 cli.md，hook 只檢查有沒有帶 |
 | `verifier` | opus／medium | `global/claude/agents/verifier.md` frontmatter | 派工顯式 `model: opus`、不帶 `effort`；升 fable 要使用者當次同意 |
-| `Explore`／`general-purpose` | haiku／sonnet／opus | Agent 工具的 `model` 參數，依路由卡 | 查詢型依答案在檔案裡（haiku）還是要歸納推理（sonnet）由 controller 當次判；fresh code-review 用 opus medium |
+| `Explore`／`general-purpose` | haiku／sonnet／opus／fable | Agent 工具的 `model` 參數，依路由卡 | 查詢型依答案在檔案裡（haiku）還是要歸納推理（sonnet）由 controller 當次判；fresh code-review 用 opus medium，高風險程式碼與使用者回報 bug 用 fable；卡住換路用 fable |
 
 改主對話的 model 不影響其他座位：issue session 由 hook 保證帶旗標，subagent 由 frontmatter 與路由卡決定。改 `settings.json` 的 `model` 只會動到主對話與其他沒帶旗標的 `claude` 程序。
 
