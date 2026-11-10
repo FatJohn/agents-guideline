@@ -20,7 +20,7 @@ controller 在主對話自己做實作與文件；subagent 只剩三類：fresh-
 - **文件／主觀品質**：派 fresh-context `verifier`，給產出路徑及驗收條件，逐條 PASS／FAIL／UNSURE；不參與製作。**只改文件的 diff 不派 `code-review`**（含規格、spec、`AGENTS.md`／`CLAUDE.md`、rules 這類行為承載文件）：code-review 從 diff 推程式缺陷，對文件沒有判準，只會多出第二個 finding 來源再觸發一輪 delta；文件的正確性由 verifier 逐句對照。混合 diff 以程式碼部分定級，文件部分併入同一份 verifier brief 的驗收條件，不另派 code-review 看文件。文件的首輪 brief 必附「宣稱對照」（欄位見 `~/.claude/skills/handoff/SKILL.md` §1『brief 卡』；Codex：`<REPO>/global/shared/skills/handoff/SKILL.md`），沒有對照先補再派：逐句對照是製作者交付前的工作，不是留給 verifier 的第一輪。
 - **程式碼機械驗證**：製作者可跑測試、build、lint、實跑、schema，附輸出；讀碼不取代執行證據。**中間層**（超過低風險小改、不含下一條的外部呼叫／權限請求／不可逆副作用、也不是高風險或使用者回報的 bug）：製作者機械驗證＋一個 fresh `code-review`，不派 `verifier`；程式碼只有在下兩條成立時才派 verifier；中間層的 fresh 審查來源只有這一個。新增或修改的測試斷言與守門檢查（lint、regex、檢查器、CI gate）各附一次實跑會變紅的突變：暫時改壞被守的行為、實跑看到失敗，還原後重跑轉綠，回報列「斷言→突變→紅／綠關鍵輸出」；還原只能反向編輯或從 scratchpad 快照複製回去，不用 `git checkout`／`git restore`／`git stash`。
 - **含外部呼叫、權限請求或不可逆副作用的程式碼**：不論風險等級，機械驗證外一律派 fresh-context `verifier` 套 `~/.claude/rubrics/code-change.md` §7『失敗路徑與不可逆副作用』；製作者的測試與突變證據只證 happy path，不得據此結案。「不可逆副作用」的範圍依 `~/.claude/rules/judgment.md` 2『不可逆副作用的定義』；§7 FAIL 修正後的結案方式依本 skill §2。
-- **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。fresh review 派一個 fresh-context subagent 執行 `code-review` skill（從 diff 推 bug，不需驗收條件；finding 的形狀與發出前的查證依 `~/.claude/rubrics/review-findings.md`）；它不取代上一條的 §7 verifier 審查，有逐條驗收條件時仍派 `verifier`。兩者**同時派、等兩邊都回報、合併 finding 修一次**，再依 §2 分流決定要不要一次 delta；不等一邊 CONVERGED 就先修另一邊的 finding，否則兩個審查者會各自串出一輪。
+- **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。fresh review 派一個 fresh-context subagent 執行 `code-review` skill，這一級用 `model: fable`（中間層與低風險小改維持 `opus`，見 §3）（從 diff 推 bug，不需驗收條件；finding 的形狀與發出前的查證依 `~/.claude/rubrics/review-findings.md`）；它不取代上一條的 §7 verifier 審查，有逐條驗收條件時仍派 `verifier`。兩者**同時派、等兩邊都回報、合併 finding 修一次**，再依 §2 分流決定要不要一次 delta；不等一邊 CONVERGED 就先修另一邊的 finding，否則兩個審查者會各自串出一輪。
 - **高風險判斷**（對外文件、不可逆、架構決策）：加獨立第二意見，用 `codex:codex-rescue` 或第二個獨立 agent，分歧交使用者。
 
 Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`：frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑；真的 fallback 時另帶與 verifier frontmatter 相同的 `effort`，否則 effort 落到 session 設定。改用 `model: fable` 前，說明訊號與證據並取得當次同意（訊號清單見 `<REPO>/docs/reviews/verification-policy-history.md`「fable 升檔訊號」）；使用者當次直接指定 fable 不必再問。Codex 刻意維持 `sol_verifier/Sol high`，見 `<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』。
@@ -50,7 +50,7 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 **三類 subagent 與參數**。Agent 工具的 `model` 參數只接受 harness 注入的 alias（`haiku`／`sonnet`／`opus`／`fable`），完整 model ID 只能寫在 agent frontmatter；對照見 `<REPO>/docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」。
 
 - `verifier`：顯式 `model: opus`、不帶 `effort`（帶了會蓋過 frontmatter）；派前讀 `~/.claude/agents/verifier.md`，只提供該檔要求的素材，不重述其職責。
-- fresh `code-review`：派 `general-purpose` 執行內建 `code-review` skill，`model: opus`、`effort: medium`（與路由卡一致）；brief 附 `~/.claude/rubrics/review-findings.md`，要求每條 finding 發出前自查該檔 §1–§3，並先讀目標 repo 自己的 review 判準。
+- fresh `code-review`：派 `general-purpose` 執行內建 `code-review` skill，`effort: medium`；`model` 依 §1 等級：高風險程式碼與使用者回報的 bug 用 `fable`，中間層與低風險小改用 `opus`（與路由卡一致）；brief 附 `~/.claude/rubrics/review-findings.md`，要求每條 finding 發出前自查該檔 §1–§3，並先讀目標 repo 自己的 review 判準。
 - 旁支查詢：答案在檔案裡的用 `Explore`（`model: haiku`）；要讀多份長文歸納、跨來源比對、結論帶推理的用 `general-purpose`（`model: sonnet`）；要落檔原文也派 `general-purpose`（Explore／Plan 的角色指示禁止寫檔，見 `<REPO>/docs/harness-facts.md`「常用 subagent 類型」）。第二意見用 `codex:codex-rescue`（外部模型，不占 Claude 配額）。簡化剛改過的程式碼用內建 `simplify` skill。
 
 **CI／release 設定**（`.github/workflows`、`.github/actions` 等會被執行的設定）不派也不靜默自改：先把 diff 給使用者、取得當次授權，再套上並照 §1 派 verifier。裝了 `block-ci-edit` hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open），訊息要求先取授權；授權後以 `git apply` 套上給使用者看過的 patch，未授權不得改用 Bash 繞過。
@@ -69,8 +69,8 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 
 換路只有三條，一律附完整失敗軌跡（逐輪嘗試表：改了什麼｜跑了什麼指令｜輸出關鍵行｜改動仍在或已回退｜為什麼判定失敗）：
 
-1. **重新定義問題**：先寫出不變量（修完後要由結構保證成立的條件、不靠事後檢查），附全部失敗紀錄與其共同形狀，派 `general-purpose`（`model: opus`，brief 寫明唯讀、只出方案不改檔）與 `codex:codex-rescue` 各自獨立出方案並互相比對，只靠事後檢查補洞的方案不採；分歧交使用者。修正要對多個呼叫點、非同步交錯或多處讀寫同一狀態都成立時，動手前就先做這一步。
-2. **第二意見**：`codex:codex-rescue`，或派第二個獨立 `general-purpose`（`model: opus`）帶失敗軌跡從 root cause 重看，不沿用自己的假設。
+1. **重新定義問題**：先寫出不變量（修完後要由結構保證成立的條件、不靠事後檢查），附全部失敗紀錄與其共同形狀，派 `general-purpose`（`model: fable`，brief 寫明唯讀、只出方案不改檔）與 `codex:codex-rescue` 各自獨立出方案並互相比對，只靠事後檢查補洞的方案不採；分歧交使用者。修正要對多個呼叫點、非同步交錯或多處讀寫同一狀態都成立時，動手前就先做這一步。
+2. **第二意見**：`codex:codex-rescue`，或派第二個獨立 `general-purpose`（`model: fable`）帶失敗軌跡從 root cause 重看，不沿用自己的假設。
 3. **問人**：見 §5。兩輪無進展代表方向錯了，不要換個措辭再試第三次。
 
 ## 5. 何時問使用者

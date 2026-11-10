@@ -30,7 +30,7 @@
 | `haiku` | claude-haiku-4-5 | 平台可用模型；不列入本制度 active routing |
 | `sonnet` | claude-sonnet-5-5（2026-09-29 由 `claude -p --model sonnet --output-format json` 的 `modelUsage` 現查；原為 claude-sonnet-5） | 掃描、總結、查網頁的讀取車道主力；`worker` 標準實作車道（frontmatter 鎖完整 ID） |
 | `opus` | claude-opus-5-5（2026-09-23 由 verifier transcript 的 `"model":"claude-opus-5-5"` 現查；2026-08-30 原為 claude-opus-5） | 難題升級、高風險判斷 |
-| `fable` | claude-fable-5-2（2026-11-10 由 `claude -p --model fable --output-format json` 的 `modelUsage` 現查，是 CLI 的 alias；Agent 工具的 `model: fable` 未另外實跑。2026-09-29 為 claude-fable-5-1，更早為 claude-fable-5） | 最高階；高風險實作／規劃（驗收不自動走這條，見 `<REPO>/global/shared/skills/dispatch/SKILL.md` §1「驗證不自驗」） |
+| `fable` | claude-fable-5-2（2026-11-10 由 `claude -p --model fable --output-format json` 的 `modelUsage` 現查，是 CLI 的 alias；同日派 `Explore`（`model: fable`），subagent transcript 記為 `"model":"claude-fable-5-2"`。2026-09-29 為 claude-fable-5-1，更早為 claude-fable-5） | 最高階；卡住換路的重新定義問題與第二意見（`<REPO>/global/shared/skills/dispatch/SKILL.md` §4「卡住時」）、高風險程式碼與使用者回報 bug 的 fresh `code-review`（同檔 §1、§3）；verifier 不自動走這條（同檔 §1「驗證不自驗」） |
 
 alias 會隨平台改版重新指向新一代同層模型——要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準，不引用本表。
 
