@@ -91,5 +91,6 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 **修法**：
 
 - 原始內容後續不需逐行引用、經搜尋與節錄仍要帶入大量原文時，派旁支查詢（§3）只拿結論；能用有界讀取（`rg`、`sed -n a,bp`、`head`）處理的短內容留在主對話。檔案數、網頁、完整 log 本身不是派出理由，看的是帶回來的量與之後引用的方式。
+- 裝了 `context-size-nudge` hook 的環境（Claude；見 `<REPO>/docs/install.md`「選配：主對話 context 跨門檻提醒」），主對話到 300K 時會收到一句注入的提醒，收到就照下一條「≥300K 且還有未做的 phase」處理；沒裝或沒收到時照下一條自己量。
 - controller 看不到 statusline，要自己量：用 `<REPO>/docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」的 jq 指令取最後一筆 usage 的三項和。phase 交界與大量讀檔之後量。**≥300K 且還有未做的 phase**：寫 `~/.claude/skills/handoff/SKILL.md` §4『session 交接卡』，剩下的 phase 開新 session 接手，不派 subagent（subagent 不繼承 context，等於重新開始，還少了完整的 CLAUDE.md、hook 與記憶）。
 - 何時 compact 由使用者決定，controller 不主動提醒，也不能自己 compact。使用者說要 compact、要離開 >1h（prompt cache 1h 過期，回來整段重寫）或要「新 prompt」時，給一段可直接貼在 `/compact` 後面的**保留指示**，內容是交接卡的精簡版：目標、授權、未完成項目、在途 subagent（名稱、任務）、產物證據位置。有在途 subagent 時先告知，建議等回報後再 compact。
