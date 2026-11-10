@@ -70,6 +70,7 @@ LINE_START_RE = re.compile(r"^(?:" + "|".join(re.escape(k) for k in KEYS + OPTIO
 INVISIBLE_RE = re.compile("[\ufeff\u200b-\u200f\u2060]")
 LOCKED = object()
 HEX_RE = re.compile(r"[0-9a-fA-F]{7,40}")
+KEEP_LOOSE_RE = re.compile(r"keep[\W_]*ignored")
 
 
 def run(cmd, cwd=None):
@@ -118,8 +119,8 @@ def parse_result(text):
         if re.match(r"(?:Merged|Disposable secrets):", ln) and nxt.strip() and not LINE_START_RE.match(nxt) \
                 and not nxt.startswith("#"):
             problems.append(f"result.md 的 {ln.split(':')[0]} 欄後面有延續行")
-    # Keep ignored 決定刪不刪：任何位置、任何寫法再出現一次（例如單一空白接在別欄後面）就判不出，擋
-    if sum(ln.casefold().count("keep ignored") for ln in lines) > 1:
+    # Keep ignored 決定刪不刪：正規化後任何近似寫法（`Keep-ignored`、`KeepIgnored`、全形）在任何位置再出現一次就判不出，擋
+    if len(KEEP_LOOSE_RE.findall(norm_name(text))) > 1:
         problems.append("result.md 的 Keep ignored 出現不只一次")
     return fields, problems
 
@@ -301,14 +302,13 @@ def scan_ignored(wt, rel):
     elif not rel.endswith("/") and any(credential_name(p) for p in parts):
         hits.append((rel, "credential"))
     top = Path(wt, *parts)
-    if not rel.endswith("/"):
-        # status 不列 `.git`（含 gitfile），巢狀 repo 的檔會逐檔列成 ignored：往上找到 worktree 根目錄為止
-        for i in range(1, len(parts)):
-            if os.path.lexists(Path(wt, *parts[:i], ".git")):
-                hits.append(("/".join(parts[:i] + [".git"]), "git"))
-                break
-        return hits
-    if top.is_symlink():
+    # status 不列 `.git`（含 gitfile），巢狀 repo 的內容會逐項列成 ignored：往上找到 worktree 根目錄為止
+    for i in range(1, len(parts)):
+        anc = Path(wt, *parts[:i])
+        if os.path.lexists(anc / ".git") or bare_repo(anc):
+            hits.append(("/".join(parts[:i]), "git"))
+            break
+    if not rel.endswith("/") or top.is_symlink():
         return hits
     errors = []
     for dirpath, dirnames, filenames in os.walk(top, onerror=errors.append, followlinks=False):
@@ -379,7 +379,7 @@ def check_tree(wt, fields):
     if secrets:
         problems.append(f"有憑證形狀的 ignored 檔，未列在 Disposable secrets（{len(secrets)} 個）：{sorted(secrets)}")
     if repos:
-        problems.append(f"ignored 項目內有巢狀 git repo（可能有沒推的 commit）：{repos[:5]}")
+        problems.append(f"ignored 項目內有巢狀 git repo（可能有沒推的 commit）：{sorted(set(repos))}")
     if unreadable:
         problems.append(f"讀不完的 ignored 目錄，判不出裡面有沒有憑證：{unreadable[:5]}")
     extra = []
