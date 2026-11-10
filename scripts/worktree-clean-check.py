@@ -51,12 +51,15 @@ SELF_IGNORING = {".pytest_cache", ".venv", ".husky/_"}  # 實測過會在目錄�
 # `Keep ignored` 欄，非「無」就擋；欄位缺就擋。下列憑證形狀（比對路徑每一段，NFKC＋去掉格式字元＋casefold＋
 # 去尾端空白與點，所以 `.ENV`、`Foo.PEM`、`.e<U+200B>nv` 都算）照擋，除非逐條列在 `Disposable secrets` 欄。
 CREDENTIAL_PATTERNS = (
-    ".env*", "*.env",  # dotenv，含 .env.local、.envrc
-    "*.pem", "*.key", "*.p12", "*.pfx", "*.p8",  # 私鑰與憑證包；p8 是 Apple APNs／App Store Connect API key
-    "*.keystore", "*.jks", "key.properties",  # Android／Java 簽章 keystore 與 Flutter 存 keystore 密碼的檔
-    "*credentials*", "client_secret*", "*service-account*.json", "*service_account*.json",  # 雲端與 OAuth 憑證檔的慣用名
+    ".env*", "*.env", "*.env[.~]*",  # dotenv，含 .env.local、.envrc、prod.env.local
+    # 私鑰與憑證包（p8 是 Apple APNs／App Store Connect API key），含 `.bak`、`.old`、`~` 這類備份或改名後綴
+    "*.pem", "*.key", "*.p12", "*.pfx", "*.p8", "*.ppk", "*.pem[.~]*", "*.key[.~]*", "*.p12[.~]*", "*.pfx[.~]*",
+    "*.keystore", "*.jks", "*.keystore[.~]*", "*.jks[.~]*", "key.properties", "keystore.properties",  # Android／Java 簽章
+    "*credential*", "client_secret*", "*service-account*", "*service_account*", "*serviceaccount*",  # 雲端與 OAuth 憑證
+    "secret.*", "secrets.*", "*.secret", "*.secrets", "token.json",  # 慣用的密鑰設定檔名
     "id_rsa*", "id_dsa*", "id_ecdsa*", "id_ed25519*",  # 沒有副檔名的 SSH 私鑰
-    ".npmrc", ".netrc",  # 常放 registry／HTTP auth token
+    ".npmrc", ".netrc", ".pypirc", ".pgpass", ".htpasswd", "*kubeconfig*", "*.ovpn", "*.kdbx",  # token、密碼、連線設定
+    "*.tfstate*", "*.tfvars",  # Terraform state 與變數檔常含明文密鑰
 )
 KEYS = ("Issue", "Status", "Worktree", "Branch", "Base SHA", "Candidate SHA", "Dirty", "Files changed", "Keep ignored",
         "Verification", "PR / CI", "Cross-issue risk", "Pending authorization", "Blocker", "Merged")
@@ -112,8 +115,12 @@ def parse_result(text):
         nxt = lines[i + 1] if i + 1 < len(lines) else ""
         if re.match(r"(?:Status|Pending authorization|Blocker|Keep ignored):", ln) and not LINE_START_RE.match(nxt):
             problems.append(f"result.md 的 {ln.split(':')[0]} 欄後面不是下一個欄位")
-        if ln.startswith("Merged:") and nxt.strip() and not LINE_START_RE.match(nxt) and not nxt.startswith("#"):
-            problems.append("result.md 的 Merged 欄後面有延續行")
+        if re.match(r"(?:Merged|Disposable secrets):", ln) and nxt.strip() and not LINE_START_RE.match(nxt) \
+                and not nxt.startswith("#"):
+            problems.append(f"result.md 的 {ln.split(':')[0]} 欄後面有延續行")
+    # Keep ignored 決定刪不刪：任何位置、任何寫法再出現一次（例如單一空白接在別欄後面）就判不出，擋
+    if sum(ln.casefold().count("keep ignored") for ln in lines) > 1:
+        problems.append("result.md 的 Keep ignored 出現不只一次")
     return fields, problems
 
 
@@ -266,22 +273,33 @@ def self_ignoring_root(wt, parts, tracked, cache):
     return cache[root]
 
 
-def credential_name(name):
-    """路徑的一段是否像憑證檔。先正規化：大小寫不敏感的 FS 上 `.ENV` 就是 `.env`，零寬字元與全形字也不能繞過。"""
+def norm_name(name):
+    """大小寫不敏感的 FS 上 `.ENV` 就是 `.env`、`.GIT` 就是 `.git`；零寬字元與全形字也不能繞過。"""
     norm = "".join(c for c in unicodedata.normalize("NFKC", name) if unicodedata.category(c) != "Cf")
-    norm = norm.casefold().rstrip(" \t.")
+    return norm.casefold().rstrip(" \t.")
+
+
+def credential_name(name):
+    """路徑的一段是否像憑證檔。"""
+    norm = norm_name(name)
     return any(fnmatch.fnmatchcase(norm, pat) for pat in CREDENTIAL_PATTERNS)
 
 
+def bare_repo(path):
+    """沒有 `.git` 的 bare repo（例如 `mirror.git/`）：有 HEAD 檔、objects 與 refs 目錄。"""
+    return os.path.isfile(path / "HEAD") and os.path.isdir(path / "objects") and os.path.isdir(path / "refs")
+
+
 def scan_ignored(wt, rel):
-    """回 (路徑, 原因) 清單：rel 每一段與（是目錄時）底下每個項目的名稱，命中憑證形狀或巢狀 `.git` 就列出。
+    """回 (路徑, 原因) 清單：檔案的路徑任一段命中憑證形狀就列出那個檔（目錄名像憑證時列出它底下每個檔，
+    `Disposable secrets` 只寫目錄蓋不到）；巢狀 `.git`（不分大小寫）與 bare repo 另列。
     不跟 symlink：刪 worktree 只刪連結本身。讀不到的目錄回報出來，由呼叫端擋下。"""
     hits = []
     parts = rel.rstrip("/").split("/")
-    if ".git" in parts:
+    if any(norm_name(p) == ".git" for p in parts):
         hits.append((rel.rstrip("/"), "git"))
-    elif any(credential_name(p) for p in parts):
-        hits.append((rel.rstrip("/"), "credential"))
+    elif not rel.endswith("/") and any(credential_name(p) for p in parts):
+        hits.append((rel, "credential"))
     top = Path(wt, *parts)
     if not rel.endswith("/"):
         # status 不列 `.git`（含 gitfile），巢狀 repo 的檔會逐檔列成 ignored：往上找到 worktree 根目錄為止
@@ -294,11 +312,13 @@ def scan_ignored(wt, rel):
         return hits
     errors = []
     for dirpath, dirnames, filenames in os.walk(top, onerror=errors.append, followlinks=False):
+        if bare_repo(Path(dirpath)):
+            hits.append((Path(dirpath).relative_to(wt).as_posix(), "git"))
         for name in dirnames + filenames:
             path = Path(dirpath, name).relative_to(wt).as_posix()
-            if name == ".git":
+            if norm_name(name) == ".git":
                 hits.append((path, "git"))
-            elif credential_name(name):
+            elif name in filenames and any(credential_name(p) for p in path.split("/")):
                 hits.append((path, "credential"))
     if errors:
         hits.append((rel.rstrip("/"), "unreadable"))
@@ -335,7 +355,7 @@ def check_tree(wt, fields):
         hidden = [ln[2:] for ln in entries if ln[0] == "S" or ln[0].islower()]
         if hidden:
             problems.append(f"有 skip-worktree／assume-unchanged 的檔：{hidden[:3]}")
-    if fields.get("Keep ignored", "無") != "無":  # 欄位缺時 parse_result 已回報
+    if fields.get("Keep ignored") != "無":  # 不給預設值：寫法變形時 fields 沒有這欄，也要擋
         problems.append(f"result.md 的 Keep ignored 不是「無」（{fields.get('Keep ignored')!r}），有 issue session 要保留的 ignored 檔")
     disposable = split_paths(fields.get("Disposable secrets"))
     secrets, repos, unreadable, roots = [], [], [], {}
@@ -357,7 +377,7 @@ def check_tree(wt, fields):
             elif path not in disposable:
                 secrets.append(path)
     if secrets:
-        problems.append(f"有憑證形狀的 ignored 檔，未列在 Disposable secrets：{secrets[:5]}")
+        problems.append(f"有憑證形狀的 ignored 檔，未列在 Disposable secrets（{len(secrets)} 個）：{sorted(secrets)}")
     if repos:
         problems.append(f"ignored 項目內有巢狀 git repo（可能有沒推的 commit）：{repos[:5]}")
     if unreadable:
