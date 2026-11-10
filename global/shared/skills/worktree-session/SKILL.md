@@ -43,7 +43,7 @@ Blocker: <一句；無則「無」>
 Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 ```
 
-寫 `Keep ignored` 前先看一次 `git status --short --ignored`：清 worktree 時 ignored 檔預設跟著刪，這欄是唯一能留住它們的地方。worktree 內有憑證形狀的 ignored 檔（`.env*`、`*.pem`、`*.key` 等，見 §3 第 5 條）且確定可丟時，在 `Keep ignored` 下一行加 `Disposable secrets: <路徑>, <路徑>`，路徑相對 worktree 根目錄、逐條照 `worktree-clean-check.py` 擋下時列出的寫法（`git status --ignored` 只列到被忽略的目錄，看不到裡面的檔），不能只寫上層目錄；沒有這行就照擋。
+寫 `Keep ignored` 前先看一次 `git status --short --ignored`：清 worktree 時 ignored 檔預設跟著刪，這欄是唯一能留住它們的地方。worktree 內有憑證形狀的 ignored 檔（`.env*`、`*.pem`、`*.key` 等，見 §3 第 5 條）且確定可丟時，在 `Keep ignored` 下一行加 `Disposable secrets: <路徑>, <路徑>`，路徑相對 worktree 根目錄、逐條照 `worktree-clean-check.py` 擋下時列出的寫法（`git status --ignored` 只列到被忽略的目錄，看不到裡面的檔），不能只寫上層目錄；沒有這行就照擋。result.md 只用 ASCII、中文、假名注音、全形字與常用標點（破折號、引號、刪節號、箭頭、`§·×`）：emoji、帶重音的拉丁字母、其他文字與 HTML entity（`&nbsp;`）會讓直接清擋下；全文也只能出現一次 `Keep ignored`（字母間夾空白或符號也算），備註或檔名裡再提到同一串字同樣會擋。
 
 `awaiting verification`＝已派 verifier 未回；`ready for authorization`＝驗收收斂且 PR 已開，只差 Pending authorization 列的動作；`merged` 必須同時有 Merged 欄的 SHA。TUI 閒置、process 結束、分頁無回應都不對應任何狀態，盤點 session 查到這些只代表該去讀 result.md 或在那個分頁問，不得據此推進狀態。
 
