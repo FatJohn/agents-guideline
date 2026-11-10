@@ -139,6 +139,21 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 - `RIPGREP_CONFIG_PATH` 寫 Windows 路徑，建議正斜線：`C:/Users/<user>/.claude/ripgreprc`（`rg` 是原生 exe，推測讀不懂 MSYS 的 `/c/Users/...`）。另外該機 `rg` 走 `WinGet\Links` symlink，Git Bash 開不了（見 `docs/hosts-detail.md`），ripgreprc 目前沒有東西可影響，hook 可先裝。
 - 該機的 `settings.json` 要自己加同樣兩段。
 
+### 選配：主對話 context 跨門檻提醒
+
+`hooks/context-size-nudge.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。它是 `PostToolUse` hook：每次工具呼叫後讀 stdin 的 `transcript_path`，取最後一筆 assistant usage 的 `input_tokens`＋`cache_read_input_tokens`＋`cache_creation_input_tokens` 當主對話 context 大小；到 300,000 時以 `additionalContext` 注入一句提醒（還有未做的 phase 就寫 session 交接卡、開新 session 接手），對應 dispatch skill §6『主對話 context 管理』。同一個 session 每跨一個 100K 級距提醒一次，掉回門檻以下（compact 之後）重新計；subagent（stdin 有 `agent_id`）不提醒。提醒過的級距記在 `${TMPDIR:-/tmp}/claude-ctx-nudge/<session-id>`。
+
+**追加**到 `hooks.PostToolUse` 陣列（沒有這個陣列就新建；不設 matcher，所有工具都算；片段同樣收在 `<REPO>/global/claude/settings.snippets.json`）：
+
+```json
+{ "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/context-size-nudge.sh\"" } ] }
+```
+
+- 裝完驗證（離線、需要 `jq`）：`bash tests/test-context-size-nudge.sh ~/.claude/hooks/context-size-nudge.sh`。
+- 環境變數：`CLAUDE_CTX_NUDGE_THRESHOLD` 改門檻（token 數），`CLAUDE_CTX_NUDGE_STATE` 改狀態目錄。
+- `jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1：工具照跑、不提醒，transcript 看得到 `context-size-nudge: INACTIVE`／`did not run`。
+- 提醒只是注入一句話，不擋任何動作；要不要開新 session 仍由 controller 與使用者決定。端到端實測見 `docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」的 hook 那條。Windows 未驗證。
+
 ### 選配：自動放行專案根目錄（預設 `$HOME/Projects/`）底下的 `git -C` 清理、push 與常用指令
 
 `hooks/allow-git-c-projects.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。目的：permission 規則寫成 `Bash(git -C * worktree remove *)`、`Bash(git -C * branch -D *)` 時，Claude Code 啟動會警告子指令前的 `*` 也放行任意 option（例如 `git -C -c core.pager=...`、`--exec-path`），連 `git -C /Users/<user>/Projects/* ...` 也一樣報，逐 repo 寫確切路徑又太多條。這個 `PreToolUse` hook 是自己實作的嚴格版「專案根目錄前綴規則」（根目錄預設 `$HOME/Projects`，可用 `GIT_C_ALLOW_ROOT` 改，見下）：形狀全部符合才回 `permissionDecision: allow`，其餘一律不表態（exit 0、無輸出），交回正常 permission 流程。
