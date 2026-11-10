@@ -86,7 +86,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 
 ## 5. 瘦身協議
 
-- **tripwire**（觸發審查，不是優化目標）：`global/claude/CLAUDE.md` 超過 2,500 bytes、`global/claude/route-card.md` 超過 3,000 bytes、`global/shared/rules/judgment.md` 超過 15 條。碰到就排一次日落審查，不是砍到剛好低於門檻（門檻被當目標時，最先被砍的是『不算違規』邊界句）；沒碰到也可以瘦身。bytes 是常駐 context 的代理量，不等於 token。使用率用 `python3 <REPO>/scripts/dispatch-usage.py --days 45` 量。
+- **tripwire**（觸發審查，不是優化目標）：`global/claude/CLAUDE.md` 超過 2,500 bytes、`global/claude/route-card.md` 超過 3,500 bytes、`global/shared/rules/judgment.md` 超過 15 條。碰到就排一次日落審查，不是砍到剛好低於門檻（門檻被當目標時，最先被砍的是『不算違規』邊界句）；沒碰到也可以瘦身。bytes 是常駐 context 的代理量，不等於 token。使用率用 `python3 <REPO>/scripts/dispatch-usage.py --days 45` 量。
 - **硬上限**：judgment 15 條、活躍教訓 8 條（見 §3）。加一條要先合併或日落一條；合併後總數 ≤15、或整條搬走且不留只剩動詞與檔名的骨架，才算空出名額。每條判準目標 ≤450 bytes：觸發情境、要做什麼、不算違規、指向。機制事實、指令、數字與『不算違規』邊界砍不動而超標**不算違規**，回報實際 bytes；砍到邊界句才是違規。
 - **正反例進 rationale**：✅／❌、訂條理由、事故脈絡與鄰條分工說明一律寫在 `<REPO>/docs/judgment-rationale.md` 同編號章節（原句搬入），常駐正文只留判準；判準仍要讓另一個 agent 只憑這句判得了過或不過。要省空間就整條日落或搬走。
 - **驗證方法細節進 `<REPO>/docs/debug-environment-first.md`**：各工具的檢查指令、觸發詞、失敗現場寫那裡，judgment 只留一句判準與指向。
