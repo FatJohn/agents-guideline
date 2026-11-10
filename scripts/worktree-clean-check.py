@@ -12,14 +12,18 @@ worktree 並回報。全部檢查都會跑完，一次列出所有原因。exit 
   - 只留在 worktree reflog 或 `refs/worktree/*` 的 commit（`git reset` 丟掉的）；進行中的 merge；
   - 手寫的 result.md：來源與 `Base SHA` 都是交付檔的自報（交付清單另外併入 PR 的 files，自報只會多比不會少比
     PR 內的檔）；result.md 模板之外的備註不判讀語意；
-  - 工具專屬產物目錄（REBUILDABLE）的內容不逐檔檢查；
+  - 工具專屬產物目錄（REBUILDABLE 等舊白名單）的內容不逐檔檢查；其他 ignored 目錄逐檔比對檔名，只認得
+    CREDENTIAL_PATTERNS 列的憑證形狀與巢狀 `.git`，內容不判讀：憑證改了名字、使用者手寫的筆記、本地設定，
+    都要靠 issue session 在 `Keep ignored` 欄宣告；
   - 根目錄 `.venv`、`.pytest_cache`、`.husky/_` 內「沒有 tracked 檔」的比對（fold_path）只在 APFS 窮舉過：HFS+ 會忽略零寬字元，
     commit 路徑 `.ve<U+200C>nv/t` 比對不到；ext4 casefold、ZFS、NTFS 未驗；
+  - 讀不到的目錄：git status 只在 stderr 警告、不列出它（ignored 目錄底下讀不到的子目錄另會擋）；
   - 互動 shell 只跑 builtin 迴圈、沒有子程序時，看起來和閒置相同；
   - session 在等使用者回答時，stall-check 的狀態也是 idle；
   - stacked PR：內容核對的對象是該 PR 的 base branch，不一定是 main。
 exit code：可清 0；不可清 1；參數錯 2。"""
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -32,8 +36,9 @@ from pathlib import Path
 STALL_CHECK = Path(__file__).resolve().parent / "stall-check.py"
 TIMEOUT = 60
 SHELLS = {"zsh", "bash", "sh", "fish", "dash"}  # 只有 idle 的 claude 當子程序時也算閒置：Orca 的分頁是 `-zsh -l` → `claude`
-# 工具專屬、重建得回來的 ignored 目錄。build、bin、out 這類泛用名不列：常是一般目錄，裡面可能放密鑰或本地 commit。
-# 比對 status 回報為目錄（尾 `/`）的最後一段，或 self_ignoring_root 認得的自我忽略目錄；沒列到的 ignored 項目一律當成清掉就回不來。
+# 舊白名單：工具專屬、重建得回來的 ignored 目錄，整包放行、不逐檔看。build、bin、out 這類泛用名不列：常是一般目錄，
+# 裡面可能放密鑰或本地 commit，所以走下面 CREDENTIAL_PATTERNS 的逐檔比對。比對 status 回報為目錄（尾 `/`）的最後一段，
+# 或 self_ignoring_root 認得的自我忽略目錄。
 REBUILDABLE = {"node_modules", "DerivedData", "Pods", ".dart_tool", ".gradle", ".next", ".venv", "__pycache__", ".pytest_cache"}
 REBUILDABLE_NAMES = {".DS_Store"}
 # husky 在 .husky/_ 產生的檔名（實測本機 husky 目錄）；這裡以外的東西可能是使用者放的，不放行
@@ -42,11 +47,23 @@ HUSKY_GENERATED = {".gitignore", "h", "husky.sh", "applypatch-msg", "commit-msg"
                    "pre-rebase", "prepare-commit-msg"}
 MARKER_MAX_BYTES = 4096
 SELF_IGNORING = {".pytest_cache", ".venv", ".husky/_"}  # 實測過會在目錄內放 `*` 的 .gitignore 的工具（相對 worktree 根目錄）；其他路徑沒有這個形狀，不放行
-KEYS = ("Issue", "Status", "Worktree", "Branch", "Base SHA", "Candidate SHA", "Dirty", "Files changed", "Verification",
-        "PR / CI", "Cross-issue risk", "Pending authorization", "Blocker", "Merged")
+# 上面的舊白名單之外，ignored 檔預設可清（2026-11-11 使用者決定）：issue session 要保留的寫在 result.md 的
+# `Keep ignored` 欄，非「無」就擋；欄位缺就擋。下列憑證形狀（比對路徑每一段，NFKC＋去掉格式字元＋casefold＋
+# 去尾端空白與點，所以 `.ENV`、`Foo.PEM`、`.e<U+200B>nv` 都算）照擋，除非逐條列在 `Disposable secrets` 欄。
+CREDENTIAL_PATTERNS = (
+    ".env*", "*.env",  # dotenv，含 .env.local、.envrc
+    "*.pem", "*.key", "*.p12", "*.pfx", "*.p8",  # 私鑰與憑證包；p8 是 Apple APNs／App Store Connect API key
+    "*.keystore", "*.jks", "key.properties",  # Android／Java 簽章 keystore 與 Flutter 存 keystore 密碼的檔
+    "*credentials*", "client_secret*", "*service-account*.json", "*service_account*.json",  # 雲端與 OAuth 憑證檔的慣用名
+    "id_rsa*", "id_dsa*", "id_ecdsa*", "id_ed25519*",  # 沒有副檔名的 SSH 私鑰
+    ".npmrc", ".netrc",  # 常放 registry／HTTP auth token
+)
+KEYS = ("Issue", "Status", "Worktree", "Branch", "Base SHA", "Candidate SHA", "Dirty", "Files changed", "Keep ignored",
+        "Verification", "PR / CI", "Cross-issue risk", "Pending authorization", "Blocker", "Merged")
+OPTIONAL = ("Disposable secrets",)  # 可省略；出現就只能一行
 # 模板裡只有這兩行是同一行多欄；其他欄的值就是整行剩下的內容，判定欄不能藏在別的欄後面。
 INLINE = {"Worktree": ("Branch",), "Base SHA": ("Candidate SHA", "Dirty")}
-LINE_START_RE = re.compile(r"^(?:" + "|".join(re.escape(k) for k in KEYS) + r"):")
+LINE_START_RE = re.compile(r"^(?:" + "|".join(re.escape(k) for k in KEYS + OPTIONAL) + r"):")
 INVISIBLE_RE = re.compile("[\ufeff\u200b-\u200f\u2060]")
 LOCKED = object()
 HEX_RE = re.compile(r"[0-9a-fA-F]{7,40}")
@@ -84,14 +101,16 @@ def parse_result(text):
         fields.setdefault(first, pieces[0].strip())
         for key, value in zip(pieces[1::2], pieces[2::2]):
             fields.setdefault(key, value.strip())
-    for key in KEYS:
+    for key in KEYS + OPTIONAL:
         loose = re.compile(r"(?:^\s*(?:[-*>#\d.]+\s*)?(?:\*\*)?|\s\s|\t)" + re.escape(key) + r"(?:\*\*)?\s*[:：]", re.IGNORECASE)
         hits = sum(1 for ln in lines if loose.search(ln))
-        if hits != 1:
+        if key in OPTIONAL and hits > 1:
+            problems.append(f"result.md 的 {key} 欄最多一行，實際 {hits} 行")
+        elif key not in OPTIONAL and hits != 1:
             problems.append(f"result.md 的 {key} 欄應恰好一行，實際 {hits} 行")
     for i, ln in enumerate(lines):
         nxt = lines[i + 1] if i + 1 < len(lines) else ""
-        if re.match(r"(?:Status|Pending authorization|Blocker):", ln) and not LINE_START_RE.match(nxt):
+        if re.match(r"(?:Status|Pending authorization|Blocker|Keep ignored):", ln) and not LINE_START_RE.match(nxt):
             problems.append(f"result.md 的 {ln.split(':')[0]} 欄後面不是下一個欄位")
         if ln.startswith("Merged:") and nxt.strip() and not LINE_START_RE.match(nxt) and not nxt.startswith("#"):
             problems.append("result.md 的 Merged 欄後面有延續行")
@@ -247,7 +266,52 @@ def self_ignoring_root(wt, parts, tracked, cache):
     return cache[root]
 
 
-def check_tree(wt):
+def credential_name(name):
+    """路徑的一段是否像憑證檔。先正規化：大小寫不敏感的 FS 上 `.ENV` 就是 `.env`，零寬字元與全形字也不能繞過。"""
+    norm = "".join(c for c in unicodedata.normalize("NFKC", name) if unicodedata.category(c) != "Cf")
+    norm = norm.casefold().rstrip(" \t.")
+    return any(fnmatch.fnmatchcase(norm, pat) for pat in CREDENTIAL_PATTERNS)
+
+
+def scan_ignored(wt, rel):
+    """回 (路徑, 原因) 清單：rel 每一段與（是目錄時）底下每個項目的名稱，命中憑證形狀或巢狀 `.git` 就列出。
+    不跟 symlink：刪 worktree 只刪連結本身。讀不到的目錄回報出來，由呼叫端擋下。"""
+    hits = []
+    parts = rel.rstrip("/").split("/")
+    if ".git" in parts:
+        hits.append((rel.rstrip("/"), "git"))
+    elif any(credential_name(p) for p in parts):
+        hits.append((rel.rstrip("/"), "credential"))
+    top = Path(wt, *parts)
+    if not rel.endswith("/"):
+        # status 不列 `.git`（含 gitfile），巢狀 repo 的檔會逐檔列成 ignored：往上找到 worktree 根目錄為止
+        for i in range(1, len(parts)):
+            if os.path.lexists(Path(wt, *parts[:i], ".git")):
+                hits.append(("/".join(parts[:i] + [".git"]), "git"))
+                break
+        return hits
+    if top.is_symlink():
+        return hits
+    errors = []
+    for dirpath, dirnames, filenames in os.walk(top, onerror=errors.append, followlinks=False):
+        for name in dirnames + filenames:
+            path = Path(dirpath, name).relative_to(wt).as_posix()
+            if name == ".git":
+                hits.append((path, "git"))
+            elif credential_name(name):
+                hits.append((path, "credential"))
+    if errors:
+        hits.append((rel.rstrip("/"), "unreadable"))
+    return hits
+
+
+def split_paths(value):
+    if not value or value == "無":
+        return set()
+    return {p.strip() for p in re.split(r"[,，、]", value) if p.strip()}
+
+
+def check_tree(wt, fields):
     """工作區乾淨，且沒有清掉就回不來的 ignored 檔。不受 status.showUntrackedFiles 等設定影響。"""
     rc, out = git(wt, "status", "--porcelain", "-z", "--untracked-files=all", "--ignored=matching",
                   "--ignore-submodules=none")
@@ -271,7 +335,10 @@ def check_tree(wt):
         hidden = [ln[2:] for ln in entries if ln[0] == "S" or ln[0].islower()]
         if hidden:
             problems.append(f"有 skip-worktree／assume-unchanged 的檔：{hidden[:3]}")
-    unknown, roots = [], {}
+    if fields.get("Keep ignored", "無") != "無":  # 欄位缺時 parse_result 已回報
+        problems.append(f"result.md 的 Keep ignored 不是「無」（{fields.get('Keep ignored')!r}），有 issue session 要保留的 ignored 檔")
+    disposable = split_paths(fields.get("Disposable secrets"))
+    secrets, repos, unreadable, roots = [], [], [], {}
     for rel in ignored:
         parts = rel.rstrip("/").split("/")
         if parts[0] == ".worktrees":
@@ -282,9 +349,19 @@ def check_tree(wt):
             continue
         if self_ignoring_root(wt, parts, tracked, roots):
             continue
-        unknown.append(rel)
-    if unknown:
-        problems.append(f"有判不出能否重建的 ignored 檔：{unknown[:5]}")
+        for path, kind in scan_ignored(wt, rel):
+            if kind == "git":
+                repos.append(path)
+            elif kind == "unreadable":
+                unreadable.append(path)
+            elif path not in disposable:
+                secrets.append(path)
+    if secrets:
+        problems.append(f"有憑證形狀的 ignored 檔，未列在 Disposable secrets：{secrets[:5]}")
+    if repos:
+        problems.append(f"ignored 項目內有巢狀 git repo（可能有沒推的 commit）：{repos[:5]}")
+    if unreadable:
+        problems.append(f"讀不完的 ignored 目錄，判不出裡面有沒有憑證：{unreadable[:5]}")
     extra = []
     root = Path(wt) / ".worktrees"
     if root.is_dir():
@@ -389,7 +466,7 @@ def evaluate(repo, wt, fetch=True):
         return problems + ["讀不到 HEAD"], fields
     head = head.strip()
     problems += check_delivery(repo, wt, fields, branch, head, fetch)
-    problems += check_tree(wt)
+    problems += check_tree(wt, fields)
     problems += check_idle(wt)
     return problems, {**fields, "head": head, "branch": branch}
 

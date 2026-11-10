@@ -34,6 +34,7 @@ Status: working | blocked | awaiting verification | ready for authorization | me
 Worktree: <絕對路徑>    Branch: <branch>
 Base SHA: <sha>    Candidate SHA: <HEAD；未 commit 寫 uncommitted>    Dirty: <git status --short 行數；0＝乾淨>
 Files changed: <已 commit：git diff --name-only <base>...HEAD；uncommitted：git status --short＋git diff --name-only，不能拿 HEAD diff 判零；碰到 brief 列的共用觸點或禁止路徑的另標>
+Keep ignored: <worktree 內被 gitignore、但清 worktree 時不能刪的檔：路徑＋理由（手寫筆記、本地設定、沒備份的資料）；沒有寫「無」>
 Verification: <CONVERGED | PROSE-ONLY | OPEN | INCONCLUSIVE @<sha>；修正輪數 <n>；探針目錄路徑；未派寫「未驗收」>
 PR / CI: <PR 連結；寫 result.md 當下 `gh pr checks` 一次讀到的 required CI 狀態與對應 SHA，不等它跑完；無 PR 寫「無」>
 Cross-issue risk: <共用觸點、base 變動、與其他 issue 互踩；無則「無」>
@@ -41,6 +42,8 @@ Pending authorization: <待使用者在本 issue session 親口授權的動作�
 Blocker: <一句；無則「無」>
 Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 ```
+
+寫 `Keep ignored` 前先看一次 `git status --short --ignored`：清 worktree 時 ignored 檔預設跟著刪，這欄是唯一能留住它們的地方。worktree 內有憑證形狀的 ignored 檔（`.env*`、`*.pem`、`*.key` 等，見 §3 第 5 條）且確定可丟時，在 `Keep ignored` 下一行加 `Disposable secrets: <路徑>, <路徑>`，路徑相對 worktree 根目錄、逐條照 `worktree-clean-check.py` 擋下時列出的寫法（`git status --ignored` 只列到被忽略的目錄，看不到裡面的檔），不能只寫上層目錄；沒有這行就照擋。
 
 `awaiting verification`＝已派 verifier 未回；`ready for authorization`＝驗收收斂且 PR 已開，只差 Pending authorization 列的動作；`merged` 必須同時有 Merged 欄的 SHA。TUI 閒置、process 結束、分頁無回應都不對應任何狀態，盤點 session 查到這些只代表該去讀 result.md 或在那個分頁問，不得據此推進狀態。
 
@@ -56,7 +59,7 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 2. **已交付**：`Issue` 有值，`Status` 是 `merged`，`Merged` 欄等於 PR 的 merge commit，`Pending authorization` 與 `Blocker` 都是「無」，PR read-back 是 `MERGED`，且 PR head 等於 worktree HEAD。多 repo issue 逐個 worktree 判定，不以其中一個 PR 代表全部。
 3. **閒置**：該 worktree 內的 claude session 全部是 `idle`，且 cwd 在 worktree 內的 process 只剩這些 session 與互動 shell（shell 的子程序只能是這些 session）。
 4. **內容已在 base**：`references/worktree.md`「清理的證據條件」成立；工作區連隱藏狀態（skip-worktree、被設定隱藏的 untracked）都是乾淨的，完整交付清單（含刪除與更名前的舊路徑）與 PR 的 base 內容相同。
-5. **沒有清掉就回不來的檔**：ignored 項目只有腳本認得的工具專屬、重建得回來的產物（`node_modules`、`.dart_tool`、`.gradle` 等；`build`、`bin`、`out` 這類泛用名不算；清單與比對規則以腳本的 `REBUILDABLE`、`REBUILDABLE_NAMES`、`SELF_IGNORING`、`HUSKY_GENERATED` 為準，本條不另抄），`.worktrees/` 內只有 `result.md`，底下沒有巢狀 worktree。ignored 檔不算 dirty，會隨 worktree 一起消失。
+5. **沒有清掉就回不來的檔**：ignored 檔預設可清（`build/`、`.tools/`、`test-results/` 這類產物不必列白名單），下列任一成立就擋：`result.md` 的 `Keep ignored` 不是「無」，或缺這欄（舊格式判不出有沒有要留的檔）；有憑證形狀的 ignored 檔而沒有逐條列在 `Disposable secrets`（比對路徑每一段，不分大小寫，ignored 目錄會往下逐檔找；形狀清單以腳本的 `CREDENTIAL_PATTERNS` 為準，本條不另抄）；ignored 項目裡有巢狀 git repo（`.git` 目錄或 gitfile）。工具專屬產物目錄（腳本的 `REBUILDABLE`、`REBUILDABLE_NAMES`、`SELF_IGNORING`、`HUSKY_GENERATED`）照舊整包放行、不往下找。另外 `.worktrees/` 內只有 `result.md`，底下沒有巢狀 worktree。ignored 檔不算 dirty，會隨 worktree 一起消失。
 
 腳本判不到的形狀列在它的開頭說明。其中要注意一項：session 在等使用者回答時狀態也是 `idle`，所以 `Status` 與 `Pending authorization` 要由 issue session 誠實填，還在對話的 session 不要先寫 `merged`。
 
@@ -72,7 +75,9 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 | `result.md` 寫 `merged`，但 session 在跑工具或背景 subagent，或 terminal 有前景指令 | 保留，等它停下再判 | 第 3 條不成立 |
 | `result.md` 與 PR 都對，但 base 之後又改了同一批檔 | 要先問 | `git diff` 不為空，證據條件不放寬 |
 | Codex issue session 還開著 | 要先問 | `stall-check.py` 讀不到 Codex，它的 process 不會被算成閒置 |
-| worktree 內有 ignored 的 `.env` 或 `build/` | 要先問 | 判不出能否重建 |
+| worktree 內有 ignored 的 `build/`、`.tools/`、`test-results/`，`Keep ignored` 是「無」，其餘條件成立 | 直接清 | ignored 檔預設可清 |
+| worktree 內有 ignored 的 `.env` 或 `build/certs/server.pem`，`Disposable secrets` 沒列 | 要先問 | 憑證形狀照擋 |
+| `result.md` 沒有 `Keep ignored` 欄（舊格式），或欄裡列了路徑 | 先送回 issue session 補；列了路徑就保留 | 判不出或已宣告要保留 |
 
 **事後回報一行**：`已清 <issue>：<worktree 路徑>，<branch>@<完整 HEAD SHA>，PR <連結>，Merged <SHA>，issue <已關｜未動（原因）>，docker <已 `rm -v` 的 container id｜無>`。`result.md` 隨 worktree 一起刪：盤點 session 收結果時讀完，把後續事項帶進下一個相關 brief 或 handoff。要救回 branch：`git -C <repo> branch <branch> <SHA>`。
 
