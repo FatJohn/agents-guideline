@@ -742,7 +742,7 @@ class IgnoredDefault(Base):
 
     # 檔案層：目錄不忽略，status 逐檔列出；目錄層：根目錄底下的目錄整個忽略，status 只列 `dir/`，腳本要自己往下走
     FILES = "*\n!*/\n!new.txt\n!a.txt\n!old.txt\n"
-    DIRS = "/*/\n/.*\n/*.*\n/id_*\n/aws-*\n!/a.txt\n!/new.txt\n!/old.txt\n"
+    DIRS = "/*/\n/.*\n/*.*\n/id_*\n/aws-*\n/kubeconfig\n!/a.txt\n!/new.txt\n!/old.txt\n"
 
     def mode(self, ex):
         (self.root / "ex").write_text(ex)
@@ -789,7 +789,10 @@ class IgnoredDefault(Base):
         for rel in (".env", ".ENV", ".env.local", ".envrc", "prod.env", "secrets/x.pem", "src/Foo.PEM", "build/.env",
                     ".tools/sub/id_rsa", ".e\u200bnv", "ｃｅｒｔ.ｐｅｍ", ".env ", "android/key.properties",
                     "credentials.json", "aws-credentials", "upload.JKS", "AuthKey_X.p8", "cert.p12", "a.keystore",
-                    "build/credentials/readme.txt", ".npmrc"):
+                    "build/credentials/readme.txt", ".npmrc", "server.pem.bak", "server.key.old", "server.key~",
+                    "serviceAccountKey.json", "credential.json", "token.json", "secrets.yml", "infra/terraform.tfstate",
+                    "prod.tfvars", ".pypirc", "kubeconfig", ".pgpass", "x.ppk", "vault.kdbx", "client.ovpn",
+                    ".htpasswd", "keystore.properties", "prod.env.local"):
             with self.subTest(rel=rel):
                 try:
                     problems = self.run_with(rel)
@@ -810,12 +813,64 @@ class IgnoredDefault(Base):
     def test_disposable_secret_dir_does_not_cover_contents(self):
         self.assertTrue(any("憑證" in p for p in self.run_with("build/.env", extra="Disposable secrets: build\n")))
 
+    def test_disposable_secret_credential_dir_does_not_cover_contents(self):
+        self.mode(self.DIRS)
+        problems = self.run_with("build/credentials/prod-token", extra="Disposable secrets: build/credentials\n")
+        self.assertTrue(any("build/credentials/prod-token" in p for p in problems), problems)
+
+    def test_all_secret_paths_are_listed(self):
+        self.mode(self.DIRS)
+        problems = self.run_with(*(f"build/k{i}.pem" for i in range(12)))
+        msg = next(p for p in problems if "憑證" in p)
+        self.assertIn("12 個", msg)
+        self.assertTrue(all(f"build/k{i}.pem" in msg for i in range(12)), msg)
+
+    def test_keep_ignored_variants_are_blocked(self):
+        """寫法變形時嚴格解析抓不到這欄，不能被當成「無」。"""
+        for line in ("- Keep ignored: notes/todo.md", "**Keep ignored**: notes/todo.md", "Keep ignored：notes/todo.md",
+                     "keep ignored: notes/todo.md", "Keep Ignored: notes/todo.md", " Keep ignored: notes/todo.md",
+                     "Keep ignored : notes/todo.md"):
+            with self.subTest(line=line):
+                path = self.wt / ".worktrees" / "result.md"
+                self.run_with("notes/todo.md")
+                path.write_text(path.read_text(encoding="utf-8").replace("Keep ignored: 無", line), encoding="utf-8")
+                problems = self.check(self.m)
+                self.assertTrue(any("Keep ignored" in p for p in problems), problems)
+
+    def test_keep_ignored_hidden_after_other_field_is_blocked(self):
+        path = self.wt / ".worktrees" / "result.md"
+        self.run_with("notes/todo.md")
+        text = path.read_text(encoding="utf-8").replace("Files changed: new.txt", "Files changed: new.txt — Keep ignored: notes/todo.md")
+        path.write_text(text, encoding="utf-8")
+        self.assertTrue(any("Keep ignored 出現不只一次" in p for p in self.check(self.m)))
+
+    def test_uppercase_git_dir_in_ignored_dir_is_blocked(self):
+        self.mode(self.DIRS)
+        (self.wt / "vendor" / "lib").mkdir(parents=True)
+        git(self.wt / "vendor" / "lib", "init", "-q")
+        os.rename(self.wt / "vendor" / "lib" / ".git", self.wt / "vendor" / "lib" / ".GIT")
+        self.assertTrue(any("巢狀 git repo" in p for p in self.run_with("vendor/lib/x.c")))
+
+    def test_uppercase_gitfile_in_ignored_dir_is_blocked(self):
+        """gitfile 不是 bare repo 的形狀，只能靠 `.git` 不分大小寫的比對接住。"""
+        self.mode(self.DIRS)
+        (self.wt / "vendor").mkdir()
+        (self.wt / "vendor" / ".GIT").write_text("gitdir: /elsewhere\n")
+        self.assertTrue(any("vendor/.GIT" in p for p in self.run_with("vendor/x.c")))
+
+    def test_bare_repo_in_ignored_dir_is_blocked(self):
+        self.mode(self.DIRS)
+        (self.wt / "cache").mkdir()
+        subprocess.run(["git", "init", "-q", "--bare", str(self.wt / "cache" / "mirror.git")], check=True)
+        self.assertTrue(any("cache/mirror.git" in p for p in self.run_with("cache/x")))
+
     def test_disposable_secrets_repeated_is_blocked(self):
         extra = "Disposable secrets: .env\nDisposable secrets: .env\n"
         self.assertTrue(any("Disposable secrets" in p for p in self.run_with(".env", extra=extra)))
 
     def test_disposable_secrets_continuation_is_blocked(self):
-        self.assertTrue(self.run_with(".env", extra="Disposable secrets: 無\n- .env\nMerged-note\n"))
+        problems = self.run_with(".env", extra="Disposable secrets: 無\n- .env\n")
+        self.assertTrue(any("Disposable secrets 欄後面有延續行" in p for p in problems), problems)
 
     def test_build_artifacts_pass_as_ignored_dirs(self):
         self.mode(self.DIRS)

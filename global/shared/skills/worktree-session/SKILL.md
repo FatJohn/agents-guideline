@@ -59,7 +59,7 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 2. **已交付**：`Issue` 有值，`Status` 是 `merged`，`Merged` 欄等於 PR 的 merge commit，`Pending authorization` 與 `Blocker` 都是「無」，PR read-back 是 `MERGED`，且 PR head 等於 worktree HEAD。多 repo issue 逐個 worktree 判定，不以其中一個 PR 代表全部。
 3. **閒置**：該 worktree 內的 claude session 全部是 `idle`，且 cwd 在 worktree 內的 process 只剩這些 session 與互動 shell（shell 的子程序只能是這些 session）。
 4. **內容已在 base**：`references/worktree.md`「清理的證據條件」成立；工作區連隱藏狀態（skip-worktree、被設定隱藏的 untracked）都是乾淨的，完整交付清單（含刪除與更名前的舊路徑）與 PR 的 base 內容相同。
-5. **沒有清掉就回不來的檔**：ignored 檔預設可清（`build/`、`.tools/`、`test-results/` 這類產物不必列白名單），下列任一成立就擋：`result.md` 的 `Keep ignored` 不是「無」，或缺這欄（舊格式判不出有沒有要留的檔）；有憑證形狀的 ignored 檔而沒有逐條列在 `Disposable secrets`（比對路徑每一段，不分大小寫，ignored 目錄會往下逐檔找；形狀清單以腳本的 `CREDENTIAL_PATTERNS` 為準，本條不另抄）；ignored 項目裡有巢狀 git repo（`.git` 目錄或 gitfile）。工具專屬產物目錄（腳本的 `REBUILDABLE`、`REBUILDABLE_NAMES`、`SELF_IGNORING`、`HUSKY_GENERATED`）照舊整包放行、不往下找。另外 `.worktrees/` 內只有 `result.md`，底下沒有巢狀 worktree。ignored 檔不算 dirty，會隨 worktree 一起消失。
+5. **沒有清掉就回不來的檔**：ignored 檔預設可清（`build/`、`.tools/`、`test-results/` 這類產物不必列白名單），下列任一成立就擋：`result.md` 的 `Keep ignored` 不是「無」，或缺這欄（舊格式判不出有沒有要留的檔）；有憑證形狀的 ignored 檔而沒有逐條列在 `Disposable secrets`（比對路徑每一段，不分大小寫，ignored 目錄會往下逐檔找；形狀清單以腳本的 `CREDENTIAL_PATTERNS` 為準，本條不另抄）；ignored 項目裡有巢狀 git repo（`.git` 目錄或 gitfile，不分大小寫；或沒有 `.git` 的 bare repo）。工具專屬產物目錄（腳本的 `REBUILDABLE`、`REBUILDABLE_NAMES`、`SELF_IGNORING`、`HUSKY_GENERATED`）照舊整包放行、不往下找。另外 `.worktrees/` 內只有 `result.md`，底下沒有巢狀 worktree。ignored 檔不算 dirty，會隨 worktree 一起消失。
 
 腳本判不到的形狀列在它的開頭說明。其中要注意一項：session 在等使用者回答時狀態也是 `idle`，所以 `Status` 與 `Pending authorization` 要由 issue session 誠實填，還在對話的 session 不要先寫 `merged`。
 
