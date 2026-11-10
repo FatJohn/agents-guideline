@@ -11,7 +11,7 @@ worktree 並回報。全部檢查都會跑完，一次列出所有原因。exit 
   - cwd 在別處、但開著 worktree 內檔案寫入的 process；
   - 只留在 worktree reflog 或 `refs/worktree/*` 的 commit（`git reset` 丟掉的）；進行中的 merge；
   - 手寫的 result.md：來源與 `Base SHA` 都是交付檔的自報（交付清單另外併入 PR 的 files，自報只會多比不會少比
-    PR 內的檔）；result.md 模板之外的備註不判讀語意；
+    PR 內的檔）；result.md 模板之外的備註不判讀語意，只擋白名單外的字元、HTML entity 與第二個近似 `Keep ignored` 的字串；
   - 工具專屬產物目錄（REBUILDABLE 等舊白名單）的內容不逐檔檢查；其他 ignored 目錄逐檔比對檔名，只認得
     CREDENTIAL_PATTERNS 列的憑證形狀與巢狀 `.git`，內容不判讀：憑證改了名字、使用者手寫的筆記、本地設定，
     都要靠 issue session 在 `Keep ignored` 欄宣告；
@@ -70,7 +70,12 @@ LINE_START_RE = re.compile(r"^(?:" + "|".join(re.escape(k) for k in KEYS + OPTIO
 INVISIBLE_RE = re.compile("[\ufeff\u200b-\u200f\u2060]")
 LOCKED = object()
 HEX_RE = re.compile(r"[0-9a-fA-F]{7,40}")
-KEEP_LOOSE_RE = re.compile(r"keep[\W_]*ignored")
+KEEP_LOOSE_RE = re.compile("[\\W_]*".join("keep") + "[\\W_]*" + "[\\W_]*".join("ignored"))  # 字母之間可夾任何非字母
+# result.md 的字元白名單（2026-11-11 使用者決定）：同形字、組合字元、HTML entity 列舉不完，白名單外一律擋。
+# ASCII、§·×、一般標點（U+2010–2027：破折號、引號、刪節號）、箭頭、CJK 標點與假名、注音、CJK 漢字、全形字（NFKC 後再比）。
+ALLOWED_RANGES = ((0x20, 0x7E), (0xA7, 0xA7), (0xB7, 0xB7), (0xD7, 0xD7), (0x2010, 0x2027), (0x2190, 0x21FF),
+                  (0x3000, 0x30FF), (0x3100, 0x312F), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xFF01, 0xFFEF))
+ENTITY_RE = re.compile(r"&#?\w+;")
 
 
 def run(cmd, cwd=None):
@@ -92,10 +97,16 @@ def git(path, *args):
 
 def parse_result(text):
     """回 (fields, problems)。先去掉不可見字元；欄位只認行首，同一行多欄只限 INLINE。模板每欄要恰好出現一次（大小寫、
-    條列、粗體、全形冒號的變形都算同一欄），判定用的值後面不能接延續行。"""
+    條列、粗體、全形冒號的變形都算同一欄），判定用的值後面不能接延續行。白名單外的字元與 HTML entity 一律擋。"""
+    problems = []
+    bad = sorted({c for c in text.removeprefix("\ufeff") if not allowed_char(c)})
+    if bad:
+        problems.append(f"result.md 有白名單外的字元，判不出寫法：{[f'U+{ord(c):04X}' for c in bad][:10]}")
+    if ENTITY_RE.search(text):
+        problems.append("result.md 有 HTML entity（&…;），判不出寫法")
     text = INVISIBLE_RE.sub("", text)
     lines = text.splitlines()
-    fields, problems = {}, []
+    fields = {}
     for line in lines:
         if not LINE_START_RE.match(line):
             continue
@@ -123,6 +134,14 @@ def parse_result(text):
     if len(KEEP_LOOSE_RE.findall(norm_name(text))) > 1:
         problems.append("result.md 的 Keep ignored 出現不只一次")
     return fields, problems
+
+
+def allowed_char(c):
+    if c in "\t\n\r":
+        return True
+    if unicodedata.category(c) in ("Mn", "Me", "Cf", "Cc", "Co", "Cn", "Cs"):  # 範圍內的組合字元（如假名濁點）也擋
+        return False
+    return any(lo <= ord(c) <= hi for lo, hi in ALLOWED_RANGES)
 
 
 def worktree_entries(repo):

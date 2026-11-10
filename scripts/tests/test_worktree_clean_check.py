@@ -848,6 +848,34 @@ class IgnoredDefault(Base):
                 path.write_text(text, encoding="utf-8")
                 self.assertTrue(any("Keep ignored 出現不只一次" in p for p in self.check(self.m)))
 
+    def hidden_keep(self, key):
+        path = self.wt / ".worktrees" / "result.md"
+        self.run_with("notes/todo.md")
+        text = path.read_text(encoding="utf-8").replace(
+            "Files changed: new.txt", f"Files changed: new.txt — {key}: notes/todo.md")
+        path.write_text(text, encoding="utf-8")
+        return self.check(self.m)
+
+    def test_characters_outside_whitelist_are_blocked(self):
+        """同形字與組合字元列舉不完，白名單外的字元一律擋。"""
+        for key in ("\u041a\u0435\u0435\u0440 ignored", "Keep ignor\u0435d", "Ke\u034fep ignored",
+                    "Kee\ufe0fp ignored", "Keep\u00a0ignored", "Kee\u3099p ignored"):
+            with self.subTest(key=key):
+                self.assertTrue(any("白名單外的字元" in p for p in self.hidden_keep(key)))
+
+    def test_html_entity_is_blocked(self):
+        for key in ("Keep&nbsp;ignored", "Keep&#32;ignored"):
+            with self.subTest(key=key):
+                self.assertTrue(any("HTML entity" in p for p in self.hidden_keep(key)))
+
+    def test_letters_split_by_spaces_are_blocked(self):
+        self.assertTrue(any("Keep ignored 出現不只一次" in p for p in self.hidden_keep("K e e p ignored")))
+
+    def test_usual_chinese_notes_pass(self):
+        extra = ("\n## 備註\n- 測試：155 tests OK → 全綠（`python3 -m unittest`）。\n"
+                 "- 後續：「Windows 機」未驗證……§3 第 5 條 × 2 處；注音ㄅ、假名テスト、全形（１２３）。\n")
+        self.assertEqual(self.run_with("build/a", extra=extra), [])
+
     def test_bare_repo_listed_item_by_item_is_blocked(self):
         """`mirror/*` 這種規則讓 status 逐項列出 bare repo 的內容，不會走到目錄走訪。"""
         self.mode("mirror/*\n")
