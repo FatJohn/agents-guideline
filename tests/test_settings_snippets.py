@@ -38,7 +38,8 @@ class SettingsSnippetsTests(unittest.TestCase):
         self.assertEqual(sorted(data), ["env", "hooks", "language"])
         self.assertEqual(data["language"], "繁體中文台灣用語")
         self.assertEqual(sorted(data["env"]), ["RIPGREP_CONFIG_PATH"])
-        self.assertEqual(sorted(data["hooks"]), ["PreToolUse", "SessionStart"])
+        self.assertEqual(sorted(data["hooks"]), ["PostToolUse", "PreToolUse", "SessionStart"])
+        self.assertNotIn("matcher", data["hooks"]["PostToolUse"][0])
         self.assertEqual(data["hooks"]["PreToolUse"][0]["matcher"], "Edit|Write|MultiEdit|NotebookEdit")
 
     def test_every_hook_command_names_an_existing_script(self) -> None:
@@ -49,7 +50,7 @@ class SettingsSnippetsTests(unittest.TestCase):
             for hook in entry["hooks"]
         ]
 
-        self.assertEqual(len(commands), 4)
+        self.assertEqual(len(commands), 5)
         for command in commands:
             match = HOOK_COMMAND.match(command)
             self.assertIsNotNone(match, command)
@@ -61,6 +62,7 @@ class SettingsSnippetsTests(unittest.TestCase):
 
         self.assertIn({"env": data["env"]}, blocks)
         self.assertIn(data["hooks"]["SessionStart"][0], blocks)
+        self.assertIn(data["hooks"]["PostToolUse"][0], blocks)
         self.assertIn(data["hooks"]["PreToolUse"][0], blocks)
         self.assertIn(data["hooks"]["PreToolUse"][1], blocks)
         self.assertIn(data["hooks"]["PreToolUse"][2], blocks)
