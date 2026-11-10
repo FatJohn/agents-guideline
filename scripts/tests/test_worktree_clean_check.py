@@ -73,14 +73,15 @@ class Base(unittest.TestCase):
 
     def write(self, merged, **over):
         f = {"Status": "merged", "Pending": "無", "Blocker": "無", "Base": self.base, "Cand": self.head,
-             "Dirty": "0", "Worktree": str(self.wt), "Branch": "feat/x", "extra": ""}
+             "Dirty": "0", "Worktree": str(self.wt), "Branch": "feat/x", "Keep": "無", "extra": ""}
         f.update(over)
         d = self.wt / ".worktrees"
         d.mkdir(exist_ok=True)
         (d / "result.md").write_text(
             f"Issue: 1\nStatus: {f['Status']}\nWorktree: {f['Worktree']}    Branch: {f['Branch']}\n"
             f"Base SHA: {f['Base']}    Candidate SHA: {f['Cand']}    Dirty: {f['Dirty']}\n"
-            f"Files changed: new.txt\nVerification: CONVERGED @x\nPR / CI: x\nCross-issue risk: 無\n"
+            f"Files changed: new.txt\n" + (f"Keep ignored: {f['Keep']}\n" if f["Keep"] is not None else "") +
+            "Verification: CONVERGED @x\nPR / CI: x\nCross-issue risk: 無\n"
             f"Pending authorization: {f['Pending']}\nBlocker: {f['Blocker']}\nMerged: {merged}\n" + f["extra"],
             encoding="utf-8")
 
@@ -464,20 +465,21 @@ class Tree(Base):
         (self.root / "ex").write_text("*.key\nbin/\nsecrets/obj\n")
         self.assertTrue(any("ignored" in p for p in self.ignored("src/bin/deploy.key")))
 
-    def test_generic_named_ignored_dir_is_blocked(self):
+    def test_generic_named_ignored_dir_passes(self):
         git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
         (self.root / "ex").write_text("build/\n")
-        self.assertTrue(any("ignored" in p for p in self.ignored("build/notes.md")))
+        self.assertEqual(self.ignored("build/notes.md"), [])
 
-    def test_ignored_file_named_like_rebuildable_dir_is_blocked(self):
+    def test_ignored_file_named_like_rebuildable_dir_passes(self):
+        """不是憑證形狀的 ignored 檔預設可清，不必靠白名單。"""
         git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
         (self.root / "ex").write_text("secrets/.gradle\n")
-        self.assertTrue(any("ignored" in p for p in self.ignored("secrets/.gradle")))
+        self.assertEqual(self.ignored("secrets/.gradle"), [])
 
     def test_generic_ignored_dir_inside_rebuildable_name_is_blocked(self):
         git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
         (self.root / "ex").write_text("foo/\n")
-        self.assertTrue(any("ignored" in p for p in self.ignored(".gradle/foo/s")))
+        self.assertTrue(any("ignored" in p for p in self.ignored(".gradle/foo/s.key")))
 
     def test_ds_store_passes(self):
         git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
@@ -504,7 +506,7 @@ class Tree(Base):
     def test_self_ignoring_dir_below_root_is_blocked(self):
         for root in ("pkg/.venv", "a\rb/.venv", "Äx/.pytest_cache"):
             with self.subTest(root=root):
-                self.assertTrue(any("ignored" in p for p in self.self_ignoring(root, "*\n", f"{root}/a")))
+                self.assertTrue(any("ignored" in p for p in self.self_ignoring(root, "*\n", f"{root}/a.key")))
 
     def test_root_venv_does_not_vouch_for_subdir_venv(self):
         git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
@@ -555,13 +557,15 @@ class Tree(Base):
         (self.root / "ex").write_text("*.key\n.gitignore\n")
         self.assertTrue(any("ignored" in p for p in self.ignored(".venv/.gitignore/x", ".venv/a.key")))
 
-    def test_symlinked_self_ignoring_dir_is_blocked(self):
+    def test_symlinked_dir_is_not_walked(self):
+        """刪 worktree 只刪連結本身，目標目錄裡的憑證不受影響。"""
         git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
         (self.root / "ex").write_text(".venv\n")
         (self.root / "secrets").mkdir()
         (self.root / "secrets" / ".gitignore").write_text("*\n")
+        (self.root / "secrets" / "id_rsa").write_text("k\n")
         os.symlink(self.root / "secrets", self.wt / ".venv")
-        self.assertTrue(any("ignored" in p for p in self.check(self.m)))
+        self.assertEqual(self.check(self.m), [])
 
     def test_symlinked_gitignore_is_blocked(self):
         git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
@@ -574,7 +578,7 @@ class Tree(Base):
     def test_unreadable_gitignore_is_blocked(self):
         (self.wt / ".venv").mkdir()
         (self.wt / ".venv" / ".gitignore").write_text("*\n")
-        (self.wt / ".venv" / "a").write_text("a\n")
+        (self.wt / ".venv" / "a.key").write_text("a\n")
         with mock.patch.object(Path, "read_bytes", side_effect=OSError):
             self.assertTrue(any("ignored" in p for p in self.check(self.m)))
 
@@ -637,7 +641,7 @@ class Tree(Base):
     def test_self_ignoring_other_rebuildable_name_is_blocked(self):
         for root in (".gradle", "__pycache__", "Pods"):
             with self.subTest(root=root):
-                self.assertTrue(any("ignored" in p for p in self.self_ignoring(root, "*\n", f"{root}/a")))
+                self.assertTrue(any("ignored" in p for p in self.self_ignoring(root, "*\n", f"{root}/a.key")))
 
     def test_tracked_file_with_different_case_is_blocked(self):
         (self.wt / ".VENV").mkdir()
@@ -657,6 +661,9 @@ class Tree(Base):
         finally:
             shutil.rmtree(self.wt / root.split("/")[0])
 
+    def husky_blocked(self, root, marker="*", *names):
+        return any("ignored" in p for p in self.fresh_husky(root, marker, *(names or ("h", "pre-commit", "id_rsa"))))
+
     def test_root_husky_passes(self):
         for marker in ("*", "*\n"):
             with self.subTest(marker=marker):
@@ -665,25 +672,25 @@ class Tree(Base):
     def test_husky_below_root_is_blocked(self):
         for root in ("pkg/.husky/_", "a/b/.husky/_"):
             with self.subTest(root=root):
-                self.assertTrue(any("ignored" in p for p in self.fresh_husky(root)))
+                self.assertTrue(self.husky_blocked(root))
 
     def test_husky_lookalike_paths_are_blocked(self):
         for root in (".husky/x", ".husky/_x", ".husky", "_", ".husky/_/sub"):
             with self.subTest(root=root):
-                self.assertTrue(any("ignored" in p for p in self.fresh_husky(root)))
+                self.assertTrue(self.husky_blocked(root))
 
     def test_husky_marker_must_be_only_star(self):
         for marker in ("*\n!keep\n", "h\n"):
             with self.subTest(marker=marker):
-                self.assertTrue(any("ignored" in p for p in self.fresh_husky(".husky/_", marker, "keep", "h")))
+                self.assertTrue(self.fresh_husky(".husky/_", marker, "keep.key", "h"))  # 沒被忽略的 keep.key 走「不乾淨」
 
     def test_non_generated_content_in_husky_is_blocked(self):
-        for name in ("my-notes.env", "sub/precious.txt", "sub/pre-commit"):
+        for name in ("my-notes.env", "sub/precious.key", "sub/pre-commit.pem"):
             with self.subTest(name=name):
                 self.assertTrue(any("ignored" in p for p in self.fresh_husky(".husky/_", "*", name)))
 
     def test_directory_named_like_husky_file_is_blocked(self):
-        self.assertTrue(any("ignored" in p for p in self.fresh_husky(".husky/_", "*", "h/x")))
+        self.assertTrue(any("ignored" in p for p in self.fresh_husky(".husky/_", "*", "h/x.key")))
 
     def test_nested_repo_in_husky_is_blocked(self):
         (self.wt / ".husky" / "_" / "pre-push").mkdir(parents=True)
@@ -695,15 +702,15 @@ class Tree(Base):
         (self.wt / ".husky" / "_" / "t").write_text("t\n")
         git(self.wt, "add", ".husky/_/t")
         git(self.wt, "commit", "-qm", "t")
-        self.assertTrue(any("ignored" in p for p in self.self_ignoring(".husky/_", "*", ".husky/_/h")))
+        self.assertTrue(any("ignored" in p for p in self.self_ignoring(".husky/_", "*", ".husky/_/h", ".husky/_/id_rsa")))
 
     def test_symlinked_husky_marker_is_blocked(self):
         git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
-        (self.root / "ex").write_text(".husky/_/h\n.husky/_/.gitignore\n")
+        (self.root / "ex").write_text(".husky/_/h\n.husky/_/id_rsa\n.husky/_/.gitignore\n")
         (self.root / "star").write_text("*")
         (self.wt / ".husky" / "_").mkdir(parents=True)
         os.symlink(self.root / "star", self.wt / ".husky" / "_" / ".gitignore")
-        self.assertTrue(any("ignored" in p for p in self.ignored(".husky/_/h")))
+        self.assertTrue(any("ignored" in p for p in self.ignored(".husky/_/h", ".husky/_/id_rsa")))
 
     def test_nested_generic_dir_in_self_ignoring_root_passes(self):
         self.assertEqual(self.self_ignoring(".venv", "*\n", ".venv/lib/python/site.py", ".venv/build/x"), [])
@@ -722,6 +729,124 @@ class Tree(Base):
         git(self.repo, "worktree", "add", "-q", "-b", "feat/n", str(self.wt / "node_modules" / "n"), self.base)
         self.assertTrue(any("巢狀" in p for p in self.check(self.m)))
 
+
+
+class IgnoredDefault(Base):
+    """ignored 檔預設可清；Keep ignored 宣告保留就擋；憑證形狀除非列在 Disposable secrets 照擋。"""
+
+    def setUp(self):
+        super().setUp()
+        self.m = self.rebase_merge()
+        git(self.wt, "config", "core.excludesFile", str(self.root / "ex"))
+        self.mode(self.FILES)
+
+    # 檔案層：目錄不忽略，status 逐檔列出；目錄層：根目錄底下的目錄整個忽略，status 只列 `dir/`，腳本要自己往下走
+    FILES = "*\n!*/\n!new.txt\n!a.txt\n!old.txt\n"
+    DIRS = "/*/\n/.*\n/*.*\n/id_*\n/aws-*\n!/a.txt\n!/new.txt\n!/old.txt\n"
+
+    def mode(self, ex):
+        (self.root / "ex").write_text(ex)
+
+    def run_with(self, *rel, **over):
+        for r in rel:
+            p = self.wt / r
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("x\n")
+        self.write(self.m, **over)
+        return self.check(self.m)
+
+    def test_build_artifacts_pass(self):
+        rels = ("build/app.js", ".tools/gitleaks", ".react-router/types/a.d.ts", "test-results/r.json",
+                "node_modules/p/i.js", "notes/todo.md")
+        self.assertEqual(self.run_with(*rels), [])
+
+    def test_keep_ignored_listed_is_blocked(self):
+        problems = self.run_with("build/app.js", Keep="build/app.js（手寫設定）")
+        self.assertTrue(any("Keep ignored" in p for p in problems))
+
+    def test_keep_ignored_listed_blocks_even_rebuildable(self):
+        self.assertTrue(any("Keep ignored" in p for p in self.run_with("node_modules/x", Keep="node_modules/x")))
+
+    def test_missing_keep_ignored_is_blocked(self):
+        self.assertTrue(any("Keep ignored" in p for p in self.run_with(Keep=None)))
+
+    def test_missing_keep_ignored_blocks_even_without_ignored_files(self):
+        self.assertTrue(self.run_with(Keep=None))
+
+    def test_keep_ignored_continuation_is_blocked(self):
+        self.assertTrue(any("Keep ignored" in p for p in self.run_with("build/a", Keep="無\n- build/a 要留")))
+
+    def test_keep_ignored_repeated_is_blocked(self):
+        self.assertTrue(any("Keep ignored" in p for p in self.run_with(extra="Keep ignored: build/a\n")))
+
+    def test_credential_shapes_are_blocked(self):
+        for ex in (self.FILES, self.DIRS):
+            with self.subTest(ex=ex):
+                self.mode(ex)
+                self.credential_shapes_blocked()
+
+    def credential_shapes_blocked(self):
+        for rel in (".env", ".ENV", ".env.local", ".envrc", "prod.env", "secrets/x.pem", "src/Foo.PEM", "build/.env",
+                    ".tools/sub/id_rsa", ".e\u200bnv", "ｃｅｒｔ.ｐｅｍ", ".env ", "android/key.properties",
+                    "credentials.json", "aws-credentials", "upload.JKS", "AuthKey_X.p8", "cert.p12", "a.keystore",
+                    "build/credentials/readme.txt", ".npmrc"):
+            with self.subTest(rel=rel):
+                try:
+                    problems = self.run_with(rel)
+                    self.assertTrue(any("憑證" in p for p in problems), problems)
+                finally:
+                    top = self.wt / rel.split("/")[0]
+                    shutil.rmtree(top) if top.is_dir() else top.unlink()
+
+    def test_disposable_secret_listed_exactly_passes(self):
+        self.mode(self.DIRS)
+        self.assertEqual(self.run_with("build/.env", ".env.test",
+                                       extra="Disposable secrets: build/.env, .env.test\n"), [])
+
+    def test_disposable_secret_other_path_is_blocked(self):
+        problems = self.run_with("build/.env", "build/b.pem", extra="Disposable secrets: build/.env\n")
+        self.assertTrue(any("build/b.pem" in p for p in problems))
+
+    def test_disposable_secret_dir_does_not_cover_contents(self):
+        self.assertTrue(any("憑證" in p for p in self.run_with("build/.env", extra="Disposable secrets: build\n")))
+
+    def test_disposable_secrets_repeated_is_blocked(self):
+        extra = "Disposable secrets: .env\nDisposable secrets: .env\n"
+        self.assertTrue(any("Disposable secrets" in p for p in self.run_with(".env", extra=extra)))
+
+    def test_disposable_secrets_continuation_is_blocked(self):
+        self.assertTrue(self.run_with(".env", extra="Disposable secrets: 無\n- .env\nMerged-note\n"))
+
+    def test_build_artifacts_pass_as_ignored_dirs(self):
+        self.mode(self.DIRS)
+        self.assertEqual(self.run_with("build/x/app.js", ".tools/gitleaks", ".react-router/a", "test-results/r"), [])
+
+    def test_nested_repo_in_ignored_dir_is_blocked(self):
+        self.mode(self.DIRS)
+        (self.wt / "vendor" / "lib").mkdir(parents=True)
+        git(self.wt / "vendor" / "lib", "init", "-q")
+        self.assertTrue(any("巢狀 git repo" in p for p in self.run_with("vendor/lib/x.c")))
+
+    def test_gitfile_in_ignored_dir_is_blocked(self):
+        (self.wt / "vendor").mkdir()
+        (self.wt / "vendor" / ".git").write_text("gitdir: /elsewhere\n")
+        self.assertTrue(any("巢狀 git repo" in p for p in self.run_with("vendor/x.c")))
+
+    def test_unreadable_ignored_dir_is_blocked(self):
+        self.mode(self.DIRS)
+        if os.geteuid() == 0:
+            self.skipTest("root 讀得到 000 目錄")
+        locked = self.wt / "build" / "locked"
+        locked.mkdir(parents=True)
+        (locked / "f").write_text("x\n")
+        locked.chmod(0)
+        self.addCleanup(locked.chmod, 0o755)
+        self.assertTrue(any("讀不完" in p for p in self.run_with("build/a")))
+
+    def test_rebuildable_dir_contents_are_not_walked(self):
+        """舊白名單照舊整包放行（新版是舊版的超集）。"""
+        self.mode(self.DIRS)
+        self.assertEqual(self.run_with("node_modules/forge/tests/server.pem"), [])
 
 class Selection(Base):
     def test_locked_worktree(self):
