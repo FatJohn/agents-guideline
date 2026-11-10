@@ -838,11 +838,21 @@ class IgnoredDefault(Base):
                 self.assertTrue(any("Keep ignored" in p for p in problems), problems)
 
     def test_keep_ignored_hidden_after_other_field_is_blocked(self):
-        path = self.wt / ".worktrees" / "result.md"
-        self.run_with("notes/todo.md")
-        text = path.read_text(encoding="utf-8").replace("Files changed: new.txt", "Files changed: new.txt — Keep ignored: notes/todo.md")
-        path.write_text(text, encoding="utf-8")
-        self.assertTrue(any("Keep ignored 出現不只一次" in p for p in self.check(self.m)))
+        for key in ("Keep ignored", "Keep-ignored", "Keep  ignored", "Keep\tignored", "Keep_ignored", "KeepIgnored",
+                    "Ｋeep ignored", "Keep\u200bignored"):
+            with self.subTest(key=key):
+                path = self.wt / ".worktrees" / "result.md"
+                self.run_with("notes/todo.md")
+                text = path.read_text(encoding="utf-8").replace(
+                    "Files changed: new.txt", f"Files changed: new.txt — {key}: notes/todo.md")
+                path.write_text(text, encoding="utf-8")
+                self.assertTrue(any("Keep ignored 出現不只一次" in p for p in self.check(self.m)))
+
+    def test_bare_repo_listed_item_by_item_is_blocked(self):
+        """`mirror/*` 這種規則讓 status 逐項列出 bare repo 的內容，不會走到目錄走訪。"""
+        self.mode("mirror/*\n")
+        subprocess.run(["git", "init", "-q", "--bare", str(self.wt / "mirror")], check=True)
+        self.assertTrue(any("巢狀 git repo" in p and "mirror" in p for p in self.run_with()))
 
     def test_uppercase_git_dir_in_ignored_dir_is_blocked(self):
         self.mode(self.DIRS)
