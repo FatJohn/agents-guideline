@@ -56,7 +56,7 @@ controller 自己做實作、修 bug、重構、文件與規劃；subagent 只�
 
 **CI／release 設定**（`.github/workflows`、`.github/actions` 等會被執行的設定）不靜默自改：先把 diff 給使用者、取得本 session 當次授權，再套上並照 §6 派驗收。
 
-**多個互相獨立的 issue**（各自可單獨交付、不必一起整合）一個 issue 一個頂層 session，依 `<REPO>/global/shared/skills/worktree-session/SKILL.md` §2，本 session 只做盤點、不兼任其中任何一個。**主對話 context 很大**（runtime 有可靠數字時 ≥300K；沒有時以內容量與漏掉既有決定、重讀無進展等退化證據判斷，「曾 compact」只觸發重新評估）且還有未做的 phase：寫 `<REPO>/global/shared/skills/handoff/SKILL.md` §4「session 交接卡」，剩下的 phase 開新 session 接手，不派 subagent。
+**多個互相獨立的 issue**（各自可單獨交付、不必一起整合）一個 issue 一個頂層 session，依 `<REPO>/global/shared/skills/worktree-session/SKILL.md` §2，本 session 只做盤點、不兼任其中任何一個。**主對話 context 很大**（runtime 有可靠數字時 ≥300K；沒有時以內容量與漏掉既有決定、重讀無進展等退化證據判斷，「曾 compact」只觸發重新評估）且還有未做的 phase：寫 `<REPO>/global/shared/skills/handoff/SKILL.md` §4「session 交接卡」，剩下的 phase 開新 session 接手，不派 subagent。新 session 由 controller 啟動並 read-back，不等使用者開口；使用者說開新 session 繼續時亦同，不只給 prompt。做法見 `<REPO>/global/shared/skills/worktree-session/references/cli.md`「接手 session」。
 
 主對話負責與使用者溝通、整合證據、做決策，並 read-back 實際狀態；subagent 的摘要不能取代這些責任。read-back 用有界輸出（`git diff --stat`、`sed -n`、`rg -c`、`wc`）只讀判定所需的行，全文與大 diff 留給 verifier 或落檔。
 

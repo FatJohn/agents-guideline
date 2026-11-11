@@ -14,6 +14,19 @@
 
 裝了 `block-ci-edit` hook 的機器（見 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」），issue session 是頂層 session、hook 輸入沒有 `agent_id`，改 `.github/workflows`／`.github/actions` 一樣會被擋；依 dispatch skill §3 先把 diff 給使用者取授權。
 
+## 接手 session（同一個工作目錄換新 session）
+
+使用者說「開新 session 繼續」「開新的主 session 繼續」「開新 main session 做」（含「可以開…」這種句型），或主對話 context 到門檻且還有未做的 phase 時用（dispatch skill §6『主對話 context 管理』；這種情況不必等使用者開口，使用者 2026-11-11 明說自動開才不算打擾）。兩種情況都是目前的 session 把新 session 啟動起來；只回一段 prompt 或交接卡路徑不算完成（2026-10-16 至 2026-11-11 的 session 紀錄裡，這類要求至少有 6 次停在交接卡或 prompt、沒有啟動，其中至少 5 次是使用者再說一次「你可以幫我開」才啟動）。使用者明說「給我 prompt」時才只給文字。
+
+- **位置**：接手 session 開在目前 session 所在的同一個 checkout——在主 checkout 就是主 checkout（使用者說的「主 session」「main session」），在 issue worktree 就是同一個 worktree。不建新 worktree，不用 `orca worktree create`：那是上一節的 issue session，`--parent-worktree` 起的是掛在主 workspace 底下的子 session，不是主 session。使用者要新 session 去做另一個獨立 issue 時才走上一節的 launch。
+- **context 到門檻自己啟動時**：先做到目前段落結束，等在途 subagent 回報並處理完再啟動（新 session 收不到它們的回報）。剩下的工作全都卡在使用者的決定或授權時不啟動，先在目前的 session 問；啟動之後用一行告訴使用者為什麼換、新分頁在哪。
+- **先寫交接卡**：依 `~/.claude/skills/handoff/SKILL.md` §4『session 交接卡』存好（Codex：`<REPO>/global/shared/skills/handoff/SKILL.md`），記下檔案絕對路徑。
+- **launch**（Orca 在時）：`orca agent launch --agent claude --worktree path:<目前 checkout 絕對路徑> --model claude-opus-5-5 --effort medium --surface terminal --focus --prompt "<接手提示>" --json`。`--model`／`--effort` 與 issue session 同值、同樣必帶（缺了會被 `require-issue-session-model.sh` 擋，它也比對 `orca agent launch`）；使用者點名別的 model 時只換值。`--surface terminal` 固定起 CLI，不隨 Orca 的 Chat | CLI 設定；`--focus` 把分頁切到前景，不帶時分頁在背景開（兩者依 `orca agent launch --help`）。接手提示寫三件事：交接卡絕對路徑、下一步的一句話、「授權不延續，需要時重新問使用者」（全域邊界 3，授權以 session 為單位）。成功時回 `ok: true`、`result.outcome.kind` 為 `terminal`、`result.outcome.handle` 是新分頁的 terminal handle（2026-11-05 至 2026-11-10 在主 checkout 與 issue worktree 都實跑過，`result.receipt.detail` 回 `Started a terminal agent, as requested.`）。
+- **read-back**：同上一節 launch 的規則，`orca terminal read --terminal <handle> --json` 的 `result.terminal.tail` 出現接手提示的第一行＝已送到；只有空提示時隔 10 秒再讀，兩次都空才用 `orca terminal send` 補送。handle 沒取到時用 `orca terminal list --worktree path:<目前 checkout 絕對路徑> --json` 找最新的一個。該路徑第一次開 Claude 時 session 可能停在信任資料夾的對話框（2026-11-06 起 issue session 時遇過一次），read-back 看到就請使用者到分頁回答。
+- **啟動之後**：告訴使用者新分頁的標題或 handle、請他到那個分頁繼續；目前的 session 不再寫這個 working tree（全域邊界 5），也不自己關分頁。
+- **Fallback**（Orca 不在或 launch 失敗）：列一行可直接貼的指令 `cd <目前 checkout 絕對路徑> && claude --model claude-opus-5-5 --effort medium "<接手提示>"`，並明說新 session 沒有啟動。此 fallback 本身未實跑。
+- **Codex**：`orca agent launch --help` 的範例有 `--agent codex`，本制度未實跑；實跑前照 Fallback 的做法，把交接卡路徑列給使用者在分頁自開 `codex`。
+
 ## 沒有盤點 session（人手多開分頁）
 
 使用者自己當盤點者時，開工前列出：每個 issue 的 worktree 絕對路徑、branch、base SHA；`git worktree list` 核對。每個 issue 仍各自 fresh 驗收、各自走 PR 與 CI——**「幾個分頁各自跑完了」不等於已 merge**，各 issue 的 `.worktrees/result.md` 就是 status board。

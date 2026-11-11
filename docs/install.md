@@ -152,7 +152,7 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 - 裝完驗證（離線、需要 `jq`）：`bash tests/test-context-size-nudge.sh ~/.claude/hooks/context-size-nudge.sh`。
 - 環境變數：`CLAUDE_CTX_NUDGE_THRESHOLD` 改門檻（token 數），`CLAUDE_CTX_NUDGE_STATE` 改狀態目錄。
 - `jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1：工具照跑、不提醒，transcript 看得到 `context-size-nudge: INACTIVE`／`did not run`。
-- 提醒只是注入一句話，不擋任何動作；要不要開新 session 仍由 controller 與使用者決定。端到端實測見 `docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」的 hook 那條。Windows 未驗證。
+- 提醒只是注入一句話，不擋任何動作；收到提醒後 controller 依 dispatch skill §6 自己啟動接手 session（做法與不啟動的情況見 `global/shared/skills/worktree-session/references/cli.md`「接手 session」）。端到端實測見 `docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」的 hook 那條。Windows 未驗證。
 
 ### 選配：自動放行專案根目錄（預設 `$HOME/Projects/`）底下的 `git -C` 清理、push 與常用指令
 
