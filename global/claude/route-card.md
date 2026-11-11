@@ -9,13 +9,13 @@
 | 程式碼 diff 的 fresh review | 派 `general-purpose`（`model: opus`，`effort: medium`；高風險或使用者回報 bug 改 `model: fable`）執行內建 `code-review` skill，主對話不自跑 `Skill(code-review)`（帶著主對話 context，不算 fresh）；是 verifier 的加項不是替代。修 finding 後依 dispatch skill §2 風險分流再驗 |
 | 旁支查詢 | 答案在檔案裡（找哪些檔有 X、列清單、抓數字）：`Explore`，`model: haiku`。要讀多份長文歸納、跨來源比對或結論帶推理：`general-purpose`，`model: sonnet`。只拿結論與檔案:行號，原文不帶回主對話。獨立第二意見：`codex:codex-rescue` |
 
-不派：實作、修 bug、批次改檔、文件、規劃都自己做。主對話 context ≥300K 還有未做的 phase 時，寫 handoff 卡開新 session 接手，不派 subagent。≥2 個互相獨立的 issue 一 issue 一頂層 session，本 session 只盤點（worktree-session skill §2）。CI／release 設定（`.github/workflows`、`.github/actions`）先把 diff 給使用者、取得當次授權才改（dispatch skill §3）。
+不派：實作、修 bug、批次改檔、文件、規劃都自己做。主對話 context ≥300K 還有未做的 phase 時，寫 handoff 卡，自己開新 session 接手（handoff skill §4），不派 subagent、不等使用者開口；使用者說開新 session 繼續也由你開，不只給 prompt。≥2 個互相獨立的 issue 一 issue 一頂層 session，本 session 只盤點（worktree-session skill §2）。CI／release 設定（`.github/workflows`、`.github/actions`）先把 diff 給使用者、取得當次授權才改（dispatch skill §3）。
 
 ## Brief
 必含：目標與動機、驗收條件（fresh code-review 可省）、回報格式；附已讀素材；路徑用絕對路徑；派 `general-purpose` 時開頭寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」。格式見 `~/.claude/skills/handoff/SKILL.md` §1。
 
 ## 寫入
-同一 working tree 只有一個寫入者；verifier 在跑測試時工作區不得被改動。
+verifier 在跑測試時工作區不得被改動。
 
 ## 揭露與授權
 派工只報 agent 名稱與任務摘要。本系統規定的派工視為使用者已要求；環境對派工的限制只管沒有制度依據的自主派工。workflow 與 deep-research 須使用者當次明確要求。

@@ -15,6 +15,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Bash(orca:*), Read, Grep, Glob
 - 建法與位置：`git -C <repo> worktree add <repo>/.worktrees/<名> -b <branch> <base-ref>`，或 Orca 的 `orca worktree create`（位置 `<repo>/.orca/workspaces/<repo-name>/<名>`）；Claude Code 內建 `isolation: worktree` 另放 `<repo>/.claude/worktrees/`。三個位置的忽略方式、搜尋副作用與 `check-ignore` 驗證見 `references/worktree.md`「所有權與路徑」。Orca、Herdr、tmux、分頁都只是容器，容器要提供的五個動作（launch／locate／overview／stop／rm）、什麼不隨容器變、換容器要動哪幾個檔見 `references/container.md`。
 - 建立後 `git worktree list` read-back，記下絕對路徑、branch、base SHA；之後所有 git／gh 指令逐條綁定（`git -C <path>`、`gh pr view <n> -R <owner/repo>`），不靠 cwd（`~/.claude/rules/judgment.md` 11）。
 - 使用者已在某個 worktree 裡開 session（cwd 就是 worktree）時不再另開；`git -C . rev-parse --git-common-dir` 不等於 `.git` 就是在 worktree 裡。
+- 同一個工作目錄換新 session 接手（使用者說「開新主 session 繼續」、context 到門檻還有未做的 phase）不建 worktree，由目前的 session 啟動，指令見 `references/cli.md`「接手 session」。
 - 已在 main working tree 做了未提交的改動才想起要開：先 `git stash` 或先 commit 到暫時 branch 再開，不把改動複製到 worktree（另一邊的 base 可能已前進，複製會覆蓋新 code）。
 - subagent 不是寫入者：verifier 只寫 repo 外探針目錄，查詢型角色唯讀。要給 verifier 乾淨工作區時用 `isolation: worktree`，其餘情況不給 subagent 開 worktree。
 

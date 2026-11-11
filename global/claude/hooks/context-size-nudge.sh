@@ -40,6 +40,6 @@ mkdir -p "$state_dir" 2>/dev/null || exit 0
 mkdir "$state.b$band" 2>/dev/null || exit 0
 echo "$band" > "$state" || exit 0
 
-msg="主對話 context 約 $((ctx / 1000))K（門檻 $((threshold / 1000))K）。還有未做的 phase 時：做到目前段落結束，寫 session 交接卡（handoff skill §4），告訴使用者剩下的 phase 開新 session 接手；不派 subagent 代做。沒有未做的 phase 就照常收尾。依據：dispatch skill §6。"
+msg="主對話 context 約 $((ctx / 1000))K（門檻 $((threshold / 1000))K）。還有未做的 phase 時：做到目前段落結束，寫 session 交接卡（handoff skill §4），照 worktree-session references/cli.md「接手 session」自己啟動新 session 接手剩下的 phase 並 read-back，再告訴使用者到哪個分頁繼續，不必等使用者開口；不派 subagent 代做。沒有未做的 phase 就照常收尾。依據：dispatch skill §6。"
 jq -n --arg m "$msg" '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $m}}'
 exit 0
