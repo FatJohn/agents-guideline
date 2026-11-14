@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: 交接的四張固定卡，Claude 與 Codex 共用：派工 brief 卡、subagent 回報卡、verifier 判定卡、session 交接卡。寫派工 brief、收尾回報、寫驗收判定、使用者要收尾、離開、compact、交給另一個 agent、下次接續時使用。Use for wrap-up, handoff, resume later, brief, report, verdict, save progress.
+description: 交接的四張固定卡，Claude 與 Codex 共用：派工 brief 卡、subagent 回報卡、verifier 判定卡、session 交接卡。寫派工 brief、收尾回報、寫驗收判定、使用者要收尾、離開、compact、交給另一個 agent、下次接續、要你開新 session 接手或另開 session 做別的事（「開新 session 繼續」「開新的 session 做 X」「開 orca session」）時使用。Use for wrap-up, handoff, resume later, open a new session, brief, report, verdict, save progress.
 ---
 
 # handoff — 四張固定卡
@@ -79,6 +79,6 @@ session → 未來的 session 或另一個 agent，兩平台同一格式：
 
 - **何時寫**：收尾、要離開、要 compact、要等人、交給另一個 agent、多階段長任務每個 phase 結束（全域邊界 6）。單輪可完成的小任務不必寫。
 - **寫到哪**：使用者給路徑優先。否則，平台裝有 remember plugin 時（Claude：`remember:remember` skill 存在）把寫好的卡交給該 skill 存檔——內容用本節格式取代它自己的三段格式，路徑由它的腳本決定、不要自己猜或解析，下個 session 開頭會自動注入，store 由 plugin 自己備份；它回 `REFUSED` 就照下一句處理。沒有 plugin 或被拒時寫專案根 `.agents/HANDOFF.md`；不能寫就把卡回在對話並明說沒寫檔。更新 `.agents/HANDOFF.md` 時保留仍有效的內容，移除已過時的完成項；走 plugin 時是整份取代，上一份已在 session 開頭注入過，把其中仍有效的項目寫進新卡。
-- **使用者要開新 session 接手**（「開新 session 繼續」「可以開新的主 session 繼續」「開新 main session 做」；「可以開…」這種句型也是要求，不是在告知可以收尾）：這是要你把新 session 啟動起來，不是要一段 prompt 或交接筆記。存好卡後照 `~/.claude/skills/worktree-session/references/cli.md`「接手 session」（Codex：`<REPO>/global/shared/skills/worktree-session/references/cli.md`）啟動並 read-back 提示已送達，再告訴使用者到哪個分頁繼續。主對話 context 到門檻、還有未做的 phase 時的交接同樣由你啟動，不等使用者開口。使用者明說「給我 prompt」，或該節的啟動方式在這台機器不可用時，才改給可直接貼的指令，並明說沒有啟動。
+- **使用者要開新 session 接手**（「開新 session 繼續」「可以開新的主 session 繼續」「開新 main session 做」；「可以開…」這種句型也是要求，不是在告知可以收尾）：這是要你把新 session 啟動起來，不是要一段 prompt 或交接筆記。存好卡後照 `~/.claude/skills/worktree-session/references/cli.md`「接手 session」（Codex：`<REPO>/global/shared/skills/worktree-session/references/cli.md`）啟動並 read-back 提示已送達，再告訴使用者到哪個分頁繼續。主對話 context 到門檻、還有未做的 phase 時的交接同樣由你啟動，不等使用者開口。使用者明說「給我 prompt」，或該節的啟動方式在這台機器不可用時，才改給可直接貼的指令，並明說沒有啟動。使用者要另開 session 做旁支調查或別的事（「開新 session 幫我查 X」，不是接手同一件工作）時不寫交接卡，照同一節的「旁支 session」寫 brief 再啟動。兩種都要開成使用者看得到的互動 session，不用 `claude -p`、`claude --bg` 或背景執行代替，除非使用者明說要 headless 或背景執行。
 - **內容**：只寫耐久狀態，不重述對話；事實與猜測分開；完成項附驗證分級，沒驗就寫未驗證；不寫 secrets、token、憑證與原始 log，必要時只引關鍵一行；短到一分鐘內掃得完。
 - **compact 保留指示**就是這張卡的精簡版：目標、授權、未完成項目、在途 subagent（名稱、任務、worktree／分支）、產物證據位置；規則見 dispatch §6『主對話 context 管理』。
