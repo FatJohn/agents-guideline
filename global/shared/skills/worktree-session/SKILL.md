@@ -1,6 +1,6 @@
 ---
 name: worktree-session
-description: 開工前把工作放進自己的 worktree（`git worktree` 或 `orca worktree`）、把互相獨立的多個 issue 各開成一個頂層 session、盤點 session 怎麼起 issue session 與收結果、worktree 怎麼清。要開工或建工作環境（「開工前建 worktree」「先把環境準備好」）、要同時處理幾個 issue（「這幾個 issue 一起處理」、"split this into sessions"）、要清 worktree 時使用。Use when starting work in a worktree, fanning independent issues out to their own sessions, or cleaning worktrees up.
+description: 開工前把工作放進自己的 worktree（`git worktree` 或 `orca worktree`）、把互相獨立的多個 issue 各開成一個頂層 session、盤點 session 怎麼起 issue session 與收結果、使用者要求另開 session 時怎麼啟動（接手同一件工作，或另開一個做旁支調查／別的事）、worktree 怎麼清。要開工或建工作環境（「開工前建 worktree」「先把環境準備好」）、要同時處理幾個 issue（「這幾個 issue 一起處理」、"split this into sessions"）、使用者要你開新 session（「開新 session 繼續」「開新的 session 做 X」「開新 session 幫我查」「開 orca session」、"open a new session"）、要清 worktree 時使用。Use when starting work in a worktree, fanning independent issues out to their own sessions, opening a new session the user asked for (takeover or side task), or cleaning worktrees up.
 allowed-tools: Bash(git:*), Bash(gh:*), Bash(orca:*), Read, Grep, Glob
 ---
 
@@ -15,7 +15,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Bash(orca:*), Read, Grep, Glob
 - 建法與位置：`git -C <repo> worktree add <repo>/.worktrees/<名> -b <branch> <base-ref>`，或 Orca 的 `orca worktree create`（位置 `<repo>/.orca/workspaces/<repo-name>/<名>`）；Claude Code 內建 `isolation: worktree` 另放 `<repo>/.claude/worktrees/`。三個位置的忽略方式、搜尋副作用與 `check-ignore` 驗證見 `references/worktree.md`「所有權與路徑」。Orca、Herdr、tmux、分頁都只是容器，容器要提供的五個動作（launch／locate／overview／stop／rm）、什麼不隨容器變、換容器要動哪幾個檔見 `references/container.md`。
 - 建立後 `git worktree list` read-back，記下絕對路徑、branch、base SHA；之後所有 git／gh 指令逐條綁定（`git -C <path>`、`gh pr view <n> -R <owner/repo>`），不靠 cwd（`~/.claude/rules/judgment.md` 11）。
 - 使用者已在某個 worktree 裡開 session（cwd 就是 worktree）時不再另開；`git -C . rev-parse --git-common-dir` 不等於 `.git` 就是在 worktree 裡。
-- 同一個工作目錄換新 session 接手（使用者說「開新主 session 繼續」、context 到門檻還有未做的 phase）不建 worktree，由目前的 session 啟動，指令見 `references/cli.md`「接手 session」。
+- 同一個工作目錄換新 session 接手（使用者說「開新主 session 繼續」、context 到門檻還有未做的 phase），或使用者要另開 session 做旁支調查／別的事而那件事不是獨立 issue（「開新 session 幫我查 X」「開 orca session 做 Y」）：不建 worktree，由目前的 session 啟動一個使用者看得到的互動 session，不用 `claude -p`、`claude --bg` 或背景執行代替，指令見 `references/cli.md`「接手 session」。
 - 已在 main working tree 做了未提交的改動才想起要開：先 `git stash` 或先 commit 到暫時 branch 再開，不把改動複製到 worktree（另一邊的 base 可能已前進，複製會覆蓋新 code）。
 - subagent 不是寫入者：verifier 只寫 repo 外探針目錄，查詢型角色唯讀。要給 verifier 乾淨工作區時用 `isolation: worktree`，其餘情況不給 subagent 開 worktree。
 

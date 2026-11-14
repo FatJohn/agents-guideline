@@ -14,18 +14,20 @@
 
 裝了 `block-ci-edit` hook 的機器（見 `<REPO>/docs/install.md`「選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定」），issue session 是頂層 session、hook 輸入沒有 `agent_id`，改 `.github/workflows`／`.github/actions` 一樣會被擋；依 dispatch skill §3 先把 diff 給使用者取授權。
 
-## 接手 session（同一個工作目錄換新 session）
+## 接手 session（使用者要求另開 session：接手或旁支）
 
-使用者說「開新 session 繼續」「開新的主 session 繼續」「開新 main session 做」（含「可以開…」這種句型），或主對話 context 到門檻且還有未做的 phase 時用（dispatch skill §6『主對話 context 管理』；這種情況不必等使用者開口，使用者 2026-11-11 明說自動開才不算打擾）。兩種情況都是目前的 session 把新 session 啟動起來；只回一段 prompt 或交接卡路徑不算完成（2026-10-16 至 2026-11-11 的 session 紀錄裡，這類要求至少有 6 次停在交接卡或 prompt、沒有啟動，其中至少 5 次是使用者再說一次「你可以幫我開」才啟動）。使用者明說「給我 prompt」時才只給文字。
+使用者要求另開一個 session、而那件事不是獨立 issue 時用，分兩種。**接手**（同一件工作換 session 繼續）：使用者說「開新 session 繼續」「開新的主 session 繼續」「開新 main session 做」（含「可以開…」這種句型），或主對話 context 到門檻且還有未做的 phase 時用（dispatch skill §6『主對話 context 管理』；這種情況不必等使用者開口，使用者 2026-11-11 明說自動開才不算打擾）。**旁支**（另一個 session 去做別的事）：使用者說「開新 session 幫我重啟調查」「開新的 session 做 X」「開 orca session 查這個」，那件事不需要自己的 worktree——常見的是要一個新 process 載入剛裝好的 MCP 或設定去調查。接手與旁支都是目前的 session 把新 session 啟動起來；只回一段 prompt 或交接卡路徑不算完成（2026-10-16 至 2026-11-11 的 session 紀錄裡，這類要求至少有 6 次停在交接卡或 prompt、沒有啟動，其中至少 5 次是使用者再說一次「你可以幫我開」才啟動）。使用者明說「給我 prompt」時才只給文字。
 
-- **位置**：接手 session 開在目前 session 所在的同一個 checkout——在主 checkout 就是主 checkout（使用者說的「主 session」「main session」），在 issue worktree 就是同一個 worktree。不建新 worktree，不用 `orca worktree create`：那是上一節的 issue session，`--parent-worktree` 起的是掛在主 workspace 底下的子 session，不是主 session。使用者要新 session 去做另一個獨立 issue 時才走上一節的 launch。
+- **不用 headless 代替**：使用者說的「session」是他看得到進度、能接話的互動分頁。不用 `claude -p`、`claude --bg`，也不把 `claude` 丟到背景跑（Bash 的 `run_in_background`、指令尾端 `&`）來代替，除非使用者明說要 headless 或背景執行（2026-11-14 一次旁支調查被開成 `claude -p … &`：使用者看不到進度，追問「不是應該開新的 orca terminal session？」之後才改用下面的 launch）。`claude -p` 留給 controller 自己讀結果的用途（fresh-context 檢查、量測），旗標陷阱見 `<REPO>/docs/debug-environment-first.md`「量測方法要先自證」的 `claude -p` 那條。
+- **位置**：接手與旁支 session 都開在目前 session 所在的同一個 checkout——在主 checkout 就是主 checkout（使用者說的「主 session」「main session」），在 issue worktree 就是同一個 worktree。不建新 worktree，不用 `orca worktree create`：那是上一節的 issue session，`--parent-worktree` 起的是掛在主 workspace 底下的子 session，不是主 session。使用者要新 session 去做另一個獨立 issue 時才走上一節的 launch。
 - **context 到門檻自己啟動時**：先做到目前段落結束，等在途 subagent 回報並處理完再啟動（新 session 收不到它們的回報）。剩下的工作全都卡在使用者的決定或授權時不啟動，先在目前的 session 問；啟動之後用一行告訴使用者為什麼換、新分頁在哪。
-- **先寫交接卡**：依 `~/.claude/skills/handoff/SKILL.md` §4『session 交接卡』存好（Codex：`<REPO>/global/shared/skills/handoff/SKILL.md`），記下檔案絕對路徑。
-- **launch**（Orca 在時）：`orca agent launch --agent claude --worktree path:<目前 checkout 絕對路徑> --model claude-opus-5-5 --effort medium --surface terminal --focus --prompt "<接手提示>" --json`。`--model`／`--effort` 與 issue session 同值、同樣必帶（缺了會被 `require-issue-session-model.sh` 擋，它也比對 `orca agent launch`）；使用者點名別的 model 時只換值。`--surface terminal` 固定起 CLI，不隨 Orca 的 Chat | CLI 設定；`--focus` 把分頁切到前景，不帶時分頁在背景開（兩者依 `orca agent launch --help`）。接手提示寫三件事：交接卡絕對路徑、下一步的一句話、「授權不延續，需要時重新問使用者」（全域邊界 3，授權以 session 為單位）。成功時回 `ok: true`、`result.outcome.kind` 為 `terminal`、`result.outcome.handle` 是新分頁的 terminal handle（2026-11-05 至 2026-11-10 在主 checkout 與 issue worktree 都實跑過，`result.receipt.detail` 回 `Started a terminal agent, as requested.`）。
+- **先寫交接卡**（接手）：依 `~/.claude/skills/handoff/SKILL.md` §4『session 交接卡』存好（Codex：`<REPO>/global/shared/skills/handoff/SKILL.md`），記下檔案絕對路徑。
+- **旁支 session**：不寫交接卡，改寫 brief 到主 checkout 的 `<repo>/.worktrees/briefs/<主題>.md`（目前在 issue worktree 時也寫主 checkout：issue worktree 的 `.worktrees/` 多出檔案會讓 SKILL §3 第 5 條擋下直接清）。brief 寫目標與動機、已知事實與已排除的方向、要回答的問題或完成定義、結果寫到哪個檔（預設同目錄的 `<主題>-result.md`）。下面 launch 的 `--prompt` 寫「請讀 <brief 絕對路徑> 並照做」加同一句「授權不延續」，不把調查內容整段塞進 prompt。旁支 session 預設不改這個 working tree 的檔（全域邊界 5，目前的 session 還在寫）；那件事要改檔時改走上一節的 issue session。啟動並 read-back 之後，目前的 session 繼續做自己的事，結果只讀 brief 指定的那個檔。
+- **launch**（Orca 在時）：`orca agent launch --agent claude --worktree path:<目前 checkout 絕對路徑> --model claude-opus-5-5 --effort medium --surface terminal --focus --prompt "<接手提示>" --json`。`--model`／`--effort` 與 issue session 同值、同樣必帶（缺了會被 `require-issue-session-model.sh` 擋，它也比對 `orca agent launch`）；使用者點名別的 model 時只換值。`--surface terminal` 固定起 CLI，不隨 Orca 的 Chat | CLI 設定；`--focus` 把分頁切到前景，不帶時分頁在背景開（兩者依 `orca agent launch --help`）。接手提示寫三件事：交接卡絕對路徑、下一步的一句話、「授權不延續，需要時重新問使用者」（全域邊界 3，授權以 session 為單位）；旁支的提示見上一條。成功時回 `ok: true`、`result.outcome.kind` 為 `terminal`、`result.outcome.handle` 是新分頁的 terminal handle（2026-11-05 至 2026-11-10 在主 checkout 與 issue worktree 都實跑過，`result.receipt.detail` 回 `Started a terminal agent, as requested.`）。
 - **read-back**：同上一節 launch 的規則，`orca terminal read --terminal <handle> --json` 的 `result.terminal.tail` 出現接手提示的第一行＝已送到；只有空提示時隔 10 秒再讀，兩次都空才用 `orca terminal send` 補送。handle 沒取到時用 `orca terminal list --worktree path:<目前 checkout 絕對路徑> --json` 找最新的一個。該路徑第一次開 Claude 時 session 可能停在信任資料夾的對話框（2026-11-06 起 issue session 時遇過一次），read-back 看到就請使用者到分頁回答。
-- **啟動之後**：告訴使用者新分頁的標題或 handle、請他到那個分頁繼續；目前的 session 不再寫這個 working tree（全域邊界 5），也不自己關分頁。
-- **Fallback**（Orca 不在或 launch 失敗）：列一行可直接貼的指令 `cd <目前 checkout 絕對路徑> && claude --model claude-opus-5-5 --effort medium "<接手提示>"`，並明說新 session 沒有啟動。此 fallback 本身未實跑。
-- **Codex**：`orca agent launch --help` 的範例有 `--agent codex`，本制度未實跑；實跑前照 Fallback 的做法，把交接卡路徑列給使用者在分頁自開 `codex`。
+- **啟動之後**：告訴使用者新分頁的標題或 handle、請他到那個分頁繼續（旁支：到那個分頁看進度與接話）；接手時目前的 session 不再寫這個 working tree（全域邊界 5）。兩種都不自己關分頁。
+- **Fallback**（Orca 不在或 launch 失敗）：列一行可直接貼的指令 `cd <目前 checkout 絕對路徑> && claude --model claude-opus-5-5 --effort medium "<接手提示；旁支為讀 brief 的那句>"`，並明說新 session 沒有啟動；不因 Orca 不在就改用 `claude -p` 或背景執行。此 fallback 本身未實跑。
+- **Codex**：`orca agent launch --help` 的範例有 `--agent codex`，本制度未實跑；實跑前照 Fallback 的做法，把交接卡路徑（旁支為 brief 路徑）列給使用者在分頁自開 `codex`。
 
 ## 沒有盤點 session（人手多開分頁）
 

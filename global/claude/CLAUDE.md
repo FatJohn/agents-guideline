@@ -20,7 +20,7 @@
 | 開工前的 plan、驗收、fresh review、旁支查詢、驗收後修正、卡住要換路 | `dispatch` skill |
 | brief、回報、交接、收尾 | `handoff` skill |
 | commit／開 PR | `git-commit`／`create-pr` skill |
-| 開工建 worktree、多個獨立 issue 分 session、清 worktree | `worktree-session` skill |
+| 開工建 worktree、多個獨立 issue 分 session、使用者要求開新 session、清 worktree | `worktree-session` skill |
 | 寫或改長存文件 | `writing-principles` skill |
 | 建立或稽核專案的 AGENTS.md／CLAUDE.md 程式碼規則 | `agent-rules` skill |
 | 寫或改程式碼的範圍、完成、證據、驗收狀態 | `~/.claude/rules/judgment.md` |
