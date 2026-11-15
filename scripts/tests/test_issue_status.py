@@ -518,10 +518,29 @@ class IssueStatusTests(unittest.TestCase):
         moved = self.root / "moved-away"
         lines = self.run_watch([
             lambda: self.repo.rename(moved),
+            lambda: None,  # 仍讀不到：error 不重印
             lambda: moved.rename(self.repo),
         ])
         self.assertEqual(len(lines), 2, lines)  # 基線＋一次 error；不報 removed，恢復後也不報 new
         self.assertIn("不是 git repo 或讀不到", lines[1])
+
+    def test_watch_ignores_in_flight_staleness_from_ongoing_work(self):
+        a = self.add_wt("a")
+        write_result(a)
+        lines = self.run_watch([
+            lambda: (Path(a) / "wip.txt").write_text("x\n"),  # Dirty 不符
+            lambda: self.commit(a, "wip.txt"),  # Candidate SHA ≠ HEAD
+            lambda: write_result(a, status="blocked", blocker="要決定"),
+        ])
+        self.assertEqual(len(lines), 2, lines)  # 基線＋blocked；中間兩次過時不叫醒
+        self.assertIn("blocked", lines[1])
+
+    def test_watch_reports_blocker_only_change(self):
+        a = self.add_wt("a")
+        write_result(a, status="blocked", blocker="等 A")
+        lines = self.run_watch([lambda: write_result(a, status="blocked", blocker="等 B")])
+        self.assertEqual(len(lines), 2, lines)
+        self.assertIn("blocker=等 B", lines[1])
 
     def test_watch_baseline_counts_deduplicated_repos(self):
         a = self.add_wt("a")
