@@ -398,8 +398,17 @@ def collect(repos, args, pr_cache=None):
     return rows, skipped, bad, len(seen)
 
 
+IN_FLIGHT = ("working", "awaiting verification")
+
+
 def watch_key(row):
-    return (row["status"], row["reason"], row["pr_text"], row["pending_authorization"], row["blocker"])
+    """自報還在做（working／awaiting verification）的 session 寫完 result.md 後繼續改檔、commit，
+    Dirty／Candidate SHA 一定會跟現況對不上而被判 unknown「result.md 過時」；這是正常的工作中狀態，
+    監看不把它當變化，否則每次改檔都叫醒盤點 session。一次性列表照舊顯示 unknown。"""
+    status, reason = row["status"], row["reason"]
+    if status == "unknown" and row["reported_status"] in IN_FLIGHT and (reason or "").startswith("result.md 過時"):
+        status, reason = row["reported_status"], None
+    return (status, reason, row["pr_text"], row["pending_authorization"], row["blocker"])
 
 
 def watch(repos, args):
@@ -455,7 +464,7 @@ def main(argv=None):
                     help="跳過 PR 查詢；此時 ready for authorization／merged 一律 unknown「未查 PR」")
     ap.add_argument("--watch", type=int, metavar="SECONDS",
                     help="持續監看：第一輪印一行基線，之後只在某個 worktree 的狀態、原因、PR、Pending authorization、"
-                         "Blocker 變了才印一行（新增、移除也印）；不會自己結束。給 Claude Code 的 Monitor 當事件來源。"
+                         "Blocker 變了才印一行（新增、移除也印；自報 working／awaiting verification 而只是 result.md 過時的不算變化）；不會自己結束。給 Claude Code 的 Monitor 當事件來源。"
                          "gh 在該 worktree 的 HEAD 或 result.md mtime 變了、或距上次查詢滿 5 分鐘才重查，失敗時沿用上次結果。最小 10 秒")
     args = ap.parse_args(argv)
     if args.watch is not None:
