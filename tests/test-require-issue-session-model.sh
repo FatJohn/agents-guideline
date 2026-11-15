@@ -56,5 +56,8 @@ t "claude -p prompt mentioning -w -> allow"  0 "$(j 'claude -p "explain the -w f
 t "orca --worktree after --command -> allow" 0 "$(j 'orca terminal create --command "claude --permission-mode auto" --worktree path:/x')"
 t "env assignment claude -w with flags -> allow" 0 "$(j 'FOO=1 claude -w x --model=m --effort=e "y"')"
 t "env assignment before rg -w claude -> allow" 0 "$(j 'FOO=bar rg -w claude')"
+t "quoted -w value with flags -> allow"     0 "$(j 'claude -w "$ISSUE" -n "$ISSUE" --model m --effort e "brief"')"
+t "quoted flag values -> allow"              0 "$(j "claude -w x --model 'm' --effort \"e\" 'brief'")"
+t "quoted -w value without flags -> deny"    2 "$(j 'claude -w "$ISSUE" -n "$ISSUE" "brief"')"
 t "garbage stdin -> fail-open exit 1"        1 'not json'
 echo "failures=$fail"; [ "$fail" = 0 ]
