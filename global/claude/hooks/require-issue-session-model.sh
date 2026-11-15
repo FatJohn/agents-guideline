@@ -86,8 +86,9 @@ if [ "$tool" = "Bash" ] && [ -n "$cmd" ]; then
     # container-neutral fallback: `claude` as the command word (first word of the segment
     # after env assignments / env / command / nohup / exec / "(", bare or as a path), or the
     # quoted value of --command (`orca terminal create --command "claude ..."`), carrying
-    # -w/--worktree. Only the part before the first quote counts (flags come before the
-    # prompt), so prompt text, grep patterns and commit messages are not read as flags.
+    # -w/--worktree. Quoted strings are replaced by a placeholder before matching, so a
+    # quoted value (`-w "$ISSUE"`, `--model "m"`) still counts while flag-like text inside
+    # the prompt does not.
     chk="$seg"
     if [ $launch = 0 ]; then
       w=${seg//\\t/ }   # @tsv turns a tab into the two characters \t
@@ -114,7 +115,7 @@ if [ "$tool" = "Bash" ] && [ -n "$cmd" ]; then
           *"--command 'claude "*|*"--command='claude "*) cw=${seg#*--command*\'claude }; cw=${cw%%\'*} ;;
         esac
       fi
-      cw=" ${cw%%[\"\']*} "
+      cw=" $(printf '%s' "$cw" | sed -e 's/"[^"]*"/Q/g' -e "s/'[^']*'/Q/g") "
       cw=${cw//\\t/ }
       case "$cw" in
         *" -w "*|*" --worktree "*|*" --worktree="*) launch=1; chk="$cw" ;;

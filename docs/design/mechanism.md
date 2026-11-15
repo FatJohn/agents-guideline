@@ -44,7 +44,7 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 
 - 兩支擋板（`block-ci-edit.sh`、`require-issue-session-model.sh`）只擋，不改寫指令；exit 2 的 stderr 訊息會回到模型，裡面寫著規則出處與正確寫法。
 - 三支 PreToolUse hook 都 fail-open：`jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1、不擋也不放行，transcript 看得到 `INACTIVE`／`did not run`。裝完要跑一次離線測試，不能只看檔案存在。
-- `require-issue-session-model.sh` 以整條 Bash 指令為單位：任一段命中就整條不放行，前面已經寫好的其他步驟也不會跑；補旗標後整條重送。它是字面比對，heredoc 或字串裡出現同形狀的文字也會被擋，寫文件時用 Write／Edit 工具落地，不經 Bash。
+- `require-issue-session-model.sh` 以整條 Bash 指令為單位：任一段命中就整條不放行，前面已經寫好的其他步驟也不會跑；補旗標後整條重送。它是字面比對，heredoc 或字串裡出現同形狀的文字也會被擋（例如 `rg -n "orca worktree create|claude -w" docs` 的 `|` 會被當成分段），寫文件時用 Write／Edit 工具落地，不經 Bash。
 - `controller-context.sh` 不用 `jq`，卡片缺檔時靜默 exit 0、無輸出；唯一的判定訊號是 context 裡有沒有那行注入。
 - `settings.json` 裡還有 Orca 自己登記的 matcher `*` hook（所有事件各一個，指向 `~/.orca/agent-hooks/`），不屬本 repo；追加本系統的 hook 元素時只加、不動它。
 
