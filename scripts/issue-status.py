@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""一次列出某個 repo 每個 issue worktree 的狀態，給「盤點 session」取代反覆 `orca terminal read`。
+"""一次列出一個或多個 repo（`--repo` 可重複）每個 issue worktree 的狀態，給「盤點 session」取代反覆
+`orca terminal read`。`--watch <秒>` 改成持續監看、只在狀態變了才印一行，給 Claude Code 的 Monitor 當事件來源。
 
 用途：issue session 把交付包寫在 `<worktree>/.worktrees/result.md`（欄位見
 `global/shared/skills/worktree-session/SKILL.md` §2「issue session result」）。這支腳本讀每個 worktree 的
@@ -71,6 +72,7 @@ CANON = {k.lower(): k for k in FIELD_KEYS}
 HEX_RE = re.compile(r"[0-9a-fA-F]{7,40}")
 GIT_TIMEOUT = 30
 GH_TIMEOUT = 60
+PR_CACHE_TTL = 300
 
 
 class GhError(Exception):
@@ -204,8 +206,11 @@ def short(value, n=70):
     return value if len(value) <= n else value[: n - 1] + "…"
 
 
-def inspect_worktree(wt, base, slug, use_gh, orca):
-    """對單一 worktree 產出一列。status 只可能是 result.md 的 Status 或被降成 unknown。"""
+def inspect_worktree(wt, base, slug, use_gh, orca, pr_cache=None):
+    """對單一 worktree 產出一列。status 只可能是 result.md 的 Status 或被降成 unknown。
+    pr_cache（--watch 用）以 (slug, branch) 記住上一次成功的 gh 結果：HEAD、result.md mtime 都沒變且未滿
+    PR_CACHE_TTL 秒就不重查（TTL 讓 GitHub 端的 merge／close／新開 PR 在本機沒變時也會被看到）；
+    gh 失敗時沿用上一次成功的結果，避免一次暫時失敗印出一對誤報。"""
     path = wt["path"]
     try:
         name = os.path.relpath(path, base)
@@ -257,11 +262,23 @@ def inspect_worktree(wt, base, slug, use_gh, orca):
         row["pr_error"] = "detached HEAD，無 branch 可查"
     else:
         try:
-            prs = query_prs(slug, wt["branch"])
+            key, cached = (slug, wt["branch"]), None
+            if pr_cache is not None:
+                cached = pr_cache.get(key)
+            if cached and cached["sig"] == (row["head"], row["result_mtime"]) \
+                    and time.time() - cached["at"] < PR_CACHE_TTL:
+                prs = cached["prs"]
+            else:
+                prs = query_prs(slug, wt["branch"])
+                if pr_cache is not None:
+                    pr_cache[key] = {"sig": (row["head"], row["result_mtime"]), "at": time.time(), "prs": prs}
         except GhError as e:
-            row["pr_text"] = "gh error"
-            row["pr_error"] = str(e)
-            prs = None
+            if cached:
+                prs = cached["prs"]
+            else:
+                row["pr_text"] = "gh error"
+                row["pr_error"] = str(e)
+                prs = None
         if prs is not None:
             open_pr = next((p for p in prs if p.get("state") == "OPEN"), None)
             merged_pr = next((p for p in prs if p.get("state") == "MERGED"), None)
@@ -353,28 +370,108 @@ def render_text(rows):
     return "\n".join(lines)
 
 
+def collect(repos, args, pr_cache=None):
+    """回 (rows, skipped, bad_repos, repo_count)。多個 repo 時 name 前綴 repo 目錄名；同一 repo 給兩次只算一次。"""
+    orca = orca_info()
+    rows, skipped, bad, seen = [], 0, [], set()
+    for repo_arg in repos:
+        repo = os.path.abspath(repo_arg)
+        listing = list_worktrees(repo) if os.path.isdir(repo) else None
+        if listing is None:
+            bad.append(repo_arg)
+            continue
+        main_path, linked = listing
+        if main_path in seen:
+            continue
+        seen.add(main_path)
+        slug = None if args.no_gh else repo_slug(main_path)
+        paths = [wt["path"] for wt in linked]
+        shown = linked if args.include_nested else [wt for wt in linked if not is_nested(wt["path"], paths)]
+        skipped += len(linked) - len(shown)
+        for wt in shown:
+            row = inspect_worktree(wt, main_path, slug, not args.no_gh, orca, pr_cache)
+            row["repo"] = main_path
+            row["repo_arg"] = repo_arg
+            if len(repos) > 1:
+                row["name"] = f"{os.path.basename(main_path)}/{row['name']}"
+            rows.append(row)
+    return rows, skipped, bad, len(seen)
+
+
+def watch_key(row):
+    return (row["status"], row["reason"], row["pr_text"], row["pending_authorization"], row["blocker"])
+
+
+def watch(repos, args):
+    """每 args.watch 秒重跑一次，只在某個 worktree 的狀態、原因、PR、Pending、Blocker 變了才印一行。
+    給 Claude Code 的 Monitor 用：每行 stdout 是一個事件，沒變化就不印。不會自己結束。"""
+    def emit(line):
+        print(f"[{datetime.now().strftime('%H:%M')}] {line}", flush=True)
+
+    pr_cache, prev, bad_prev, first, last_err = {}, {}, set(), True, None
+    while True:
+        try:
+            rows, _, bad, n_repos = collect(repos, args, pr_cache)
+            for b in sorted(set(bad) - bad_prev):
+                emit(f"error: {b} 不是 git repo 或讀不到 worktree 清單；它的 worktree 暫停追蹤")
+            bad_prev = set(bad)
+            cur = {r["path"]: r for r in rows}
+            if first:
+                reported = [f"{r['name']}={r['status']}" for r in rows if r["result_mtime"]]
+                emit(f"watching {len(rows)} worktrees in {n_repos} repos every {args.watch}s; "
+                     f"有 result.md 的：{', '.join(reported) or '無'}")
+            else:
+                for path, r in cur.items():
+                    old = prev.get(path)
+                    if old is None:
+                        emit("new: " + render_text([r]))
+                    elif watch_key(old) != watch_key(r):
+                        emit(f"changed (was {old['status']}): " + render_text([r]))
+            # 讀不到的 repo 保留上一輪狀態：不報 removed，恢復後也不會被當成全部新增
+            kept = {p: o for p, o in prev.items() if p not in cur and o["repo_arg"] in bad}
+            if not first:
+                for path, old in prev.items():
+                    if path not in cur and path not in kept:
+                        emit(f"removed: {old['name']} (was {old['status']})")
+            first = False
+            prev = {**kept, **cur}
+            last_err = None
+        except Exception as e:  # 單輪失敗不結束監看；同一個錯誤連續發生只印一次
+            msg = f"error: 本輪讀取失敗：{type(e).__name__}: {e}"
+            if msg != last_err:
+                emit(msg)
+            last_err = msg
+        time.sleep(args.watch)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--repo", required=True, help="repo 路徑（main worktree 或任一 linked worktree 皆可）")
+    ap.add_argument("--repo", required=True, action="append",
+                    help="repo 路徑（main worktree 或任一 linked worktree 皆可）；可重複，一次看多個 repo")
     ap.add_argument("--json", action="store_true", help="輸出 JSON 陣列而非每個 worktree 一行")
     ap.add_argument("--include-nested", action="store_true",
                     help="也列出巢狀切片 worktree（路徑在另一個 linked worktree 的 .worktrees/ 底下者，預設略過）")
     ap.add_argument("--no-gh", action="store_true",
                     help="跳過 PR 查詢；此時 ready for authorization／merged 一律 unknown「未查 PR」")
+    ap.add_argument("--watch", type=int, metavar="SECONDS",
+                    help="持續監看：第一輪印一行基線，之後只在某個 worktree 的狀態、原因、PR、Pending authorization、"
+                         "Blocker 變了才印一行（新增、移除也印）；不會自己結束。給 Claude Code 的 Monitor 當事件來源。"
+                         "gh 在該 worktree 的 HEAD 或 result.md mtime 變了、或距上次查詢滿 5 分鐘才重查，失敗時沿用上次結果。最小 10 秒")
     args = ap.parse_args(argv)
+    if args.watch is not None:
+        if args.watch < 10:
+            ap.error("--watch 最小 10 秒")
+        if args.json:
+            ap.error("--watch 不能與 --json 一起用")
 
-    repo = os.path.abspath(args.repo)
-    listing = list_worktrees(repo) if os.path.isdir(repo) else None
-    if listing is None:
-        print(f"issue-status: {args.repo} 不是 git repo", file=sys.stderr)
-        return 2
-    main_path, linked = listing
-    slug = None if args.no_gh else repo_slug(main_path)
-    orca = orca_info()
-    paths = [wt["path"] for wt in linked]
-    shown = linked if args.include_nested else [wt for wt in linked if not is_nested(wt["path"], paths)]
-    skipped = len(linked) - len(shown)
-    rows = [inspect_worktree(wt, main_path, slug, not args.no_gh, orca) for wt in shown]
+    for r in args.repo:
+        if not os.path.isdir(r) or list_worktrees(os.path.abspath(r)) is None:
+            print(f"issue-status: {r} 不是 git repo", file=sys.stderr)
+            return 2
+    if args.watch is not None:
+        watch(args.repo, args)
+        return 0
+    rows, skipped, _, _ = collect(args.repo, args)
     if args.json:
         print(json.dumps(rows, ensure_ascii=False, indent=2))
     else:

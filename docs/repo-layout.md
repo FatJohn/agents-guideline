@@ -99,7 +99,7 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | `scripts/dispatch-usage.py` | 日落審查用：量主對話自寫與派 subagent 的使用率（量法見 `maintain-guideline` §5） |
 | `scripts/parallel-usage.py` | 量平行寫入派工的群組與 worktree 派工次數 |
 | `scripts/stall-check.py` | 列出本機每個 claude session 的靜默時間與卡住的位置（盤點 session 用） |
-| `scripts/issue-status.py` | 一次列出某 repo 每個 issue worktree 的狀態（盤點 session 用，唯讀） |
+| `scripts/issue-status.py` | 一次列出一或多個 repo 每個 issue worktree 的狀態；`--watch` 持續監看、狀態變了才印一行（盤點 session 用，唯讀） |
 | `scripts/worktree-clean-check.py` | 判定 issue worktree 能不能不問使用者就清（盤點 session 用，唯讀、fail-closed） |
 | `scripts/tests/` | `issue-status.py`、`stall-check.py`、`worktree-clean-check.py` 的單元測試 |
 | `tests/test_*.py` | sync 腳本、usage-review 腳本、writing-principles 檢查腳本與 shell 守門腳本的單元測試；樣本在 `tests/fixtures/writing-principles/`、`tests/fixtures/agent-rules/` |
