@@ -13,20 +13,20 @@
 
 ## 五個動作與各容器對照
 
-| 動作 | 要求 | Orca（已實跑，指令在 cli.md） | 純 shell／分頁（cli.md「Fallback」） | Herdr desktop app（候選，未實跑；依 2026-11-07 官方 CLI 文件，見 `<REPO>/docs/reviews/ade-survey-2026-11-07.md`） |
+| 動作 | 要求 | Orca（已實跑，指令在 cli.md） | 純 shell／分頁（cli.md「Fallback」；2026-11-15 實跑一輪） | Herdr desktop app（候選，未實跑；依 2026-11-07 官方 CLI 文件，見 `<REPO>/docs/reviews/ade-survey-2026-11-07.md`） |
 |---|---|---|---|---|
-| **launch** | 在指定 repo、指定 base ref 建 worktree，以固定 argv 起 agent 並送達 brief，回 worktree 絕對路徑與 branch | `orca worktree create --repo path:<repo> --base-branch <ref> --agent claude --model … --effort … --prompt …` | `claude -w <issue> -n <issue> --model … --effort … "<brief>"` | `herdr worktree create --cwd <repo> --branch <b> --base <ref>` → `herdr pane split`／root pane → `herdr agent start <issue> --kind claude --pane <id> -- --model … --effort …` → `herdr agent prompt <issue> "<brief>"` |
+| **launch** | 在指定 repo、指定 base ref 建 worktree，以固定 argv 起 agent 並送達 brief，回 worktree 絕對路徑與 branch | `orca worktree create --repo path:<repo> --base-branch <ref> --agent claude --model … --effort … --prompt …` | `claude -w <issue> -n <issue> --model … --effort … "<brief>"`（沒有指定 base ref 的旗標，從啟動處的 checkout 開；位置 `<repo>/.claude/worktrees/<issue>`，branch `worktree-<issue>`） | `herdr worktree create --cwd <repo> --branch <b> --base <ref>` → `herdr pane split`／root pane → `herdr agent start <issue> --kind claude --pane <id> -- --model … --effort …` → `herdr agent prompt <issue> "<brief>"` |
 | **locate** | 由 issue 名找 worktree 絕對路徑與 branch | `orca worktree list --json`（`path`／`branch`／`displayName`） | `git -C <repo> worktree list --porcelain` | `herdr worktree list --cwd <repo>` 或 git |
-| **overview** | 一眼看全部 session 在跑、等人、還是靜默，只當線索 | `orca worktree ps --json --agent-wait` 經 jq 壓成一行一 worktree | `python3 <REPO>/scripts/stall-check.py` | `herdr agent list`（working／blocked／done／idle）、`herdr agent wait <n> --until blocked` |
+| **overview** | 一眼看全部 session 在跑、等人、還是靜默，只當線索 | `orca worktree ps --json --agent-wait` 經 jq 壓成一行一 worktree | `python3 <REPO>/scripts/issue-status.py --repo <repo>`（狀態）；`python3 <REPO>/scripts/stall-check.py`（實跑看得到 process，但那次對不上 session jsonl、顯示 `no-log`，原因未查） | `herdr agent list`（working／blocked／done／idle）、`herdr agent wait <n> --until blocked` |
 | **stop** | 關該 worktree 的 session 與 terminal，read-back 該 worktree 內無 agent process | `orca terminal close --worktree path:<wt> --all --json` ＋ cli.md「stop」的 pgrep／lsof 迴圈 | 使用者在分頁 `/exit`；`pgrep -fl -- '-n <issue>( |$)'` 回空 | `herdr workspace close <id> --group` ＋ 同一個 pgrep／lsof 迴圈 |
-| **rm** | 刪 worktree 與 branch，git 判定在先 | `orca worktree rm --worktree path:<wt> --delete-branch --json` | `git -C <repo> worktree remove <wt>`＋`git -C <repo> branch -D <b>` | `herdr worktree remove --workspace <id>`（文件說不刪 branch，branch 另用 git） |
+| **rm** | 刪 worktree 與 branch，git 判定在先 | `orca worktree rm --worktree path:<wt> --delete-branch --json` | `claude -w` 的 worktree 帶 lock，process 被停掉後仍在（使用者 `/exit` 未實跑）：確認 lock 裡的 pid 已不存在後 `git -C <repo> worktree unlock <wt>`，再 `git -C <repo> worktree remove <wt>`＋`git -C <repo> branch -d <b>`；不用 `remove -f -f` | `herdr worktree remove --workspace <id>`（文件說不刪 branch，branch 另用 git） |
 
 不在表內的都不是契約的一部分：Orca 的 `--parent-worktree` 分組、看板欄位、Agents feed、Herdr 的 mod 與 pane 狀態燈，用了可以更好看，沒有也不影響任何判定。
 
 ## 換容器要動的檔（清單）
 
 1. `cli.md`：加一節新容器的 launch／locate／overview／stop／rm 實跑指令，表格裡的「未實跑」改成實跑日期與輸出摘要；舊容器那節保留直到該機器不再裝它。
-2. `<REPO>/global/claude/hooks/require-issue-session-model.sh` 與 `<REPO>/tests/test-require-issue-session-model.sh`：hook 比對的是 launch 指令樣式（目前 `orca worktree create`／`orca agent launch` 帶 `--agent claude`），新容器的 launch 指令要加進比對並補測試，否則缺 `--model`／`--effort` 的啟動不會被擋。
+2. `<REPO>/global/claude/hooks/require-issue-session-model.sh` 與 `<REPO>/tests/test-require-issue-session-model.sh`：hook 比對的是 launch 指令樣式（目前 `orca worktree create`／`orca agent launch` 帶 `--agent claude`），新容器的 launch 指令要加進比對並補測試，否則缺 `--model`／`--effort` 的啟動不會被擋（`claude -w` 這個與容器無關的寫法已在比對內，含 `orca terminal create --command "claude -w …"`）。
 3. `worktree.md`「所有權與路徑」：新容器建的 worktree 位置與全域 gitignore 條目（Orca 是 `.orca/`），`check-ignore -v` 驗一次。
 4. `<REPO>/global/shared/hosts/<key>.md`：該機器裝了什麼、哪些指令實跑過、auto mode 會不會擋。
 5. 可選：`issue-status.py` 的容器加值欄位。

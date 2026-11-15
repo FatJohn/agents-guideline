@@ -1,5 +1,6 @@
 #!/bin/bash
-# PreToolUse hook: an Orca-launched Claude issue session must carry --model and --effort.
+# PreToolUse hook: a Claude issue session launch (Orca, or the container-neutral `claude -w`)
+# must carry --model and --effort.
 #
 # Rule (worktree-session skill, references/cli.md "盤點 session 與 issue session"):
 # an issue session is a controller and must not inherit the main conversation's
@@ -17,7 +18,11 @@
 #   - a segment is a "claude launch" when it contains
 #       `orca worktree create` or `orca agent launch`
 #     AND the token `--agent claude` (or `--agent=claude`, or the value in
-#     double/single quotes)
+#     double/single quotes);
+#     OR when `claude` is the command word (segment start, or the quoted
+#     value of `--command`, as in `--command "claude ..."`) and it carries
+#     `-w` / `--worktree` (the container-neutral `claude -w` fallback in cli.md).
+#     `claude -p`, `claude mcp ...`, `rg -w claude` etc. are not launches.
 #   - every claude-launch segment must contain both a `--model <v>` and an
 #     `--effort <v>` token (`--model=<v>` / `--effort=<v>` also count)
 #   - any claude-launch segment missing one                        -> exit 2
@@ -70,19 +75,56 @@ if [ "$tool" = "Bash" ] && [ -n "$cmd" ]; then
   # segment separators -> newline; the \n escape from @tsv is a separator too
   segs=$(printf '%s' "$cmd" | sed -e 's/\\n/\n/g' -e 's/&&/\n/g' -e 's/||/\n/g' -e 's/[;|]/\n/g')
   while IFS= read -r seg; do
+    launch=0
     case "$seg" in
-      *"orca worktree create"*|*"orca agent launch"*) ;;
-      *) continue ;;
+      *"orca worktree create"*|*"orca agent launch"*)
+        # "--agent claude" as whole tokens (also --agent=claude)
+        case " $seg " in
+          *" --agent claude "*|*" --agent=claude "*|*" --agent \"claude\" "*|*" --agent 'claude' "*|*" --agent=\"claude\" "*|*" --agent='claude' "*) launch=1 ;;
+        esac ;;
     esac
-    # "--agent claude" as whole tokens (also --agent=claude)
-    case " $seg " in
-      *" --agent claude "*|*" --agent=claude "*|*" --agent \"claude\" "*|*" --agent 'claude' "*|*" --agent=\"claude\" "*|*" --agent='claude' "*) ;;
-      *) continue ;;
-    esac
+    # container-neutral fallback: `claude` as the command word (first word of the segment
+    # after env assignments / env / command / nohup / exec / "(", bare or as a path), or the
+    # quoted value of --command (`orca terminal create --command "claude ..."`), carrying
+    # -w/--worktree. Only the part before the first quote counts (flags come before the
+    # prompt), so prompt text, grep patterns and commit messages are not read as flags.
+    chk="$seg"
+    if [ $launch = 0 ]; then
+      w=${seg//\\t/ }   # @tsv turns a tab into the two characters \t
+      while :; do
+        case "$w" in
+          [[:space:]]*|'('*) w=${w#?} ;;
+          'env '*|'command '*|'nohup '*|'exec '*) w=${w#* } ;;
+          *)
+            first=${w%% *}
+            case "$first" in
+              [A-Za-z_]*=*) case "${first%%=*}" in *[!A-Za-z0-9_]*) break ;; esac; w=${w#"$first"} ;;
+              *) break ;;
+            esac ;;
+        esac
+      done
+      cw=""
+      first=${w%% *}
+      case "$first" in
+        claude|*/claude) [ "$w" != "$first" ] && cw=${w#* } ;;
+      esac
+      if [ -z "$cw" ]; then
+        case "$seg" in
+          *'--command "claude '*|*'--command="claude '*) cw=${seg#*--command*\"claude }; cw=${cw%%\"*} ;;
+          *"--command 'claude "*|*"--command='claude "*) cw=${seg#*--command*\'claude }; cw=${cw%%\'*} ;;
+        esac
+      fi
+      cw=" ${cw%%[\"\']*} "
+      cw=${cw//\\t/ }
+      case "$cw" in
+        *" -w "*|*" --worktree "*|*" --worktree="*) launch=1; chk="$cw" ;;
+      esac
+    fi
+    [ $launch = 1 ] || continue
     reason="claude-launch"
     has_model=0; has_effort=0
-    case " $seg " in *" --model "[!-]*|*" --model="[!-]*) has_model=1 ;; esac
-    case " $seg " in *" --effort "[!-]*|*" --effort="[!-]*) has_effort=1 ;; esac
+    case " $chk " in *" --model "[!-]*|*" --model="[!-]*) has_model=1 ;; esac
+    case " $chk " in *" --effort "[!-]*|*" --effort="[!-]*) has_effort=1 ;; esac
     if [ $has_model = 0 ] || [ $has_effort = 0 ]; then
       decision="deny"
       [ $has_model = 0 ] && missing="$missing --model"
@@ -103,7 +145,7 @@ if [ "$decision" = "deny" ]; then
   cat >&2 <<MSG
 BLOCKED by hook require-issue-session-model: 起 Claude issue session 的指令缺${missing}。
 issue session 是 controller，不隨主對話的預設 model；沒帶旗標的 \`claude\` 會吃啟動當下 ~/.claude/settings.json 的 model。
-規則見 ~/.claude/skills/worktree-session/references/cli.md「盤點 session 與 issue session」：\`orca worktree create ... --agent claude --model claude-opus-5-5 --effort medium --prompt ...\`（\`orca agent launch\` 同）。
+規則見 ~/.claude/skills/worktree-session/references/cli.md「盤點 session 與 issue session」：\`orca worktree create ... --agent claude --model claude-opus-5-5 --effort medium --prompt ...\`（\`orca agent launch\` 同；fallback 為 \`claude -w <issue> -n <issue> --model claude-opus-5-5 --effort medium ... "<brief>"\`，旗標寫在 prompt 之前）。
 請補上旗標後重送；不要改用 \`orca terminal create\` 或其他方式繞過。
 MSG
   exit 2
