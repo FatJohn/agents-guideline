@@ -413,6 +413,150 @@ class IssueStatusTests(unittest.TestCase):
             with mock.patch.object(iss, "run", return_value=bad):
                 self.assertEqual(REAL_ORCA_INFO(), {})
 
+    # --- 多個 repo ---
+    def make_repo(self, name):
+        r = self.root / name
+        r.mkdir()
+        git(r, "init", "-q", "-b", "main")
+        (r / "a.txt").write_text("a\n")
+        git(r, "add", "a.txt")
+        git(r, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init")
+        (r / ".git" / "info" / "exclude").write_text(".worktrees/\n.orca/\n")
+        return r
+
+    def test_multiple_repos_are_listed_with_repo_prefix_and_dedup(self):
+        other = self.make_repo("other")
+        a = self.add_wt("a")
+        write_result(a)
+        git(other, "worktree", "add", "-q", "-b", "feat/b", str(other / ".orca" / "workspaces" / "b"))
+        rows = self.rows("--repo", str(other), "--repo", str(a), "--no-gh")  # a 是同一個 repo 的 linked worktree
+        self.assertEqual(sorted(rows), sorted([f"repo/{self._rel('a')}", f"other/{self._rel('b')}"]))
+        self.assertEqual(rows[f"repo/{self._rel('a')}"]["status"], "working")
+
+    def test_any_bad_repo_fails_fast(self):
+        rc, _, err = self.run_main("--repo", str(self.root / "nope"))
+        self.assertEqual(rc, 2)
+        self.assertIn("不是 git repo", err)
+
+    # --- --watch ---
+    def run_watch(self, steps, gh=None, extra=()):
+        """steps：每輪之間依序執行的動作；做完最後一個就停。回 stdout 的事件行。"""
+        class Stop(Exception):
+            pass
+
+        actions = list(steps)
+
+        def fake_sleep(_):
+            if not actions:
+                raise Stop
+            actions.pop(0)()
+
+        out = io.StringIO()
+        gh = gh if gh is not None else mock.Mock(return_value=[])
+        with mock.patch.object(iss, "query_prs", gh), mock.patch.object(iss.time, "sleep", fake_sleep), \
+                redirect_stdout(out):
+            with self.assertRaises(Stop):
+                iss.main(["--repo", str(self.repo), "--watch", "10", *extra])
+        return [ln.split("] ", 1)[1] for ln in out.getvalue().splitlines()]
+
+    def test_watch_prints_baseline_then_only_changes(self):
+        a = self.add_wt("a")
+        write_result(a)
+        self.add_wt("quiet")
+        lines = self.run_watch([
+            lambda: None,  # 沒變化：不印
+            lambda: write_result(a, status="blocked", blocker="等 API key"),
+        ])
+        self.assertEqual(len(lines), 2, lines)
+        self.assertTrue(lines[0].startswith("watching 2 worktrees in 1 repos every 10s"))
+        self.assertIn(f"{self._rel('a')}=working", lines[0])
+        self.assertNotIn("quiet=", lines[0])  # 沒有 result.md 不進基線清單
+        self.assertTrue(lines[1].startswith(f"changed (was working): {self._rel('a')}"))
+        self.assertIn("blocked", lines[1])
+        self.assertIn("blocker=等 API key", lines[1])
+
+    def test_watch_reports_new_and_removed_worktrees(self):
+        a = self.add_wt("a")
+        lines = self.run_watch([
+            lambda: self.add_wt("b"),
+            lambda: git(self.repo, "worktree", "remove", "--force", str(a)),
+        ])
+        self.assertTrue(lines[1].startswith(f"new: {self._rel('b')}"), lines)
+        self.assertEqual(lines[2], f"removed: {self._rel('a')} (was unknown)")
+        self.assertEqual(len(lines), 3)
+
+    def test_watch_requeries_gh_only_when_head_or_result_changes(self):
+        a = self.add_wt("a")
+        write_result(a)
+        gh = mock.Mock(return_value=[])
+        self.run_watch([lambda: None, lambda: None, lambda: self.commit(a)], gh=gh)
+        self.assertEqual(gh.call_count, 2)  # 第一輪一次，commit 後 HEAD 變了再一次
+
+    def test_watch_sees_github_side_merge_after_ttl_without_local_change(self):
+        a = self.add_wt("a")
+        write_result(a, status="ready for authorization")
+        gh = mock.Mock(side_effect=[[pr(1, "OPEN")], [pr(1, "MERGED")]])
+        with mock.patch.object(iss, "PR_CACHE_TTL", 0):
+            lines = self.run_watch([lambda: None], gh=gh)
+        self.assertEqual(len(lines), 2, lines)
+        self.assertIn("ready for authorization", lines[0])
+        self.assertIn("unknown", lines[1])
+        self.assertIn("pr=#1 MERGED", lines[1])
+
+    def test_watch_gh_transient_failure_reuses_last_result_without_events(self):
+        a = self.add_wt("a")
+        write_result(a, status="ready for authorization")
+        gh = mock.Mock(side_effect=[[pr(1, "OPEN")], iss.GhError("timeout"), [pr(1, "OPEN")]])
+        with mock.patch.object(iss, "PR_CACHE_TTL", 0):
+            lines = self.run_watch([lambda: None, lambda: None], gh=gh)
+        self.assertEqual(len(lines), 1, lines)  # 只有基線
+        self.assertEqual(gh.call_count, 3)
+
+    def test_watch_keeps_state_of_temporarily_unreadable_repo(self):
+        a = self.add_wt("a")
+        write_result(a)
+        moved = self.root / "moved-away"
+        lines = self.run_watch([
+            lambda: self.repo.rename(moved),
+            lambda: moved.rename(self.repo),
+        ])
+        self.assertEqual(len(lines), 2, lines)  # 基線＋一次 error；不報 removed，恢復後也不報 new
+        self.assertIn("不是 git repo 或讀不到", lines[1])
+
+    def test_watch_baseline_counts_deduplicated_repos(self):
+        a = self.add_wt("a")
+        lines = self.run_watch([], extra=("--repo", str(a), "--no-gh"))
+        self.assertTrue(lines[0].startswith("watching 1 worktrees in 1 repos"), lines)
+
+    def test_watch_repeated_round_error_is_printed_once(self):
+        with mock.patch.object(iss, "collect", mock.Mock(side_effect=RuntimeError("perm"))):
+            lines = self.run_watch([lambda: None, lambda: None])
+        self.assertEqual(lines, ["error: 本輪讀取失敗：RuntimeError: perm"])
+
+    def test_watch_round_failure_emits_error_and_keeps_going(self):
+        a = self.add_wt("a")
+        write_result(a)
+        real = iss.collect
+        calls = []
+
+        def flaky(*args, **kw):
+            calls.append(1)
+            if len(calls) == 2:
+                raise RuntimeError("disk")
+            return real(*args, **kw)
+
+        with mock.patch.object(iss, "collect", flaky):
+            lines = self.run_watch([lambda: None, lambda: None])
+        self.assertIn("error: 本輪讀取失敗：RuntimeError: disk", lines)
+        self.assertEqual(len(calls), 3)
+
+    def test_watch_rejects_short_interval_and_json(self):
+        no_loop = mock.Mock(side_effect=AssertionError("不該進入監看迴圈"))
+        for args in (["--watch", "5"], ["--watch", "10", "--json"]):
+            with redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()), \
+                    mock.patch.object(iss.time, "sleep", no_loop), self.assertRaises(SystemExit):
+                iss.main(["--repo", str(self.repo), *args])
+
 
 if __name__ == "__main__":
     unittest.main()
