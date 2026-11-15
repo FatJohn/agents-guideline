@@ -433,6 +433,26 @@ class IssueStatusTests(unittest.TestCase):
         self.assertEqual(sorted(rows), sorted([f"repo/{self._rel('a')}", f"other/{self._rel('b')}"]))
         self.assertEqual(rows[f"repo/{self._rel('a')}"]["status"], "working")
 
+    def test_same_named_repo_dirs_get_distinct_prefixes(self):
+        (self.root / "a").mkdir()
+        (self.root / "b").mkdir()
+        r1, r2 = self.make_repo("a/svc"), self.make_repo("b/svc")
+        for r in (r1, r2):
+            git(r, "worktree", "add", "-q", "-b", "feat/x", str(r / ".orca" / "workspaces" / "x"))
+        out = io.StringIO()
+        with mock.patch.object(iss, "query_prs", return_value=[]), redirect_stdout(out):
+            self.assertEqual(iss.main(["--repo", str(r1), "--repo", str(r2), "--json", "--no-gh"]), 0)
+        names = sorted(r["name"] for r in json.loads(out.getvalue()))
+        self.assertEqual(names, [f"a/svc/{self._rel('x')}", f"b/svc/{self._rel('x')}"])
+
+    def test_repo_labels_root_level_repo_is_not_double_slashed(self):
+        self.assertEqual(iss.repo_labels(["/repo", "/x/repo"]), {"/repo": "/repo", "/x/repo": "x/repo"})
+
+    def test_same_repo_given_twice_has_no_prefix(self):
+        a = self.add_wt("a")
+        rows = self.rows("--repo", str(a), "--no-gh")
+        self.assertEqual(list(rows), [self._rel("a")])
+
     def test_any_bad_repo_fails_fast(self):
         rc, _, err = self.run_main("--repo", str(self.root / "nope"))
         self.assertEqual(rc, 2)

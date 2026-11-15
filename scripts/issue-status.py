@@ -370,8 +370,24 @@ def render_text(rows):
     return "\n".join(lines)
 
 
+def repo_labels(mains):
+    """每個 main path 取最短而互不相同的路徑尾段（`repo` → `team/repo` → …）當前綴。"""
+    labels = {}
+    for m in mains:
+        parts = [x for x in Path(m).parts if x != Path(m).anchor]
+        for n in range(1, len(parts) + 1):
+            cand = "/".join(parts[-n:])
+            if all(o == m or "/".join([x for x in Path(o).parts if x != Path(o).anchor][-n:]) != cand for o in mains):
+                labels[m] = cand
+                break
+        else:
+            labels[m] = m
+    return labels
+
+
 def collect(repos, args, pr_cache=None):
-    """回 (rows, skipped, bad_repos, repo_count)。多個 repo 時 name 前綴 repo 目錄名；同一 repo 給兩次只算一次。"""
+    """回 (rows, skipped, bad_repos, repo_count)。去重後超過一個 repo 時 name 前綴 repo 標籤（目錄名，
+    撞名時往上多取一層）；同一 repo 給兩次只算一次。"""
     orca = orca_info()
     rows, skipped, bad, seen = [], 0, [], set()
     for repo_arg in repos:
@@ -392,9 +408,11 @@ def collect(repos, args, pr_cache=None):
             row = inspect_worktree(wt, main_path, slug, not args.no_gh, orca, pr_cache)
             row["repo"] = main_path
             row["repo_arg"] = repo_arg
-            if len(repos) > 1:
-                row["name"] = f"{os.path.basename(main_path)}/{row['name']}"
             rows.append(row)
+    if len(seen) > 1:
+        labels = repo_labels(sorted(seen))
+        for row in rows:
+            row["name"] = f"{labels[row['repo']]}/{row['name']}"
     return rows, skipped, bad, len(seen)
 
 
