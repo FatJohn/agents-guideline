@@ -1,7 +1,7 @@
 # Rubric — review finding 的品質
 
 > 讀者：被派去執行 `code-review` skill 的 fresh reviewer（Claude：`general-purpose`；Codex：`reviewer`），以及任何要在 PR 上留 review 留言的 agent。controller 收到 finding 決定修不修時也可對照。
-> 用途：管「發出去的每一條 finding 本身站不站得住」。什麼時候派 reviewer、diff 要查什麼，在 `~/.claude/skills/dispatch/SKILL.md`（Codex：`<REPO>/global/codex/rules/dispatch.md`）與 `code-change.md`；本檔只管 finding 的形狀與發出前的查證。
+> 用途：管「發出去的每一條 finding 本身站不站得住」。什麼時候派 reviewer、diff 要查什麼，在 `<REPO>/docs/dispatch.md`（Codex：`<REPO>/global/codex/rules/dispatch.md`）與 `code-change.md`；本檔只管 finding 的形狀與發出前的查證。
 > 來源：2026-08 對一組前端 repo 盤點 67 條 AI inline review：42 條採納、24 條婉拒，婉拒的 24 條裡 14 條是想像出來的 null／undefined；8 條標 HIGH 有 4 條被駁，MEDIUM 反而準。歸納出的通用判準在此；repo 專屬的規則 ID、lint 清單、嚴重度門檻留在各 repo 自己的 review 判準。
 > 判定方式：reviewer 發每條 finding 前自查 §1–§3；controller 或 verifier 覆核 finding 時逐條判 PASS／FAIL，FAIL 附是哪條 finding、違反哪一款。
 

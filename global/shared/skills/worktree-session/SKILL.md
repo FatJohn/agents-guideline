@@ -6,7 +6,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Bash(orca:*), Read, Grep, Glob
 
 # worktree-session — 一個 session 一個 worktree
 
-平行開發的單位是**頂層 session**，不是 subagent：每個 session 在自己的 worktree 裡是完整的 controller（有完整的 CLAUDE.md、hook、記憶，自己實作、自己派 verifier、自己交付）。本 skill 只管三件事：開工時怎麼進 worktree、多個 issue 怎麼分 session、worktree 怎麼清。`<REPO>` 依全域 `CLAUDE.md`／`AGENTS.md` 的 Bootstrap 解出。驗收沿用 `~/.claude/skills/dispatch/SKILL.md` §1『驗證不自驗』與 §2『修正與驗收輪次』。
+平行開發的單位是**頂層 session**，不是 subagent：每個 session 在自己的 worktree 裡是完整的 controller（有完整的 CLAUDE.md、hook、記憶，自己實作、自己派 verifier、自己交付）。本 skill 只管三件事：開工時怎麼進 worktree、多個 issue 怎麼分 session、worktree 怎麼清。`<REPO>` 依全域 `CLAUDE.md`／`AGENTS.md` 的 Bootstrap 解出。驗收沿用 `<REPO>/docs/dispatch.md` §1『驗證不自驗』與 §2『修正與驗收輪次』。
 
 ## 1. 開工預設在 worktree
 

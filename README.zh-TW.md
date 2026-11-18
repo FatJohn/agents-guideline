@@ -43,8 +43,8 @@
 
 | 工作 | 派給 |
 |---|---|
-| 驗收 | `verifier`，`model: opus`；所有文件 merge／轉 ready 前一律派，程式碼依 dispatch skill §1 分流，專案規則只寫 code-review 時仍適用 |
-| 程式碼 diff 的 fresh review | fresh subagent 跑內建 `code-review` skill，主對話不自跑；是 verifier 的加項不是替代，修 finding 後依 dispatch skill §2 再驗 |
+| 驗收 | `verifier`，`model: opus`；所有文件 merge／轉 ready 前一律派，程式碼依 `docs/dispatch.md` §1 分流，專案規則只寫 code-review 時仍適用 |
+| 程式碼 diff 的 fresh review | fresh subagent 跑內建 `code-review` skill，主對話不自跑；是 verifier 的加項不是替代，修 finding 後依 `docs/dispatch.md` §2 再驗 |
 | 旁支查詢 | 答案在檔案裡（找哪些檔有 X、列清單、抓數字）：`Explore`，`model: haiku`；要讀多份長文歸納、跨來源比對、結論帶推理：`general-purpose`，`model: sonnet`；第二意見：`codex:codex-rescue` |
 | 實作、修 bug、文件、規劃 | 不派，controller 自己做 |
 
@@ -120,7 +120,6 @@ Claude 與 Codex 的入口是同一組邊界與路由表，只有平台措辭不
 
 | 名稱 | 何時觸發 | 裝在哪 |
 |---|---|---|
-| `dispatch` | 驗收、fresh review、旁支查詢、驗收後選修正路徑、卡住換路、要 compact 時 | 兩平台共用 |
 | `handoff` | 寫 brief、回報、驗收判定，或收尾、離開、compact、交接時 | 兩平台共用 |
 | `git-commit` | 寫 commit message 或 squash merge 標題時 | 兩平台共用 |
 | `create-pr` | 要從 branch 開 Pull Request 時（含「可以開了」這類暗示） | 兩平台共用 |
@@ -128,6 +127,8 @@ Claude 與 Codex 的入口是同一組邊界與路由表，只有平台措辭不
 | `writing-principles` | 寫、改或驗收 README、接入指南、設計說明等長存文件時 | 兩平台共用 |
 | `maintain-guideline` | 修改本系統本身（`global/**`、入口、`docs/lessons.md`）時 | repo-only |
 | `usage-review` | 量 Claude Code session 的用量與派工行為時（成本拆帳、context 膨脹） | repo-only |
+
+驗收、fresh review、旁支查詢、驗收後選修正路徑、卡住換路與主對話 context 管理的規則是文件不是 skill：`docs/dispatch.md`，由路由卡與 verifier 合約指向。
 
 ## Agents
 

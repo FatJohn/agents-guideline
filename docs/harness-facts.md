@@ -1,12 +1,12 @@
 # 查證過的 harness 事實
 
-> 這些是**派工當下**才用得到的 Agent 工具事實，不放在每個 session 常駐的全域入口。`<REPO>/global/shared/skills/dispatch/SKILL.md` §3「派工合約與回報」指向這裡。條目沿用重構前的原文（內文裡的指向已改成現行位置），之後的更正見各條內文。
+> 這些是**派工當下**才用得到的 Agent 工具事實，不放在每個 session 常駐的全域入口。`<REPO>/docs/dispatch.md` §3「派工合約與回報」指向這裡。條目沿用重構前的原文（內文裡的指向已改成現行位置），之後的更正見各條內文。
 >
 > **查證日：2026-08-06。版本更新後重新核對**——這些值會隨 Claude Code／Codex 改版漂移，
 > 要宣稱某個參數存在時以當場現查的工具 schema 為準，不引用本檔。
 
 - Agent 呼叫可逐次指定 model 與 effort（`effort` 參數見下方「沒有 frontmatter effort 的 subagent」）；不帶 effort 時由 agent 定義 frontmatter 或 session/workflow 設定控制。
-- 主對話（controller）的 model 由 UI 選擇，effort 由 `~/.claude/settings.json` 的 `effortLevel` 設定，Opus 5.5 起改看 `modelSettings` 逐型號值（見下方「沒有 frontmatter effort 的 subagent」）（2026-07-25 核對為 `xhigh`；2026-09-07 複查仍為 `xhigh`，另有 `modelSettings.claude-fable-5-1.effortLevel: high` 的逐型號覆寫；2026-10-09 現查已改為 `medium`，逐型號覆寫為 `claude-opus-5-5: high`、`claude-fable-5-1: medium`——數值會被使用者調整，引用前現查）。**subagent 不指定 `model`、且 agent 定義 frontmatter 也沒寫 `model` 時，繼承主對話的模型**，所以 `<REPO>/global/shared/skills/dispatch/SKILL.md` §3「派工合約與回報」與 `<REPO>/global/claude/route-card.md` 各表的 model 欄是顯式 routing 指示，派 `verifier` 一律要寫 `model:`（v4 前的 `worker` 已改成不帶，見本條「更正（2026-09-23 實測）」）。**更正（2026-09-23 實測）**：agent 定義 frontmatter 有寫 `model` 時，不帶參數用的是 frontmatter 的型號、不繼承主對話——`claude -p --model sonnet` 主對話（claude-sonnet-5）不帶 `model` 派 `worker-opus`，subagent transcript 記錄 `claude-opus-5-5`；「繼承主對話」只適用於 frontmatter 沒寫 `model` 的 agent。派 `verifier` 仍照舊顯式寫 `model:`；v4 前的 `worker` 型號與 effort 由其 frontmatter 決定，該角色於 2026-10-29 日落。（原「Max 檔位實作預設 opus、Pro 檔位降回 sonnet」的分檔位規則已刻意放棄。）
+- 主對話（controller）的 model 由 UI 選擇，effort 由 `~/.claude/settings.json` 的 `effortLevel` 設定，Opus 5.5 起改看 `modelSettings` 逐型號值（見下方「沒有 frontmatter effort 的 subagent」）（2026-07-25 核對為 `xhigh`；2026-09-07 複查仍為 `xhigh`，另有 `modelSettings.claude-fable-5-1.effortLevel: high` 的逐型號覆寫；2026-10-09 現查已改為 `medium`，逐型號覆寫為 `claude-opus-5-5: high`、`claude-fable-5-1: medium`——數值會被使用者調整，引用前現查）。**subagent 不指定 `model`、且 agent 定義 frontmatter 也沒寫 `model` 時，繼承主對話的模型**，所以 `<REPO>/docs/dispatch.md` §3「派工合約與回報」與 `<REPO>/global/claude/route-card.md` 各表的 model 欄是顯式 routing 指示，派 `verifier` 一律要寫 `model:`（v4 前的 `worker` 已改成不帶，見本條「更正（2026-09-23 實測）」）。**更正（2026-09-23 實測）**：agent 定義 frontmatter 有寫 `model` 時，不帶參數用的是 frontmatter 的型號、不繼承主對話——`claude -p --model sonnet` 主對話（claude-sonnet-5）不帶 `model` 派 `worker-opus`，subagent transcript 記錄 `claude-opus-5-5`；「繼承主對話」只適用於 frontmatter 沒寫 `model` 的 agent。派 `verifier` 仍照舊顯式寫 `model:`；v4 前的 `worker` 型號與 effort 由其 frontmatter 決定，該角色於 2026-10-29 日落。（原「Max 檔位實作預設 opus、Pro 檔位降回 sonnet」的分檔位規則已刻意放棄。）
 - Agent frontmatter 的 `effort` 可填 `low`／`medium`／`high`／`xhigh`／`max`，也可由 session／workflow 控制；實際可用值仍受模型與組織限制。
 - **沒有 frontmatter effort 的 subagent**（如 `general-purpose`）：Agent 工具有逐次 `effort` 參數（`low`／`medium`／`high`／`xhigh`／`max`），官方文件：「When you ask Claude to run a non-fork subagent at a specific effort level, it can also pass an `effort` parameter for that invocation. The parameter overrides the `effort` field」，需 v2.1.292 以上（[sub-agents](https://code.claude.com/docs/en/sub-agents.md)）。runtime 可查：Bash 子行程與 hook 會自動帶 `CLAUDE_EFFORT`（「the effort level in effect」，[env-vars](https://code.claude.com/docs/en/env-vars.md)）。**2026-10-09 實測**（2.1.295，主對話 Opus 5.5／`modelSettings.claude-opus-5-5.effortLevel: high`）：`general-purpose`＋`model: opus` 不帶 `effort` → `CLAUDE_EFFORT=high`；帶 `effort: medium` → `medium`。不帶時是繼承主對話還是依 subagent 型號解析 `modelSettings`，這次分不出（兩者同為 Opus 5.5／high），文件也未明寫。session 層的解析順序：`CLAUDE_CODE_EFFORT_LEVEL`／`--effort`／`/effort` → 設定（`modelSettings` 逐型號，「Claude Code resolves each model separately」）→ 模型預設；`~/.claude/settings.json` 的頂層 `effortLevel` 對 Opus 5.5 不算數，project／local／managed 的頂層仍套到每個模型（[model-config](https://code.claude.com/docs/en/model-config.md)、[settings-reference](https://code.claude.com/docs/en/settings-reference.md)）。`/tasks` 只在 subagent 有明確設定 effort 時才顯示。
 - `claude-code-guide`——回答 Claude Code / API 本身的問題。不是每個 session 都有（`claude -p` 起的 session 曾缺它，機制未查明），以當下 Agent 工具列出的類型為準。
@@ -23,14 +23,14 @@
 
 ## Agent 工具 `model` 參數的 alias 對照
 
-> harness 每 session 已注入同一份 model enum，dispatch skill 不重列；但 alias→實際型號的對照全 repo 僅此一處，不可刪。用途定位欄隨路由決策更新。
+> harness 每 session 已注入同一份 model enum，`docs/dispatch.md` 不重列；但 alias→實際型號的對照全 repo 僅此一處，不可刪。用途定位欄隨路由決策更新。
 
 | 參數值 | 實際型號 | 用途定位 |
 |--------|----------|----------|
 | `haiku` | claude-haiku-4-5 | 平台可用模型；不列入本制度 active routing |
 | `sonnet` | claude-sonnet-5-5（2026-09-29 由 `claude -p --model sonnet --output-format json` 的 `modelUsage` 現查；原為 claude-sonnet-5） | 掃描、總結、查網頁的讀取車道主力；`worker` 標準實作車道（frontmatter 鎖完整 ID） |
 | `opus` | claude-opus-5-5（2026-09-23 由 verifier transcript 的 `"model":"claude-opus-5-5"` 現查；2026-08-30 原為 claude-opus-5） | 難題升級、高風險判斷 |
-| `fable` | claude-fable-5-2（2026-11-10 由 `claude -p --model fable --output-format json` 的 `modelUsage` 現查，是 CLI 的 alias；同日派 `Explore`（`model: fable`），subagent transcript 記為 `"model":"claude-fable-5-2"`。2026-09-29 為 claude-fable-5-1，更早為 claude-fable-5） | 最高階；卡住換路的重新定義問題與第二意見（`<REPO>/global/shared/skills/dispatch/SKILL.md` §4「卡住時」）、高風險程式碼與使用者回報 bug 的 fresh `code-review`（同檔 §1、§3）；verifier 不自動走這條（同檔 §1「驗證不自驗」） |
+| `fable` | claude-fable-5-2（2026-11-10 由 `claude -p --model fable --output-format json` 的 `modelUsage` 現查，是 CLI 的 alias；同日派 `Explore`（`model: fable`），subagent transcript 記為 `"model":"claude-fable-5-2"`。2026-09-29 為 claude-fable-5-1，更早為 claude-fable-5） | 最高階；卡住換路的重新定義問題與第二意見（`<REPO>/docs/dispatch.md` §4「卡住時」）、高風險程式碼與使用者回報 bug 的 fresh `code-review`（同檔 §1、§3）；verifier 不自動走這條（同檔 §1「驗證不自驗」） |
 
 alias 會隨平台改版重新指向新一代同層模型——要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準，不引用本表。
 
@@ -38,7 +38,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 
 ## 主對話 context 大小怎麼量、cache 何時過期（2026-10-01 實測）
 
-> 窗口 C（2026-09-29 22:51～10-01 09:07）主對話 Opus 5.5 的 session jsonl 量測：1,262 request、$354.64（API 等價）。用途：`<REPO>/global/shared/skills/dispatch/SKILL.md` §6「主對話 context 管理」修法的 cache 重讀數據（compact 時機由使用者決定；controller 自己量 context 的指令在本節下方），與 §4「回報合約」的回報長度理由。
+> 窗口 C（2026-09-29 22:51～10-01 09:07）主對話 Opus 5.5 的 session jsonl 量測：1,262 request、$354.64（API 等價）。用途：`<REPO>/docs/dispatch.md` §6「主對話 context 管理」修法的 cache 重讀數據（compact 時機由使用者決定；controller 自己量 context 的指令在本節下方），與 §4「回報合約」的回報長度理由。
 
 - **量主對話自己的 context**（2026-10-01 實測可跑，回 175154）：session-id 取 system prompt 裡 scratchpad 路徑倒數第二段的 UUID（末段是 `scratchpad`），再跑下列指令；三項相加與本檔前段 `subagent_tokens` 那條同一算法，取最後一筆 assistant usage。macOS 沒有 `tac`，用 `tail -r`。
 
@@ -51,16 +51,16 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 - **主對話成本拆解**：69% 是 cache_read；context 中位 344K、P90 770K，>400K 的 request 占 62% 成本；最貴 3 個 session 占 82%；前兩名 context 中位 571K／674K、窗口內未 compact，第三名中位 293K、最大 494K、compact 1 次。連續唯讀工具 request（每段第一個以外）369 個、$84.45＝23.8%。subagent 回報中位 5.2K 字，全文留在主對話 context、每輪重讀，占位估 $72.19（20.4%，估算值）。
 - **窗口 D：compact 提醒規則沒有執行**（原文）：「2026-10-03 窗口 D：量測提醒 0 次執行，實際 4 次 compact 全由使用者發起，見 `../docs/reviews/worker-sonnet55-trial-2026-09.md`「窗口 D 量測」」。窗口 C 離開 >1h 後 cache 整段重寫的「9 次 $41」見上方 prompt cache 那條。
 - **回報字數上限無效**（原文）：「回報全文會留在主對話 context、之後每個 request 重讀（2026-10-01 窗口 C 回報中位 5.2K 字，占位約主對話成本 20%），所以長度靠兩道結構收住，不靠字數上限（窗口 D：brief 寫 2,000 字上限的 23 份回報全部超過，見 `../docs/reviews/worker-sonnet55-trial-2026-09.md`「窗口 D 量測」）：brief 的回報格式只列 controller 下一步決策要用的欄位；欄位以外的內容一律落檔附路徑。」5.2K／20.4% 的算法見上方成本拆解那條。
-- **主對話每次工具呼叫都重讀整個 context**（該條已日落；原文，僅更新指向）：「主對話**每一次工具呼叫都是一次完整 context 重讀**，成本隨 context 線性放大：read-back 併成一次 Bash（`git status`＋`rev-parse`＋`diff --stat` 同一則），多檔閱讀與掃 repo 依 dispatch skill §3 的旁支查詢派出、只拿結論，不在主對話逐檔 `sed`／`cat`（2026-09-18 實測主對話成本 74% 是 cache 重讀，見 `../docs/reviews/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」；2026-10-01 窗口 C：主對話 69% 是 cache 重讀，連續唯讀工具 request 占 23.8%，見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」）。」日落依據：連續唯讀工具 request 占比窗口 C 23.8%（369 筆）→ 窗口 D 25.5%（571 筆），規則生效期間沒有改善（`../docs/reviews/worker-sonnet55-trial-2026-09.md`「窗口 D 量測」的「規則三：read-back 併批」）；74% 的口徑與機制見 `../docs/reviews/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」。
+- **主對話每次工具呼叫都重讀整個 context**（該條已日落；原文，僅更新指向）：「主對話**每一次工具呼叫都是一次完整 context 重讀**，成本隨 context 線性放大：read-back 併成一次 Bash（`git status`＋`rev-parse`＋`diff --stat` 同一則），多檔閱讀與掃 repo 依 `docs/dispatch.md` §3 的旁支查詢派出、只拿結論，不在主對話逐檔 `sed`／`cat`（2026-09-18 實測主對話成本 74% 是 cache 重讀，見 `../docs/reviews/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」；2026-10-01 窗口 C：主對話 69% 是 cache 重讀，連續唯讀工具 request 占 23.8%，見 `../docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」）。」日落依據：連續唯讀工具 request 占比窗口 C 23.8%（369 筆）→ 窗口 D 25.5%（571 筆），規則生效期間沒有改善（`../docs/reviews/worker-sonnet55-trial-2026-09.md`「窗口 D 量測」的「規則三：read-back 併批」）；74% 的口徑與機制見 `../docs/reviews/dispatch-cost-review-2026-09-17.md`「2026-09-18 更正」。
 - **compact 模擬**：「context 超過 T 就 compact 到約 90K」，T=200K 上界省 37%、T=300K 上界省 34%（上界：未計 compact 後重建 context 的成本與在途工作風險）。
 - **未驗證**：compact 時有在途背景 subagent，其回報是否仍正常送達主對話。
 - **subagent 寫報告檔會被擋**（2026-10-01，n=2，general-purpose）：用 Write 把報告寫到 scratchpad 時 harness 回「Subagents should return findings as text, not write report files」。觸發條件（[anthropics/claude-code#44657](https://github.com/anthropics/claude-code/issues/44657)，2026-10-01 查證、本機 2.1.286）：Agent 工具派出的 subagent 寫 `.md` 且檔名以 `report`／`summary`／`findings`／`analysis` 開頭（不分大小寫），與路徑、agent 類型無關；server 端開關，無 settings／環境變數可關。worker 改 repo 內其他檔名不受影響。要長產物落檔時，檔名改用不以這四字開頭的名稱（如 `out-<主題>.md`；2026-10-01 使用者同意此做法），或由 controller 從回報文字存檔。
 
 ## 被問到 model／effort 時怎麼答
 
-> 這段服務的是「使用者問起時怎麼答」這個罕見場景，不是每個 session 都要的；判準（報呼叫參數、註明 runtime 未驗證）在 `<REPO>/global/shared/skills/dispatch/SKILL.md` §3「派工合約與回報」，本節只是細節。2026-10-09 改寫 effort 那句（見句內更正註記）。
+> 這段服務的是「使用者問起時怎麼答」這個罕見場景，不是每個 session 都要的；判準（報呼叫參數、註明 runtime 未驗證）在 `<REPO>/docs/dispatch.md` §3「派工合約與回報」，本節只是細節。2026-10-09 改寫 effort 那句（見句內更正註記）。
 
-被問到 model／effort 時報**呼叫時指定的參數**——那是你自述得出的。**本制度不稽核 subagent 實際跑在哪個 model**：runtime model ID 只能在派工 prompt 裡事前要求 subagent 自報，事後補問不到，而每次派工都加那段話的成本高過它的價值。所以被問時答「呼叫參數是 X，runtime 未驗證」，不要改口說已驗證。effort：呼叫時帶了 `effort` 參數就報該值；沒帶時，有 `~/.claude/agents/<角色>.md` 的角色引其 frontmatter 標「宣告值」，其餘寫「未指定，依 session 設定」；要確認實際值可在 subagent 內跑 `echo $CLAUDE_EFFORT`（2026-10-09 更正：原文寫「Agent 工具沒有 effort 參數、也無法 runtime 自報」，已不成立，見本檔開頭「沒有 frontmatter effort 的 subagent」）；外部模型（`codex:codex-rescue`）model／effort 都寫「不適用」。報制度出處要指得出是 `<REPO>/global/shared/skills/dispatch/SKILL.md` 的 §1、§6 或 §5 的哪一條，「範圍明確」這類自由心證不算。
+被問到 model／effort 時報**呼叫時指定的參數**——那是你自述得出的。**本制度不稽核 subagent 實際跑在哪個 model**：runtime model ID 只能在派工 prompt 裡事前要求 subagent 自報，事後補問不到，而每次派工都加那段話的成本高過它的價值。所以被問時答「呼叫參數是 X，runtime 未驗證」，不要改口說已驗證。effort：呼叫時帶了 `effort` 參數就報該值；沒帶時，有 `~/.claude/agents/<角色>.md` 的角色引其 frontmatter 標「宣告值」，其餘寫「未指定，依 session 設定」；要確認實際值可在 subagent 內跑 `echo $CLAUDE_EFFORT`（2026-10-09 更正：原文寫「Agent 工具沒有 effort 參數、也無法 runtime 自報」，已不成立，見本檔開頭「沒有 frontmatter effort 的 subagent」）；外部模型（`codex:codex-rescue`）model／effort 都寫「不適用」。報制度出處要指得出是 `<REPO>/docs/dispatch.md` 的 §1、§6 或 §5 的哪一條，「範圍明確」這類自由心證不算。
 
 ## 常駐內容對 subagent 的可見性、`paths` frontmatter、hook 注入（2026-09-20 實測）
 
@@ -82,7 +82,7 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 - **Mac 補測（2026-09-20，`xushengzhedeMacBook-Pro.local`，`claude -p --model sonnet --output-format json`，scratchpad 空目錄背靠背）**：`@~/.claude/host-facts.md` 匯入在 Mac 成立——symlink 建立前問「有沒有『# 本機事實：』標題」回「無」、建立後引出標題；prompt 56,284 → 56,894，`global/shared/hosts/macos.md` 1,185 bytes＝610 tokens（**1.94 bytes/token**）。拆分那個 commit 合進來時 Mac 端沒有裝 `host-facts.md`，當天 14:17 之後的 Mac session 都沒有本機事實，是事後 review 才發現的——**改安裝清單的 commit，另一台機器要等人去裝才生效**。
 - 同日常駐 bytes 帳（重構前的全域 `CLAUDE.md`、環境規則檔、跨機器規則檔與 host-facts；`git show <rev>:<file> | wc -c`）：當天第一個 commit 之前 11,631 → 拆分前 13,982（同日 `1673f4d` 把跨機器規則檔從 2,615 加到 4,317）→ 拆分後 Mac 12,324／Windows 13,389 → 同日再精簡 CLAUDE.md（刪掉與 `global/shared/hosts/windows.md` 重複的 Windows 專屬 ⚠️ 段、縮檔頭與段標題，4,792 → 3,959）後 Mac 11,491／Windows 12,599 → 第二輪（CLAUDE.md 常駐檔索引列併成一句、只留「用到才讀」表，3,959 → 3,104；`global/shared/hosts/macos.md` 1,185 → 1,106）後 Mac 10,557／Windows 11,744。**上面「省 303／≈870 tokens」是對拆分前那個當天才長大的基準算的**；對當天開頭算，Mac −1,074 bytes、Windows +113 bytes（Windows 多的是新增的 448／複本安裝事實）。
 - `claude -p --allowed-tools "" '<prompt>'` 會把 prompt 吃進 `--allowed-tools`（可變長參數）而報 `Input must be provided`；prompt 用 stdin（`echo … | claude -p …`）或 `<<<`，或把 `--allowed-tools ""` 放在 prompt 之後。
-- 附帶：`<REPO>/global/shared/skills/dispatch/SKILL.md` §3「派工合約」的「subagent 也會讀到全域規則」只對 general-purpose／worker 成立，Explore／Plan 不成立，該句只指 general-purpose／worker（issue #3）。
+- 附帶：`<REPO>/docs/dispatch.md` §3「派工合約與回報」的「subagent 也會讀到全域規則」只對 general-purpose／worker 成立，Explore／Plan 不成立，該句只指 general-purpose／worker（issue #3）。
 - **Mac 補測可見性（2026-10-17，`xushengzhedeMacBook-Pro.local`，scratchpad 空目錄 `claude -p --model sonnet`，主對話派 `Explore` 與 `general-purpose` 各問一次、不准用工具）**：問「有沒有標題含『三條鐵律』的段落」「有沒有以『# 20 — 判斷準則』開頭的內容」「有沒有以『# 本機事實：』開頭的內容」，general-purpose 三題皆「有」且引出 `## 三條鐵律（隨時生效）`，Explore 三題皆「沒有」。上表第一列（全域與專案 `CLAUDE.md`／rules）與 `@import` 那列的 Explore 欄在 Mac 成立；hook 注入各列未在 Mac 重測。
 
 ## controller 專用規則分流（2026-10-12 實測，Mac `xushengzhedeMacBook-Pro.local`，Claude Code 2.1.296）
@@ -91,22 +91,22 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 - `omitClaudeMd: true`（subagent frontmatter，文件說需 2.1.271+）：transcript 內全域 CLAUDE.md、`~/.claude/rules/` 內的規則檔、host-facts 匯入、專案 CLAUDE.md、專案 `.claude/rules/`、harness 的語言設定段全部 0 命中（對照組全有）；首個 request `cache_creation_input_tokens` 對照組 19,790、omit 1,242（claude-sonnet-5-5）。結論：全有或全無，會連專案規格與語言設定一起丟，不採用。實際專案 CLAUDE.md 的量級：project-a 15,356 bytes、另一公司專案 49,532 bytes。
 - agent frontmatter 的 `hooks: SubagentStart`（JSON `additionalContext`）實測**沒有**注入（0 命中）；要對 subagent 注入仍只有 settings 層 SubagentStart hook（上表）。
 - 近 7 天（2026-10-05～10-12）本機：subagent transcript 984 個，876 個帶全套注入，累計 assistant turn 63,930；Agent 工具派工計數（主對話 jsonl grep `subagent_type`，可能含重複）verifier 646、worker 622、general-purpose 312、Explore 114、Plan 104、codex-rescue 98、worker-opus 78。
-- 採用方案：controller 專用的路由卡（`<REPO>/global/claude/route-card.md`）由 SessionStart hook（無 matcher）以 stdout 注入主對話，完整派工細節在 dispatch skill 按需讀；subagent 的原生繼承不動。官方文件（hooks.md「SessionStart」、hooks-guide.md「Re-inject context after compaction」）寫 compaction 後會重跑 `compact` 來源的 SessionStart hook 並把輸出加進 compacted context，較早注入的內容只會被摘要——**本機 compaction 後重注入尚未實測**。Codex 側沒有對應機制，`global/codex/rules/` 不分流，刻意分版。
+- 採用方案：controller 專用的路由卡（`<REPO>/global/claude/route-card.md`）由 SessionStart hook（無 matcher）以 stdout 注入主對話，完整派工細節在 `docs/dispatch.md` 按需讀；subagent 的原生繼承不動。官方文件（hooks.md「SessionStart」、hooks-guide.md「Re-inject context after compaction」）寫 compaction 後會重跑 `compact` 來源的 SessionStart hook 並把輸出加進 compacted context，較早注入的內容只會被摘要——**本機 compaction 後重注入尚未實測**。Codex 側沒有對應機制，`global/codex/rules/` 不分流，刻意分版。
 - hook 登記後實測（同日，settings.json 追加 `bash "$HOME/.claude/hooks/controller-context.sh"`，scratchpad 專案 `claude -p --model sonnet`）：主對話 transcript 以 `attachment`（`hook_success`）收到以 `# Contents of ` 開頭的注入（hook 輸出的第一行，量測當時注入的是重構前的 controller 專用規則檔），模型能逐字引出該行與其後的檔案標題；派出的自訂 agent transcript 對該標頭 0 命中、對全域 CLAUDE.md 注入 1 命中（原生繼承未受影響）；自訂 agent 首個 request `cache_creation_input_tokens` 由搬移前 19,790 降到 11,402。fresh verifier 獨立重建 probe 專案得到相同結果。
 - **上線後現場量測（2026-10-16，`.claude/skills/usage-review` 對本機 jsonl，subagent 首個 request 的 ctx 中位數）**：worker 10-12 33,588 → 10-13 26,299、verifier 34,549 → 25,338、general-purpose 49,304 → 41,081，同一專案（project-f）worker＋verifier 34,229 → 24,523；不繼承 rules 的 Explore 同期 14,425 → 15,173 沒動，排除其他來源。10-10 另有一個全類型都降約 5K 的台階（Explore 20,674 → 16,823），那是當日 plugin 整理，不是分流。以 9,000 tokens／request 乘上分流後 4 天 460 個繼承 rules 的 subagent 共 15,896 個 request 的 5m cache write／read 價格估算，約 $10.5／天（$73／週，API 表價等價）。
 
 ## 常用 subagent 類型（`subagent_type`）
 
-> harness 每 session 已注入 agent 清單與描述，dispatch skill 不重列；別處沒有而需常駐的事實（general-purpose 是升級車道、verifier 顯式 opus、simplify 是 skill、codex-rescue 的定位）在 `<REPO>/global/shared/skills/dispatch/SKILL.md` §3「派工合約與回報」。以下沿用重構前的原文，文中的 §N 已改成 dispatch skill 的對應章節。
+> harness 每 session 已注入 agent 清單與描述，`docs/dispatch.md` 不重列；別處沒有而需常駐的事實（general-purpose 是升級車道、verifier 顯式 opus、simplify 是 skill、codex-rescue 的定位）在 `<REPO>/docs/dispatch.md` §3「派工合約與回報」。以下沿用重構前的原文，文中的 §N 已改成 `docs/dispatch.md` 的對應章節。
 
 **常用 subagent 類型**（`subagent_type`）：
 - `Explore`——唯讀搜索，掃 repo、找檔案、答「哪裡有 X」。不能改檔。
 - `Plan`——出實作計畫、架構取捨。
 - `general-purpose`——全工具；v4 起只用於 fresh `code-review`、要落檔的查詢與第二意見，顯式指定 model。實作不派 subagent（controller 自做）。
-- 本系統自帶 `verifier`（獨立驗收）；派工前讀 `~/.claude/agents/verifier.md` 合約。verifier 顯式 `model: opus`，升 fable 見 `<REPO>/global/shared/skills/dispatch/SKILL.md` §1「驗證不自驗」。`worker` 於 v4（2026-10-29）日落。
+- 本系統自帶 `verifier`（獨立驗收）；派工前讀 `~/.claude/agents/verifier.md` 合約。verifier 顯式 `model: opus`，升 fable 見 `<REPO>/docs/dispatch.md` §1「驗證不自驗」。`worker` 於 v4（2026-10-29）日落。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
 - `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
-- Explore／Plan 的角色系統指示禁止建立或寫入任何檔案（含 `/tmp`、scratchpad、heredoc 重導向）：2026-10-12 以 Explore（haiku）探針要求用 heredoc 寫 scratchpad 一個檔，agent 回「系統指示明確禁止…未執行」，沒有嘗試繞過；Plan 的角色指示在 claude 2.1.296 binary 的 strings 可見同款條文（READ-ONLY planning task、禁止建 /tmp 檔、禁止 `>`／`>>`／heredoc）。要落檔派 general-purpose；Explore／Plan 的回報長度只能靠 brief 的回報欄位控（`<REPO>/global/shared/skills/dispatch/SKILL.md` §3「派工合約與回報」）。
+- Explore／Plan 的角色系統指示禁止建立或寫入任何檔案（含 `/tmp`、scratchpad、heredoc 重導向）：2026-10-12 以 Explore（haiku）探針要求用 heredoc 寫 scratchpad 一個檔，agent 回「系統指示明確禁止…未執行」，沒有嘗試繞過；Plan 的角色指示在 claude 2.1.296 binary 的 strings 可見同款條文（READ-ONLY planning task、禁止建 /tmp 檔、禁止 `>`／`>>`／heredoc）。要落檔派 general-purpose；Explore／Plan 的回報長度只能靠 brief 的回報欄位控（`<REPO>/docs/dispatch.md` §3「派工合約與回報」）。
 - Explore／Plan 沒有 Agent 工具（2026-10-17，Claude Code 2.1.301）：harness 注入主對話的 agent 類型清單把兩者的工具寫成「All tools except Agent, Artifact, …, Edit, Write, NotebookEdit」，所以它們無法再派 subagent；同版 binary 的 strings 也可見兩者的 `disallowedTools` 含 `Agent`（minify 過，只當旁證）。
 
 ## 固定注入：plugin／MCP／skill 清單

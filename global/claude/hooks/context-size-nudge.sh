@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PostToolUse hook：主對話 context 跨過門檻時，注入一次交接提醒（dispatch skill §6「主對話 context 管理」）。
+# PostToolUse hook：主對話 context 跨過門檻時，注入一次交接提醒（<REPO>/docs/dispatch.md §6「主對話 context 管理」）。
 # 讀 stdin 的 transcript_path，取最後一筆 assistant usage 的 input＋cache_read＋cache_creation 當 context 大小。
 # 每個 session 每跨一個 100K 級距只提醒一次；掉回門檻以下（compact 之後）重新計。subagent（stdin 有 agent_id）不提醒。
 # 沒有 jq 或 stdin 不是 JSON 時 exit 1（不擋工具，transcript 看得到 hook 沒跑）。
@@ -40,6 +40,6 @@ mkdir -p "$state_dir" 2>/dev/null || exit 0
 mkdir "$state.b$band" 2>/dev/null || exit 0
 echo "$band" > "$state" || exit 0
 
-msg="主對話 context 約 $((ctx / 1000))K（門檻 $((threshold / 1000))K）。還有未做的 phase 時：做到目前段落結束，寫 session 交接卡（handoff skill §4），照 worktree-session references/cli.md「接手 session」自己啟動新 session 接手剩下的 phase 並 read-back，再告訴使用者到哪個分頁繼續，不必等使用者開口；不派 subagent 代做。沒有未做的 phase 就照常收尾。依據：dispatch skill §6。"
+msg="主對話 context 約 $((ctx / 1000))K（門檻 $((threshold / 1000))K）。還有未做的 phase 時：做到目前段落結束，寫 session 交接卡（handoff skill §4），照 worktree-session references/cli.md「接手 session」自己啟動新 session 接手剩下的 phase 並 read-back，再告訴使用者到哪個分頁繼續，不必等使用者開口；不派 subagent 代做。沒有未做的 phase 就照常收尾。依據：<REPO>/docs/dispatch.md §6。"
 jq -n --arg m "$msg" '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $m}}'
 exit 0

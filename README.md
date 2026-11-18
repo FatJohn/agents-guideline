@@ -49,8 +49,8 @@ Delegation table (abridged from `global/claude/route-card.md`):
 
 | Task | Delegate to |
 |---|---|
-| Acceptance | `verifier`, `model: opus`; always for any document before merge or ready, code by dispatch skill §1 tiers, still applies when project rules name only code-review |
-| Fresh review of a code diff | Fresh subagent running `code-review` skill, never the main conversation itself; adds to `verifier`, never replaces it; after fixing findings, re-verify per dispatch skill §2 |
+| Acceptance | `verifier`, `model: opus`; always for any document before merge or ready, code by `docs/dispatch.md` §1 tiers, still applies when project rules name only code-review |
+| Fresh review of a code diff | Fresh subagent running `code-review` skill, never the main conversation itself; adds to `verifier`, never replaces it; after fixing findings, re-verify per `docs/dispatch.md` §2 |
 | Side research | Answer is in the files (which files have X, lists, numbers): `Explore`, `model: haiku`. Reading several long documents, cross-source comparison, conclusions that need reasoning: `general-purpose`, `model: sonnet`. Second opinion: `codex:codex-rescue` |
 | Implementation, fixes, docs, planning | Not delegated: the controller does them |
 
@@ -128,7 +128,6 @@ Shared skills come from `global/shared/skills/` and install into `~/.claude/skil
 
 | Name | Triggers when | Installed at |
 |---|---|---|
-| `dispatch` | Acceptance, fresh review, side research, post-review fixes, changing course when stuck | Both platforms |
 | `handoff` | Writing briefs, reports, verdicts; wrap-up, compact | Both platforms |
 | `git-commit` | Writing a commit message or squash-merge title | Both platforms |
 | `create-pr` | Opening a Pull Request from a branch | Both platforms |
@@ -136,6 +135,8 @@ Shared skills come from `global/shared/skills/` and install into `~/.claude/skil
 | `writing-principles` | Writing, editing or reviewing READMEs, guides, design docs | Both platforms |
 | `maintain-guideline` | Changing this system itself (`global/**`, entry points) | repo-only |
 | `usage-review` | Measuring Claude Code usage and dispatch behavior | repo-only |
+
+The rules for acceptance, fresh review, side research, post-review fixes, changing course when stuck and main-conversation context are a document, not a skill: `docs/dispatch.md`, pointed to by the route card and the verifier contract.
 
 ## Agents
 
@@ -174,7 +175,7 @@ For a new machine (no file in `global/shared/hosts/`), probe it and create its f
 
 How the installed pieces work at runtime (what loads when, what each hook enforces, which `settings.json` fields the system depends on, and what a rebuild has to restore on both sides) is explained in 「運作機制」 of [`docs/design/mechanism.md`](docs/design/mechanism.md).
 
-`docs/install.md`, `docs/new-host.md`, `docs/design/mechanism.md` and `docs/repo-layout.md` exist in Chinese only.
+`docs/install.md`, `docs/new-host.md`, `docs/design/mechanism.md`, `docs/repo-layout.md` and `docs/dispatch.md` exist in Chinese only.
 
 ## Directory map
 

@@ -17,7 +17,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/claude/CLAUDE.md` | 全域入口：邊界六條、路由表、Bootstrap；以 `@~/.claude/host-facts.md` 匯入本機事實（裝在 `~/.claude/CLAUDE.md`） |
 | `global/shared/hosts/<key>.md` | 單機事實（身分、驗證能力、環境陷阱），**每台機器只裝自己那份**到 `~/.claude/host-facts.md`；新機器由 AI 照 `docs/new-host.md`「新機器建檔」建檔 |
 | `global/shared/rules/judgment.md` | 判斷準則：15 條編號規則（完成的條件、殘留掃描、驗收停止端、可證偽宣稱、放寬防線、除錯前驗環境等），裝在 `~/.claude/rules/`；訂條理由與正反例在 `docs/judgment-rationale.md` |
-| `global/claude/route-card.md` | controller 路由卡（何時必須派工、角色表、brief 必含欄位、指向 dispatch skill）；由 SessionStart hook 只注入主對話，subagent 不繼承 |
+| `global/claude/route-card.md` | controller 路由卡（何時必須派工、角色表、brief 必含欄位、指向 `docs/dispatch.md`）；由 SessionStart hook 只注入主對話，subagent 不繼承 |
 
 ## 按需
 
@@ -25,7 +25,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 
 | 檔案 | 用途 |
 |------|------|
-| `global/shared/skills/dispatch/SKILL.md` | 驗收、派工與修正：驗證不自驗、修正與驗收輪次、派 verifier／fresh review／查詢型 subagent 的合約與回報、卡住時換路、何時問使用者、主對話 context 管理 |
+| `docs/dispatch.md` | 驗收、派工與修正：驗證不自驗、修正與驗收輪次、派 verifier／fresh review／查詢型 subagent 的合約與回報、卡住時換路、何時問使用者、主對話 context 管理 |
 | `global/shared/skills/handoff/SKILL.md` | 四張固定卡：brief 卡、回報卡、verifier 判定卡、session 交接卡 |
 | `global/shared/skills/git-commit/SKILL.md` | commit message 固定格式與 squash merge 標題；專案規格有自己的慣例時以專案為準 |
 | `global/shared/skills/create-pr/SKILL.md` | 分析 branch 變更並準備 Pull Request |
@@ -36,7 +36,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/shared/rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描、作假偵測與失敗路徑） |
 | `global/shared/rubrics/research-analysis.md` | 研究與盤點類產出的逐條驗收判準 |
 | `global/shared/rubrics/review-findings.md` | review finding 的品質判準（失敗情境、斷言前查證、嚴重度、不要留言的事）；fresh code-review 的 brief 與 Codex `reviewer` 合約引用 |
-| `global/claude/agents/verifier.md` | fresh-context 驗收者：含「找碴範圍」與收斂標記；高風險驗收用同一個角色，派工一律顯式 `model: opus`（升 `fable` 的條件見 dispatch skill §1『驗證不自驗』） |
+| `global/claude/agents/verifier.md` | fresh-context 驗收者：含「找碴範圍」與收斂標記；高風險驗收用同一個角色，派工一律顯式 `model: opus`（升 `fable` 的條件見 `docs/dispatch.md` §1『驗證不自驗』） |
 | `global/claude/hooks/controller-context.sh` | SessionStart hook，把 `route-card.md` 注入主對話；卡片不存在就靜默略過 |
 | `global/claude/hooks/block-ci-edit.sh` | PreToolUse hook，擋主對話用 Edit／Write 靜默改 `.github/workflows` 與 `.github/actions`，訊息要求先給使用者看 diff 取授權（選配） |
 | `global/claude/hooks/require-issue-session-model.sh` | PreToolUse hook，`orca worktree create`／`orca agent launch` 帶 `--agent claude`，或 `claude -w` 啟動，卻缺 `--model` 或 `--effort` 時擋下，訊息指回 worktree-session `references/cli.md`（選配） |
@@ -113,4 +113,4 @@ Claude 側沒有 `scanner`／`explorer`／`planner` 的等價 custom agent：內
 
 ## 為什麼 Claude 側沒有派工模板檔
 
-Claude 側的派工合約併在 `global/shared/skills/dispatch/SKILL.md` §3『派工合約與回報』與 `handoff` skill §1『brief 卡』，沒有獨立模板檔：填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `global/codex/rules/delegation-templates.md`：它把 approved plan、寫入所有權、驗證命令與回報格式做成可核對欄位，避免 controller 只靠角色名稱推定 child 已取得完整脈絡。
+Claude 側的派工合約併在 `docs/dispatch.md` §3『派工合約與回報』與 `handoff` skill §1『brief 卡』，沒有獨立模板檔：填空模板對 Claude 5 世代是重複投入，且範例會窄化探索。Codex 側維持 `global/codex/rules/delegation-templates.md`：它把 approved plan、寫入所有權、驗證命令與回報格式做成可核對欄位，避免 controller 只靠角色名稱推定 child 已取得完整脈絡。

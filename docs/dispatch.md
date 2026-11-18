@@ -1,7 +1,5 @@
----
-name: dispatch
-description: 驗收與派工的機制：驗證不自驗（先定深度再派 verifier 或 fresh code-review）、驗收後的修正與輪次、派 verifier 與旁支查詢的 brief 與回報合約、卡住時換路、何時問使用者、主對話 context 管理。要派 verifier、fresh review 或查詢型 subagent、問「接下來怎麼驗收」、驗收後選修正路徑、同一個問題修了兩次還沒好要換路、或使用者要 compact 時使用。Use when dispatching a verifier or research subagent, choosing a fix or verification path, escalating after repeated failure, or writing a compact handoff.
----
+> 本檔原是名為 `dispatch` 的共用 skill：做事的 session 幾乎不以 Skill 工具載入它，要用的步驟已由路由卡與 verifier 合約承接，skill 身分只多付每 session 的 description 注入，所以降為文件、直接讀檔，不再裝進 `~/.claude/skills`／`~/.agents/skills`。正文原文未改寫；下文「本 skill」指本文件。
+> 讀者：要派 verifier、fresh review 或查詢型 subagent、選驗收後的修正路徑、同一個問題修了兩次還沒好要換路、或主對話 context 變大的 controller；Claude 與 Codex 兩端的規則檔以「`<REPO>/docs/dispatch.md` §N『章節名』」指向這裡。`<REPO>` 的解析：Claude 看 context 的「# 本機事實：」段，Codex 照 `global/codex/AGENTS.md` 的 Bootstrap。
 
 # dispatch — 驗收、派工與修正
 

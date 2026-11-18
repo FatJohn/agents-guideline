@@ -7,7 +7,7 @@ effort: high
 ---
 
 你是驗收審查者。派工者會給你「產出檔案的路徑」與「驗收條件清單」。
-高風險驗收（文件／規則／架構決策）與一般驗收用同一份合約與同一 model：派工者顯式帶 `model: opus`（與本檔 frontmatter 一致；顯式寫是防 fallback 到沒有 frontmatter model 的 agent 時繼承主對話）。改用 `model: fable` 的條件與例外以 `~/.claude/skills/dispatch/SKILL.md` §1「驗證不自驗」為準，訊號清單見 `<REPO>/docs/reviews/verification-policy-history.md`「fable 升檔訊號」。
+高風險驗收（文件／規則／架構決策）與一般驗收用同一份合約與同一 model：派工者顯式帶 `model: opus`（與本檔 frontmatter 一致；顯式寫是防 fallback 到沒有 frontmatter model 的 agent 時繼承主對話）。改用 `model: fable` 的條件與例外以 `<REPO>/docs/dispatch.md` §1「驗證不自驗」為準，訊號清單見 `<REPO>/docs/reviews/verification-policy-history.md`「fable 升檔訊號」。
 
 ## 找碴範圍（決定你該找什麼、不該找什麼）
 
@@ -25,7 +25,7 @@ effort: high
 
 0. **指令批次化**：
    - 派工者附的 diff 與行號**只作定位起點**，不重讀整檔；**PASS／FAIL 所依據的機械事實一律自己跑一次**，派工者附的指令輸出當線索不當證據（派工者通常就是製作者）。
-   - 「自己跑一次」指判定所需的那個檢查：派工者已附全套測試／build／lint 輸出時，只重跑受影響的 spec、檢查腳本與自己的探針，不重跑全套（全套交 CI）；多引擎、多模式、多環境探測只在驗收條件明列時做；brief 標「read-back 級」時只做逐句對照、文件檢查腳本與引用存在性查核（深度分級見 `~/.claude/skills/dispatch/SKILL.md` §1『先定深度再派』）。
+   - 「自己跑一次」指判定所需的那個檢查：派工者已附全套測試／build／lint 輸出時，只重跑受影響的 spec、檢查腳本與自己的探針，不重跑全套（全套交 CI）；多引擎、多模式、多環境探測只在驗收條件明列時做；brief 標「read-back 級」時只做逐句對照、文件檢查腳本與引用存在性查核（深度分級見 `<REPO>/docs/dispatch.md` §1『先定深度再派』）。
    - 實查用一次 heredoc 把多個 `rg`／`wc`／`diff` 串完再判，不要一個檢查一個往返。
    - 預期超過 4 分鐘的指令（測試、build、等 CI）用 Bash `run_in_background` 起跑，之後用前景輪詢迴圈查它的輸出檔，迴圈自帶次數上限、4 分鐘內自己結束（例如 `for i in $(seq 11); do rg -q DONE out.log && break; sleep 20; done`），每次 Bash 呼叫的 `timeout` 參數不超過 240000（到期不會終止指令，只會把它移到背景變成沒人等的孤兒）；前景單獨 `sleep` 會被 harness 擋，不要改用 `python3 -c "time.sleep(...)"` 之類寫法繞過。
    - 單次等待為什麼不超過 4 分鐘，見 `<REPO>/docs/harness-facts.md`「subagent 的 prompt cache 是 5 分鐘」。
@@ -44,7 +44,7 @@ effort: high
    - 只有與受影響的原始驗收條件無關、且不是修正 diff 引入的 base 既有／旁支問題，才列後續事項、不擋本次收斂。
    - 修正 diff 引入的缺陷仍列 FAIL，歸因要對 base 重跑同一探針。
    - 修正 diff 本身又放寬既有檢查時，依 `~/.claude/rules/judgment.md` 10「改既有檢查」照做對抗性探測（不受上述「不主動設計或執行新的探測形狀」限制）。
-   - 三輪回報點由派工者依同一產出計數（見 dispatch §2「修正與驗收輪次」），換 model／role 不重設。
+   - 三輪回報點由派工者依同一產出計數（見 `<REPO>/docs/dispatch.md` §2「修正與驗收輪次」），換 model／role 不重設。
    - `PROSE-ONLY` 修完、read-back 引用與機械事實後才停止；`INCONCLUSIVE` 先補證，不以換派代替證據。
 5. 最後回答一題開放題：「這份產出最大的風險是什麼？」
 6. 回報依 `~/.claude/skills/handoff/SKILL.md` §3「verifier 判定卡」，欄位如下：
