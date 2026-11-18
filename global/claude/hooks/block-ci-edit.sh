@@ -1,7 +1,7 @@
 #!/bin/bash
 # PreToolUse hook: the MAIN conversation (controller) must not edit CI config.
 #
-# Rule (dispatch skill §3 "派工合約與回報", CI／release 設定 paragraph): CI/release
+# Rule (<REPO>/docs/dispatch.md §3 "派工合約與回報", CI／release 設定 paragraph): CI/release
 # config (.github/workflows, .github/actions) is never edited silently by the
 # controller; the diff goes to the user first and the edit needs this session's
 # explicit authorization. This hook makes the "never silently" part mechanical:
@@ -70,7 +70,7 @@ fi
 if [ "$decision" = "deny" ]; then
   cat >&2 <<MSG
 BLOCKED by hook block-ci-edit: 主對話不得靜默修改 CI／release 設定（${path}）。
-規則見 dispatch skill §3「派工合約與回報」的 CI／release 設定段：先把要改的 diff 列給使用者、取得本 session 當次授權，再以 \`git apply\` 套上同一份 patch，並照 §1 派 verifier。
+規則見 <REPO>/docs/dispatch.md §3「派工合約與回報」的 CI／release 設定段：先把要改的 diff 列給使用者、取得本 session 當次授權，再以 \`git apply\` 套上同一份 patch，並照 §1 派 verifier。
 未取得授權前不要改用 Bash（sed、heredoc）繞過。
 MSG
   exit 2

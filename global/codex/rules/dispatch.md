@@ -1,7 +1,7 @@
 # Codex 模型調度守則
 
 > 讀者：Codex 主對話（controller）。每次要派工、選模型或驗收之前照著做。
-> 本檔是 `<REPO>/global/shared/skills/dispatch/SKILL.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
+> 本檔是 `<REPO>/docs/dispatch.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
 > 下文的 `<REPO>` 同 `~/.codex/AGENTS.md` 的 Bootstrap 段定義（依機器而異；該段有對照表，`readlink ~/.codex/AGENTS.md` 只在 symlink 安裝的機器上有效）。本檔位在 `<REPO>/global/codex/rules/`，寫成裸 `rules/…` 從這裡解析不到。
 
 controller 在主對話自己做實作與文件；subagent 只剩三類：fresh-context 驗收（`verifier`／`sol_verifier`）、fresh review（`reviewer`）、旁支查詢（`scanner`／`explorer`）。實作與規劃不派 subagent，理由與量測見 `<REPO>/docs/reviews/v4-2026-10.md`。平行開發與多 issue 走 `<REPO>/global/shared/skills/worktree-session/SKILL.md`：一 issue 一頂層 session，各在自己的 worktree，不派實作型 subagent；已在盤點的 session（起過 issue session 或接手盤點 session）接到改檔工作也寫 brief 起 session，同一張票的後續階段與交接卡的下一步都算。
@@ -52,7 +52,7 @@ controller 自己做實作、修 bug、重構、文件與規劃；subagent 只�
 1. **開工前的 plan**（非平凡任務首次改檔前寫下，不派 planner）：目標與動機、affected files／寫入範圍（絕對路徑）、invariants、implementation phases、validation commands 與可判定的完成條件（`<REPO>/global/shared/rules/judgment.md` 第 12 條）；高風險補 failure modes 與 rollback；未決邊界先向使用者釐清，不邊做邊補。approved plan 由 controller 自己核定，不新增使用者批准程序。修正要對多個呼叫點、非同步交錯或多處讀寫同一狀態都成立時，先寫不變量，再依 §5 第 1 條取獨立方案比對。
 2. **開工在自己的 worktree**（`<REPO>/global/shared/skills/worktree-session/SKILL.md` §1），逐 phase 實作並跑 validation commands，留指令輸出；新增或修改的測試斷言與守門檢查各附一次實跑會變紅的突變紅／綠（`<REPO>/global/shared/rules/judgment.md` 第 6 條）；失敗先查環境與根因（`<REPO>/docs/debug-environment-first.md`），每輪記一列逐輪嘗試表，無進展依 §5 換路。
 3. **旁支查詢**只在原始內容後續不需逐行引用、經有界讀取（`rg`、`sed -n`）仍要帶入大量原文時派：答案在檔案裡（找哪些檔有 X、列清單、抓數字）派 `scanner`；要讀多份長文歸納、跨來源比對、結論帶推理派 `explorer`；只拿結論與檔案:行號，原文不帶回主對話。`scanner` 超界交回時由 controller 改派 `explorer`。短搜尋留在主對話。
-4. **依 §6 選驗收與 fresh review**；修正一律 controller 自做，依 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」與 `<REPO>/global/shared/skills/dispatch/SKILL.md` §2「修正與驗收輪次」分流。自做不改變驗收：自己改的產出照 §6 派，不因自做降級。
+4. **依 §6 選驗收與 fresh review**；修正一律 controller 自做，依 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」與 `<REPO>/docs/dispatch.md` §2「修正與驗收輪次」分流。自做不改變驗收：自己改的產出照 §6 派，不因自做降級。
 
 **CI／release 設定**（`.github/workflows`、`.github/actions` 等會被執行的設定）不靜默自改：先把 diff 給使用者、取得本 session 當次授權，再套上並照 §6 派驗收。
 
@@ -72,7 +72,7 @@ controller 自己做實作、修 bug、重構、文件與規劃；subagent 只�
 
 **派工揭露（controller → 使用者，每次派 subagent 都要）**：在呼叫工具前，commentary 只報**指定的 logical role 名稱與任務摘要**，例如「派 `scanner` 掃描設定」。正常 named path 不例行回報 actual `agent_type`、model、effort、permission 或制度依據。named unavailable 而改走 `default` 時標成「`<logical role>`（generic fallback）」；direct CLI path 標成「`<logical role>`（direct CLI fallback）」；建立失敗則回報「`<logical role>` 未建立」與 runtime 原因。使用者詢問、runtime 不一致、unsupported／unavailable 或正式稽核時，才展開 adapter envelope 內的 actual `agent_type`、model／effort、permission 與證據層級。不得把 TOML、角色名稱或 generic child 冒充 custom runtime 身份。
 
-Claude 端 `<REPO>/global/shared/skills/dispatch/SKILL.md` §3「派工合約與回報」使用同一套 user-facing 揭露：正常只報指定 role 名稱與任務摘要，fallback 才標差異。Codex 額外取得的 runtime metadata 留在 adapter envelope，不轉成每次 commentary；這是內部證據能力差異，不是使用者介面差異。
+Claude 端 `<REPO>/docs/dispatch.md` §3「派工合約與回報」使用同一套 user-facing 揭露：正常只報指定 role 名稱與任務摘要，fallback 才標差異。Codex 額外取得的 runtime metadata 留在 adapter envelope，不轉成每次 commentary；這是內部證據能力差異，不是使用者介面差異。
 
 每個 subagent prompt 必含三段，缺一段就是不合格派工（模板見 `delegation-templates.md`）：
 
@@ -102,18 +102,18 @@ controller 應在 brief 附上仍有效的 diff、檔案行號／段落與測試
 
 1. **重新定義問題**：先寫出不變量（修完後要由結構保證成立的條件、不靠事後檢查），附全部失敗紀錄與其共同形狀，派 `explorer`（依 §0，read-only，brief 寫明只出方案）與一個 direct CLI 的 Sol/medium fresh process 各自獨立出方案並互相比對，只靠事後檢查補洞的方案不採；分歧交使用者。
 2. **第二意見**：direct CLI 起一個 fresh process（Terra high；高風險或 Terra 已顯示能力不足時 Sol medium）帶失敗軌跡從 root cause 重看，不沿用自己的假設；主對話 model 本身要換時，由使用者在 UI 或 CLI 為下一個 session 選擇，global instruction 不能在已啟動的主對話中切換。
-3. **問人**：依 `<REPO>/global/shared/skills/dispatch/SKILL.md` §5「何時問使用者」。兩輪無進展代表方向錯了，不要換個措辭再試第三次。
+3. **問人**：依 `<REPO>/docs/dispatch.md` §5「何時問使用者」。兩輪無進展代表方向錯了，不要換個措辭再試第三次。
 
 任一指定 model 回報 unsupported 或 unavailable → 停止宣稱該 model mapping 已驗證，改用已核准的 fallback 並標記「模型未驗證」；不得靜默繼承另一個 model。`Sol high` 卡住 → 先換 fresh-context Sol、取得獨立第二意見或重定義問題與驗收條件；只有仍有明確邊際價值時，controller 才可顯式使用 xhigh／max。Ultra 不是一般 coding route。
 
 ## 6. 驗證語意
 
-- **先定深度再派**：低風險小改＝同時成立：文件只改數句（事實更正、連結、措辭）或程式碼只改單點素材／設定／字串／幾行邏輯；不含外部呼叫、權限請求或不可逆副作用（`<REPO>/global/shared/rules/judgment.md` 第 2 條）；不屬 judgment 第 1 條的高風險產出（含並行、資料一致性、安全相關的邏輯，即使只有幾行）；不是使用者回報的 bug；製作者已附機械檢查輸出。走輕量路徑：文件派 `verifier` 做 read-back 級（逐句對照來源、跑 repo 的文件檢查腳本、查引用存在，brief 寫明不跑 repo 全套驗證）；程式碼由製作者機械驗證＋一次 fresh-context `reviewer`，不派 `verifier`。**只改文件的 diff 不派 `reviewer`**（含規格、`AGENTS.md`、rules 等行為承載文件），文件正確性由 `verifier` 逐句對照；混合 diff 以程式碼部分定級，文件部分併入同一份 verifier brief。**中間層**程式碼（超過低風險小改、不含外部呼叫／權限請求／不可逆副作用、非高風險或使用者回報 bug）同樣只派一次 `reviewer`，不派 `verifier`。同一產物（同一 issue／PR／分支的後續 commit）第 2 輪起一律 delta brief，不重用首輪 brief 整輪重驗；verifier 第一行寫低風險機械結案就不再對同一產物派 delta，只有修正本身落入高風險側（放寬既有檢查、改權限模型、不可逆）才改派 fresh delta；`reviewer` finding 的修正由 controller 用同一組高風險判準自判，不落入高風險側且有確定性檢查能證明已修就併入同一次機械結案，「修 finding 時動到程式」不是再派 delta 的理由，delta 輪只派驗收角色（一般 `verifier`、高風險 `sol_verifier`），不再配 `reviewer`（canonical：`<REPO>/global/shared/skills/dispatch/SKILL.md` §2「修正與驗收輪次」）；高風險程式碼的 `reviewer` 與 `sol_verifier` 同時派、等兩邊回報、合併 finding 修一次再分流；驗收期間不動工作區、不 kill 在途 verifier 改派新 HEAD。各級通用：製作者已附全套測試／build／lint 輸出時，verifier 只重跑判定所需的受影響 spec、檢查腳本與自己的探針，全套交 CI；多引擎、多模式、多環境的探測只在驗收條件明列時做；brief 附全套輸出的路徑並列出受影響的 spec，verifier 據此決定重跑範圍。判準與 Claude 端同步：`<REPO>/global/shared/skills/dispatch/SKILL.md` §1「驗證不自驗」。
+- **先定深度再派**：低風險小改＝同時成立：文件只改數句（事實更正、連結、措辭）或程式碼只改單點素材／設定／字串／幾行邏輯；不含外部呼叫、權限請求或不可逆副作用（`<REPO>/global/shared/rules/judgment.md` 第 2 條）；不屬 judgment 第 1 條的高風險產出（含並行、資料一致性、安全相關的邏輯，即使只有幾行）；不是使用者回報的 bug；製作者已附機械檢查輸出。走輕量路徑：文件派 `verifier` 做 read-back 級（逐句對照來源、跑 repo 的文件檢查腳本、查引用存在，brief 寫明不跑 repo 全套驗證）；程式碼由製作者機械驗證＋一次 fresh-context `reviewer`，不派 `verifier`。**只改文件的 diff 不派 `reviewer`**（含規格、`AGENTS.md`、rules 等行為承載文件），文件正確性由 `verifier` 逐句對照；混合 diff 以程式碼部分定級，文件部分併入同一份 verifier brief。**中間層**程式碼（超過低風險小改、不含外部呼叫／權限請求／不可逆副作用、非高風險或使用者回報 bug）同樣只派一次 `reviewer`，不派 `verifier`。同一產物（同一 issue／PR／分支的後續 commit）第 2 輪起一律 delta brief，不重用首輪 brief 整輪重驗；verifier 第一行寫低風險機械結案就不再對同一產物派 delta，只有修正本身落入高風險側（放寬既有檢查、改權限模型、不可逆）才改派 fresh delta；`reviewer` finding 的修正由 controller 用同一組高風險判準自判，不落入高風險側且有確定性檢查能證明已修就併入同一次機械結案，「修 finding 時動到程式」不是再派 delta 的理由，delta 輪只派驗收角色（一般 `verifier`、高風險 `sol_verifier`），不再配 `reviewer`（canonical：`<REPO>/docs/dispatch.md` §2「修正與驗收輪次」）；高風險程式碼的 `reviewer` 與 `sol_verifier` 同時派、等兩邊回報、合併 finding 修一次再分流；驗收期間不動工作區、不 kill 在途 verifier 改派新 HEAD。各級通用：製作者已附全套測試／build／lint 輸出時，verifier 只重跑判定所需的受影響 spec、檢查腳本與自己的探針，全套交 CI；多引擎、多模式、多環境的探測只在驗收條件明列時做；brief 附全套輸出的路徑並列出受影響的 spec，verifier 據此決定重跑範圍。判準與 Claude 端同步：`<REPO>/docs/dispatch.md` §1「驗證不自驗」。
 - 主觀判斷、一般文件與一般驗收依原有首次驗收分工交給獨立 fresh-context `verifier/Terra high` read-back，逐條判 PASS/FAIL/UNSURE；安全、不可逆、重大架構與正式高風險產出改用獨立 fresh-context `sol_verifier/Sol high`。named role unavailable 時依 §0 direct CLI review branch，指定 model／effort、強制對應 sandbox 並貼完整同角色 contract；證據完整即可作有效獨立驗收，身份仍標 generic／direct CLI，不冒稱 custom。
 - 一般程式碼 review 由 fresh-context `reviewer` 執行；它發現一般文件問題或正式驗收需求時停止回報，由 controller 改派 `verifier`，發現高風險或正式高風險驗收需求時改派 `sol_verifier`；reviewer 不自行修正。
 - 測試、build、lint、實跑與 schema 驗證由製作者（controller）執行，回報附指令與輸出證據；讀碼不取代執行證據。
-- 含外部呼叫、權限請求或不可逆副作用的程式碼，不論風險等級，機械驗證外一律加 fresh-context `reviewer` review，套 `<REPO>/global/shared/rubrics/code-change.md` §7「失敗路徑與不可逆副作用」；製作者的測試與突變證據只證 happy path，不得據此結案。「不可逆副作用」與本檔所有分流句、各 agent 合約及 `delegation-templates.md` 裡「安全、不可逆」的範圍，一律依 `<REPO>/global/shared/rules/judgment.md` 第 2 條「不可逆副作用的定義」的 canonical 定義。reviewer 不因 diff 含一般側操作就升級 `sol_verifier`；controller 也不因 reviewer 依 §7 回報一般側操作的 FAIL 而改派 `sol_verifier`；修正後結案依 `<REPO>/global/shared/skills/dispatch/SKILL.md` §2「修正與驗收輪次」（高風險 FAIL 由 controller 自修後再派一次 fresh delta）。
+- 含外部呼叫、權限請求或不可逆副作用的程式碼，不論風險等級，機械驗證外一律加 fresh-context `reviewer` review，套 `<REPO>/global/shared/rubrics/code-change.md` §7「失敗路徑與不可逆副作用」；製作者的測試與突變證據只證 happy path，不得據此結案。「不可逆副作用」與本檔所有分流句、各 agent 合約及 `delegation-templates.md` 裡「安全、不可逆」的範圍，一律依 `<REPO>/global/shared/rules/judgment.md` 第 2 條「不可逆副作用的定義」的 canonical 定義。reviewer 不因 diff 含一般側操作就升級 `sol_verifier`；controller 也不因 reviewer 依 §7 回報一般側操作的 FAIL 而改派 `sol_verifier`；修正後結案依 `<REPO>/docs/dispatch.md` §2「修正與驗收輪次」（高風險 FAIL 由 controller 自修後再派一次 fresh delta）。
 - 高風險程式碼除機械驗證外，再做一次 fresh-context `reviewer` 與 `sol_verifier` review；若 named role unavailable，兩者依同一 direct CLI fallback 取得獨立證據，不能因 TOML 或角色名稱存在就視為已選中。
 - **修使用者實際回報的 bug 一律加 fresh-context `reviewer` review**，不必先判定風險等級或改動大小——「高風險」要當場判斷，「使用者回報的 bug」不用。該次驗收一定要問「同一個錯誤還有沒有第二個現場」——那是製作者最不適合回答的問題（他的心智模型正是漏掉那一處的原因），也是機械驗證最驗不到的：測試只覆蓋你改的那條路，改對的那條會全綠。答案是取樣不是本次必修清單；先判斷共同成因，再決定修哪一層。範圍內依 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」分流；範圍外不擴修，由 controller 登記該 repo issue 並附連結，未取得對外授權則保留待登記項目。連續兩輪發現都在範圍外就停止回報，不把下一批工作塞進本次。
 - `verifier` 與 `sol_verifier` 的任務是假設產物有問題並找碴；只驗收與指出缺口，不修正產物。找碴範圍與「行為承載產物」分類的 canonical 在 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」；不因檔案是 Markdown 就把會改變 agent／人員行動的語意降成散文。
-- 驗收判定前必讀 `<REPO>/global/shared/rules/judgment.md` 第 6 條「修正者的證據」及第 7 條「驗收的停止端」：四種狀態與補證只在該處定義，修正風險分流、delta brief 必帶項與三輪回報點在 `<REPO>/global/shared/skills/dispatch/SKILL.md` §2「修正與驗收輪次」；不可把 OPEN 當成必派或把 UNSURE 當成通過。
+- 驗收判定前必讀 `<REPO>/global/shared/rules/judgment.md` 第 6 條「修正者的證據」及第 7 條「驗收的停止端」：四種狀態與補證只在該處定義，修正風險分流、delta brief 必帶項與三輪回報點在 `<REPO>/docs/dispatch.md` §2「修正與驗收輪次」；不可把 OPEN 當成必派或把 UNSURE 當成通過。
