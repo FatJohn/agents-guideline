@@ -712,30 +712,43 @@ def cmd_sessions(ctx, win, args):
 
 # ---------------------------------------------------------------- weekly (rules-effect review)
 
-REVIEW_RE = re.compile(r"code-review|review|審查|fresh", re.I)
+REVIEW_RE = re.compile(r"\bcode-review\b|\breview\b|審查|\bfresh\b", re.I)
 DELTA_RE = re.compile(r"delta", re.I)
 MECH_CLOSE = "機械結案"
 HANDOFF_CARD_TOKENS = 5000  # assumed size of a handoff card read by the takeover session
 
 
+def is_fork(ctx, a):
+    """A code-review fork: a general-purpose subagent with no Agent call in the main thread whose description is
+    '/code-review ...' (or empty)."""
+    desc = (a.get("description") or "").strip()
+    return (a["id"] not in ctx.call_by_agent and ctx.agent_type(a) == "general-purpose"
+            and (not desc or desc.startswith("/code-review")))
+
+
 def fork_parents(ctx):
-    """{fork agent id: parent agent id}. The built-in code-review skill forks a general-purpose subagent that has
-    no Agent call in the main thread (description '/code-review ...'); it is folded into the latest general-purpose
-    Agent call of the same session that started before it."""
-    starts = collections.defaultdict(list)
+    """{fork agent id: parent agent id}. The built-in code-review skill usually forks a general-purpose subagent that has
+    no Agent call in the main thread. A fork is folded into a general-purpose Agent call of the same session that was in
+    flight when the fork started (call time .. first notification); among several, the earliest one without a fork yet,
+    else the latest started. A fork with no call in flight (e.g. /code-review typed in the main thread) stays unfolded."""
+    calls = collections.defaultdict(list)  # sid -> [(start_ep, end_ep, agent_id)]
     for sid, s in ctx.sessions.items():
         for c in s["agent_calls"].values():
-            if c.get("subagent_type") == "general-purpose" and c.get("agent_id"):
-                starts[sid].append((c["t"], c["agent_id"]))
-    for lst in starts.values():
+            aid = c.get("agent_id")
+            if aid and aid in ctx.agents and ctx.agent_type(ctx.agents[aid]) == "general-purpose":
+                calls[sid].append((ep(c["t"]), ctx.call_end(sid, c)[0], aid))
+    for lst in calls.values():
         lst.sort()
-    out = {}
-    for a in ctx.agents.values():
-        if a["id"] in ctx.call_by_agent or ctx.agent_type(a) != "general-purpose":
+    out, has_fork = {}, set()
+    for a in sorted((a for a in ctx.agents.values() if is_fork(ctx, a)), key=lambda a: a["first"]):
+        t = ep(a["first"])
+        live = [aid for st, en, aid in calls.get(a["sid"], []) if st <= t <= en]
+        if not live:
             continue
-        before = [aid for t, aid in starts.get(a["sid"], []) if t <= a["first"]]
-        if before:
-            out[a["id"]] = before[-1]
+        fresh = [aid for aid in live if aid not in has_fork]
+        parent = fresh[0] if fresh else live[-1]
+        out[a["id"]] = parent
+        has_fork.add(parent)
     return out
 
 
@@ -749,7 +762,7 @@ def prs_in(prs, win):
         return None
     n = 0
     for p in prs:
-        t = p.get("mergedAt") or p.get("closedAt")
+        t = p.get("mergedAt") or p.get("closedAt") if isinstance(p, dict) else None
         if t and win.has(ul.fmt_ts(ul.parse_ts(t))):
             n += 1
     return n
@@ -760,7 +773,7 @@ def cmd_weekly(ctx, win, args):
     usd = sum(r["_usd"] or 0.0 for r in reqs)
     hours = len({int(r["_ep"] // 600) for r in reqs}) / 6
     npr = prs_in(args.prs, win)
-    tokens = sum(r["_ctx"] + (r.get("_out") or 0) for r in reqs)
+    tokens = sum(r["_ctx"] + ((r.get("out_est") if ctx.corrected and r.get("out_est") is not None else r.get("out_raw")) or 0) for r in reqs)
     calls = ctx.calls_in(win)
     main = [r for r in reqs if r["agent"] is None]
     main_usd = sum(r["_usd"] or 0.0 for r in main)
@@ -773,14 +786,15 @@ def cmd_weekly(ctx, win, args):
                     [[usd, hours, npr, ratio(usd, hours), ratio(npr, hours) if npr is not None else None, per_pr(usd),
                       ri(per_pr(tokens)), per_pr(len(reqs)), per_pr(len(calls)), per_pr(main_usd), per_pr(usd - main_usd)]],
                     "active_hours＝窗口內全部 request 落在幾個 10 分鐘 bucket ÷ 6。merged_prs 來自 --prs（gh search prs 的 JSON，"
-                    "按 mergedAt，沒有時用 closedAt）；沒給 --prs 時 PR 相關欄位為空。tokens＝inp+cw+cr+output。")]
+                    "按 mergedAt，沒有時用 closedAt）；沒給 --prs 時 PR 相關欄位為空，--project 等篩選不會套到 PR 上，PR 清單要自己給同範圍。"
+                    "tokens＝inp+cw+cr+output（未定價 model 也算）。")]
 
     thr = args.ctx_threshold
     ctxs = [r["_ctx"] for r in main]
     by_sid = collections.defaultdict(list)
     for r in main:
         by_sid[r["sid"]].append(r)
-    crossed = [sum(1 for r in lst if r["_ctx"] >= thr) for lst in by_sid.values() if any(r["_ctx"] >= thr for r in lst)]
+    crossed = [n for n in (sum(1 for r in lst if r["_ctx"] >= thr) for lst in by_sid.values()) if n]
     above_usd = sum(r["_usd"] or 0.0 for r in main if r["_ctx"] >= thr)
     tables.append(table("main_ctx", f"主對話 context（門檻 {thr:,}）",
                         ["reqs", "median", "p90", "gt400k_share", "max", "sessions_crossed", "reqs_at_or_above_median", "at_or_above_cost_share"],
@@ -797,12 +811,12 @@ def cmd_weekly(ctx, win, args):
     mech = sum(1 for lst in by_s.values() for p, q in zip(lst, lst[1:])
                if MECH_CLOSE in (p.get("final_head") or "") and DELTA_RE.search(q.get("description") or ""))
     dist = collections.Counter(verdict_of(a) for a in vers)
+    first_open = sum(1 for a in first if verdict_of(a) == "OPEN")
     tables.append(table("verifier_rounds", "verifier 判定與輪次（啟發式）",
                         ["agents", "converged_share", "prose_only_share", "open_share", "inconclusive_share",
                          "first_round", "first_round_open", "first_round_open_share", "mech_close_then_delta"],
                         [[len(vers), ratio(dist["CONVERGED"], len(vers)), ratio(dist["PROSE-ONLY"], len(vers)), ratio(dist["OPEN"], len(vers)),
-                          ratio(dist["INCONCLUSIVE"], len(vers)), len(first), sum(1 for a in first if verdict_of(a) == "OPEN"),
-                          ratio(sum(1 for a in first if verdict_of(a) == "OPEN"), len(first)), mech]],
+                          ratio(dist["INCONCLUSIVE"], len(vers)), len(first), first_open, ratio(first_open, len(first)), mech]],
                         "啟發式：判定同 verifier 子命令的 regex；first_round＝description 不含 delta；mech_close_then_delta＝同 session "
                         "相鄰兩次 verifier，前一次 final_head 含「機械結案」、下一次 description 含 delta。"))
 
@@ -815,7 +829,7 @@ def cmd_weekly(ctx, win, args):
         aid = c.get("agent_id")
         if not aid or aid not in ctx.agents:
             continue
-        stype = c.get("subagent_type") or ""
+        stype = ctx.agent_type(ctx.agents[aid])
         if "verifier" in stype:
             kind = "verifier"
         elif stype == "general-purpose" and REVIEW_RE.search((c.get("description") or "") + " " + (c.get("prompt_head") or "")):
@@ -833,10 +847,11 @@ def cmd_weekly(ctx, win, args):
                         ["kind", "family", "calls", "calls_per_pr", "cost_usd", "per_pr_usd", "median_usd", "mean_usd",
                          "calls_per_session_median", "sessions_ge3", "sessions"], rows,
                         "依主對話 Agent 呼叫時間歸窗口。review＝general-purpose 且 description／prompt 前段含 code-review、review、審查或 fresh（啟發式）。"
-                        "內建 code-review skill 會再 fork 一個沒有 Agent 呼叫的 general-purpose 子 agent，它的成本併進父呼叫；"
+                        "內建 code-review skill 通常會再 fork 沒有 Agent 呼叫的 general-purpose 子 agent，它們的成本併進父呼叫；"
                         "agents 子命令仍把它算成獨立 agent。family＝該 agent 最多 request 的 model family。"))
 
-    base = (median([lst[0]["_ctx"] for lst in by_sid.values()]) or 0) + HANDOFF_CARD_TOKENS
+    starts = [lst[0]["_ctx"] for sid, lst in by_sid.items() if win.has(ctx.sessions[sid].get("first") or "")]
+    base = (median(starts or [lst[0]["_ctx"] for lst in by_sid.values()]) or 0) + HANDOFF_CARD_TOKENS
     rows = []
     for t in args.sim_thresholds:
         save = hand = 0.0
@@ -856,10 +871,11 @@ def cmd_weekly(ctx, win, args):
                 if pr:
                     save += max(min(c0, r["_ctx"]) - base, 0) * pr["cache_read"] / 1e6
         rows.append([t, n, median(after), save, hand, save - hand, ratio(save - hand, main_usd)])
-    tables.append(table("handoff_sim", f"接手門檻模擬（base＝主對話首個 request ctx 中位＋{HANDOFF_CARD_TOKENS:,}＝{ri(base):,}）",
+    tables.append(table("handoff_sim", f"接手門檻模擬（base＝窗口內開始的 session 首個主對話 request ctx 中位＋{HANDOFF_CARD_TOKENS:,}＝{ri(base):,}）",
                         ["threshold", "sessions", "reqs_after_median", "gross_usd", "handoff_usd", "net_usd", "net_main_share"], rows,
-                        "上界模型：在第一個 ctx ≥ 門檻的 request 換新 session，之後每個 request 的 ctx 少掉（跨過時的 ctx − base），"
-                        "省下的部分照 cache read 計價，扣掉一次 base 的 1h cache write。沒算新 session 重讀檔案的成本；"
+                        "粗估模型：在第一個 ctx ≥ 門檻的 request 換新 session，之後每個 request 的 ctx 少掉（跨過時的 ctx − base），"
+                        "省下的部分照 cache read 計價，扣掉一次 base 的 1h cache write。每個 session 只換手一次（低估）、"
+                        "沒算新 session 重讀檔案的成本（高估），兩者方向相反，不是嚴格上界；"
                         "已經有接手規則的窗口裡，跨過該門檻的 session 會被截斷，模擬要用規則上線前的窗口。"))
     return tables
 
@@ -877,7 +893,7 @@ CMD_NOTES = {
     "controller": ["bash 寫檔與『worker 交回後』都是啟發式，引用時要標示。"],
     "verifier": ["verifier 判定由 final_head 的 regex 抓出，是啟發式，不等於 verifier 實際結論欄位。"],
     "dispatch": ["平行度由 Agent 呼叫到第一筆通知（或 tool_result）的區間推得；在途判定是近似值。"],
-    "weekly": ["verifier 判定、首輪、機械結案後 delta、review 分類都是啟發式；接手門檻模擬是上界。"],
+    "weekly": ["verifier 判定、首輪、機械結案後 delta、review 分類與 fork 歸屬都是啟發式；接手門檻模擬是粗估。"],
 }
 
 
@@ -961,8 +977,8 @@ def main(argv=None) -> int:
             except (OSError, ValueError) as exc:
                 print(f"report.py: --prs: {exc}", file=sys.stderr)
                 return 1
-            if not isinstance(extra["prs"], list):
-                parser.error("--prs must be a JSON list")
+            if not isinstance(extra["prs"], list) or not all(isinstance(x, dict) for x in extra["prs"]):
+                parser.error("--prs must be a JSON list of objects")
         extra["ctx_threshold"] = args.ctx_threshold
         if args.sim_threshold:
             extra["sim_thresholds"] = args.sim_threshold
