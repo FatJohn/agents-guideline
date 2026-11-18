@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """report.py - read the JSON written by extract.py and print cost / behaviour tables.
 
-Nine sub-commands (cost, cache, context, reports, dispatch, controller, verifier, agents,
-sessions) share the same filters. Nothing here reads a jsonl file: the only input is the
+Ten sub-commands (cost, cache, context, reports, dispatch, controller, verifier, agents,
+sessions, weekly) share the same filters. Nothing here reads a jsonl file: the only input is the
 extract output (schema: references/schema.md), so this file never has to know about Claude
 Code's internal record format.
 
@@ -30,7 +30,7 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 import usagelib as ul  # noqa: E402
 
-COMMANDS = ("cost", "cache", "context", "reports", "dispatch", "controller", "verifier", "agents", "sessions")
+COMMANDS = ("cost", "cache", "context", "reports", "dispatch", "controller", "verifier", "agents", "sessions", "weekly")
 MAIN_TTL_S = 3600  # main conversation writes 1h cache
 SUB_TTL_S = 300    # subagents are assumed to write 5m cache
 REWRITE_CW_RATIO = 0.5
@@ -132,7 +132,7 @@ def _pricing_for(data):
 class Ctx:
     """The data file after --project / --exclude-session filtering, with cost fields resolved."""
 
-    def __init__(self, data, tz=None, projects=(), exclude=(), corrected=False):
+    def __init__(self, data, tz=None, projects=(), exclude=(), corrected=False, exclude_projects=()):
         self.data = data
         self.tz = ul.parse_tz(tz)
         self.corrected = bool(corrected)
@@ -143,6 +143,8 @@ class Ctx:
             if any(sid.startswith(x) for x in exclude):
                 continue
             if projects and not any(p in (s.get("slug") or "") for p in projects):
+                continue
+            if any(p in (s.get("slug") or "") for p in exclude_projects):
                 continue
             self.sessions[sid] = s
         self.reqs = [r for r in data["reqs"] if r["sid"] in self.sessions]
@@ -276,6 +278,8 @@ def fmt_cell(col, v):
         return f"${v:,.2f}" if abs(v) >= 1 or v == 0 else f"${v:,.3f}"
     if col.endswith("_share"):
         return f"{v * 100:.1f}%"
+    if col.endswith(("_per_pr", "_per_hour")) and isinstance(v, float):
+        return f"{v:,.2f}"
     if isinstance(v, int):
         return f"{v:,}"
     if isinstance(v, float):
@@ -706,11 +710,166 @@ def cmd_sessions(ctx, win, args):
                   "cost_usd 含該 session 的 subagent。human_msgs 只算 kind 為 human 與 ask_answer（meta、command、peer、notification 不是人類輸入）。")]
 
 
+# ---------------------------------------------------------------- weekly (rules-effect review)
+
+REVIEW_RE = re.compile(r"code-review|review|審查|fresh", re.I)
+DELTA_RE = re.compile(r"delta", re.I)
+MECH_CLOSE = "機械結案"
+HANDOFF_CARD_TOKENS = 5000  # assumed size of a handoff card read by the takeover session
+
+
+def fork_parents(ctx):
+    """{fork agent id: parent agent id}. The built-in code-review skill forks a general-purpose subagent that has
+    no Agent call in the main thread (description '/code-review ...'); it is folded into the latest general-purpose
+    Agent call of the same session that started before it."""
+    starts = collections.defaultdict(list)
+    for sid, s in ctx.sessions.items():
+        for c in s["agent_calls"].values():
+            if c.get("subagent_type") == "general-purpose" and c.get("agent_id"):
+                starts[sid].append((c["t"], c["agent_id"]))
+    for lst in starts.values():
+        lst.sort()
+    out = {}
+    for a in ctx.agents.values():
+        if a["id"] in ctx.call_by_agent or ctx.agent_type(a) != "general-purpose":
+            continue
+        before = [aid for t, aid in starts.get(a["sid"], []) if t <= a["first"]]
+        if before:
+            out[a["id"]] = before[-1]
+    return out
+
+
+def agent_family(ctx, aid):
+    fams = collections.Counter(ul.family(r.get("model")) for r in ctx.agent_reqs.get(aid, []))
+    return fams.most_common(1)[0][0] if fams else "unknown"
+
+
+def prs_in(prs, win):
+    if prs is None:
+        return None
+    n = 0
+    for p in prs:
+        t = p.get("mergedAt") or p.get("closedAt")
+        if t and win.has(ul.fmt_ts(ul.parse_ts(t))):
+            n += 1
+    return n
+
+
+def cmd_weekly(ctx, win, args):
+    reqs = ctx.reqs_in(win)
+    usd = sum(r["_usd"] or 0.0 for r in reqs)
+    hours = len({int(r["_ep"] // 600) for r in reqs}) / 6
+    npr = prs_in(args.prs, win)
+    tokens = sum(r["_ctx"] + (r.get("_out") or 0) for r in reqs)
+    calls = ctx.calls_in(win)
+    main = [r for r in reqs if r["agent"] is None]
+    main_usd = sum(r["_usd"] or 0.0 for r in main)
+
+    def per_pr(x):
+        return ratio(x, npr) if npr else None
+
+    tables = [table("summary", "成本與產出", ["cost_usd", "active_hours", "merged_prs", "per_hour_usd", "prs_per_hour", "per_pr_usd",
+                                         "tokens_per_pr", "reqs_per_pr", "agent_calls_per_pr", "main_per_pr_usd", "subagent_per_pr_usd"],
+                    [[usd, hours, npr, ratio(usd, hours), ratio(npr, hours) if npr is not None else None, per_pr(usd),
+                      ri(per_pr(tokens)), per_pr(len(reqs)), per_pr(len(calls)), per_pr(main_usd), per_pr(usd - main_usd)]],
+                    "active_hours＝窗口內全部 request 落在幾個 10 分鐘 bucket ÷ 6。merged_prs 來自 --prs（gh search prs 的 JSON，"
+                    "按 mergedAt，沒有時用 closedAt）；沒給 --prs 時 PR 相關欄位為空。tokens＝inp+cw+cr+output。")]
+
+    thr = args.ctx_threshold
+    ctxs = [r["_ctx"] for r in main]
+    by_sid = collections.defaultdict(list)
+    for r in main:
+        by_sid[r["sid"]].append(r)
+    crossed = [sum(1 for r in lst if r["_ctx"] >= thr) for lst in by_sid.values() if any(r["_ctx"] >= thr for r in lst)]
+    above_usd = sum(r["_usd"] or 0.0 for r in main if r["_ctx"] >= thr)
+    tables.append(table("main_ctx", f"主對話 context（門檻 {thr:,}）",
+                        ["reqs", "median", "p90", "gt400k_share", "max", "sessions_crossed", "reqs_at_or_above_median", "at_or_above_cost_share"],
+                        [[len(main), ri(median(ctxs)), ri(pct(ctxs, 0.9)), ratio(sum(1 for c in ctxs if c > 400_000), len(ctxs)),
+                          max(ctxs) if ctxs else None, len(crossed), median(crossed), ratio(above_usd, main_usd)]],
+                        "ctx＝inp+cw+cr。sessions_crossed＝至少一個主對話 request 的 ctx ≥ 門檻的 session；"
+                        "reqs_at_or_above_median＝這些 session 裡 ctx ≥ 門檻的 request 數中位。"))
+
+    vers = sorted((a for a in ctx.agents_in(win) if "verifier" in ctx.agent_type(a)), key=lambda a: a["first"])
+    first = [a for a in vers if not DELTA_RE.search(a.get("description") or "")]
+    by_s = collections.defaultdict(list)
+    for a in vers:
+        by_s[a["sid"]].append(a)
+    mech = sum(1 for lst in by_s.values() for p, q in zip(lst, lst[1:])
+               if MECH_CLOSE in (p.get("final_head") or "") and DELTA_RE.search(q.get("description") or ""))
+    dist = collections.Counter(verdict_of(a) for a in vers)
+    tables.append(table("verifier_rounds", "verifier 判定與輪次（啟發式）",
+                        ["agents", "converged_share", "prose_only_share", "open_share", "inconclusive_share",
+                         "first_round", "first_round_open", "first_round_open_share", "mech_close_then_delta"],
+                        [[len(vers), ratio(dist["CONVERGED"], len(vers)), ratio(dist["PROSE-ONLY"], len(vers)), ratio(dist["OPEN"], len(vers)),
+                          ratio(dist["INCONCLUSIVE"], len(vers)), len(first), sum(1 for a in first if verdict_of(a) == "OPEN"),
+                          ratio(sum(1 for a in first if verdict_of(a) == "OPEN"), len(first)), mech]],
+                        "啟發式：判定同 verifier 子命令的 regex；first_round＝description 不含 delta；mech_close_then_delta＝同 session "
+                        "相鄰兩次 verifier，前一次 final_head 含「機械結案」、下一次 description 含 delta。"))
+
+    forks = fork_parents(ctx)
+    fork_usd = collections.defaultdict(float)
+    for f, p in forks.items():
+        fork_usd[p] += ctx.agent_cost.get(f, 0.0)
+    groups = collections.defaultdict(list)  # (kind, family) -> [(sid, usd)]
+    for sid, _tid, c in calls:
+        aid = c.get("agent_id")
+        if not aid or aid not in ctx.agents:
+            continue
+        stype = c.get("subagent_type") or ""
+        if "verifier" in stype:
+            kind = "verifier"
+        elif stype == "general-purpose" and REVIEW_RE.search((c.get("description") or "") + " " + (c.get("prompt_head") or "")):
+            kind = "review"
+        else:
+            continue
+        groups[(kind, agent_family(ctx, aid))].append((sid, ctx.agent_cost.get(aid, 0.0) + fork_usd[aid]))
+    rows = []
+    for (kind, fam), lst in sorted(groups.items()):
+        costs = [u for _, u in lst]
+        per_s = list(collections.Counter(s for s, _ in lst).values())
+        rows.append([kind, fam, len(lst), per_pr(len(lst)), sum(costs), per_pr(sum(costs)), median(costs), ratio(sum(costs), len(costs)),
+                     median(per_s), sum(1 for n in per_s if n >= 3), len(per_s)])
+    tables.append(table("reviews", "verifier 與 fresh review 每次成本（fork 子 agent 併回父呼叫）",
+                        ["kind", "family", "calls", "calls_per_pr", "cost_usd", "per_pr_usd", "median_usd", "mean_usd",
+                         "calls_per_session_median", "sessions_ge3", "sessions"], rows,
+                        "依主對話 Agent 呼叫時間歸窗口。review＝general-purpose 且 description／prompt 前段含 code-review、review、審查或 fresh（啟發式）。"
+                        "內建 code-review skill 會再 fork 一個沒有 Agent 呼叫的 general-purpose 子 agent，它的成本併進父呼叫；"
+                        "agents 子命令仍把它算成獨立 agent。family＝該 agent 最多 request 的 model family。"))
+
+    base = (median([lst[0]["_ctx"] for lst in by_sid.values()]) or 0) + HANDOFF_CARD_TOKENS
+    rows = []
+    for t in args.sim_thresholds:
+        save = hand = 0.0
+        n, after = 0, []
+        for lst in by_sid.values():
+            i = next((k for k, r in enumerate(lst) if r["_ctx"] >= t), None)
+            if i is None:
+                continue
+            n += 1
+            after.append(len(lst) - i)
+            c0 = lst[i]["_ctx"]
+            p0 = ul.price_for(lst[i].get("model"), ctx.pricing)
+            if p0:
+                hand += base * p0["input"] * ctx.mult["1h"] / 1e6
+            for r in lst[i + 1:]:
+                pr = ul.price_for(r.get("model"), ctx.pricing)
+                if pr:
+                    save += max(min(c0, r["_ctx"]) - base, 0) * pr["cache_read"] / 1e6
+        rows.append([t, n, median(after), save, hand, save - hand, ratio(save - hand, main_usd)])
+    tables.append(table("handoff_sim", f"接手門檻模擬（base＝主對話首個 request ctx 中位＋{HANDOFF_CARD_TOKENS:,}＝{ri(base):,}）",
+                        ["threshold", "sessions", "reqs_after_median", "gross_usd", "handoff_usd", "net_usd", "net_main_share"], rows,
+                        "上界模型：在第一個 ctx ≥ 門檻的 request 換新 session，之後每個 request 的 ctx 少掉（跨過時的 ctx − base），"
+                        "省下的部分照 cache read 計價，扣掉一次 base 的 1h cache write。沒算新 session 重讀檔案的成本；"
+                        "已經有接手規則的窗口裡，跨過該門檻的 session 會被截斷，模擬要用規則上線前的窗口。"))
+    return tables
+
+
 # ---------------------------------------------------------------- driver
 
 CMD_FUNCS = {
     "cost": cmd_cost, "cache": cmd_cache, "context": cmd_context, "reports": cmd_reports, "dispatch": cmd_dispatch,
     "controller": cmd_controller, "verifier": cmd_verifier, "agents": cmd_agents, "sessions": cmd_sessions,
+    "weekly": cmd_weekly,
 }
 
 CMD_NOTES = {
@@ -718,21 +877,23 @@ CMD_NOTES = {
     "controller": ["bash 寫檔與『worker 交回後』都是啟發式，引用時要標示。"],
     "verifier": ["verifier 判定由 final_head 的 regex 抓出，是啟發式，不等於 verifier 實際結論欄位。"],
     "dispatch": ["平行度由 Agent 呼叫到第一筆通知（或 tool_result）的區間推得；在途判定是近似值。"],
+    "weekly": ["verifier 判定、首輪、機械結案後 delta、review 分類都是啟發式；接手門檻模擬是上界。"],
 }
 
 
-def make_report(data, command, *, tz=None, windows=None, projects=(), exclude=(), corrected=False, top=10, data_path=None):
+def make_report(data, command, *, tz=None, windows=None, projects=(), exclude=(), corrected=False, top=10, data_path=None,
+                exclude_projects=(), prs=None, ctx_threshold=300_000, sim_thresholds=(200_000, 300_000, 400_000, 500_000)):
     """Build the report dict for one sub-command (render_md / to_json turn it into text)."""
     if command not in CMD_FUNCS:
         raise ValueError(f"unknown command {command!r}")
-    ctx = Ctx(data, tz=tz, projects=projects, exclude=exclude, corrected=corrected)
+    ctx = Ctx(data, tz=tz, projects=projects, exclude=exclude, corrected=corrected, exclude_projects=exclude_projects)
     wins = parse_windows(windows or [], ctx.tz)
-    ns = argparse.Namespace(top=top)
+    ns = argparse.Namespace(top=top, prs=prs, ctx_threshold=ctx_threshold, sim_thresholds=list(sim_thresholds))
     header = {
         "資料檔": f"{data_path or '(in memory)'}（generated_at {data.get('generated_at')}，schema_version {data.get('schema_version')}）",
         "顯示時區": ul.fmt_offset(ctx.tz),
         "成本口徑": basis(ctx),
-        "篩選": f"project={list(projects) or '-'}，exclude-session={list(exclude) or '-'}，sessions={len(ctx.sessions)}，reqs={len(ctx.reqs)}",
+        "篩選": f"project={list(projects) or '-'}，exclude-project={list(exclude_projects) or '-'}，exclude-session={list(exclude) or '-'}，sessions={len(ctx.sessions)}，reqs={len(ctx.reqs)}",
     }
     notes = list(CMD_NOTES.get(command, []))
     if ctx.pricing_note:
@@ -753,6 +914,8 @@ def build_parser():
                         help="time window (repeatable; either bound may be empty; naive times are read in --tz). Default: everything")
     common.add_argument("--project", action="append", default=[], metavar="SUBSTR",
                         help="only slugs containing SUBSTR (repeatable)")
+    common.add_argument("--exclude-project", action="append", default=[], metavar="SUBSTR",
+                        help="drop sessions whose slug contains SUBSTR (repeatable), e.g. test sessions")
     common.add_argument("--exclude-session", action="append", default=[], metavar="SID",
                         help="drop sessions whose id starts with SID, subagents included (repeatable)")
     common.add_argument("--corrected", action="store_true",
@@ -771,9 +934,14 @@ def build_parser():
         "verifier": "verifier verdict distribution (regex heuristic) and cost",
         "agents": "per subagent type: requests, tools, wall clock, cost",
         "sessions": "most expensive sessions",
+        "weekly": "rules-effect review: $/PR, PR/h, main ctx vs threshold, verifier rounds, review cost per call, handoff simulation",
     }
-    for name in COMMANDS:
-        sub.add_parser(name, parents=[common], help=helps[name], description=helps[name])
+    subs = {name: sub.add_parser(name, parents=[common], help=helps[name], description=helps[name]) for name in COMMANDS}
+    w = subs["weekly"]
+    w.add_argument("--prs", metavar="PATH", help="JSON list of merged PRs (gh search prs --json closedAt,... or gh pr list --json mergedAt)")
+    w.add_argument("--ctx-threshold", type=int, default=300_000, help="main ctx threshold for the crossed-session columns (default 300000)")
+    w.add_argument("--sim-threshold", type=int, action="append", metavar="N",
+                   help="handoff simulation threshold (repeatable; default 200000 300000 400000 500000)")
     return p
 
 
@@ -785,9 +953,23 @@ def main(argv=None) -> int:
     except (OSError, ValueError) as exc:
         print(f"report.py: {exc}", file=sys.stderr)
         return 1
+    extra = {}
+    if args.command == "weekly":
+        if args.prs:
+            try:
+                extra["prs"] = json.loads(Path(args.prs).read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                print(f"report.py: --prs: {exc}", file=sys.stderr)
+                return 1
+            if not isinstance(extra["prs"], list):
+                parser.error("--prs must be a JSON list")
+        extra["ctx_threshold"] = args.ctx_threshold
+        if args.sim_threshold:
+            extra["sim_thresholds"] = args.sim_threshold
     try:
         rep = make_report(data, args.command, tz=args.tz, windows=args.window, projects=args.project,
-                          exclude=args.exclude_session, corrected=args.corrected, top=args.top, data_path=args.data)
+                          exclude=args.exclude_session, corrected=args.corrected, top=args.top, data_path=args.data,
+                          exclude_projects=args.exclude_project, **extra)
     except (ValueError, KeyError) as exc:  # bad --window / --tz (an unknown IANA zone raises KeyError)
         parser.error(str(exc))
     sys.stdout.write(render_md(rep) if args.format == "md" else to_json(rep) + "\n")
