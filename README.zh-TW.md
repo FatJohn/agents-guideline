@@ -139,7 +139,7 @@ Claude 側只自建 `verifier`，Codex 側維持自己的角色集；model 與 e
 
 | 名稱 | 職責 | model | effort | tools |
 |---|---|---|---|---|
-| `verifier` | fresh-context 驗收：逐條判 PASS／FAIL／UNSURE，不參與製作 | `opus` | `medium` | Read, Bash, Glob, Grep, LSP |
+| `verifier` | fresh-context 驗收：逐條判 PASS／FAIL／UNSURE，不參與製作 | `opus` | `high` | Read, Bash, Glob, Grep, LSP |
 
 ### Codex
 
