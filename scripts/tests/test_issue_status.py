@@ -491,7 +491,7 @@ class IssueStatusTests(unittest.TestCase):
         self.assertTrue(lines[0].startswith("watching 2 worktrees in 1 repos every 10s"))
         self.assertIn(f"{self._rel('a')}=working", lines[0])
         self.assertNotIn("quiet=", lines[0])  # 沒有 result.md 不進基線清單
-        self.assertTrue(lines[1].startswith(f"changed (was working): {self._rel('a')}"))
+        self.assertTrue(lines[1].startswith(f"changed (was working; waiting on user): {self._rel('a')}"))
         self.assertIn("blocked", lines[1])
         self.assertIn("blocker=等 API key", lines[1])
 
@@ -518,10 +518,11 @@ class IssueStatusTests(unittest.TestCase):
         gh = mock.Mock(side_effect=[[pr(1, "OPEN")], [pr(1, "MERGED")]])
         with mock.patch.object(iss, "PR_CACHE_TTL", 0):
             lines = self.run_watch([lambda: None], gh=gh)
-        self.assertEqual(len(lines), 2, lines)
+        self.assertEqual(len(lines), 3, lines)  # 基線＋waiting on user＋變化
         self.assertIn("ready for authorization", lines[0])
-        self.assertIn("unknown", lines[1])
-        self.assertIn("pr=#1 MERGED", lines[1])
+        self.assertTrue(lines[1].startswith("waiting on user: "), lines[1])
+        self.assertIn("unknown", lines[2])
+        self.assertIn("pr=#1 MERGED", lines[2])
 
     def test_watch_gh_transient_failure_reuses_last_result_without_events(self):
         a = self.add_wt("a")
@@ -529,7 +530,8 @@ class IssueStatusTests(unittest.TestCase):
         gh = mock.Mock(side_effect=[[pr(1, "OPEN")], iss.GhError("timeout"), [pr(1, "OPEN")]])
         with mock.patch.object(iss, "PR_CACHE_TTL", 0):
             lines = self.run_watch([lambda: None, lambda: None], gh=gh)
-        self.assertEqual(len(lines), 1, lines)  # 只有基線
+        self.assertEqual(len(lines), 2, lines)  # 只有基線與它的 waiting on user
+        self.assertTrue(lines[1].startswith("waiting on user: "), lines[1])
         self.assertEqual(gh.call_count, 3)
 
     def test_watch_keeps_state_of_temporarily_unreadable_repo(self):
@@ -559,8 +561,66 @@ class IssueStatusTests(unittest.TestCase):
         a = self.add_wt("a")
         write_result(a, status="blocked", blocker="等 A")
         lines = self.run_watch([lambda: write_result(a, status="blocked", blocker="等 B")])
+        self.assertEqual(len(lines), 3, lines)  # 基線＋waiting on user＋變化
+        self.assertIn("blocker=等 A", lines[1])
+        self.assertIn("blocker=等 B", lines[2])
+
+    def test_watch_baseline_lists_rows_waiting_on_user(self):
+        a = self.add_wt("a")
+        write_result(a, pending="merge PR")  # 還在做，但有事等使用者
+        b = self.add_wt("b")
+        write_result(b, status="blocked", blocker="等 API key")
+        c = self.add_wt("c")
+        write_result(c)  # 正常進行中：不另列
+        lines = self.run_watch([])
+        self.assertEqual(len(lines), 3, lines)
+        waiting = [ln for ln in lines if ln.startswith("waiting on user: ")]
+        self.assertEqual(len(waiting), 2, lines)
+        self.assertTrue(any(self._rel("a") in ln and "pending=merge PR" in ln for ln in waiting), waiting)
+        self.assertTrue(any(self._rel("b") in ln and "blocker=等 API key" in ln for ln in waiting), waiting)
+
+    def test_watch_tags_events_for_rows_waiting_on_user(self):
+        a = self.add_wt("a")
+        write_result(a)
+        lines = self.run_watch([
+            lambda: write_result(a, pending="merge PR"),  # 還在做，但開始有事等使用者
+            lambda: write_result(a),  # 等的事沒了
+            lambda: write_result(self.add_wt("b"), status="blocked", blocker="等 key"),
+        ])
+        self.assertEqual(len(lines), 4, lines)
+        self.assertTrue(lines[1].startswith("changed (was working; waiting on user): "), lines[1])
+        self.assertTrue(lines[2].startswith("changed (was working): "), lines[2])
+        self.assertTrue(lines[3].startswith("new (waiting on user): "), lines[3])
+
+    def test_watch_blocked_row_that_went_stale_still_counts_as_waiting(self):
+        a = self.add_wt("a")
+        write_result(a, status="blocked", blocker="等 key")
+        (Path(a) / "wip.txt").write_text("x\n")  # blocked 但繼續做不被擋的部分：result.md 過時
+        lines = self.run_watch([])
         self.assertEqual(len(lines), 2, lines)
-        self.assertIn("blocker=等 B", lines[1])
+        self.assertTrue(lines[1].startswith("waiting on user: "), lines[1])
+        self.assertIn("blocker=等 key", lines[1])
+
+    def test_pending_none_spellings_are_not_waiting(self):
+        for text in ("無", "無。", "無（已在 PR 說明）", "—", "-", "", "unknown（讀不到）", None):
+            self.assertTrue(iss.is_none_text(text), text)
+        for text in ("merge PR", "無法決定要不要 merge"):
+            self.assertFalse(iss.is_none_text(text), text)
+
+    def test_watch_events_show_in_flight_status_instead_of_stale_unknown(self):
+        a = self.add_wt("a")
+        write_result(a, dirty="?")  # Dirty 不是整數：真的 unknown
+        lines = self.run_watch([
+            lambda: (write_result(a), (Path(a) / "wip.txt").write_text("x\n")),  # 補好欄位，但馬上又過時
+            lambda: (self.commit(a, "wip.txt"), write_result(a, status="awaiting verification")),
+        ])
+        self.assertEqual(len(lines), 3, lines)
+        self.assertIn(f"{self._rel('a')}=unknown", lines[0])
+        self.assertTrue(lines[1].startswith(f"changed (was unknown): {self._rel('a')}"), lines[1])
+        self.assertIn("| working", lines[1])
+        self.assertNotIn("過時", lines[1])
+        self.assertTrue(lines[2].startswith(f"changed (was working): {self._rel('a')}"), lines[2])
+        self.assertIn("awaiting verification", lines[2])
 
     def test_watch_baseline_counts_deduplicated_repos(self):
         a = self.add_wt("a")

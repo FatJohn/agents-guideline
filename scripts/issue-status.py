@@ -429,6 +429,30 @@ def watch_key(row):
     return (status, reason, row["pr_text"], row["pending_authorization"], row["blocker"])
 
 
+def watch_view(row):
+    """事件行顯示用：把 watch_key 視為工作中的「result.md 過時」還原成自報狀態，
+    讓印出來的狀態與 `was …` 跟判定變化用的是同一個值。"""
+    status, reason = watch_key(row)[:2]
+    return {**row, "status": status, "reason": reason}
+
+
+def is_none_text(value):
+    """欄位值算不算「無」：空、`-`、`—`、`無`（後面可接句號或括號說明），以及填不出來的 `unknown…`。"""
+    v = (value or "").strip()
+    return v in ("", "-", "—", "無") or v.startswith(("無。", "無（", "無(", "無，")) or v.lower().startswith("unknown")
+
+
+def needs_user(row):
+    """要提醒盤點 session「有人在等使用者」的列：輪到使用者（blocked／ready for authorization），
+    或還在做但 Pending authorization 不是「無」。blocked 的 session 繼續做不被擋的部分而讓 result.md
+    過時時，狀態會被降成 unknown；這裡照自報狀態算，blocker 才不會漏報。"""
+    status = watch_key(row)[0]
+    if status == "unknown" and (row["reason"] or "").startswith("result.md 過時"):
+        status = row["reported_status"]
+    return status in ("blocked", "ready for authorization") or (
+        status in IN_FLIGHT and not is_none_text(row["pending_authorization"]))
+
+
 def watch(repos, args):
     """每 args.watch 秒重跑一次，只在某個 worktree 的狀態、原因、PR、Pending、Blocker 變了才印一行。
     給 Claude Code 的 Monitor 用：每行 stdout 是一個事件，沒變化就不印。不會自己結束。"""
@@ -444,22 +468,26 @@ def watch(repos, args):
             bad_prev = set(bad)
             cur = {r["path"]: r for r in rows}
             if first:
-                reported = [f"{r['name']}={r['status']}" for r in rows if r["result_mtime"]]
+                reported = [f"{r['name']}={watch_key(r)[0]}" for r in rows if r["result_mtime"]]
                 emit(f"watching {len(rows)} worktrees in {n_repos} repos every {args.watch}s; "
                      f"有 result.md 的：{', '.join(reported) or '無'}")
+                for r in rows:
+                    if r["result_mtime"] and needs_user(r):
+                        emit("waiting on user: " + render_text([watch_view(r)]))
             else:
                 for path, r in cur.items():
                     old = prev.get(path)
                     if old is None:
-                        emit("new: " + render_text([r]))
+                        emit(("new (waiting on user): " if needs_user(r) else "new: ") + render_text([watch_view(r)]))
                     elif watch_key(old) != watch_key(r):
-                        emit(f"changed (was {old['status']}): " + render_text([r]))
+                        tag = "; waiting on user" if needs_user(r) else ""
+                        emit(f"changed (was {watch_key(old)[0]}{tag}): " + render_text([watch_view(r)]))
             # 讀不到的 repo 保留上一輪狀態：不報 removed，恢復後也不會被當成全部新增
             kept = {p: o for p, o in prev.items() if p not in cur and o["repo_arg"] in bad}
             if not first:
                 for path, old in prev.items():
                     if path not in cur and path not in kept:
-                        emit(f"removed: {old['name']} (was {old['status']})")
+                        emit(f"removed: {old['name']} (was {watch_key(old)[0]})")
             first = False
             prev = {**kept, **cur}
             last_err = None
@@ -481,7 +509,7 @@ def main(argv=None):
     ap.add_argument("--no-gh", action="store_true",
                     help="跳過 PR 查詢；此時 ready for authorization／merged 一律 unknown「未查 PR」")
     ap.add_argument("--watch", type=int, metavar="SECONDS",
-                    help="持續監看：第一輪印一行基線，之後只在某個 worktree 的狀態、原因、PR、Pending authorization、"
+                    help="持續監看：第一輪印一行基線（輪到使用者、或還在做但 Pending authorization 不是「無」的各再印一行 waiting on user；之後的事件行遇到這種列也標 waiting on user），之後只在某個 worktree 的狀態、原因、PR、Pending authorization、"
                          "Blocker 變了才印一行（新增、移除也印；自報 working／awaiting verification 而只是 result.md 過時的不算變化）；不會自己結束。給 Claude Code 的 Monitor 當事件來源。"
                          "gh 在該 worktree 的 HEAD 或 result.md mtime 變了、或距上次查詢滿 5 分鐘才重查，失敗時沿用上次結果。最小 10 秒")
     args = ap.parse_args(argv)
