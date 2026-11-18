@@ -83,7 +83,7 @@ symlink 的好處：session 依規則更新事實、寫教訓時直接改到 rep
 
 ### 選配：擋主對話改 CI 設定的 hook 與 ripgrep 預設設定
 
-兩個檔（`hooks/block-ci-edit.sh`、`ripgreprc`）已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效（本 repo 不管理 `settings.json`）。三段合併用的片段（含上面的 SessionStart）收在 `<REPO>/global/claude/settings.snippets.json`，**逐段併入既有設定，不要整檔覆蓋**。片段另含頂層 `language`（`繁體中文台灣用語`）：Claude 端的回覆語言只由這個設定承接，入口不再寫語言段，新機器漏設就會掉回預設語言。
+兩個檔（`hooks/block-ci-edit.sh`、`ripgreprc`）已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效（本 repo 不管理 `settings.json`）。路由卡不寫「CI／release 設定先取得授權才改」這條，沒登記 `block-ci-edit` 的機器只剩 dispatch skill §3『派工合約與回報』有寫，主對話平常不會讀到；登記了也只在 Edit／Write 被擋下時才看得到提醒，用 Bash 改不會觸發。三段合併用的片段（含上面的 SessionStart）收在 `<REPO>/global/claude/settings.snippets.json`，**逐段併入既有設定，不要整檔覆蓋**。片段另含頂層 `language`（`繁體中文台灣用語`）：Claude 端的回覆語言只由這個設定承接，入口不再寫語言段，新機器漏設就會掉回預設語言。
 
 - `hooks/block-ci-edit.sh`：Claude Code `PreToolUse` hook。**主對話**（hook 收到的 stdin 沒有 `agent_id`）用 Edit／Write／MultiEdit／NotebookEdit 改路徑含 `.github/workflows/` 或 `.github/actions/` 的檔會被擋（exit 2，訊息要求先把 diff 給使用者取得當次授權、再以 `git apply` 套上）；subagent（有 `agent_id`）與其他路徑一律放行。把 dispatch skill §3『派工合約與回報』那段「CI／release 設定不靜默自改」變成機械擋板。
 - `ripgreprc`：讓 **Bash 裡的 `rg`** 預設 `--hidden` 並排除 `.git`，對應 `global/shared/rules/judgment.md` 3『殘留掃描』。Claude Code 的 Grep 工具本來就搜隱藏目錄（不搜 `.git`），也不讀 `RIPGREP_CONFIG_PATH`，所以這份設定只影響 Bash 的 `rg`。
@@ -141,7 +141,7 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 
 ### 選配：主對話 context 跨門檻提醒
 
-`hooks/context-size-nudge.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。它是 `PostToolUse` hook：每次工具呼叫後讀 stdin 的 `transcript_path`，取最後一筆 assistant usage 的 `input_tokens`＋`cache_read_input_tokens`＋`cache_creation_input_tokens` 當主對話 context 大小；到 300,000 時以 `additionalContext` 注入一句提醒（還有未做的 phase 就寫 session 交接卡、開新 session 接手），對應 dispatch skill §6『主對話 context 管理』。同一個 session 每跨一個 100K 級距提醒一次，掉回門檻以下（compact 之後）重新計；subagent（stdin 有 `agent_id`）不提醒。提醒過的級距記在 `${TMPDIR:-/tmp}/claude-ctx-nudge/<session-id>`。
+`hooks/context-size-nudge.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。路由卡不寫「≥300K 開新 session 接手」這條，沒登記這個 hook 的機器只剩 dispatch skill §6『主對話 context 管理』有寫，主對話平常不會讀到。它是 `PostToolUse` hook：每次工具呼叫後讀 stdin 的 `transcript_path`，取最後一筆 assistant usage 的 `input_tokens`＋`cache_read_input_tokens`＋`cache_creation_input_tokens` 當主對話 context 大小；到 300,000 時以 `additionalContext` 注入一句提醒（還有未做的 phase 就寫 session 交接卡、開新 session 接手），對應 dispatch skill §6『主對話 context 管理』。同一個 session 每跨一個 100K 級距提醒一次，掉回門檻以下（compact 之後）重新計；subagent（stdin 有 `agent_id`）不提醒。提醒過的級距記在 `${TMPDIR:-/tmp}/claude-ctx-nudge/<session-id>`。
 
 **追加**到 `hooks.PostToolUse` 陣列（沒有這個陣列就新建；不設 matcher，所有工具都算；片段同樣收在 `<REPO>/global/claude/settings.snippets.json`）：
 
