@@ -147,7 +147,7 @@ Claude defines only `verifier`; Codex keeps its own role set. Each definition fi
 
 | Name | Role | model | effort | tools |
 |---|---|---|---|---|
-| `verifier` | Fresh-context acceptance: PASS/FAIL/UNSURE per criterion | `opus` | `medium` | Read, Bash, Glob, Grep, LSP |
+| `verifier` | Fresh-context acceptance: PASS/FAIL/UNSURE per criterion | `opus` | `high` | Read, Bash, Glob, Grep, LSP |
 
 ### Codex
 
