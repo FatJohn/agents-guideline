@@ -564,6 +564,31 @@ class WeeklyTests(unittest.TestCase):
         self.assertAlmostEqual(r[0]["net_usd"], r[0]["gross_usd"] - r[0]["handoff_usd"], places=12)
         self.assertEqual((r[1]["sessions"], r[1]["net_usd"]), (0, 0.0))
 
+    def test_fork_goes_to_the_call_in_flight_one_per_parallel_call(self):
+        data = make_weekly_data()
+        calls = data["sessions"][SID_A]["agent_calls"]
+        calls["tu9"]["notification"] = {"t": ts("03:05:00"), "status": "completed", "subagent_tokens": 1, "tool_uses": 1, "duration_ms": 1}
+        calls["tu9"]["first_notification_t"] = ts("03:05:00")
+        calls["tu10"] = dict(call("03:00:02", None, "ag9", note=("03:05:00", "completed", 1)), description="fresh code-review")
+        data["agents"]["ag9"] = agent("ag9", "general-purpose", "03:00:06", "03:00:06", 1, "tu10", 100, "ok")
+        data["agents"]["ag10"] = dict(agent("ag10", "general-purpose", "03:00:12", "03:00:12", 1, None, 100, "fork"), description="")
+        data["agents"]["ag11"] = dict(agent("ag11", "general-purpose", "04:00:00", "04:00:00", 1, None, 100, "fork"), description="/code-review x")
+        data["agents"]["ag12"] = dict(agent("ag12", "general-purpose", "03:00:20", "03:00:20", 1, None, 100, "other"), description="research")
+        self.assertEqual(report.fork_parents(report.Ctx(data)), {"ag8": "ag7", "ag10": "ag9"})   # ag11: nothing in flight; ag12: not a fork
+        data["reqs"].append(req("03:00:06", SID_A, "ag9", "general-purpose", OPUS, 0.04, inp=10000))
+        by = {(r["kind"], r["family"]): r for r in rows(report.make_report(data, "weekly", tz="UTC"), "reviews")}
+        self.assertEqual(by[("review", "opus")]["calls"], 2)   # tu10 has no subagent_type; the agent's type decides
+        self.assertAlmostEqual(by[("review", "opus")]["cost_usd"], 0.07, places=9)
+
+    def test_review_regex_needs_word_boundaries(self):
+        self.assertIsNone(report.REVIEW_RE.search("refresh the preview cache"))
+        self.assertIsNotNone(report.REVIEW_RE.search("Fresh code-review of PR-1"))
+
+    def test_tokens_count_unpriced_output(self):
+        s = rows(self.rep(prs=PRS), "summary")[0]
+        total = sum(r["inp"] + r["cw"] + r["cr"] + r["out_raw"] for r in self.data["reqs"])
+        self.assertEqual(s["tokens_per_pr"], round(total / 2))
+
     def test_cli_weekly_options(self):
         with tempfile.TemporaryDirectory() as tmp:
             path, prs = Path(tmp) / "data.json", Path(tmp) / "prs.json"
@@ -578,9 +603,10 @@ class WeeklyTests(unittest.TestCase):
             self.assertEqual(tabs["summary"]["rows"][0]["merged_prs"], 3)   # default window 'all'
             self.assertEqual([x["threshold"] for x in tabs["handoff_sim"]["rows"]], [100_000])
             self.assertEqual(tabs["main_ctx"]["rows"][0]["reqs"], 5)
-            prs.write_text("{}", encoding="utf-8")
-            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
-                report.main(["weekly", "--data", str(path), "--prs", str(prs)])
+            for bad in ("{}", '["x"]'):
+                prs.write_text(bad, encoding="utf-8")
+                with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    report.main(["weekly", "--data", str(path), "--prs", str(prs)])
         self.assertEqual(report.fmt_cell("reqs_per_pr", 1.984), "1.98")
 
 

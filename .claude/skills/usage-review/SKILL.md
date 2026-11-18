@@ -48,7 +48,7 @@ python3 <SK>/scripts/report.py dispatch --data "$TMPDIR/ur-data.json" \
 | `verifier` | verifier 判定分布與各自成本 | 判定由 `final_head` 的 regex 抓，為啟發式 |
 | `agents` | 每種 subagent 的 request 數、工具數、牆鐘、成本（中位／P90）、通知 token 中位 | |
 | `sessions` | 最貴前 N 個 session（含 subagent 成本）、ctx 中位、派工數、人類訊息數 | 人類訊息只算 `human`＋`ask_answer` |
-| `weekly` | 每週規則效果：$/PR、PR/h、$/h、token／request／Agent 呼叫每 PR、主對話與 subagent 每 PR；主對話 ctx 對門檻（跨過的 session、跨過後 request 中位、≥門檻占主對話成本）；verifier 判定、首輪 OPEN、機械結案後又派 delta；verifier 與 fresh review 按 model 的每次成本與每 session 輪數；接手門檻模擬 | 專屬旗標 `--prs`、`--ctx-threshold`、`--sim-threshold`；判定、首輪、review 分類是啟發式，模擬是上界 |
+| `weekly` | 每週規則效果：$/PR、PR/h、$/h、token／request／Agent 呼叫每 PR、主對話與 subagent 每 PR；主對話 ctx 對門檻（跨過的 session、這些 session 裡 ctx ≥ 門檻的 request 數中位、≥門檻占主對話成本）；verifier 判定、首輪 OPEN、機械結案後又派 delta；verifier 與 fresh review 按 model 的每次成本與每 session 輪數；接手門檻模擬 | 專屬旗標 `--prs`、`--ctx-threshold`、`--sim-threshold`；判定、首輪、review 分類、fork 歸屬是啟發式，模擬是粗估 |
 
 歸屬規則：request 級表格（cost、cache、context）用 request 時間；agent 級表格（reports、agents、verifier）用 subagent 的開始時間並計入它全部的 request，不會被窗口切成兩半；dispatch、controller 用 Agent 呼叫、改檔的時間。`weekly` 各表分別照這三種：成本與 context 用 request 時間，verifier 輪次用 subagent 開始時間，review 每次成本用 Agent 呼叫時間。
 
@@ -60,10 +60,10 @@ python3 <SK>/scripts/report.py weekly --data "$TMPDIR/ur-data.json" --prs "$TMPD
   --window before=2026-11-03T00:00..2026-11-10T00:00 --window after=2026-11-10T00:00..2026-11-18T13:20
 ```
 
-- `--prs` 吃 JSON 陣列，每筆用 `mergedAt`，沒有時用 `closedAt`（`gh search prs --merged` 的 closedAt 就是 merge 時間）；不給時 PR 相關欄位為空。活躍小時＝窗口內全部 request 的 10 分鐘 bucket 數 ÷ 6。
-- 內建 `code-review` skill 每次會再 fork 一個沒有 Agent 呼叫的 general-purpose 子 agent；`weekly` 的 review 表把它併回父呼叫，`agents` 子命令仍算成獨立 agent（按 agent 數看 review 會變兩倍）。
-- 接手門檻模擬要用接手規則上線前的窗口：規則生效後跨過較高門檻的 session 被截斷，模擬出來接近 0。
-- 300K 提醒的觸發、接手 session 的啟動、brief 內文的字串（例如宣稱對照）需要讀 raw jsonl，不在 extract 的輸出裡，`weekly` 不量。
+- `--prs` 吃 JSON 物件陣列，每筆用 `mergedAt`，沒有時用 `closedAt`（`gh search prs --merged` 的 closedAt 就是 merge 時間）；不給時 PR 相關欄位為空。`--project` 等篩選不會套到 PR 清單上，篩專案時 PR 清單要自己給同範圍。活躍小時＝窗口內全部 request 的 10 分鐘 bucket 數 ÷ 6。
+- 內建 `code-review` skill 通常會再 fork 沒有 Agent 呼叫的 general-purpose 子 agent（偶爾不只一個，description 是 `/code-review …` 或空白）；`weekly` 的 review 表把它併回 fork 當下還在跑的父呼叫（主對話直接打 `/code-review` 的 fork 沒有父呼叫，不併），`agents` 子命令仍算成獨立 agent（按 agent 數看 review 會變兩倍）。
+- 接手門檻模擬是粗估：每個 session 只換手一次、不算新 session 重讀檔案，方向相反，不是嚴格上界。要用接手規則上線前的窗口：規則生效後跨過較高門檻的 session 被截斷，模擬出來接近 0。
+- 300K 提醒的觸發、接手 session 的啟動、brief 前 600 字（`prompt_head`）之後的字串（例如宣稱對照）需要讀 raw jsonl，不在 extract 的輸出裡，`weekly` 不量。
 
 ## 窗口怎麼切
 
