@@ -15,7 +15,8 @@ read-back is not evidence here.
 Entries a v1 install left behind (``~/.claude/rules-controller``, the old
 ``rules/*.md`` files, the ``maintain-guideline``/``usage-review``/``session-handoff``
 skills, the retired ``worker``/``worker-opus`` agents, the renamed
-``parallel-dispatch`` skill) are detected and listed, in the dry-run
+``parallel-dispatch`` skill, the ``dispatch`` skill that became
+``docs/dispatch.md``) are detected and listed, in the dry-run
 and again after ``--apply``.  They are never removed by this script;
 ``docs/install.md`` section "從 v1 升級" has the removal commands.  ``--prune``
 still removes the symlink-shaped ones that point into this repository.
@@ -51,7 +52,6 @@ HOST_KEYS = {"Darwin": "macos", "Windows": "windows"}
 # Skills under global/shared/skills/ that land in both ~/.claude/skills and
 # ~/.agents/skills.  The repo-only .claude/skills are not installed.
 SHARED_SKILLS = (
-    "dispatch",
     "handoff",
     "git-commit",
     "create-pr",
@@ -199,6 +199,8 @@ def legacy_paths(*, claude_home: Path, agents_home: Path) -> list[Path]:
         claude_home / "agents" / "worker.md",
         claude_home / "skills" / "parallel-dispatch",
         agents_home / "skills" / "parallel-dispatch",
+        claude_home / "skills" / "dispatch",
+        agents_home / "skills" / "dispatch",
         agents_home / "skills" / "maintain-guideline",
         agents_home / "skills" / "session-handoff",
     ]
