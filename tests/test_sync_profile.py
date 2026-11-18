@@ -34,7 +34,7 @@ def can_symlink(directory: Path) -> bool:
     return True
 
 
-SHARED_SKILLS = ("dispatch", "handoff", "git-commit", "create-pr", "worktree-session", "writing-principles", "agent-rules")
+SHARED_SKILLS = ("handoff", "git-commit", "create-pr", "worktree-session", "writing-principles", "agent-rules")
 
 
 def build_repo(root: Path) -> Path:
@@ -303,7 +303,7 @@ class SyncProfileTests(unittest.TestCase):
             self.run_sync(apply=True)
         self.assertIn("destination ancestor is a redirect", str(caught.exception))
         self.assertTrue((self.claude / "skills").is_symlink())
-        self.assertFalse((elsewhere / "dispatch" / "SKILL.md").exists())
+        self.assertFalse((elsewhere / "handoff" / "SKILL.md").exists())
 
     def test_nested_tree_redirect_is_refused_before_any_write(self) -> None:
         self.require_symlinks()
@@ -644,6 +644,8 @@ class SyncProfileTests(unittest.TestCase):
             self.claude / "agents" / "worker.md",
             self.claude / "skills" / "parallel-dispatch",
             self.agents / "skills" / "parallel-dispatch",
+            self.claude / "skills" / "dispatch",
+            self.agents / "skills" / "dispatch",
             self.agents / "skills" / "maintain-guideline",
             self.agents / "skills" / "session-handoff",
         ]
