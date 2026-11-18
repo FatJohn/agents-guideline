@@ -1,0 +1,6 @@
+{
+  "name": "session-watch",
+  "version": "0.1.0",
+  "description": "Pane that lists issue-session worktrees with their result.md status and live session state",
+  "author": { "name": "agents-guideline" }
+}
