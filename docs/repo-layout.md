@@ -71,7 +71,7 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | 檔案 | 用途 |
 |------|------|
 | `.claude/skills/maintain-guideline/SKILL.md` | 系統維護協議：權限分級、兩平台同步矩陣、修改流程、教訓寫回、瘦身與日落條款、路由完整性 |
-| `.claude/skills/usage-review/SKILL.md` | 量 Claude Code 本機 session jsonl 的用量與派工行為（只解析 Claude Code）：`scripts/extract.py` 把 jsonl 正規化成單一 JSON（`references/schema.md` 定義欄位）、`scripts/report.py` 九個子命令只讀該 JSON，`scripts/pricing.json` 是外置價格表，`references/caveats.md` 收攏已知陷阱 |
+| `.claude/skills/usage-review/SKILL.md` | 量 Claude Code 本機 session jsonl 的用量與派工行為（只解析 Claude Code）：`scripts/extract.py` 把 jsonl 正規化成單一 JSON（`references/schema.md` 定義欄位）、`scripts/report.py` 十個子命令只讀該 JSON，`scripts/pricing.json` 是外置價格表，`references/caveats.md` 收攏已知陷阱 |
 
 ## docs、scripts、tests
 

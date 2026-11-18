@@ -1,6 +1,6 @@
 ---
 name: usage-review
-description: 量 Claude Code 本機 session jsonl 的用量與派工行為時使用：成本按 subagent 角色×model 拆帳、cache write 1h／5m 與過期重寫、主對話 context 膨脹、subagent 回報長度、派工平行度與 controller 自修次數、verifier 判定分布。Use for usage or token-cost reviews by agent.這不是帳單，也算不出訂閱額度百分比。
+description: 量 Claude Code 本機 session jsonl 的用量與派工行為時使用：成本按 subagent 角色×model 拆帳、cache write 1h／5m 與過期重寫、主對話 context 膨脹、subagent 回報長度、派工平行度與 controller 自修次數、verifier 判定分布、每週規則效果（$/PR、首輪 OPEN、接手門檻模擬）。Use for usage or token-cost reviews by agent.這不是帳單，也算不出訂閱額度百分比。
 allowed-tools: Bash(python3:*), Read, Grep, Glob
 ---
 
@@ -32,7 +32,7 @@ python3 <SK>/scripts/report.py dispatch --data "$TMPDIR/ur-data.json" \
 
 - extract 結尾會印摘要：sessions／agents／reqs 數、時間範圍、**unpriced model**、retyped 數、`cw_ttl_known=false` 的 req 數。先看摘要再出表；unpriced 不為空代表 `pricing.json` 缺那個 model 的價格，總額偏低（缺的 model 成本是 `null`，不會當 0）。
 - 價格表在 `scripts/pricing.json`（每條有 `verified` 日期，是本地快照）；換價格或加 model 用 `extract.py --pricing <path>` 重跑，不改程式。
-- 共用旗標：`--data`（必填）、`--tz`、`--window NAME=ISO..ISO`（可重複，任一端可空、省略＝全部）、`--project SUBSTR`、`--exclude-session SID`、`--corrected`、`--format md|json`、`--top N`。
+- 共用旗標：`--data`（必填）、`--tz`、`--window NAME=ISO..ISO`（可重複，任一端可空、省略＝全部）、`--project SUBSTR`、`--exclude-project SUBSTR`（排除 slug 含 SUBSTR 的 session，例如測試 session）、`--exclude-session SID`、`--corrected`、`--format md|json`、`--top N`。
 - `data.json` 內含 prompt 與報告前段、cwd、session 標題與專案目錄名，**分享前先檢查**；要分享報表時只貼 `report.py` 的輸出並自行去識別化。
 
 ## 子命令
@@ -48,8 +48,22 @@ python3 <SK>/scripts/report.py dispatch --data "$TMPDIR/ur-data.json" \
 | `verifier` | verifier 判定分布與各自成本 | 判定由 `final_head` 的 regex 抓，為啟發式 |
 | `agents` | 每種 subagent 的 request 數、工具數、牆鐘、成本（中位／P90）、通知 token 中位 | |
 | `sessions` | 最貴前 N 個 session（含 subagent 成本）、ctx 中位、派工數、人類訊息數 | 人類訊息只算 `human`＋`ask_answer` |
+| `weekly` | 每週規則效果：$/PR、PR/h、$/h、token／request／Agent 呼叫每 PR、主對話與 subagent 每 PR；主對話 ctx 對門檻（跨過的 session、跨過後 request 中位、≥門檻占主對話成本）；verifier 判定、首輪 OPEN、機械結案後又派 delta；verifier 與 fresh review 按 model 的每次成本與每 session 輪數；接手門檻模擬 | 專屬旗標 `--prs`、`--ctx-threshold`、`--sim-threshold`；判定、首輪、review 分類是啟發式，模擬是上界 |
 
-歸屬規則：request 級表格（cost、cache、context）用 request 時間；agent 級表格（reports、agents、verifier）用 subagent 的開始時間並計入它全部的 request，不會被窗口切成兩半；dispatch、controller 用 Agent 呼叫、改檔的時間。
+歸屬規則：request 級表格（cost、cache、context）用 request 時間；agent 級表格（reports、agents、verifier）用 subagent 的開始時間並計入它全部的 request，不會被窗口切成兩半；dispatch、controller 用 Agent 呼叫、改檔的時間。`weekly` 各表分別照這三種：成本與 context 用 request 時間，verifier 輪次用 subagent 開始時間，review 每次成本用 Agent 呼叫時間。
+
+## 每週規則效果（`weekly`）
+
+```bash
+gh search prs --author=@me --merged --merged-at ">=2026-11-02" --limit 1000 --json repository,number,closedAt > "$TMPDIR/prs.json"
+python3 <SK>/scripts/report.py weekly --data "$TMPDIR/ur-data.json" --prs "$TMPDIR/prs.json" --tz +08:00 \
+  --window before=2026-11-03T00:00..2026-11-10T00:00 --window after=2026-11-10T00:00..2026-11-18T13:20
+```
+
+- `--prs` 吃 JSON 陣列，每筆用 `mergedAt`，沒有時用 `closedAt`（`gh search prs --merged` 的 closedAt 就是 merge 時間）；不給時 PR 相關欄位為空。活躍小時＝窗口內全部 request 的 10 分鐘 bucket 數 ÷ 6。
+- 內建 `code-review` skill 每次會再 fork 一個沒有 Agent 呼叫的 general-purpose 子 agent；`weekly` 的 review 表把它併回父呼叫，`agents` 子命令仍算成獨立 agent（按 agent 數看 review 會變兩倍）。
+- 接手門檻模擬要用接手規則上線前的窗口：規則生效後跨過較高門檻的 session 被截斷，模擬出來接近 0。
+- 300K 提醒的觸發、接手 session 的啟動、brief 內文的字串（例如宣稱對照）需要讀 raw jsonl，不在 extract 的輸出裡，`weekly` 不量。
 
 ## 窗口怎麼切
 
@@ -80,7 +94,7 @@ jsonl 是 Claude Code 的內部紀錄檔。官方 sessions 文件明寫：「The
 
 ## 未納入（需要時另做）
 
-- **lead time、每 PR 成本**：要用 `gh` 把 session 與 PR 配對，本 skill 只存 `sessions[].prs`（`pr-link` 記錄）。
+- **lead time、單一 PR 的成本**：要用 `gh` 把 session 與 PR 配對，本 skill 只存 `sessions[].prs`（`pr-link` 記錄）；窗口層級的 $/PR 由 `weekly --prs` 提供。
 - **品質人工改判**：verifier 判定、finding 是否成立需要人看原文，工具只給 regex 分布。
 - **polling 浪費**（背景工作期間反覆輪詢）：判定規則與環境相關，未做成通用子命令。
 - **advisor 用量展開**：`usage.iterations[]` 的 `advisor_message` 不展開，見 caveats。
@@ -89,6 +103,6 @@ jsonl 是 Claude Code 的內部紀錄檔。官方 sessions 文件明寫：「The
 ## 檔案
 
 - `scripts/extract.py`、`scripts/usagelib.py`、`scripts/pricing.json`：正規化、共用函式、價格表。
-- `scripts/report.py`：九個子命令。
+- `scripts/report.py`：十個子命令。
 - `references/schema.md`：extract 輸出的欄位定義（canonical）。
 - `references/caveats.md`：量 jsonl 的已知陷阱（現象 → 影響 → 處理）。

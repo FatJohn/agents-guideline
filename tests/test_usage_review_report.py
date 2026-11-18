@@ -488,5 +488,101 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(len(rows(report.make_report(data, "agents", tz="UTC"), "agents")), 1)
 
 
+def make_weekly_data():
+    """make_data() plus a fresh-review call whose agent ag7 has a forked child ag8 (no Agent call, like the built-in
+    code-review skill), verifier descriptions / heads for the round heuristics, and nothing else changed."""
+    data = make_data()
+    data["agents"]["ag2"]["final_head"] = "CONVERGED\n\n機械結案"
+    data["agents"]["ag3"]["description"] = "delta re-check"
+    data["sessions"][SID_A]["agent_calls"]["tu9"] = dict(call("03:00:00", "general-purpose", "ag7"), description="fresh code-review")
+    data["agents"]["ag7"] = dict(agent("ag7", "general-purpose", "03:00:05", "03:00:05", 1, "tu9", 100, "no findings"))
+    data["agents"]["ag8"] = dict(agent("ag8", "general-purpose", "03:00:10", "03:00:10", 1, None, 100, "fork"), description="/code-review")
+    data["reqs"] += [req("03:00:05", SID_A, "ag7", "general-purpose", OPUS, 0.01, inp=2500),
+                     req("03:00:10", SID_A, "ag8", "general-purpose", OPUS, 0.02, inp=5000)]
+    data["reqs"].sort(key=lambda r: r["t"])
+    return data
+
+
+PRS = [{"mergedAt": "2031-01-02T01:00:00Z"}, {"closedAt": "2031-01-02T03:00:00Z"}, {"mergedAt": "2030-12-01T00:00:00Z"}]
+
+
+class WeeklyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.data = make_weekly_data()
+
+    def rep(self, **kw):
+        kw.setdefault("tz", "UTC")
+        kw.setdefault("windows", ["w=2031-01-01T00:00:00Z.."])
+        return report.make_report(copy.deepcopy(self.data), "weekly", **kw)
+
+    def test_summary_per_pr_and_active_hours(self):
+        s = rows(self.rep(prs=PRS), "summary")[0]
+        total = TOTAL_RAW + 0.03
+        self.assertEqual(s["merged_prs"], 2)                 # the December PR is outside the window; closedAt is the fallback
+        self.assertAlmostEqual(s["active_hours"], 1.5)       # 9 distinct 10-minute buckets
+        self.assertAlmostEqual(s["cost_usd"], total, places=9)
+        self.assertAlmostEqual(s["per_pr_usd"], total / 2, places=9)
+        self.assertAlmostEqual(s["reqs_per_pr"], 16 / 2)
+        self.assertAlmostEqual(s["agent_calls_per_pr"], 9 / 2)
+        self.assertAlmostEqual(s["main_per_pr_usd"], (0.9116 + 0.003) / 2, places=9)
+        no_prs = rows(self.rep(), "summary")[0]
+        self.assertIsNone(no_prs["merged_prs"])
+        self.assertIsNone(no_prs["per_pr_usd"])
+
+    def test_main_ctx_threshold_columns_and_exclude_project(self):
+        m = rows(self.rep(ctx_threshold=100_000), "main_ctx")[0]
+        self.assertEqual((m["reqs"], m["sessions_crossed"], m["reqs_at_or_above_median"]), (7, 1, 3))
+        self.assertAlmostEqual(m["at_or_above_cost_share"], (0.742 + 0.022 + 0.1) / (0.9116 + 0.003), places=9)
+        self.assertEqual(rows(self.rep(ctx_threshold=500_000), "main_ctx")[0]["sessions_crossed"], 1)   # m5 sits exactly on it
+        self.assertEqual(rows(self.rep(ctx_threshold=600_000), "main_ctx")[0]["sessions_crossed"], 0)
+        self.assertEqual(rows(self.rep(exclude_projects=["beta"]), "main_ctx")[0]["reqs"], 5)
+
+    def test_verifier_first_round_and_mechanical_close_then_delta(self):
+        v = rows(self.rep(), "verifier_rounds")[0]
+        self.assertEqual((v["agents"], v["first_round"], v["first_round_open"], v["mech_close_then_delta"]), (4, 3, 1, 1))
+        self.assertAlmostEqual(v["converged_share"], 0.25)
+        data = make_weekly_data()
+        data["agents"]["ag2"]["final_head"] = "CONVERGED"     # no 機械結案 -> the delta after it is not counted
+        self.assertEqual(rows(report.make_report(data, "weekly", tz="UTC"), "verifier_rounds")[0]["mech_close_then_delta"], 0)
+
+    def test_review_cost_folds_the_forked_child_into_its_parent(self):
+        by = {(r["kind"], r["family"]): r for r in rows(self.rep(prs=PRS), "reviews")}
+        self.assertEqual(sorted(by), [("review", "opus"), ("verifier", "opus")])
+        rv = by[("review", "opus")]
+        self.assertEqual((rv["calls"], rv["sessions"]), (1, 1))
+        self.assertAlmostEqual(rv["cost_usd"], 0.03, places=9)   # 0.01 parent + 0.02 fork
+        self.assertAlmostEqual(by[("verifier", "opus")]["cost_usd"], 0.0026, places=9)   # tu4 / tu8 never started an agent
+        self.assertEqual(report.fork_parents(report.Ctx(copy.deepcopy(self.data))), {"ag8": "ag7"})
+
+    def test_handoff_simulation(self):
+        r = rows(self.rep(sim_thresholds=[100_000, 600_000]), "handoff_sim")
+        base = (4000 + 10) / 2 + report.HANDOFF_CARD_TOKENS     # median first-request ctx (m1 4000, b1 10) + card
+        self.assertEqual((r[0]["threshold"], r[0]["sessions"], r[0]["reqs_after_median"]), (100_000, 1, 3))
+        self.assertAlmostEqual(r[0]["gross_usd"], 2 * (100_000 - base) * 0.2 / 1e6, places=12)
+        self.assertAlmostEqual(r[0]["handoff_usd"], base * 4 * 2 / 1e6, places=12)
+        self.assertAlmostEqual(r[0]["net_usd"], r[0]["gross_usd"] - r[0]["handoff_usd"], places=12)
+        self.assertEqual((r[1]["sessions"], r[1]["net_usd"]), (0, 0.0))
+
+    def test_cli_weekly_options(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path, prs = Path(tmp) / "data.json", Path(tmp) / "prs.json"
+            path.write_text(json.dumps(self.data), encoding="utf-8")
+            prs.write_text(json.dumps(PRS), encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = report.main(["weekly", "--data", str(path), "--prs", str(prs), "--tz", "UTC", "--format", "json",
+                                    "--sim-threshold", "100000", "--exclude-project", "beta"])
+            self.assertEqual(code, 0)
+            tabs = {t["id"]: t for t in json.loads(out.getvalue())["windows"][0]["tables"]}
+            self.assertEqual(tabs["summary"]["rows"][0]["merged_prs"], 3)   # default window 'all'
+            self.assertEqual([x["threshold"] for x in tabs["handoff_sim"]["rows"]], [100_000])
+            self.assertEqual(tabs["main_ctx"]["rows"][0]["reqs"], 5)
+            prs.write_text("{}", encoding="utf-8")
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                report.main(["weekly", "--data", str(path), "--prs", str(prs)])
+        self.assertEqual(report.fmt_cell("reqs_per_pr", 1.984), "1.98")
+
+
 if __name__ == "__main__":
     unittest.main()
