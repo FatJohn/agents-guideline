@@ -9,7 +9,7 @@
 | 程式碼 diff 的 fresh review | 派 `general-purpose`（`model: opus`，`effort: high`；高風險或使用者回報 bug 改 `model: fable`、`effort: medium`）執行內建 `code-review` skill，主對話不自跑 `Skill(code-review)`（帶著主對話 context，不算 fresh）；是 verifier 的加項不是替代。修 finding 後依 dispatch skill §2 風險分流再驗 |
 | 旁支查詢 | 答案在檔案裡（找哪些檔有 X、列清單、抓數字）：`Explore`，`model: haiku`。要讀多份長文歸納、跨來源比對或結論帶推理：`general-purpose`，`model: sonnet`。只拿結論與檔案:行號，原文不帶回主對話。獨立第二意見：`codex:codex-rescue` |
 
-不派：實作、修 bug、批次改檔、文件、規劃都自己做。主對話 context ≥300K 還有未做的 phase 時，寫 handoff 卡，自己開新 session 接手（handoff skill §4），不派 subagent、不等使用者開口；使用者說開新 session（繼續，或另開做旁支調查／別的事）也由你開成他看得到的互動分頁，不只給 prompt，不用 `claude -p`／`--bg`／背景執行代替（worktree-session skill）。≥2 個互相獨立的 issue 一 issue 一頂層 session，本 session 只盤點（worktree-session skill §2）。CI／release 設定（`.github/workflows`、`.github/actions`）先把 diff 給使用者、取得當次授權才改（dispatch skill §3）。
+不派：實作、修 bug、批次改檔、文件、規劃都自己做。主對話 context ≥300K 還有未做的 phase 時，寫 handoff 卡，自己開新 session 接手（handoff skill §4），不派 subagent、不等使用者開口；使用者說開新 session（繼續，或另開做旁支調查／別的事）也由你開成他看得到的互動分頁，不只給 prompt，不用 `claude -p`／`--bg`／背景執行代替（worktree-session skill）。≥2 個互相獨立的 issue 一 issue 一頂層 session，本 session 只盤點；已在盤點（起過 issue session 或接手盤點 session）時，交來的改檔工作也寫 brief 起 session，同一張票的後續階段與交接卡的下一步都算（worktree-session skill §2）。CI／release 設定（`.github/workflows`、`.github/actions`）先把 diff 給使用者、取得當次授權才改（dispatch skill §3）。
 
 ## Brief
 必含：目標與動機、驗收條件（fresh code-review 可省）、回報格式；附已讀素材；路徑用絕對路徑；派 `general-purpose` 時開頭寫「你是被派來的執行者，親自完成本任務，不要再呼叫 Agent 工具轉包」。格式見 `~/.claude/skills/handoff/SKILL.md` §1。

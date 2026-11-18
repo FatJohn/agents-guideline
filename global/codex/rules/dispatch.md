@@ -4,7 +4,7 @@
 > 本檔是 `<REPO>/global/shared/skills/dispatch/SKILL.md` 的 Codex 版；Claude Code 專用的 Agent 工具參數不要套到這裡。
 > 下文的 `<REPO>` 同 `~/.codex/AGENTS.md` 的 Bootstrap 段定義（依機器而異；該段有對照表，`readlink ~/.codex/AGENTS.md` 只在 symlink 安裝的機器上有效）。本檔位在 `<REPO>/global/codex/rules/`，寫成裸 `rules/…` 從這裡解析不到。
 
-controller 在主對話自己做實作與文件；subagent 只剩三類：fresh-context 驗收（`verifier`／`sol_verifier`）、fresh review（`reviewer`）、旁支查詢（`scanner`／`explorer`）。實作與規劃不派 subagent，理由與量測見 `<REPO>/docs/reviews/v4-2026-10.md`。平行開發與多 issue 走 `<REPO>/global/shared/skills/worktree-session/SKILL.md`：一 issue 一頂層 session，各在自己的 worktree，不派實作型 subagent。
+controller 在主對話自己做實作與文件；subagent 只剩三類：fresh-context 驗收（`verifier`／`sol_verifier`）、fresh review（`reviewer`）、旁支查詢（`scanner`／`explorer`）。實作與規劃不派 subagent，理由與量測見 `<REPO>/docs/reviews/v4-2026-10.md`。平行開發與多 issue 走 `<REPO>/global/shared/skills/worktree-session/SKILL.md`：一 issue 一頂層 session，各在自己的 worktree，不派實作型 subagent；已在盤點的 session（起過 issue session 或接手盤點 session）接到改檔工作也寫 brief 起 session，同一張票的後續階段與交接卡的下一步都算。
 
 ## 0. Codex 角色與 runtime adapter（以當前 session 實際工具為準）
 
