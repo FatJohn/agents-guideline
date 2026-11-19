@@ -10,7 +10,8 @@ let isOpen = false
 let isLoading = false
 let wantsAnother = false
 let repos = []
-// 預設只看這個 session 派出去的（腳本從這個 session 的 jsonl 查 orca worktree create 的回傳）；
+// 預設只看這個 checkout 的 session 派出去的（腳本從這個 session 與同一個專案目錄的其他 session 的 jsonl 查
+// orca worktree create 的回傳，接手的新 session 才看得到前一任派出去的）；
 // 查不到派出紀錄就退到這個 session 所在 repo 底下。/session-watch all 看整台
 let cwd = ''
 let isAll = false
@@ -38,7 +39,7 @@ const STATUS_COLOR = {
 }
 const SESSION_COLOR = { working: 'green', turn: 'green', sub: 'cyan', idle: 'yellow' }
 
-const SCOPE = { dispatched: '這個 session 派出的', under: '這個 repo 底下', all: '整台', repos: '指定 repo' }
+const SCOPE = { dispatched: '這個 checkout 派出的', under: '這個 repo 底下', all: '整台', repos: '指定 repo' }
 
 export function sessionText(row) {
   return row.session ? row.session.state + ' ' + row.session.silent : 'no session'
@@ -91,7 +92,7 @@ export function register(on) {
     cwd = e.cwd || ''
     await $.command.register({
       name: 'session-watch',
-      description: '開啟 issue session 監看 pane（預設只看這個 session 派出的；all 看整台；可接 repo 路徑；close 關閉）',
+      description: '開啟 issue session 監看 pane（預設只看這個 checkout 的 session 派出的；all 看整台；可接 repo 路徑；close 關閉）',
       argumentHint: '[repo 路徑… | all | auto | close]',
       immediate: true,
     })

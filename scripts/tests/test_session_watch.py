@@ -155,17 +155,61 @@ class Dispatched(unittest.TestCase):
     def test_only_existing_non_main_worktrees_are_kept(self):
         with tempfile.TemporaryDirectory() as d:
             wt, main, gone = f"{d}/main/.worktrees/a", f"{d}/main", f"{d}/main/.worktrees/gone"
+            sub = f"{main}/docs"  # 主 checkout 底下的一般子目錄：git 會回同一個主 checkout，但它不是 worktree
             Path(wt).mkdir(parents=True)
+            Path(wt, ".git").write_text("gitdir: elsewhere\n")
+            Path(sub).mkdir()
+            Path(main, ".git").mkdir()
             Path(f"{d}/plain").mkdir()
             real = sw.main_checkout
-            sw.main_checkout = {wt: main, main: main}.get
+            sw.main_checkout = {wt: main, main: main, sub: main}.get
             try:
-                self.assertEqual(sw.worktrees_among({wt + "/", main, gone, f"{d}/plain"}), {wt: main})
+                self.assertEqual(sw.worktrees_among({wt + "/", main, sub, gone, f"{d}/plain"}), {wt: main})
             finally:
                 sw.main_checkout = real
 
     def test_unknown_session_has_no_paths(self):
         self.assertEqual(sw.dispatched_paths("other", self.projects), set())
+
+    def add_log(self, project, session_id, lines=()):
+        (self.projects / project).mkdir(exist_ok=True)
+        (self.projects / project / f"{session_id}.jsonl").write_text("\n".join(lines))
+
+    def launch_lines(self, tool_id, path):
+        return [log_line("assistant", {"type": "tool_use", "id": tool_id, "name": "Bash",
+                                       "input": {"command": "orca worktree create --name x --json"}}),
+                log_line("user", {"type": "tool_result", "tool_use_id": tool_id, "content": json.dumps({"path": path})})]
+
+    def test_takeover_session_in_the_same_checkout_inherits_earlier_launches(self):
+        mine = "/r/api/.orca/workspaces/api/issue-9"
+        self.add_log("-r-ws", "fresh")  # 剛接手、還沒派過任何東西
+        self.add_log("-r-ws", "next", self.launch_lines("n1", mine))  # 接手後自己又派了一個
+        inherited = {self.A, self.B, self.C, "/r/ws/.worktrees/briefs/issue-2.md"}
+        self.assertEqual(sw.dispatched_paths("fresh", self.projects), inherited | {mine})
+        self.assertEqual(sw.dispatched_paths("next", self.projects), inherited | {mine})
+
+    def test_sessions_of_another_checkout_are_not_mixed_in(self):
+        far = "/r/far/.orca/workspaces/far/issue-7"
+        self.add_log("-r-far", "elsewhere", self.launch_lines("f1", far))
+        self.add_log("-r-far", "idle")
+        self.assertNotIn(far, sw.dispatched_paths("sid", self.projects))
+        self.assertEqual(sw.dispatched_paths("idle", self.projects), {far})
+
+    def test_result_after_unrelated_lines_is_still_matched_to_its_launch(self):
+        launch, result = self.launch_lines("late", self.A)
+        noise = log_line("user", {"type": "tool_result", "tool_use_id": "zzz", "content": "/r/noise/path"})
+        self.add_log("-r-solo", "solo", [launch, noise, noise, result, noise])
+        self.assertEqual(sw.dispatched_paths("solo", self.projects), {self.A})
+
+    def test_unreadable_log_in_the_directory_is_skipped(self):
+        (self.projects / "-r-ws" / "broken.jsonl").mkdir()  # open() 會丟 OSError
+        self.assertIn(self.A, sw.dispatched_paths("sid", self.projects))
+
+    def test_takeover_session_gets_the_dispatched_scope(self):
+        self.add_log("-r-ws", "fresh")
+        data, queried = self.collect("fresh")
+        self.assertEqual((data["scope"], queried), ("dispatched", ["/r/api", "/r/web"]))
+        self.assertEqual([r["path"] for r in data["rows"]], [self.A])
 
     def collect(self, session_id):
         api_rows = [row(path=self.A, repo="/r/api"), row(path="/r/api/.worktrees/someone-else", repo="/r/api")]
