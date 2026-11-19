@@ -57,7 +57,7 @@ test('the pane lists rows and flags a session waiting for input', async ($, on) 
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/tmp/widgets' })
   await $.command.run({ command: 'session-watch', args: '' })
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /^這個 session 派出的$/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^這個 checkout 派出的$/ })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /^⏸$/ })).props.color).toBe('red')
   expect(await ui.find({ type: 'Text', text: /^widgets\/issue-2$/ })).toBeDefined()
   // 各欄各自上色：result.md 狀態、session 的 TUI 狀態

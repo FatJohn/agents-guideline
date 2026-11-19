@@ -8,8 +8,9 @@
 
 看哪些 worktree（輸出的 `scope` 欄說明這次用的是哪一種）：
   repos       給了 `--repo`（可重複）：只看這些 repo
-  dispatched  給了 `--dispatched-by <session id>`，且那個 session 的 jsonl 裡 `orca worktree create` 的回傳
-              有還在的 worktree 路徑：只列這些，跨 repo 也算。查不到就落到下一種
+  dispatched  給了 `--dispatched-by <session id>`，且那個 session 或同一個 checkout 的其他 session（例如前後任的
+              盤點 session）的 jsonl 裡 `orca worktree create` 的回傳有還在的 worktree 路徑：只列這些，
+              跨 repo 也算。查不到就落到下一種
   under       給了 `--under <目錄>`：反查範圍縮到該目錄所屬 repo 的主 checkout 底下（含巢狀子 repo）
   all         都沒給：從正在跑的 claude session 的 cwd 反查它們所屬的所有 repo
 完全唯讀。
@@ -116,35 +117,48 @@ def join(issue_rows, sessions):
 
 
 def dispatched_paths(session_id, projects=None):
-    """那個 session 用 `orca worktree create` 建出來的 worktree 的候選路徑：讀它的 jsonl，取該 Bash 呼叫
-    回傳裡出現的每個絕對路徑。指令本身常用 shell 變數組路徑，所以看回傳不看指令；回傳常被 jq／python
-    濾成只剩路徑本身，所以不認 JSON 欄位名。候選裡會混進 brief 檔、主 checkout 這類路徑，由 collect 篩掉。
-    找不到 jsonl 回空集合。"""
-    paths, launches = set(), set()
-    for log in (projects or PROJECTS).glob(f"*/{session_id}.jsonl"):
-        for line in log.read_text(errors="replace").splitlines():
-            if LAUNCH not in line and not launches:
-                continue
+    """那個 session 與同一個專案目錄的其他 session 用 `orca worktree create` 建出來的 worktree 的候選路徑。
+    同一個專案目錄＝在同一個 checkout 開的 session：盤點 session 換手（context 到門檻開新 session 接手、
+    `/clear`）之後 session id 會換，只讀自己的 jsonl 會看不到前一任派出去、還在跑的 worktree。
+    讀每份 jsonl，取該 Bash 呼叫回傳裡出現的每個絕對路徑。指令本身常用 shell 變數組路徑，所以看回傳不看
+    指令；回傳常被 jq／python 濾成只剩路徑本身，所以不認 JSON 欄位名。候選裡會混進 brief 檔、主 checkout、
+    已經清掉的舊 worktree 這類路徑，由 collect 篩掉。找不到那個 session 的 jsonl 回空集合。"""
+    paths = set()
+    for own in (projects or PROJECTS).glob(f"*/{session_id}.jsonl"):
+        for log in own.parent.glob("*.jsonl"):
+            pending = set()  # 已送出、還沒看到回傳的 launch；只解析提到 launch 或這些 id 的行，其餘整行跳過
             try:
-                content = (json.loads(line).get("message") or {}).get("content")
-            except ValueError:
+                f = open(log, encoding="utf-8", errors="replace")
+            except OSError:  # 別的 session 的檔可能剛被清掉或讀不到，少一份不該讓整輪失敗
                 continue
-            for block in content if isinstance(content, list) else []:
-                if not isinstance(block, dict):
-                    continue
-                if block.get("type") == "tool_use" and LAUNCH in str((block.get("input") or {}).get("command")):
-                    launches.add(block.get("id"))
-                elif block.get("type") == "tool_result" and block.get("tool_use_id") in launches:
-                    paths.update(ABS_PATH.findall(json.dumps(block.get("content"), ensure_ascii=False)))
+            with f:
+                for line in f:
+                    if LAUNCH not in line and not any(i in line for i in pending):
+                        continue
+                    try:
+                        content = (json.loads(line).get("message") or {}).get("content")
+                    except ValueError:
+                        continue
+                    for block in content if isinstance(content, list) else []:
+                        if not isinstance(block, dict):
+                            continue
+                        if block.get("type") == "tool_use" and LAUNCH in str((block.get("input") or {}).get("command")):
+                            if isinstance(block.get("id"), str):
+                                pending.add(block["id"])
+                        elif block.get("type") == "tool_result" and block.get("tool_use_id") in pending:
+                            pending.discard(block["tool_use_id"])
+                            paths.update(ABS_PATH.findall(json.dumps(block.get("content"), ensure_ascii=False)))
     return paths
 
 
 def worktrees_among(candidates):
-    """候選路徑裡還在、且不是主 checkout 的 git worktree → 它的主 checkout。"""
+    """候選路徑裡還在、且不是主 checkout 的 git worktree → 它的主 checkout。只收 worktree 的根目錄
+    （linked worktree 的 `.git` 是檔案）：回傳文字裡常夾著主 checkout 底下的一般子目錄，收進來會讓範圍
+    變成 dispatched 卻一列都對不上。"""
     out = {}
     for p in candidates:
         p = p.rstrip("/")
-        if Path(p).is_dir():
+        if (Path(p) / ".git").is_file():
             main = main_checkout(p)
             if main and main != p:
                 out[p] = main
@@ -189,7 +203,7 @@ def collect(repos, under=None, dispatched_by=None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repo", action="append", default=[], help="repo 主 checkout 路徑；可重複。不給就從在跑的 session 反查")
-    ap.add_argument("--dispatched-by", help="沒給 --repo 時，只列這個 session id 用 orca worktree create 建出來的 worktree")
+    ap.add_argument("--dispatched-by", help="沒給 --repo 時，只列這個 session id 與同一個 checkout 的其他 session 用 orca worktree create 建出來的 worktree")
     ap.add_argument("--under", help="沒給 --repo、也查不到派出紀錄時，只反查這個目錄所屬 repo 底下的 session")
     ap.add_argument("--json", action="store_true", help="輸出 JSON（給 mod 用）")
     args = ap.parse_args()
