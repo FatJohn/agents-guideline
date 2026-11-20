@@ -2,8 +2,8 @@
 
 Fails when a source of rules gains an entry without a row in the table:
 global/shared/rules/judgment.md (needs a row in the Claude part and in the Codex
-part), global/claude/hooks/, every H2 section and every numbered 「邊界」 item of
-global/codex/AGENTS.md, every global/codex/rules/*.md and every numbered H2
+part), global/claude/hooks/, every H2 section, every numbered 「邊界」 item and
+every 「Codex 注意」 bullet of global/codex/AGENTS.md, every global/codex/rules/*.md and every numbered H2
 section in it, and every global/codex/agents/*.toml. Also fails when a row uses a
 value outside the fixed set, or when a mechanical row points at a file or symbol
 that does not exist.
@@ -30,18 +30,48 @@ MECHANICAL = VALUES - {"注入文字", "按需文字"}
 CODEX_PREFIX = "Codex 端"
 
 
+FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+
+
+def unfenced_lines(path: Path) -> list[str]:
+    """Lines of a Markdown file outside fenced code blocks (``` or ~~~, closed by
+    the same character repeated at least as many times)."""
+    lines = []
+    opener = ""
+    for line in path.read_text(encoding="utf-8").splitlines():
+        m = FENCE.match(line)
+        if opener:
+            if m and m.group(1)[0] == opener[0] and len(m.group(1)) >= len(opener) and not line.strip(" `~"):
+                opener = ""
+            continue
+        if m:
+            opener = m.group(1)
+            continue
+        lines.append(line)
+    return lines
+
+
+def section_body(path: Path, title: str) -> str | None:
+    """Unfenced text under '## <title>' up to the next H2, or None if absent."""
+    body = None
+    for line in unfenced_lines(path):
+        if line.startswith("## "):
+            if body is not None:
+                break
+            if line[3:].strip() == title:
+                body = []
+            continue
+        if body is not None:
+            body.append(line)
+    return None if body is None else "\n".join(body)
+
+
 def table_rows() -> list[tuple[bool, list[str]]]:
     """(is_codex, cells) for every row of a four-column table
     (規則｜由什麼強制｜強制點｜備註), header, separator and fenced code dropped."""
     rows = []
     codex = False
-    fenced = False
-    for line in TABLE.read_text(encoding="utf-8").splitlines():
-        if line.lstrip().startswith("```"):
-            fenced = not fenced
-            continue
-        if fenced:
-            continue
+    for line in unfenced_lines(TABLE):
         if line.startswith("## ") and line[3:].strip().startswith(CODEX_PREFIX):
             codex = True
             continue
@@ -55,7 +85,7 @@ def table_rows() -> list[tuple[bool, list[str]]]:
 
 
 def h2_titles(path: Path) -> list[str]:
-    return re.findall(r"^## (.+?)\s*$", path.read_text(encoding="utf-8"), re.M)
+    return [line[3:].strip() for line in unfenced_lines(path) if line.startswith("## ")]
 
 
 def judgment_keys() -> list[str]:
@@ -101,14 +131,23 @@ class RuleEnforcementTableTests(unittest.TestCase):
                 self.assertTrue(any(p.startswith(path) for p in points), f"no hook row whose 強制點 is {path}")
 
     def test_every_codex_boundary_item_has_a_row(self) -> None:
-        text = (CODEX / "AGENTS.md").read_text(encoding="utf-8")
-        block = re.search(r"^## 邊界\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
+        block = section_body(CODEX / "AGENTS.md", "邊界")
         self.assertIsNotNone(block, "no '## 邊界' section in global/codex/AGENTS.md")
-        numbers = re.findall(r"^\s*(\d+)\.\s", block.group(1), re.M)
+        numbers = re.findall(r"^\s*(\d+)\.\s", block, re.M)
         self.assertTrue(numbers, "no numbered items under '## 邊界' in global/codex/AGENTS.md")
         for num in numbers:
             key = f"`global/codex/AGENTS.md`「邊界」{num}："
             with self.subTest(item=num):
+                self.assertTrue(any(r.startswith(key) for r in self.codex_rules), f"no Codex row starting with {key}")
+
+    def test_every_codex_note_bullet_has_a_row(self) -> None:
+        block = section_body(CODEX / "AGENTS.md", "Codex 注意")
+        self.assertIsNotNone(block, "no '## Codex 注意' section in global/codex/AGENTS.md")
+        count = len(re.findall(r"^[-*] ", block, re.M))
+        self.assertTrue(count, "no bullets under '## Codex 注意' in global/codex/AGENTS.md")
+        for num in range(1, count + 1):
+            key = f"`global/codex/AGENTS.md`「Codex 注意」{num}："
+            with self.subTest(bullet=num):
                 self.assertTrue(any(r.startswith(key) for r in self.codex_rules), f"no Codex row starting with {key}")
 
     def test_every_codex_entry_section_has_a_row(self) -> None:
