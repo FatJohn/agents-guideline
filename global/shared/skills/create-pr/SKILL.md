@@ -47,7 +47,7 @@ Good -- 同一概念的變更聚合描述：
 
 使用者有給 PR 目的就以它為主軸串連所有變更；沒有就從 diff 推斷。
 
-建議使用者在開 PR 前先跑該 repo 的檢查慣例（lint / type-check / test，或專案自帶的 pre-commit skill）；本 skill 不主動代跑。repo 文件把測試、lint 或 code review 通過列為開 PR 前置條件時例外：先確認那些閘門已通過並附證據（實跑輸出、review 紀錄或連結），拿不出證據就不開、回報缺哪一項。
+建議使用者在開 PR 前先跑該 repo 的檢查慣例（lint / type-check / test，或專案自帶的 pre-commit skill）；本 skill 不主動代跑。repo 文件把測試、lint 或 code review 通過列為開 PR 前置條件時例外：先確認那些閘門已通過並附證據（實跑輸出、review 紀錄或連結），未通過或拿不出證據就不開、回報缺哪一項。
 
 ### 2.2 偵測 repo 慣例
 
@@ -80,13 +80,13 @@ template 偵測結果：
    gh pr list --state merged -L 10 --json title,author -q '.[] | select(.author.is_bot | not) | .title'
    ```
 
-   排除 bot 後過半是英文就用英文，其中過半是 Conventional Commits 就跟隨該格式；過半是中文就用中文；不足 3 筆或看不出多數視為無慣例。描述語言跟標題同語言，repo 文件另有規定時照文件。
+   排除 bot 後過半是英文就用英文，其中過半是 Conventional Commits 就跟隨該格式，否則照多數的寫法；過半是中文就用中文；不足 3 筆或看不出多數視為無慣例。描述語言跟標題同語言，repo 文件另有規定時照文件。
 3. 都沒有 → 照開頭的預設。
 4. 使用者當下明確要求的語言或格式永遠最優先。
 
 ### 2.3 取得 diff
 
-`$BASE` 不會跨 Bash 呼叫保留：把 2.2 的偵測與後續用到 `$BASE` 的指令併進同一次呼叫，或每次重新取。以 remote 上的 base 比較（本地同名 branch 可能過時）：
+`$BASE` 不會跨 Bash 呼叫保留：把 2.2 的偵測與後續用到 `$BASE` 的指令併進同一次呼叫，或每次重新取。以 remote 上的 base 比較（本地同名 branch 可能過時或不存在）：
 
 ```bash
 git diff "origin/$BASE"...HEAD
@@ -114,8 +114,8 @@ Summary 幾句話讓 reviewer 知道做了什麼、為什麼；Title 照 2.2。
   （條列，每條 what + why；並列無主軸時在此段下用 ### 分區，見 §1）
 
   ## Verification
-  （只列實際執行過的指令與關鍵輸出，例如「flutter test: 21/21 passed」。
-   沒跑過就寫「未執行自動驗證」，不得寫無憑據的「測試通過」。）
+  （只列實際執行過的指令與關鍵輸出，例如「flutter test: 21/21 passed」「tsc --noEmit: clean」。
+   沒跑過任何驗證就誠實寫「未執行自動驗證」，不得寫無憑據的「測試通過」。）
   ```
 
   其餘段落**符合觸發條件才加**：
@@ -161,9 +161,11 @@ rm -f "$PR_BODY_FILE"
 gh pr merge <n> -R <owner/repo> --squash -t "type(scope): 英文描述 (#<n>)"
 ```
 
+漏掉的後果：合併後的歷史第一行從此是中文、無 type prefix，事後只能重寫共享歷史。
+
 不加 `-t` 的例外（PR title 已合格且 repo 文件規定不覆寫，如 release-please 的 Release PR；或 PR title 已照 2.2 跟隨英文 Conventional Commits 慣例）見 git-commit「squash merge」段的「不算違規」。
 
-不加 `--delete-branch`：stacked 在其上的 PR 會被自動關閉且無法 reopen（`<REPO>/docs/lessons-archive.md` 2026-07-08）。merge 指令單獨一個 Bash 呼叫、`-R` 放子命令之後（`<REPO>/docs/debug-environment-first.md`「gh 指令的 permission 形狀」）。
+不加 `--delete-branch`：stacked 在其上的 PR 會被自動關閉且無法 reopen（`<REPO>/docs/lessons-archive.md` 2026-07-08）；遠端分支留給 repo 的自動清理或使用者自己刪。merge 指令單獨一個 Bash 呼叫、`-R` 放子命令之後（`<REPO>/docs/debug-environment-first.md`「gh 指令的 permission 形狀」）。
 
 merge 時不等 CI：branch protection 擋下就回報 `gh` 錯誤原文，不自行等綠重試；merge 後 `gh pr view <n> -R <owner/repo> --json state,mergeCommit` read-back 一次即結束，不等 main 上的 run。只有使用者明說「綠了再 merge」才用 CI 閘門：先確認 check 已註冊再 `gh pr checks --watch`（或 `gh run watch <run-id> --exit-status`），不接 `| tail`（`<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」）。
 
