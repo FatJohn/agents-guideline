@@ -6,7 +6,7 @@ allowed-tools: Bash(git:*), Bash(gh:*), Bash(find:*), Bash(ls:*), Bash(test:*), 
 
 # Create PR
 
-分析 branch 變更、生成描述、建立 Pull Request。適用任何 repo；先偵測該 repo 的 base branch 與 PR template 再生成，不假設特定 stack。**PR 標題與描述預設使用繁體中文台灣用語（技術名詞與程式碼識別字保留原文），標題採一句摘要主題、不用 Conventional Commits 或任何 prefix；但 repo 的 `AGENTS.md`／`CLAUDE.md`／`CONTRIBUTING.md` 或既有慣例另有規定時以 repo 為準，判法見 2.2「repo 規定與既有慣例」。**
+先偵測 repo 的 base branch 與 PR template 再生成。**PR 標題與描述預設使用繁體中文台灣用語（技術名詞與程式碼識別字保留原文），標題採一句摘要主題、不用 Conventional Commits 或任何 prefix；repo 規定或既有慣例不同時以 repo 為準，判法見 2.2。**
 
 ## 1. 核心原則
 
@@ -31,83 +31,62 @@ Good -- 同一概念的變更聚合描述：
   解決原本過長的 execute() 方法難以閱讀和測試的問題
 ```
 
-**有明確主軸時，融合敘述而非分區**：
+**有明確主軸時，融合敘述而非分區**：PR 圍繞單一主軸（實作某功能、修某 bug）時，順手做的重構、修補、附帶調整作為實作細節融入主敘述條目，**不要**獨立為 Refactoring／Bugfixes 區塊，否則 reviewer 會誤以為那些是與主題無關的副作用。
 
-當 PR 圍繞單一主軸（例如「實作某功能」、「修某 bug」），實作過程中順手做的重構、bug 修復、附帶調整都是「為了完成主軸而做的」，應作為實作細節融入主敘述條目，**不要**獨立為 Refactoring / Bugfixes 區塊。獨立分區會讓 reviewer 誤以為那些是與主題無關的副作用，反而模糊了 PR 的整體意圖。
-
-只有當變更彼此並列、沒有共同主軸（例如雜項修補 PR）時，才以分類區段（Features / Bugfixes / Refactoring / Breaking Changes）呈現。分類以「目的」為準：為了新功能 → Features；為了修 bug → Bugfixes；純品質改善、行為不變 → Refactoring；其他模組需要改 code 才能運作 → Breaking Changes。
+只有變更彼此並列、沒有共同主軸（例如雜項修補 PR）時，才在 `## 主要變更` 之下以 `###` 分區（Features／Bugfixes／Refactoring／Breaking Changes），分類以目的為準：新功能 → Features；修 bug → Bugfixes；行為不變的品質改善 → Refactoring；其他模組要改 code 才能運作 → Breaking Changes。只寫有內容的分區，不寫「無破壞性變更」這種佔位句。
 
 **篇幅隨變更規模縮放**：小 PR 只需 Summary＋少數條目；大 PR 才展開完整段落。判準：拿掉某段不會讓 reviewer 變慢，就拿掉。
 
-**明寫 trade-off 與刻意不做的事**：如果實作中做了取捨（「考慮過 X 但決定不做，因為 Y」）或刻意 deferred 某範圍，在 body 中明說，避免 reviewer 誤以為是遺漏。
+**明寫 trade-off 與刻意不做的事**：如果實作中做了取捨（「考慮過 X 但決定不做，因為 Y」）或刻意 deferred 某範圍，在 body 中明說，避免 reviewer 誤以為是遺漏。重要功能移除要在 Summary 說明。
 
-**忽略不影響邏輯的變更**：生成檔案（lock files、`*.g.dart`／`*.freezed.dart` 等 codegen 產物、build 輸出）、純格式化、單純的 import 重排等，不寫進描述。
+**忽略不影響邏輯的變更**：生成檔案（lock files、`*.g.dart`／`*.freezed.dart` 等 codegen 產物、build 輸出）、純格式化、單純的 import 重排等，不寫進描述。條目不列檔案路徑；設定檔（`pubspec.yaml`／`package.json`）與整個模組的新增或移除例外。
 
 ## 2. 流程
 
 ### 2.1 確認 PR 目的
 
-檢查使用者是否有提供 PR 目的。有的話以目的為主軸串連所有變更；沒有的話從 diff 推斷。
+使用者有給 PR 目的就以它為主軸串連所有變更；沒有就從 diff 推斷。
 
-建議使用者在開 PR 前先跑該 repo 的檢查慣例（lint / type-check / test，或專案自帶的 pre-commit skill）；本 skill 不主動代跑，避免重複工作。repo 文件把測試、lint 或 code review 通過列為開 PR 的前置條件時，這段「不代跑」不適用：開 PR 前先確認那些閘門已通過並附證據（測試與 lint 附實跑輸出，code review 附 review 紀錄或結果連結），未通過或拿不出證據就不開、回報缺哪一項。
+建議使用者在開 PR 前先跑該 repo 的檢查慣例（lint / type-check / test，或專案自帶的 pre-commit skill）；本 skill 不主動代跑。repo 文件把測試、lint 或 code review 通過列為開 PR 前置條件時例外：先確認那些閘門已通過並附證據（實跑輸出、review 紀錄或連結），拿不出證據就不開、回報缺哪一項。
 
 ### 2.2 偵測 repo 慣例
 
-生成任何內容前，先偵測兩件事：
-
 ```bash
-# (a) base branch：預設取 origin 的 HEAD；使用者指定則優先。
-# --short 輸出 origin/main，再去掉 origin/ 前綴得到裸分支名；後續 2.3、2.6、2.7 都用這個 $BASE
+# (a) base branch：使用者指定則優先，否則取 origin 的 HEAD
 BASE="$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')"
 test -n "$BASE" || BASE="$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)"
 
-# (b) PR template：GitHub 只認三個位置（repo 根、docs/、.github/），檔名大小寫不敏感，
-# 所以用 -iname 一次找完，不要逐一 ls 固定字串（會漏掉 docs/ 與大小寫變體）
-# 一律先切到 repo 根：從子目錄跑 find 會 0 筆命中，被誤判成「這個 repo 沒有 template」
+# (b) PR template：GitHub 只認 repo 根、docs/、.github/，檔名大小寫不敏感。
+# 必須先切到 repo 根，從子目錄跑會 0 筆命中；目錄不存在時 find 回非 0，以 stdout 有無輸出為準
 cd "$(git rev-parse --show-toplevel)"
-# .github／docs 不存在時 find 會回非 0 exit code（stderr 已導掉），那是正常的不是偵測失敗，一律以 stdout 有無輸出為準
 find .github docs . -maxdepth 1 -iname 'pull_request_template*' 2>/dev/null
 ```
 
-偵測結果的四種處置：
+使用者指定 base 時，先確認名稱只含 `[a-zA-Z0-9._/-]` 且 `git rev-parse --verify "origin/$BASE"` 成功，任一失敗就停手。
 
-- **命中檔案** → 以它為 body 骨架（見 2.6）。
-- **命中目錄** → 該 repo 有多份 template。多 template 目錄名不帶副檔名（`.github/PULL_REQUEST_TEMPLATE`），跟無副檔名的單一 template 檔長得一樣，用 `test -d` 確認後再 `ls` 出裡面的檔案請使用者選一份。
-- **命中多筆**（例如 `docs/` 與 `.github/` 各有一份，或一個檔加一個目錄）→ 把清單列給使用者選一份，不要自己挑；命中含目錄時一併把目錄內的檔案展開進選單。GitHub 在多位置並存時採用哪一份未見官方明文，猜錯會套錯骨架。
-- **什麼都沒命中** → 直接用 2.6 的內建骨架，不必問使用者，**也不要順手幫該 repo 新增 template 檔**——那是改動對方的協作慣例，超出「開一個 PR」的授權範圍。
+template 偵測結果：
 
-**repo 規定與既有慣例**：PR 標題與描述的語言、標題格式，是否一律先開 draft，開 PR 前要過的檢查，merge 時機與 review 流程，這四件事 repo 有自己的規定時以 repo 為準。第一件（標題／描述語言與格式）沒明文時再看既有慣例；後三件（draft、開 PR 前的檢查、merge／review 流程）只看 repo 文件，文件沒寫就用預設。依序判斷：
+- **命中一個檔案** → 以它為 body 骨架（見 2.6）。
+- **命中目錄**（多 template 目錄名不帶副檔名，跟無副檔名的單一 template 檔長得一樣，用 `test -d` 分辨）→ `ls` 出裡面的檔案請使用者選一份。
+- **命中多筆** → 列清單（目錄內的檔案一併展開）請使用者選，不要自己挑。
+- **沒命中** → 用 2.6 的內建骨架，不必問使用者。
 
-1. 先讀 repo 文件（`AGENTS.md`／`CLAUDE.md`／`CONTRIBUTING.md`／PR template）裡關於這四件事的規定。有明文就照明文。
-2. 沒明文再看既有慣例。PR 標題看最近 merged PR 的標題，排除 bot：
+**repo 規定與既有慣例**：標題／描述的語言與格式、是否一律先開 draft、開 PR 前要過的檢查、merge 與 review 流程，repo 有規定時以 repo 為準。依序判斷：
+
+1. repo 文件（`AGENTS.md`／`CLAUDE.md`／`CONTRIBUTING.md`／PR template）有明文就照明文。
+2. 只有標題／描述的語言與格式在沒明文時看既有慣例（其餘三件文件沒寫就用預設）：
 
    ```bash
-   # 最近 10 個 merged PR 的標題；排除 bot（release-please、dependabot、renovate 等）
    gh pr list --state merged -L 10 --json title,author -q '.[] | select(.author.is_bot | not) | .title'
    ```
 
-   判準：排除 bot 後的標題多數（過半）是英文就用英文，其中多數是 Conventional Commits（`type:`／`type(scope):` 開頭）就跟隨該格式，否則照多數的寫法；多數是中文就用中文；數量不足 3 筆或混雜看不出多數，視為無慣例。描述語言跟標題同語言（標題照慣例用英文時描述也用英文），repo 文件另有規定時照文件。
-3. 都沒有 → 照下列預設（即本 skill 原本的做法）。
+   排除 bot 後過半是英文就用英文，其中過半是 Conventional Commits 就跟隨該格式；過半是中文就用中文；不足 3 筆或看不出多數視為無慣例。描述語言跟標題同語言，repo 文件另有規定時照文件。
+3. 都沒有 → 照開頭的預設。
 4. 使用者當下明確要求的語言或格式永遠最優先。
-
-無 repo 規定與既有慣例時的預設：
-
-- **title 風格（預設）**：一句簡潔摘要主題，直接描述這個 PR 做了什麼，**不用 Conventional Commits（`feat:`／`fix(scope):` 等）、也不加 ticket 或任何 prefix**。
-- **語言（預設）**：PR 標題與描述一律使用**繁體中文台灣用語**，技術名詞與程式碼識別字（class／method／API 名等）保留原文。例外：repo 規定或既有慣例、使用者當下要求時才改用其他語言或格式。
-
-使用者指定 base branch 時，改設 `BASE="<使用者指定的名稱>"`，並先驗證名稱合法（白名單字元＋確認為實際存在的 ref），避免 shell injection：
-
-```bash
-# 兩道檢查任一失敗就停手，不要繼續往下走
-echo "$BASE" | grep -qE '^[a-zA-Z0-9._/-]+$' || echo "invalid base branch name" >&2
-git rev-parse --verify "origin/$BASE" >/dev/null 2>&1 || echo "no such ref: origin/$BASE" >&2
-```
 
 ### 2.3 取得 diff
 
-**`$BASE` 不會跨 Bash 呼叫保留**——2.2 設的 shell 變數在下一次呼叫就沒了。要嘛把 2.2 的偵測與後續用到 `$BASE` 的區塊併進同一次呼叫，要嘛在每個區塊開頭重新取一次。漏掉時 `origin/$BASE` 會展開成 `origin/`，git 會報 unknown revision（會噴錯，不是靜默失敗，但白跑一輪）。
-
-以 remote 上的 base 為比較基準（本地同名 branch 可能過時或不存在）：
+`$BASE` 不會跨 Bash 呼叫保留：把 2.2 的偵測與後續用到 `$BASE` 的指令併進同一次呼叫，或每次重新取。以 remote 上的 base 比較（本地同名 branch 可能過時）：
 
 ```bash
 git diff "origin/$BASE"...HEAD
@@ -116,104 +95,77 @@ git diff --name-only "origin/$BASE"...HEAD
 
 ### 2.4 分析與分類
 
-從 diff 中識別功能概念層級的變更。先判斷 PR 是否有明確主軸：
-
-- **有單一主軸**：以主軸串連所有條目，實作過程的重構、修補、附帶調整融入條目敘述，不獨立分區。
-- **多項並列、無共同主軸**：在 `## 主要變更` 之下分區（Features／Bugfixes／Refactoring／Breaking Changes），**只寫實際有內容的分區**——沒有 breaking change 就不要放那個標題，也不要寫「無破壞性變更」這種佔位句。
-
-本節只決定 `## 主要變更` 的**內部**寫法；整份 body 有哪些段落一律以 2.6 為準。
-
-無論哪種寫法，每條都聚焦「功能概念」與「為什麼這樣做」，不列檔案路徑（例外：配置檔案如 `pubspec.yaml`／`package.json`、整個模組的新增或移除可提及路徑）。
+從 diff 識別功能概念層級的變更，依 §1 判斷有無主軸。
 
 ### 2.5 生成 Summary 與 Title
 
-- **Summary**：幾句話讓 reviewer 讀完就知道這個 PR 做了什麼、為什麼。有 PR 目的時以目的為主軸；重要功能移除必須在 Summary 說明。
-- **Title**：照 2.2 的 title 風格與語言規則。
+Summary 幾句話讓 reviewer 知道做了什麼、為什麼；Title 照 2.2。
 
 ### 2.6 組裝 PR Body
 
-- **repo 有 PR template**：以 template 為骨架，將 Summary、變更條目、測試建議填入對應段落；template 中不適用的段落保留標題、填「N/A」或簡短說明，不要整段刪除。
-- **無 template**：用內建骨架。骨架分「固定三段」與「條件選配段」。
-
-  固定三段永遠寫：
+- **repo 有 PR template**：以 template 為骨架填入；不適用的段落保留標題、填「N/A」或簡短說明，不要整段刪除。
+- **無 template**：固定三段永遠寫：
 
   ```markdown
   ## Summary
-  （幾句話概述做了什麼、為什麼）
+  （幾句話：做了什麼、為什麼）
 
   ## 主要變更
-  （條列，每條 what + why）
+  （條列，每條 what + why；並列無主軸時在此段下用 ### 分區，見 §1）
 
   ## Verification
-  （只列「實際執行過」的指令與關鍵輸出，例如「flutter test: 21/21 passed」
-   「tsc --noEmit: clean」。沒跑過任何驗證就誠實寫「未執行自動驗證」，
-   不得寫「測試通過」之類無憑據的空話。）
+  （只列實際執行過的指令與關鍵輸出，例如「flutter test: 21/21 passed」。
+   沒跑過就寫「未執行自動驗證」，不得寫無憑據的「測試通過」。）
   ```
-
-  `## 主要變更` 的內部結構依 2.4 決定：有單一主軸就是一組條列敘述；多項並列則在其下分 Features／Bugfixes／Refactoring／Breaking Changes 區段。
 
   其餘段落**符合觸發條件才加**：
 
   | 選配段 | 觸發條件 | 內容 |
   |--------|----------|------|
-  | `## 畫面` | 任何 UI 可見的變更 | 截圖或錄影。有前後對照時用兩欄 table 並排 before／after |
-  | `## 請重點看` | `git diff --name-only "origin/$BASE"...HEAD \| wc -l` 大於 10 | 一兩句指出希望 reviewer 花時間的地方，以及可略過的部分（codegen、格式化）。未達 10 檔但作者自己想指路時也可以加，那部分屬作者裁量、不列入機械判定 |
-  | `## 怎麼驗` | 需要 reviewer 手動確認的行為（UI 流程、跨系統整合） | reviewer 自己重現的操作路徑。與 `## Verification` 的分工：那段是「我跑了什麼」，這段是「你要怎麼確認」 |
+  | `## 畫面` | 任何 UI 可見的變更 | 截圖或錄影；前後對照用兩欄 table 並排 before／after |
+  | `## 請重點看` | `git diff --name-only "origin/$BASE"...HEAD \| wc -l` 大於 10（未達時作者想指路也可加） | 希望 reviewer 花時間的地方，以及可略過的部分 |
+  | `## 怎麼驗` | 需要 reviewer 手動確認的行為（UI 流程、跨系統整合） | reviewer 重現的操作路徑（`## Verification` 是「我跑了什麼」，這段是「你要怎麼確認」） |
   | `## 設計決策` | 有 trade-off 或刻意 deferred 的範圍 | 「考慮過 X 但選 Y，因為 Z」 |
-  | `## 注意事項` | 有 migration、feature flag、新環境變數，或需手動執行的部署步驟 | 用 alert 語法標示，讓它在 GitHub 上跳出來 |
-  | `## Related` | 有關聯 issue、跨 repo 配套 PR，或 deploy preview | issue 寫 `Closes #123`——**僅在 base 是該 repo 的預設分支時生效**，base 是其他分支（stacked PR、release 分支）時 GitHub 會忽略這個關鍵字——不會建立 linked issue 關聯、merge 也不會自動關閉 issue（`#123` 本身仍會渲染成超連結，所以「看起來有效」，這正是容易漏掉的地方）；那種情況改寫成 `Ref #123`；跨 repo PR 附連結與建議合併順序 |
+  | `## 注意事項` | 有 migration、feature flag、新環境變數，或需手動執行的部署步驟 | 用 `> [!WARNING]` 等 alert 語法標示 |
+  | `## Related` | 有關聯 issue、跨 repo 配套 PR，或 deploy preview | `Closes #123` 只在 base 是該 repo 預設分支時生效（其他 base 時 GitHub 忽略關鍵字，但 `#123` 仍渲染成連結，看起來像有效），那時改寫 `Ref #123`；跨 repo PR 附連結與建議合併順序 |
 
-  選配段的取捨：沒觸發就整段不要出現，不要留空標題或填「N/A」——那是照 repo 現成 template 填寫時才需要的禮貌。觸發的選配段很多時，只保留 reviewer 必須單獨看到的段落（部署前必做的 `## 注意事項` 一律保留），其餘資訊併進 `## 主要變更` 的條目敘述裡。段落一多，reviewer 反而找不到重點。
+  沒觸發的選配段整段不出現，不留空標題或「N/A」。觸發很多時只保留 reviewer 必須單獨看到的段落（`## 注意事項` 一律保留），其餘併進 `## 主要變更`。
 
-**GitHub 渲染慣例**（讓 body 好讀，不是裝飾）：
-
-- alert 語法 `> [!NOTE]`／`> [!WARNING]`／`> [!CAUTION]` 會渲染成帶圖示的色塊，用來標 breaking change 或部署前必須做的事。只用在 reviewer 絕不能錯過的事上，濫用就失去對比。
-- 長輸出（完整 test log、大量檔案清單）用 `<details><summary>完整測試輸出</summary>` 摺疊：證據留著，但不佔版面。
-- 截圖並排用 markdown table（`| Before | After |`），不要上下堆疊——上下堆會逼 reviewer 捲動來回比對。
-- **不要自己加 checklist**（`- [ ] 已加測試`、`- [ ] 已閱讀 CONTRIBUTING`）：會被無腦全勾，訊號量為零還撐長 body。repo 自己的 template 有 checklist 則照填，那是該 repo 的規矩。
+- alert 語法只用在 reviewer 絕不能錯過的事；長輸出用 `<details>` 摺疊。
+- **不要自己加 checklist**（`- [ ] 已加測試`）：會被無腦全勾。repo template 自帶的 checklist 照填。
 
 ### 2.7 確認並建立 PR
 
-1. 展示建議的 Title、Base Branch、PR Body 完整預覽。
-2. 取得使用者明確同意後才執行（建立 PR 是對外動作；repo 規定一律先開 draft 時 `gh pr create` 加 `--draft`；沒規定時預設 ready，使用者猶豫時可建議 `--draft`）：
+1. 展示 Title、Base Branch、PR Body 完整預覽。
+2. 取得使用者明確同意後才執行。repo 規定一律先開 draft 時加 `--draft`；沒規定時預設 ready。
 
 ```bash
-# 推送 branch（第一次推送加 -u 建立 tracking）
 git push -u origin HEAD
 
-# PR body 走暫存檔傳入，避免 shell 多行字串轉義問題。
-# mktemp 不帶 template 參數，跨平台（BSD/GNU）行為最穩
+# body 走暫存檔，避免多行字串轉義問題
 PR_BODY_FILE="$(mktemp)"
 cat > "$PR_BODY_FILE" << 'PR_BODY_EOF'
 （實際的 PR body 內容）
 PR_BODY_EOF
-
-# repo 規定 draft 時加 --draft
 gh pr create --title "（實際的 PR title）" --base "$BASE" --body-file "$PR_BODY_FILE"
-
 rm -f "$PR_BODY_FILE"
 ```
 
-3. 輸出 PR URL。
-4. 開完 PR 後停在 PR URL 回報，**預設不等 CI、不等 bot review（Gemini、Copilot 等）、不問「CI 全綠後是否直接 merge」**。要不要等、要不要先處理 review，由使用者在下 merge 指令時決定：使用者說「merge」就在當下照 §2.8 merge；使用者明說「綠了再 merge」「等 review 處理完」才等。repo 文件規定了 review 流程（例如 draft → bot review → ready）時，照專案規格開成 draft 並在回報指出流程的下一步，但等待本身仍由使用者決定，不自動掛著等 bot。
-   - 使用者的 merge 指令只限這個 PR，不延伸到其他 PR 或之後的 PR（全域邊界 3：逐次、逐對象）。
-   - 為什麼不等：等 CI 與 bot review 的牆鐘常超過整個改動本身，而 CI 紅了很快就看得到、使用者會自己下修正指令；見 `<REPO>/docs/lessons-archive.md` 2026-10-23。
+3. 輸出 PR URL 後停下回報，**預設不等 CI、不等 bot review、不問「CI 全綠後是否直接 merge」**。使用者說「merge」就照 2.8 merge；明說「綠了再 merge」「等 review 處理完」才等。repo 規定 review 流程（例如 draft → bot review → ready）時照規定開，回報指出下一步，但不自動掛著等。merge 指令只限這個 PR（全域邊界 3）。
 
 ### 2.8 merge 時的標題覆寫
 
-`gh pr merge --squash` 預設拿 **PR title** 當合併後的 commit 標題，而本 skill 預設 PR title 用中文且不加 prefix——與 `~/.claude/skills/git-commit/SKILL.md` 要求的英文 Conventional Commits 直接衝突。所以 squash merge 一律要用 `-t` 覆寫標題：
+`gh pr merge --squash` 預設拿 PR title 當 commit 標題，與 `~/.claude/skills/git-commit/SKILL.md` 的英文 Conventional Commits 衝突，所以 squash merge 一律用 `-t` 覆寫：
 
 ```bash
 gh pr merge <n> -R <owner/repo> --squash -t "type(scope): 英文描述 (#<n>)"
 ```
 
-漏掉的後果：合併後的歷史第一行從此是中文、無 type prefix，事後只能重寫共享歷史。
+不加 `-t` 的例外（PR title 已合格且 repo 文件規定不覆寫，如 release-please 的 Release PR；或 PR title 已照 2.2 跟隨英文 Conventional Commits 慣例）見 git-commit「squash merge」段的「不算違規」。
 
-不加 `--delete-branch`：它會讓 stacked 在其上的 PR 被 GitHub 自動關閉且無法 reopen（`<REPO>/docs/lessons-archive.md` 2026-07-08）；遠端分支留給 repo 的自動清理或使用者自己刪。merge 指令單獨一個 Bash 呼叫、`-R` 放子命令之後，理由見 `<REPO>/docs/debug-environment-first.md`「gh 指令的 permission 形狀」。
+不加 `--delete-branch`：stacked 在其上的 PR 會被自動關閉且無法 reopen（`<REPO>/docs/lessons-archive.md` 2026-07-08）。merge 指令單獨一個 Bash 呼叫、`-R` 放子命令之後（`<REPO>/docs/debug-environment-first.md`「gh 指令的 permission 形狀」）。
 
-**不加 `-t` 的例外**（PR title 已合格且 repo 文件規定不覆寫，如 release-please 的 Release PR；或 repo 慣例是英文 Conventional Commits 而 PR title 已照 2.2 跟隨，title 已合格，同屬此例外）：判準與邊界見 `~/.claude/skills/git-commit/SKILL.md`「squash merge」段的「不算違規」。
-
-**merge 時不等 CI**：使用者說 merge 就 merge，不先等 check 跑完；branch protection 擋下時回報 `gh` 的錯誤原文，不自行等到綠再重試。merge 後 read-back 一次 `gh pr view <n> -R <owner/repo> --json state,mergeCommit` 即結束，不等 main 上的 run。只有使用者明說「綠了再 merge」才用 **CI 閘門**：先確認 check 已註冊再 `gh pr checks --watch`（或改用 `gh run watch <run-id> --exit-status`），閘門指令不接 `| tail`；陷阱細節與實例見 `<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」那條。
+merge 時不等 CI：branch protection 擋下就回報 `gh` 錯誤原文，不自行等綠重試；merge 後 `gh pr view <n> -R <owner/repo> --json state,mergeCommit` read-back 一次即結束，不等 main 上的 run。只有使用者明說「綠了再 merge」才用 CI 閘門：先確認 check 已註冊再 `gh pr checks --watch`（或 `gh run watch <run-id> --exit-status`），不接 `| tail`（`<REPO>/docs/debug-environment-first.md`「管線之後的 `$?`」）。
 
 ## 3. 完整輸出範例
 
