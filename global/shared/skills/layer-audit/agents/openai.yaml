@@ -1,0 +1,3 @@
+# Codex 不認 SKILL.md 的 disable-model-invocation（codex-cli 0.169.0 實測），用這個欄位讓它同樣只在 $layer-audit 時載入。
+policy:
+  allow_implicit_invocation: false

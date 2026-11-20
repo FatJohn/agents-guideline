@@ -58,6 +58,7 @@ SHARED_SKILLS = (
     "worktree-session",
     "writing-principles",
     "agent-rules",
+    "layer-audit",
 )
 
 # Files a v1 install put in ~/.claude/rules.
