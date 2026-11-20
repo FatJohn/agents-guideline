@@ -82,8 +82,8 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | `docs/new-host.md` | 新機器建檔（5 分鐘探測清單）；只有中文 |
 | `docs/design/mechanism.md` | 運作機制說明：五個時刻各載入什麼、五支 hook 補哪條規則、`settings.json` 依賴的欄位、重建一台機器兩半各要補什麼；只有中文 |
 | `docs/repo-layout.md` | 本檔 |
-| `docs/lessons.md` | 活躍教訓日誌：只留還沒有判準承接的條目，不裝進全域 |
-| `docs/lessons-archive.md` | 已升級成正式判準的歷史教訓（保留原文，作為判準來歷） |
+| `docs/lessons.md` | 活躍教訓日誌：只留還沒有任何一層承接的條目，不裝進全域 |
+| `docs/lessons-archive.md` | 已由結構、hook、腳本、測試或判準文字承接的歷史教訓（保留原文，作為該規則的來歷） |
 | `docs/judgment-rationale.md` | `judgment.md` 各條的來歷、理由與正反例 |
 | `docs/rule-enforcement.md` | 規則由什麼強制：judgment、路由卡、入口邊界、hook 與腳本閘門各對到 hook／腳本／測試／設定／verifier 合約／文字；`maintain-guideline` §3、§5 用它決定升級或刪文字，`tests/test_rule_enforcement.py` 擋它過時 |
 | `docs/debug-environment-first.md` | 除錯前的環境事實檢查清單與量測方法自證陷阱；`judgment.md` 13 只留判準與指向 |
