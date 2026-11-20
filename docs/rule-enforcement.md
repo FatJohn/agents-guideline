@@ -14,9 +14,9 @@
 | hook | Claude Code hook 在違反時擋下或注入，不靠模型記得 |
 | 腳本 | 有人或流程呼叫時，腳本以 exit code 判過或不過 |
 | 測試 | `tests/`、`scripts/tests/` 的測試在違反時變紅 |
-| 設定 | 安裝的設定檔改了工具的預設行為，不照做也會得到正確結果；Codex 角色 TOML 的 `sandbox_mode` 也算，但只在該角色真的被選中時生效 |
+| 設定 | 安裝的設定檔改了工具的預設行為，不照做也會得到正確結果；Codex 角色 TOML 的 model／effort 也算，但只在該角色真的被選中時生效。TOML 的 `sandbox_mode` 不算，理由見「Codex 端：角色」 |
 | verifier 合約 | 派了 verifier 時由驗收角色的定義判定：Claude 是 `global/claude/agents/verifier.md`，Codex 是 `global/codex/agents/verifier.toml`／`sol_verifier.toml` 的 `developer_instructions`；不派就沒有東西會失敗 |
-| 注入文字 | 每個 session 都讀到，但跳過它沒有東西會失敗。Claude：入口、`judgment.md`、路由卡；Codex：只有入口 `global/codex/AGENTS.md` |
+| 注入文字 | 每個 session 都讀到，但跳過它沒有東西會失敗。Claude：入口、`judgment.md`、路由卡；Codex：本 repo 只有入口 `global/codex/AGENTS.md`，另外派出的角色會讀到自己 TOML 的 `developer_instructions` |
 | 按需文字 | 只寫在 skill、docs 或入口路由指向的檔裡，要讀了才知道 |
 
 一條規則只有部分被機器擋住時，值寫整條規則在常見違反情境下的狀態，部分強制寫在備註。「強制點」欄：值是 hook、腳本、測試、設定或 verifier 合約時，第一個反引號是檔案路徑，其後每個反引號都是該檔內 `rg` 得到的符號或檢查名；其餘值寫「—」。
@@ -93,7 +93,7 @@
 
 Codex 端的強制方式跟 Claude 端有三處不同，下面各段的值都由此而來：
 
-- 每個 session 只注入入口：Codex 在 session 開頭把 `~/.codex/AGENTS.md`（來源 `global/codex/AGENTS.md`）當「AGENTS.md instructions」注入；`judgment.md` 不注入，只在入口「路由」表的「寫或改程式碼的範圍、完成、證據、驗收狀態」列指過去。依據：`scripts/sync-profile.py` 的 `default_mappings` 只把 `global/codex/AGENTS.md` 裝進 Codex 目錄；一筆 session jsonl 有入口全文、沒有 `judgment.md` 的內文，已實測（2026-11-20，codex-cli 0.169.0）。所以 `judgment.md` 在 Codex 端是按需文字。
+- 本 repo 裝進 Codex 的全域規則只有入口：Codex 在 session 開頭把全域 `~/.codex/AGENTS.md`（來源 `global/codex/AGENTS.md`）當「AGENTS.md instructions」注入，專案自己的 `AGENTS.md` 另外注入；`judgment.md` 不注入，只在入口「路由」表的「寫或改程式碼的範圍、完成、證據、驗收狀態」列指過去。依據：`scripts/sync-profile.py` 的 `default_mappings` 只把 `global/codex/AGENTS.md` 裝進 Codex 目錄；查過的一筆 session jsonl 有入口全文、沒有 `judgment.md` 的內文，已實測（2026-11-20，codex-cli 0.169.0），只查一筆，不代表每種啟動方式都一樣。所以 `judgment.md` 在 Codex 端是按需文字。
 - 沒有路由卡，`global/codex/rules/` 也不注入：`dispatch.md` 與 `delegation-templates.md` 要照入口路由表去讀，主對話與 subagent 讀的是同一份。
 - 本 repo 不提供、不安裝 Codex hook：`global/codex/` 只有 `AGENTS.md`、`rules/`、`agents/`，同步腳本不碰 `~/.codex/hooks.json`。Codex CLI 本身有 hook 機制，`codex features list` 列 `hooks` 為 stable，已實測（2026-11-20，codex-cli 0.169.0），只是本系統沒用。Claude 端五支 hook 補的規則，在 Codex 端最多是文字。
 
@@ -112,7 +112,7 @@ Codex 端的強制方式跟 Claude 端有三處不同，下面各段的值都由
 | `global/shared/rules/judgment.md` 9「放寬防線要實跑證據」 | 按需文字 | — | Claude 端是注入文字 |
 | `global/shared/rules/judgment.md` 10「改既有檢查」 | 按需文字 | — | Claude 端是注入文字。兩份 verifier TOML 的 delta 規則要求修正放寬既有檢查時照它做對抗性探測 |
 | `global/shared/rules/judgment.md` 11「指令自己綁定目標」 | 按需文字 | — | Claude 端是注入文字 |
-| `global/shared/rules/judgment.md` 12「驗收條件要能被判定」 | 按需文字 | — | Claude 端是 verifier 合約；Codex 的 verifier TOML 沒有「模糊條件直接判 FAIL」這條，只有 `dispatch.md` §3「派工三件套」第 2 項寫派工方的判準 |
+| `global/shared/rules/judgment.md` 12「驗收條件要能被判定」 | 按需文字 | — | Claude 端是 verifier 合約；Codex 的 verifier TOML 沒有「模糊條件直接判 FAIL」這條。派工方的判準寫在 `dispatch.md` §3「派工三件套」第 2 項與共用 `handoff` skill §1「brief 卡」 |
 | `global/shared/rules/judgment.md` 13「除錯前先驗環境」 | 按需文字 | — | Claude 端是注入文字 |
 | `global/shared/rules/judgment.md` 14「現況證據與規格權威」 | 按需文字 | — | Claude 端是注入文字 |
 | `global/shared/rules/judgment.md` 15「改動要最小且可追溯」 | 按需文字 | — | Claude 端是注入文字 |
@@ -126,7 +126,7 @@ Codex 端的強制方式跟 Claude 端有三處不同，下面各段的值都由
 | `global/codex/AGENTS.md`「邊界」3：對外或不可逆動作需當次授權 | 注入文字 | — | Claude 端同為注入文字，但另有 permissions、auto mode 分類器與 `block-ci-edit.sh` 擋一部分；Codex 端能擋的是本機 `~/.codex/config.toml` 的 sandbox／approval 與 `~/.codex/rules/*.rules` 命令規則，都不在本 repo |
 | `global/codex/AGENTS.md`「邊界」4：驗證不自驗 | 注入文字 | — | 與 Claude 端相同：不派驗收角色沒有東西會失敗。fallback 的身份標記規則在 `dispatch.md` §0 |
 | `global/codex/AGENTS.md`「邊界」5：同一 working tree 一個寫入者 | 注入文字 | — | 與 Claude 端相同 |
-| `global/codex/AGENTS.md`「邊界」6：長任務留可恢復脈絡 | 注入文字 | — | Claude 端另有 `context-size-nudge.sh` 跨門檻提醒；Codex 端只有 `dispatch.md` §1 的 300K 文字 |
+| `global/codex/AGENTS.md`「邊界」6：長任務留可恢復脈絡 | 注入文字 | — | Claude 端另有 `context-size-nudge.sh` 跨門檻提醒；Codex 端只有文字：本條、`handoff` skill §4「session 交接卡」的何時寫，以及 `dispatch.md` §1 的 300K 分流 |
 | `global/codex/AGENTS.md`「路由」：各情境先讀哪份檔 | 注入文字 | — | 路由表本身每 session 注入；指過去的檔是按需文字 |
 | `global/codex/AGENTS.md`「Codex 注意」：不把本 repo 的 `.md` 連進 `~/.codex/rules/` | 注入文字 | — | `docs/install.md` 與 `scripts/sync-profile.py` 都不寫 `~/.codex/rules/`，照安裝步驟不會做錯；手動連結不擋 |
 | `global/codex/AGENTS.md`「Codex 注意」：派工揭露與 fallback 標記 | 注入文字 | — | 細則在 `dispatch.md` §3「派工三件套」 |
@@ -139,11 +139,11 @@ Codex 端的強制方式跟 Claude 端有三處不同，下面各段的值都由
 
 | 規則 | 由什麼強制 | 強制點 | 備註 |
 |---|---|---|---|
-| `global/codex/rules/dispatch.md` §0「Codex 角色與 runtime adapter」：角色表與 model／effort | 設定 | `global/codex/agents/verifier.toml` 的 `model = "gpt-5.6-terra"` `model_reasoning_effort = "high"` | 選中 named role 時 model／effort 由各角色 TOML 固定；走 `default` 或 direct CLI 時要 controller 自己傳，只有文字 |
-| `global/codex/rules/dispatch.md` §0：adapter 證據、fallback 身份標記、不冒稱 custom role | 按需文字 | — | Claude 端沒有對應規則 |
+| `global/codex/rules/dispatch.md` §0「Codex 角色與 runtime adapter」：角色表與 model／effort | 設定 | `global/codex/agents/verifier.toml` 的 `model = "gpt-5.6-terra"` `model_reasoning_effort = "high"` | 選中 named role 時 model／effort 由各角色 TOML 固定，child metadata 對得上 TOML，已實測（2026-09-08，codex-cli 0.153.4；`docs/reviews/codex-named-agent-registration.md`）；走 `default` 或 direct CLI 時要 controller 自己傳，只有文字 |
+| `global/codex/rules/dispatch.md` §0：adapter 證據、fallback 身份標記、不冒稱 custom role | 按需文字 | — | Claude 端 `docs/dispatch.md` §3「派工合約與回報」也要求標 fallback，同為按需文字；adapter envelope 的證據分層是 Codex 專有 |
 | `global/codex/rules/dispatch.md` §1「派工判斷」：controller 工作迴圈 | 按需文字 | — | Claude 端對應 `docs/dispatch.md`，也是按需文字 |
 | `global/codex/rules/dispatch.md` §1：CI／release 設定不靜默自改 | 按需文字 | — | Claude 端由 `block-ci-edit.sh` 擋 Edit／Write 類工具 |
-| `global/codex/rules/dispatch.md` §1：多 issue 分 session、主對話 context ≥300K 開新 session | 按需文字 | — | Claude 端 300K 由 `context-size-nudge.sh` 提醒；開 issue session 帶 model／effort 由 `require-issue-session-model.sh` 擋，該 hook 對 `--agent codex` 放行 |
+| `global/codex/rules/dispatch.md` §1：多 issue 分 session、主對話 context 很大且還有未做的 phase 時開新 session | 按需文字 | — | 「很大」在 runtime 有可靠數字時是 ≥300K，沒有時看退化證據。Claude 端 300K 由 `context-size-nudge.sh` 提醒；開 issue session 帶 model／effort 由 `require-issue-session-model.sh` 擋，該 hook 對 `--agent codex` 放行 |
 | `global/codex/rules/dispatch.md` §2「工作目錄與執行安全」 | 按需文字 | — | |
 | `global/codex/rules/dispatch.md` §3「派工三件套」 | 按需文字 | — | |
 | `global/codex/rules/dispatch.md` §4「回報與證據合約」 | 按需文字 | — | 五個角色 TOML 都寫「依 §4 回報」，派了角色時由各 TOML 帶著，但沒有檢查 |
@@ -153,12 +153,16 @@ Codex 端的強制方式跟 Claude 端有三處不同，下面各段的值都由
 
 ## Codex 端：角色（`global/codex/agents/`）
 
-TOML 由 `scripts/sync-codex-agents.py` 複製成 `~/.codex/agents/` 的實體檔，該腳本核對 `name`／`description`／`developer_instructions` 存在且 `name` 等於檔名。`sandbox_mode` 只在 named role 被選中時生效；走 generic `default` 時繼承父 session 的 sandbox（`dispatch.md` §0「Runtime adapter」第 3 項）。
+TOML 由 `scripts/sync-codex-agents.py` 複製成 `~/.codex/agents/` 的實體檔，該腳本核對 `name`／`description`／`developer_instructions` 存在且 `name` 等於檔名。
+
+TOML 的 `sandbox_mode` 不當成機器擋：選中 named `explorer` 時 model／effort 對得上 TOML，live `sandbox_policy` 卻繼承父 session 的 `workspace-write`，已實測（2026-09-08，codex-cli 0.153.4；`docs/reviews/codex-named-agent-registration.md`）；0.169.0 未實測。走 generic `default` 時同樣繼承父 session（`dispatch.md` §0「Runtime adapter」第 3 項）。所以唯讀角色「不寫 repo」只靠合約文字與 controller 事後 read-back。
+
+「不再 spawn subagent」五份 TOML 都寫在合約裡；`docs/install.md` 建議的 `[agents] max_depth = 1` 用意是限制遞迴，但沒有實跑 nested spawn 驗證，本表不把它算成機器擋。
 
 | 規則 | 由什麼強制 | 強制點 | 備註 |
 |---|---|---|---|
-| `global/codex/agents/scanner.toml`：唯讀掃描、不寫 repo | 設定 | `global/codex/agents/scanner.toml` 的 `sandbox_mode = "read-only"` | 「超界交回」「不再 spawn」是合約文字，沒有東西擋 |
-| `global/codex/agents/explorer.toml`：唯讀探索、不寫 repo | 設定 | `global/codex/agents/explorer.toml` 的 `sandbox_mode = "read-only"` | 「不再 spawn」是合約文字 |
-| `global/codex/agents/reviewer.toml`：唯讀 fresh review | 設定 | `global/codex/agents/reviewer.toml` 的 `sandbox_mode = "read-only"` | finding 自查照 `review-findings.md` 是合約文字。Claude 端的 fresh review 是 `general-purpose` 跑內建 `code-review`，不寫 repo 只靠 brief |
-| `global/codex/agents/verifier.toml`：一般驗收逐條判定、只寫 repo 外探針目錄 | verifier 合約 | `global/codex/agents/verifier.toml` 的 `verifier 角色使用錯誤` `INCONCLUSIVE` | `sandbox_mode = "workspace-write"` 不擋 repo 內寫入（合約規則 1 自述），repo 內不寫只靠合約與 controller 事後 read-back。Claude 端 `verifier.md` 的 `tools` 不含 Edit／Write |
+| `global/codex/agents/scanner.toml`：唯讀掃描、不寫 repo | 注入文字 | — | 派出的 scanner 讀到自己的合約；「不寫 repo」「超界交回」都沒有東西擋 |
+| `global/codex/agents/explorer.toml`：唯讀探索、不寫 repo | 注入文字 | — | 同 scanner |
+| `global/codex/agents/reviewer.toml`：唯讀 fresh review | 注入文字 | — | finding 自查照 `review-findings.md` 也是合約文字。Claude 端的 fresh review 是 `general-purpose` 跑內建 `code-review`，不寫 repo 同樣只靠 brief |
+| `global/codex/agents/verifier.toml`：一般驗收逐條判定、只寫 repo 外探針目錄 | verifier 合約 | `global/codex/agents/verifier.toml` 的 `verifier 角色使用錯誤` `INCONCLUSIVE` | repo 內不寫只靠合約與 controller 事後 read-back，合約規則 1 自述 sandbox 不擋 repo 內。Claude 端 `verifier.md` 的 `tools` 不含 Edit／Write |
 | `global/codex/agents/sol_verifier.toml`：高風險驗收 | verifier 合約 | `global/codex/agents/sol_verifier.toml` 的 `verifier 角色使用錯誤` `INCONCLUSIVE` | 寫入限制同 `verifier.toml`。Claude 端沒有獨立高風險角色，同一個 verifier 處理 |
