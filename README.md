@@ -109,7 +109,7 @@ Rules cover this environment's gotchas and authorization boundaries, not generic
 - Judgment the model already has is not written as a decision tree; self-documenting interfaces (agent definitions) get no fill-in-the-blank examples.
 - Each rule keeps exactly one canonical location.
 - Only content needed at the start of every job stays always-loaded.
-- A lesson goes into `docs/lessons.md` first and is promoted to an official criterion only through the `maintain-guideline` process.
+- A lesson goes into `docs/lessons.md` first and is promoted only through the `maintain-guideline` process, which looks for a structural fix, hook, script or test first and writes a text criterion last.
 
 The principle is "fewer rules means a stronger model", not "more rules means safer".
 
