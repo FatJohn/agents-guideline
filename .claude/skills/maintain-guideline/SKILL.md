@@ -18,7 +18,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 | `global/shared/rules/judgment.md` | 判斷準則（每 session 常駐） | ⚠️ 新增條目可以；**修改或刪除既有判準要先問使用者** |
 | `docs/dispatch.md`、`global/shared/skills/{handoff,git-commit}/SKILL.md`、`global/shared/rubrics/*.md`、`global/codex/rules/{dispatch,delegation-templates}.md` | 系統核心與驗收判準 | ⚠️ 同上 |
 | `global/claude/agents/*.md`、`global/codex/agents/*.toml` | agent 定義（角色介面） | ✅ 新角色可加；改既有角色的職責先問 |
-| `global/shared/skills/{create-pr,worktree-session,writing-principles,agent-rules,layer-audit}/` | 其餘共用 skill | ✅ 照 §2 改；改 `description` 要同步入口路由表 |
+| `global/shared/skills/{create-pr,worktree-session,writing-principles,agent-rules,layer-audit,verify-recipes}/` | 其餘共用 skill | ✅ 照 §2 改；改 `description` 要同步入口路由表 |
 | `global/shared/hosts/<key>.md` | 單機事實（每台只裝自己那份） | ✅ 新機器可建檔，過時事實可更新；標題以「# 本機事實：」開頭並含 hostname |
 | `docs/lessons.md`、`docs/lessons-archive.md` | 教訓日誌與封存 | ✅ 隨時可加；封存**不改寫既有條目原文**（唯一例外：專案真名換代號，見 §3） |
 | 本 repo 的 `CLAUDE.md`／`AGENTS.md` | 本 repo 專案規格 | ⚠️ 兩份同內容，改一邊同步另一邊 |
