@@ -85,6 +85,7 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | `docs/lessons.md` | 活躍教訓日誌：只留還沒有判準承接的條目，不裝進全域 |
 | `docs/lessons-archive.md` | 已升級成正式判準的歷史教訓（保留原文，作為判準來歷） |
 | `docs/judgment-rationale.md` | `judgment.md` 各條的來歷、理由與正反例 |
+| `docs/rule-enforcement.md` | 規則由什麼強制：judgment、路由卡、入口邊界、hook 與腳本閘門各對到 hook／腳本／測試／設定／verifier 合約／文字；`maintain-guideline` §3、§5 用它決定升級或刪文字，`tests/test_rule_enforcement.py` 擋它過時 |
 | `docs/debug-environment-first.md` | 除錯前的環境事實檢查清單與量測方法自證陷阱；`judgment.md` 13 只留判準與指向 |
 | `docs/harness-facts.md` | 查證過的 harness 事實（model／effort 可填值、`isolation: worktree`、hook 注入等） |
 | `docs/hosts-detail.md` | 各機器工具鏈與版本明細（探測快照） |
