@@ -47,7 +47,7 @@ Good -- 同一概念的變更聚合描述：
 
 使用者有給 PR 目的就以它為主軸串連所有變更；沒有就從 diff 推斷。
 
-建議使用者在開 PR 前先跑該 repo 的檢查慣例（lint / type-check / test，或專案自帶的 pre-commit skill）；本 skill 不主動代跑。repo 文件把測試、lint 或 code review 通過列為開 PR 前置條件時例外：先確認那些閘門已通過並附證據（實跑輸出、review 紀錄或連結），未通過或拿不出證據就不開、回報缺哪一項。
+建議使用者在開 PR 前先跑該 repo 的檢查慣例（lint / type-check / test，或專案自帶的 pre-commit skill）；本 skill 不主動代跑，避免重複工作。repo 文件把測試、lint 或 code review 通過列為開 PR 的前置條件時，這段「不代跑」不適用：開 PR 前先確認那些閘門已通過並附證據（測試與 lint 附實跑輸出，code review 附 review 紀錄或結果連結），未通過或拿不出證據就不開、回報缺哪一項。
 
 ### 2.2 偵測 repo 慣例
 
@@ -114,8 +114,9 @@ Summary 幾句話讓 reviewer 知道做了什麼、為什麼；Title 照 2.2。
   （條列，每條 what + why；並列無主軸時在此段下用 ### 分區，見 §1）
 
   ## Verification
-  （只列實際執行過的指令與關鍵輸出，例如「flutter test: 21/21 passed」「tsc --noEmit: clean」。
-   沒跑過任何驗證就誠實寫「未執行自動驗證」，不得寫無憑據的「測試通過」。）
+  （只列「實際執行過」的指令與關鍵輸出，例如「flutter test: 21/21 passed」
+   「tsc --noEmit: clean」。沒跑過任何驗證就誠實寫「未執行自動驗證」，
+   不得寫「測試通過」之類無憑據的空話。）
   ```
 
   其餘段落**符合觸發條件才加**：
@@ -124,14 +125,15 @@ Summary 幾句話讓 reviewer 知道做了什麼、為什麼；Title 照 2.2。
   |--------|----------|------|
   | `## 畫面` | 任何 UI 可見的變更 | 截圖或錄影；前後對照用兩欄 table 並排 before／after |
   | `## 請重點看` | `git diff --name-only "origin/$BASE"...HEAD \| wc -l` 大於 10（未達時作者想指路也可加） | 希望 reviewer 花時間的地方，以及可略過的部分 |
-  | `## 怎麼驗` | 需要 reviewer 手動確認的行為（UI 流程、跨系統整合） | reviewer 重現的操作路徑（`## Verification` 是「我跑了什麼」，這段是「你要怎麼確認」） |
+  | `## 怎麼驗` | 需要 reviewer 手動確認的行為（UI 流程、跨系統整合） | reviewer 自己重現的操作路徑。與 `## Verification` 的分工：那段是「我跑了什麼」，這段是「你要怎麼確認」 |
   | `## 設計決策` | 有 trade-off 或刻意 deferred 的範圍 | 「考慮過 X 但選 Y，因為 Z」 |
   | `## 注意事項` | 有 migration、feature flag、新環境變數，或需手動執行的部署步驟 | 用 `> [!WARNING]` 等 alert 語法標示 |
   | `## Related` | 有關聯 issue、跨 repo 配套 PR，或 deploy preview | `Closes #123` 只在 base 是該 repo 預設分支時生效（其他 base 時 GitHub 忽略關鍵字，但 `#123` 仍渲染成連結，看起來像有效），那時改寫 `Ref #123`；跨 repo PR 附連結與建議合併順序 |
 
   沒觸發的選配段整段不出現，不留空標題或「N/A」。觸發很多時只保留 reviewer 必須單獨看到的段落（`## 注意事項` 一律保留），其餘併進 `## 主要變更`。
 
-- alert 語法只用在 reviewer 絕不能錯過的事；長輸出用 `<details>` 摺疊。
+- alert 語法只用在 reviewer 絕不能錯過的事。
+- 長輸出（完整 test log、大量檔案清單）用 `<details><summary>完整測試輸出</summary>` 摺疊：證據留著，但不佔版面。
 - **不要自己加 checklist**（`- [ ] 已加測試`）：會被無腦全勾。repo template 自帶的 checklist 照填。
 
 ### 2.7 確認並建立 PR
