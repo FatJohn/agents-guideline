@@ -55,7 +55,7 @@
 | `global/claude/route-card.md`「Brief」 | 注入文字 | — | |
 | `global/claude/route-card.md`「寫入」 | 注入文字 | — | |
 | `global/claude/route-card.md`「揭露與授權」：派工揭露與授權段 | 注入文字 | — | |
-| `global/claude/route-card.md`「揭露與授權」：驗收後修正分流段 | verifier 合約 | `global/claude/agents/verifier.md` 的 `controller 不得自行降級` | verifier 第一行寫分流；code-review finding 沒有分流行，由 controller 自判，不受合約約束 |
+| `global/claude/route-card.md`「揭露與授權」：驗收後修正分流段 | 注入文字 | — | verifier 合約只管第一行寫出分流；controller 拿到後照不照做（機械結案後不重派、不自行降級、第三輪停下）沒有東西會失敗 |
 
 ## 入口邊界（`global/claude/CLAUDE.md`「邊界」）
 
@@ -63,7 +63,7 @@
 |---|---|---|---|
 | `global/claude/CLAUDE.md`「邊界」1：專案 `CLAUDE.md` 優先 | 注入文字 | — | |
 | `global/claude/CLAUDE.md`「邊界」2：無證據不宣稱完成 | 注入文字 | — | |
-| `global/claude/CLAUDE.md`「邊界」3：對外或不可逆動作需當次授權 | 注入文字 | — | `~/.claude/settings.json` 的 permissions 與 auto mode 分類器擋一部分，那份設定不在本 repo；CI 設定的編輯由 `block-ci-edit.sh` 擋 |
+| `global/claude/CLAUDE.md`「邊界」3：對外或不可逆動作需當次授權 | 注入文字 | — | `~/.claude/settings.json` 的 permissions 與 auto mode 分類器擋一部分，那份設定不在本 repo；主對話用 Edit／Write 類工具改 CI 設定由 `block-ci-edit.sh` 擋 |
 | `global/claude/CLAUDE.md`「邊界」4：驗證不自驗 | 注入文字 | — | 不派 verifier 沒有東西會失敗 |
 | `global/claude/CLAUDE.md`「邊界」5：同一 working tree 一個寫入者 | 注入文字 | — | |
 | `global/claude/CLAUDE.md`「邊界」6：長任務留可恢復脈絡 | 注入文字 | — | `context-size-nudge.sh` 只在 context 跨門檻時提醒交接，不檢查有沒有留 |
