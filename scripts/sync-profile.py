@@ -59,6 +59,7 @@ SHARED_SKILLS = (
     "writing-principles",
     "agent-rules",
     "layer-audit",
+    "verify-recipes",
 )
 
 # Files a v1 install put in ~/.claude/rules.

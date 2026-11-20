@@ -33,6 +33,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/shared/skills/writing-principles/SKILL.md` | 長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則；`scripts/check_docs.py`（純標準庫）判機械項，其餘由 verifier 抽樣；`references/sources.md` 收出處短引、`references/examples.md` 收改寫前後片段 |
 | `global/shared/skills/agent-rules/SKILL.md` | 替任何專案 repo 建立或稽核 AGENTS.md／CLAUDE.md 的程式碼規則：三層盤點、機械可驗的規則降級成 lint 或 CI 檢查、常駐檔每行能否單獨判斷適用性、單一來源產生索引；`scripts/rules_index.py`（產生索引、回寫常駐檔區塊、核對 reviewer 版本 ID／severity）、`scripts/active_lints_dart.py`（解 `analysis_options.yaml` include 鏈列出啟用 lint）、`scripts/active_lints_android.py`（合併 `lint --show`、Gradle `lint {}` 與 `lint.xml` 列出啟用 issue）、`references/{typescript-eslint,dart-flutter,kotlin-android,swift-ios}.md`（各語言的啟用規則查法與散文規則對應表）、`references/report-template.md`（給人讀的稽核報告結構） |
 | `global/shared/skills/layer-audit/SKILL.md` | 唯讀稽核任何 repo 的防線層：結構、機器擋、跑起來驗、文字規則、獨立審查各查有沒有啟用、CI 有沒有跑、違規會不會讓 CI 失敗，輸出狀態與證據、不打分數；`scripts/layer_audit.py`（純標準庫，解析 GitHub Actions 並展開 package scripts／Makefile／shell 腳本）、`agents/openai.yaml`（Codex 端只允許顯式呼叫）；列出啟用規則指向 `agent-rules` 的語言頁 |
+| `global/shared/skills/verify-recipes/SKILL.md` | 替任何專案 repo 寫使用者視角的驗證食譜（`docs/verify-recipes.md`）：每個使用者看得到的功能一節，固定欄位怎麼走到、驅動、看到什麼算過、陷阱、驗證紀錄；不放實作細節，每條在本機 clone 實跑過才算，至少一節做反向驗證；`agents/openai.yaml`（Codex 端只允許顯式呼叫）；沒有腳本 |
 | `global/shared/rubrics/document-quality.md` | 文件類產出的逐條驗收判準（verifier 讀） |
 | `global/shared/rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描、作假偵測與失敗路徑） |
 | `global/shared/rubrics/research-analysis.md` | 研究與盤點類產出的逐條驗收判準 |
