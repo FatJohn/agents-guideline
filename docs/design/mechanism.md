@@ -104,4 +104,8 @@ model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/set
 
 ## Codex 端的對照
 
-Codex 沒有 SessionStart／PreToolUse／PostToolUse 的等價機制。`global/codex/rules/` 不分流，subagent 與主對話讀同一份；五支 hook 補的規則在 Codex 端只有文字版（dispatch 規則與 `cli.md`），沒有機械擋板。這是刻意分版，理由見 `docs/repo-layout.md`「Codex」。
+Codex CLI 有 hook 機制。codex-cli 0.169.0 的 `codex features list` 把 `hooks` 列為 stable、已啟用（2026-11-20 實跑）。官方文件 [Hooks](https://learn.chatgpt.com/docs/hooks) 的事件表列了 `SessionStart`、`PreToolUse`、`PostToolUse`，另有 `UserPromptSubmit`、`Stop`、`SubagentStart` 等。同一份文件寫：`SessionStart` 的 stdout 會加成 developer context；`PreToolUse` 回 `permissionDecision: "deny"` 或 exit code 2 可以擋下工具呼叫。
+
+本機以 `codex exec` 實跑一次，`~/.codex/hooks.json` 裡 Orca 登記的 `PreToolUse`、`PostToolUse`、`Stop` 都有觸發，輸出裡有 `hook: PreToolUse` 這類行。`SessionStart` 注入與 `PreToolUse` 擋下本機未實測。
+
+本系統沒用這套機制：`global/codex/` 只有 `AGENTS.md`、`rules/`、`agents/`，同步腳本不碰 `~/.codex/hooks.json`（`docs/rule-enforcement.md`「Codex 端：載入方式」）。所以 `global/codex/rules/` 不分流，subagent 與主對話讀同一份；五支 hook 補的規則在 Codex 端只有文字版（dispatch 規則與 `cli.md`），沒有機械擋板。這是本系統還沒採用，不是 Codex 做不到；要不要補另案決定。
