@@ -155,7 +155,7 @@ Codex 端的強制方式跟 Claude 端有三處不同，下面各段的值都由
 
 TOML 由 `scripts/sync-codex-agents.py` 複製成 `~/.codex/agents/` 的實體檔，該腳本核對 `name`／`description`／`developer_instructions` 存在且 `name` 等於檔名。
 
-TOML 的 `sandbox_mode` 不當成機器擋：選中 named `explorer` 時 model／effort 對得上 TOML，live `sandbox_policy` 卻繼承父 session 的 `workspace-write`，已實測（2026-09-08，codex-cli 0.153.4；`docs/reviews/codex-named-agent-registration.md`）；0.169.0 未實測。`dispatch.md` §0「Runtime adapter」要求 controller 選一條權限真的唯讀的路徑：named role 的權限 metadata 要符合角色表（第 1 項），generic `default` 只在父 session 已是 read-only 時可派，否則走 `--sandbox read-only` 的 direct CLI 或停止（第 3 項）。照這些路徑派時唯讀由 runtime 擋；但選哪條路徑只有文字，named role 在權限不符時照樣派得出去，所以唯讀角色列記為注入文字。
+TOML 的 `sandbox_mode` 不當成機器擋：選中 named `explorer` 時 model／effort 對得上 TOML，live `sandbox_policy` 卻繼承父 session 的 `workspace-write`，已實測（2026-09-08，codex-cli 0.153.4；`docs/reviews/codex-named-agent-registration.md`）；0.169.0 未實測。`dispatch.md` §0「Runtime adapter」要求 controller 選一條權限唯讀的路徑：named role 的權限 metadata 要符合角色表（第 1 項；surface metadata 只算工具宣告值，child metadata 讀回才算 runtime 已驗證），generic `default` 只在父 session 已是 read-only 時可派，否則走 `--sandbox read-only` 的 direct CLI 或停止（第 3 項）。只有 effective sandbox 確認是 read-only 的那次派送，唯讀才由 runtime 擋；選哪條路徑、有沒有讀回確認都只有文字，named role 在權限不符時照樣派得出去，所以唯讀角色列記為注入文字。
 
 「不再 spawn subagent」五份 TOML 都寫在合約裡；`docs/install.md` 建議的 `[agents] max_depth = 1` 用意是限制遞迴，但沒有實跑 nested spawn 驗證，本表不把它算成機器擋。
 

@@ -41,7 +41,8 @@ def unfenced_lines(path: Path) -> list[str]:
     for line in path.read_text(encoding="utf-8").splitlines():
         m = FENCE.match(line)
         if opener:
-            if m and m.group(1)[0] == opener[0] and len(m.group(1)) >= len(opener) and not line.strip(" `~"):
+            closing = re.fullmatch(rf" {{0,3}}{re.escape(opener[0])}{{{len(opener)},}}[ \t]*", line)
+            if closing:
                 opener = ""
             continue
         if m:
@@ -143,7 +144,7 @@ class RuleEnforcementTableTests(unittest.TestCase):
     def test_every_codex_note_bullet_has_a_row(self) -> None:
         block = section_body(CODEX / "AGENTS.md", "Codex 注意")
         self.assertIsNotNone(block, "no '## Codex 注意' section in global/codex/AGENTS.md")
-        count = len(re.findall(r"^[-*] ", block, re.M))
+        count = len(re.findall(r"^ {0,3}[-*+][ \t]", block, re.M))
         self.assertTrue(count, "no bullets under '## Codex 注意' in global/codex/AGENTS.md")
         for num in range(1, count + 1):
             key = f"`global/codex/AGENTS.md`「Codex 注意」{num}："
