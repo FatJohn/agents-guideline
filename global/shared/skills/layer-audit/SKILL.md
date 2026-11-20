@@ -1,6 +1,6 @@
 ---
 name: layer-audit
-description: 唯讀稽核一個 repo 有沒有把防線層建起來（結構、機器擋、跑起來驗、文字規則、獨立審查），每層查有沒有啟用、CI 有沒有跑、違規會不會讓 CI 失敗，輸出狀態與證據，不打分數。只由使用者打 /layer-audit 觸發。
+description: 唯讀稽核一個 repo 有沒有把防線層建起來（結構、機器擋、跑起來驗、文字規則、獨立審查），每層查有沒有啟用、CI 有沒有跑、違規會不會讓 CI 失敗，輸出狀態與證據，不打分數。只由使用者觸發：Claude Code 打 /layer-audit，Codex 打 $layer-audit。
 disable-model-invocation: true
 allowed-tools: Bash(python3:*), Bash(git:*), Bash(gh api:*), Bash(rg:*), Read, Grep, Glob
 ---
@@ -24,9 +24,9 @@ python3 <SK>/scripts/layer_audit.py --repo <路徑> --github         # 另用 gh
 腳本判斷「有沒有在擋」的依據：
 
 - **CI 會不會跑到**：從 workflow 的 `run:` 往下展開 package.json scripts、Makefile target 與被呼叫的 shell 腳本，看工具最後有沒有被執行。只寫在設定檔、CI 沒呼叫的是 `local-only`。
-- **失敗會不會傳出來**：job／step 的 `continue-on-error`、`|| true`、`set +e` 後沒檢查 `$?`、管線沒有 pipefail、package script 用 `;` 串接，都判 `non-blocking`。
-- **一般 PR 會不會跑**：workflow 沒有 `pull_request` 觸發、或 job／step 的 `if:` 排除 PR，判 `non-blocking`，因為 merge 前擋不到。
-- **只到 warning**：lint 預設只在 error 失敗，warning 級規則另列一列（ESLint 沒帶 `--max-warnings 0`、SwiftLint 沒帶 `--strict`、`dart analyze` 沒帶 `--fatal-infos`、Android Lint 沒開 `warningsAsErrors`）。主列 `blocking` 不會蓋掉 warning 級的洞。
+- **失敗會不會傳出來**：job／step 的 `continue-on-error`、`|| true`、`set +e` 後沒檢查 `$?`（管線後只認 `PIPESTATUS`）、管線沒有 pipefail（package script 與 Makefile recipe 用 `sh -c`，一律當沒有）、package script 用 `;` 串接、指令放在 `if`／`while` 條件裡而失敗分支沒有非 0 的 `exit`，都判 `non-blocking`。
+- **一般 PR 會不會跑**：workflow 沒有 `pull_request` 觸發、job／step 的 `if:` 排除 PR 或只在前面失敗時跑（`failure()`、`cancelled()`）、reusable workflow 的呼叫端 job 都排除 PR，判 `non-blocking`，因為 merge 前擋不到。
+- **只到 warning**：lint 預設只在 error 失敗，warning 級規則另列一列（ESLint 沒帶 `--max-warnings 0`、SwiftLint 沒帶 `--strict`、`dart analyze` 沒帶 `--fatal-infos`、Android Lint 沒開 `warningsAsErrors`）。ESLint 設定沒有字面 `warn` 時：沒載入共用設定就不列，載入了共用設定（import 名稱含 `eslint-config`）則列 `unknown`，要用 `eslint --print-config` 看有沒有嚴重度 1 的規則。
 - **裝了但沒跑**：Gradle plugin 寫在版本目錄卻沒有 build 檔套用、Dart analyzer plugin 只有 `dart analyze` 會跑而 CI 只跑 `flutter analyze`、ESLint plugin 在依賴裡但設定沒引用，判 `inactive`；有共用設定可能代為載入時判 `unknown`。
 
 ## 基本盤
@@ -44,7 +44,7 @@ python3 <SK>/scripts/layer_audit.py --repo <路徑> --github         # 另用 gh
 ## 已知限制
 
 - 只解析 GitHub Actions；GitLab CI 有解析但未實測；Bitrise、Codemagic、Jenkins、CircleCI 等只列出檔案、狀態 `unknown`，裡面的指令沒有列入，相關列可能誤判成 `local-only` 或 `absent`。
-- 哪些 job 是 branch protection 的必要檢查，本機檔案看不到；要 `--github`，而 branch protection 需要 admin 權限才讀得到。彙總 job（`needs:` 收斂成一個 check）不做分析。
+- 哪些 job 是 branch protection 的必要檢查，本機檔案看不到；要 `--github`，而 branch protection 需要 admin 權限才讀得到。有 `--github` 時沿必要檢查的 `needs:` 往上算：彙總 job 要帶 `if: always()` 或 `!cancelled()` 才算，因為沒帶時上游失敗會讓彙總 job 被略過，而略過的必要檢查算通過。彙總 job 自己 shell 裡的邏輯（例如允許略過的名單）不判讀。
 - Go、Python、.NET 的偵測規則沒有在真實 repo 跑過，輸出備註會標「未實測」。
 - 工具認不出的自訂閘門（grep 檢查、索引檢查）只要檔名是 `check-*`、`lint-*`、`verify-*`、`guard-*`、`scan-*` 且由 CI 直接呼叫，會列成「自訂檢查」；它守什麼要讀腳本。
 - 判斷「CI 會跑到」靠指令字串比對；動態組出來的指令（變數展開、矩陣值）可能判不出來。

@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -17,7 +18,8 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = REPO_ROOT / "global" / "shared" / "skills" / "layer-audit" / "scripts" / "layer_audit.py"
+# LAYER_AUDIT_SCRIPT lets the same tests run against an older copy (regression red/green evidence).
+SCRIPT = Path(os.environ.get("LAYER_AUDIT_SCRIPT") or REPO_ROOT / "global" / "shared" / "skills" / "layer-audit" / "scripts" / "layer_audit.py")
 
 sys.dont_write_bytecode = True  # keep __pycache__ out of the skill dir (sync-profile copies the tree)
 spec = importlib.util.spec_from_file_location("layer_audit", SCRIPT)
@@ -188,25 +190,171 @@ class OtherShapes(FixtureCase):
     def test_install_script_mentioning_tool_is_not_a_run(self):
         root = self.make({"Package.swift": "// swift-tools-version:5.9\n", "Sources/A/a.swift": "let a = 1\n",
                           ".swiftlint.yml": "disabled_rules: []\n",
-                          "scripts/install-swiftlint.sh": "#!/bin/bash\nset -e\nunzip swiftlint.zip swiftlint -d .tools\n",
+                          "scripts/install-swiftlint.sh": "#!/bin/bash\nset -e\n.tools/swiftlint version\n",
                           ".github/workflows/ci.yml": workflow("- run: bash scripts/install-swiftlint.sh\n")})
         self.assertEqual(self.row(root, "SwiftLint（Swift）")["status"], "local-only")
 
 
+    def required_gates(self, wf: str, contexts: list[str]) -> dict:
+        repo = la.Repo(self.ts_repo(wf))
+        invs, _, _ = la.github_invocations(repo)
+        la.apply_required(invs, la.github_invocations.parsed, contexts)
+        return {i.job: i.gate for i in invs if i.text.startswith("pnpm")}
+
     def test_job_outside_required_checks_needs_chain_does_not_block(self):
         wf = ("name: CI\non:\n  pull_request:\njobs:\n  lint:\n    runs-on: x\n    steps:\n      - run: pnpm lint\n"
               "  extra:\n    runs-on: x\n    steps:\n      - run: pnpm typecheck\n"
+              "  ci:\n    if: always()\n    needs: [lint]\n    runs-on: x\n    steps:\n      - run: echo ok\n")
+        gates = self.required_gates(wf, ["ci"])
+        self.assertEqual(gates["lint"], [])
+        self.assertIn("不在必要檢查", gates["extra"][0])
+        self.assertTrue(all(not g for g in self.required_gates(wf, ["unrelated-context"]).values()),
+                        "no matching context means unknown, not a demotion")
+
+    def test_needs_without_always_does_not_carry_required(self):
+        wf = ("name: CI\non:\n  pull_request:\njobs:\n  lint:\n    runs-on: x\n    steps:\n      - run: pnpm lint\n"
               "  ci:\n    needs: [lint]\n    runs-on: x\n    steps:\n      - run: echo ok\n")
+        gates = self.required_gates(wf, ["ci"])
+        self.assertTrue(gates["lint"], "a failed need skips ci, and a skipped required check passes")
+        self.assertIn("always()", gates["lint"][0])
+
+
+class Regressions(FixtureCase):
+    """One case per code-review / verifier finding on the first version."""
+
+    def lint_status(self, wf: str, **extra) -> dict:
+        return self.row(self.ts_repo(wf, **extra), "eslint（TypeScript）")
+
+    def test_sh_path_outside_command_position_is_not_expanded(self):
+        script = {"scripts/lint.sh": "#!/bin/bash\nset -e\nnpx eslint . --max-warnings 0\n"}
+        for line in ("shellcheck scripts/lint.sh", "chmod +x scripts/lint.sh", "echo 'run scripts/lint.sh; pnpm lint'"):
+            with self.subTest(line):
+                self.assertEqual(self.lint_status(workflow(f"- run: {line}\n"), **script)["status"], "local-only")
+        self.assertEqual(self.lint_status(workflow("- run: chmod +x scripts/lint.sh && ./scripts/lint.sh\n"), **script)["status"], "blocking")
+
+    def test_every_call_on_one_line_is_expanded(self):
+        pkg = dict(PACKAGE, scripts={"build": "echo build", "lint": "eslint . --max-warnings 0"})
+        self.assertEqual(self.lint_status(workflow("- run: pnpm build && pnpm lint\n"), **{"package.json": pkg})["status"], "blocking")
+
+    def test_package_script_runs_under_sh_without_pipefail(self):
+        pkg = dict(PACKAGE, scripts={"lint": "eslint . --max-warnings 0 | tee lint.log"})
+        wf = workflow("- run: pnpm lint\n  shell: bash\n")
+        row = self.lint_status(wf, **{"package.json": pkg})
+        self.assertEqual(row["status"], "non-blocking")
+        self.assertIn("pipefail", row["note"])
+
+    def test_if_condition_without_failing_branch_swallows(self):
+        swallowed = ("if ! pnpm lint; then echo lint failed; fi", "if pnpm lint; then echo ok; fi", "while pnpm lint; do sleep 1; done")
+        for line in swallowed:
+            with self.subTest(line):
+                self.assertEqual(self.lint_status(workflow(f"- run: {line}\n"))["status"], "non-blocking")
+        kept = {"negated-exit": "- run: |\n    if ! pnpm lint; then\n      echo lint failed\n      exit 1\n    fi\n",
+                "else-false": "- run: if pnpm lint; then echo ok; else false; fi\n"}
+        for name, step in kept.items():
+            with self.subTest(name):
+                self.assertEqual(self.lint_status(workflow(step))["status"], "blocking")
+
+    def test_gradle_excluded_task_is_not_a_run(self):
+        root = self.make({
+            "app/build.gradle.kts": "plugins {\n    id(\"org.jmailen.kotlinter\")\n}\n",
+            "app/src/main/kotlin/A.kt": "class A\n",
+            ".github/workflows/ci.yml": workflow("- run: ./gradlew build -x lintKotlin -x check\n"),
+        })
+        ktlint = self.row(root, "ktlint（Kotlin）")
+        self.assertEqual(ktlint["status"], "blocking", "`build` still runs check-attached plugins")
+        root2 = self.make({
+            "app/build.gradle.kts": "plugins {\n    id(\"org.jmailen.kotlinter\")\n}\n",
+            "app/src/main/kotlin/A.kt": "class A\n",
+            ".github/workflows/ci.yml": workflow("- run: ./gradlew assemble -x lintKotlin\n"),
+        })
+        self.assertEqual(self.row(root2, "ktlint（Kotlin）")["status"], "local-only")
+
+    def test_failure_only_if_is_not_a_normal_run(self):
+        for cond in ("failure()", "cancelled()", "steps.a.outcome == 'failure'"):
+            with self.subTest(cond):
+                row = self.lint_status(workflow(f"- if: ${{{{ {cond} }}}}\n  run: pnpm lint\n"))
+                self.assertEqual(row["status"], "non-blocking")
+                self.assertIn("失敗時", row["note"])
+        self.assertEqual(self.lint_status(workflow("- if: steps.a.outcome != 'success'\n  run: pnpm lint\n"))["status"], "unknown")
+        self.assertEqual(self.lint_status(workflow("- if: steps.a.outcome == 'success'\n  run: pnpm lint\n"))["status"], "blocking")
+        self.assertEqual(self.lint_status(workflow("- if: github.event_name == 'pull_request'\n  run: pnpm lint\n"))["status"], "blocking")
+
+    def test_reusable_workflow_inherits_caller_job_if(self):
+        caller = ("name: CI\non:\n  pull_request:\n  push:\njobs:\n  call:\n    if: github.event_name != 'pull_request'\n"
+                  "    uses: ./.github/workflows/_lint.yml\n")
+        callee = workflow("- run: pnpm lint\n", on="on:\n  workflow_call:\n")
+        row = self.lint_status(caller, **{".github/workflows/_lint.yml": callee})
+        self.assertEqual(row["status"], "non-blocking")
+        self.assertIn("PR", row["note"])
+
+    def test_dollar_question_after_pipe_is_not_a_check(self):
+        script = "#!/bin/bash\nset +e\nnpx eslint . --max-warnings 0 | tee lint.log\nif [ $? -ne 0 ]; then exit 1; fi\n"
+        row = self.lint_status(workflow("- run: bash scripts/lint.sh\n"), **{"scripts/lint.sh": script})
+        self.assertEqual(row["status"], "non-blocking")
+        fixed = script.replace("$?", "${PIPESTATUS[0]}")
+        self.assertNotIn("set +e", self.lint_status(workflow("- run: bash scripts/lint.sh\n"), **{"scripts/lint.sh": fixed})["note"])
+
+    def test_custom_and_other_checks_see_pipefail_and_soft(self):
+        root = self.ts_repo(workflow("- run: |\n    gitleaks detect | tee out.txt\n    bash scripts/check-format.sh | tee out2.txt\n  shell: sh\n"),
+                            **{"scripts/check-format.sh": "#!/bin/sh\nset -e\ntrue\n"})
+        self.assertEqual(self.row(root, "gitleaks（其他 CI 檢查）")["status"], "non-blocking")
+        self.assertEqual(self.row(root, "自訂檢查 check-format.sh")["status"], "non-blocking")
+        root = self.ts_repo(workflow("- if: matrix.os == 'linux'\n  run: gitleaks detect\n"))
+        self.assertEqual(self.row(root, "gitleaks（其他 CI 檢查）")["status"], "unknown")
+
+    def test_ignore_failures_only_applies_to_its_own_tool(self):
+        build = ("plugins {\n    id(\"org.jmailen.kotlinter\")\n    id(\"io.gitlab.arturbosch.detekt\")\n}\n"
+                 "tasks.test {\n    ignoreFailures = true\n}\n")
+        root = self.make({"app/build.gradle.kts": build, "app/src/main/kotlin/A.kt": "class A\n",
+                          ".github/workflows/ci.yml": workflow("- run: ./gradlew lintKotlin detekt\n")})
+        self.assertEqual(self.row(root, "ktlint（Kotlin）")["status"], "blocking")
+        self.assertEqual(self.row(root, "detekt（Kotlin）")["status"], "blocking")
+        root = self.make({"app/build.gradle.kts": build + "detekt {\n    ignoreFailures = true\n}\n", "app/src/main/kotlin/A.kt": "class A\n",
+                          ".github/workflows/ci.yml": workflow("- run: ./gradlew lintKotlin detekt\n")})
+        self.assertEqual(self.row(root, "ktlint（Kotlin）")["status"], "blocking")
+        self.assertEqual(self.row(root, "detekt（Kotlin）")["status"], "non-blocking")
+
+    def test_multiline_plain_scalar_and_flow_sequence(self):
+        wf = ("name: CI\non:\n  pull_request:\n    branches: [main,\n      dev]\njobs:\n  check:\n    runs-on: x\n    steps:\n"
+              "      - name: a long\n          name continued\n        run: pnpm typecheck\n      - run: pnpm lint\n")
+        self.assertEqual(self.lint_status(wf)["status"], "blocking")
+
+    def test_unparsed_tail_is_reported(self):
+        wf = workflow("- run: pnpm lint\n") + "  stray text\n"
         root = self.ts_repo(wf)
-        repo = la.Repo(root)
-        invs, _, _ = la.github_invocations(repo)
-        la.apply_required(invs, la.github_invocations.parsed, ["ci"])
-        by_job = {i.job: i for i in invs if i.text.startswith("pnpm")}
-        self.assertEqual(by_job["lint"].gate, [])
-        self.assertIn("不在必要檢查", by_job["extra"].gate[0])
-        invs2, _, _ = la.github_invocations(repo)
-        la.apply_required(invs2, la.github_invocations.parsed, ["unrelated-context"])
-        self.assertTrue(all(not i.gate for i in invs2), "no matching context means unknown, not a demotion")
+        notes = [r for r in self.rows(root) if r["check"] == "CI 設定解析"]
+        self.assertTrue(notes and notes[0]["status"] == "unknown" and "沒有解析" in notes[0]["note"], notes)
+
+    def test_noise_words_need_a_word_boundary(self):
+        self.assertFalse(la.is_noise(la.Invocation(text="tests/run-lint", origin="x", chain=["tests/run-lint"])))
+        self.assertFalse(la.is_noise(la.Invocation(text='test -z "$(gofmt -l .)"', origin="x", chain=["x"])))
+        self.assertTrue(la.is_noise(la.Invocation(text="echo eslint", origin="x", chain=["echo eslint"])))
+
+    def test_root_package_json_wins_over_nested(self):
+        root = self.ts_repo(workflow("- run: pnpm lint\n"), **{
+            "apps/a/package.json": {"name": "a", "scripts": {"test": "vitest"}},
+            "package.json": dict(PACKAGE, scripts=dict(PACKAGE["scripts"], **{"test:unit": "vitest"})),
+        })
+        checks = [r["check"] for r in self.rows(root)]
+        self.assertIn("package script `test:unit`", checks)
+        self.assertNotIn("package script `test`", checks)
+
+    def test_here_string_and_shift_are_not_heredocs(self):
+        for first in ("cat <<<word", "echo $((1<<2))"):
+            with self.subTest(first):
+                self.assertEqual(self.lint_status(workflow(f"- run: |\n    {first}\n    pnpm lint\n"))["status"], "blocking")
+
+    def test_gitlab_hidden_job_is_skipped(self):
+        root = self.ts_repo(None, **{".gitlab-ci.yml": ".lint:\n  script:\n    - pnpm lint\n"})
+        self.assertEqual(self.row(root, "eslint（TypeScript）")["status"], "local-only")
+
+    def test_shared_config_without_max_warnings_is_unknown(self):
+        pkg = dict(PACKAGE, scripts={"lint": "eslint ."}, devDependencies=dict(PACKAGE["devDependencies"], **{"@antfu/eslint-config": "5"}))
+        root = self.ts_repo(workflow("- run: pnpm lint\n"), **{"package.json": pkg,
+                            "eslint.config.js": "import antfu from '@antfu/eslint-config'\nexport default antfu()\n"})
+        row = self.row(root, "eslint 的 warning 級規則（TypeScript）")
+        self.assertEqual(row["status"], "unknown")
+        self.assertIn("--print-config", row["note"])
 
 
 class OutputContract(FixtureCase):

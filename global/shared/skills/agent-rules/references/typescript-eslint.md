@@ -25,15 +25,17 @@ pnpm exec tsc --showConfig        # 合併 extends 後的 compilerOptions，看 
 pnpm exec tsc --noEmit            # 當 CI 閘門（專案若 noEmit 已寫在 tsconfig，直接 tsc）
 ```
 
-`strict: true` 一次開 `strictNullChecks`、`noImplicitAny` 等一組旗標；個別旗標可以在後面被關掉，以 `--showConfig` 的結果為準。2026-11-20 在試跑 repo A（TypeScript 6.0.3）實測 `--showConfig` 回 `strict: true`。框架先產生型別再檢查的（React Router 的 `react-router typegen && tsc`），CI 要跑整條，只跑 `tsc` 會缺型別檔。
+`strict: true` 一次開 `strictNullChecks`、`noImplicitAny` 等一組旗標；個別旗標可以在後面被關掉，以 `--showConfig` 的結果為準。2026-11-20 在試跑 repo A（TypeScript 6.0.3）實測 `--showConfig` 回 `strict: true`。框架先產生型別再檢查的（React Router 的 `react-router typegen && tsc`），CI 要跑整條，只跑 `tsc` 會缺型別檔（未實測）。
 
 ### 排版
 
-- **Prettier**：CI 跑 `prettier --check .`；`prettier --write` 只改檔、不失敗（未實測）。
-- **ESLint 管排版**：`@stylistic/eslint-plugin`、`eslint-plugin-format` 或共用設定的 stylistic 選項，排版規則就跟著 ESLint 的嚴重度走；`--print-config` 裡 `style/*`、`format/*` 開頭的規則就是它們。
+- **Prettier**：CI 跑 `prettier --check .`，格式不符時失敗；`prettier --write` 只改檔、不失敗（兩者都未實測）。
+- **ESLint 管排版**：`@stylistic/eslint-plugin`、`eslint-plugin-format` 或共用設定的 stylistic 選項，排版規則就跟著 ESLint 的嚴重度走；`--print-config` 裡 `style/*`、`format/*` 開頭的規則就是它們（試跑 repo A 實測有 65 條 `style/*`；`format/*` 未實測）。
 - **Biome**：`biome ci` 或 `biome check` 一次跑排版與 lint；規則清單用 `biome explain <rule>` 逐條看（未實測）。
 
 ## 散文規則對應表
+
+規則名取自各 plugin 公開名稱，未逐條在試跑 repo 實跑；以 `--print-config` 輸出的名字為準。
 
 | 散文規則 | 對應的 lint 或檢查 | 備註 |
 |---|---|---|
@@ -41,6 +43,6 @@ pnpm exec tsc --noEmit            # 當 CI 閘門（專案若 noEmit 已寫在 t
 | 不准 `console.log` 進 main | `no-console` | 常對 scripts 目錄放寬 |
 | 不准未使用的 import／變數 | `unused-imports/no-unused-imports`、`@typescript-eslint/no-unused-vars`；整個檔或 export 沒人用交給 knip | |
 | import 方向（UI 不准直接 import data 層） | `no-restricted-imports`、`import-x/no-restricted-paths`；整個依賴圖用 dependency-cruiser | 屬結構層，`layer-audit` 另外列 |
-| 不准浮動 Promise | `@typescript-eslint/no-floating-promises` | 要 type-aware 設定（`parserOptions.project`） |
+| 不准浮動 Promise | `@typescript-eslint/no-floating-promises` | 要 type-aware 設定（`parserOptions.project`）（未實測） |
 | React hook 規則 | `react-hooks/rules-of-hooks`、`react-hooks/exhaustive-deps` | 共用設定可能用別的前綴（`react/`、`@eslint-react/`），以 `--print-config` 的名字為準 |
 | warning 不准進 main | `eslint --max-warnings 0` | 擋的是「有 warning」這個形狀 |

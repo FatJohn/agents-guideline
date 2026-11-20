@@ -163,11 +163,29 @@ class _Yaml:
             return self.parse_map(idx, indent)
         return _scalar(content), idx + 1
 
+    def continued(self, idx, indent, val):
+        """A scalar whose text goes on to deeper-indented lines, or a `[` flow sequence closed on a later line."""
+        j = idx + 1
+        parts = [val]
+        while j < len(self.raw):
+            open_flow = val.startswith("[") and " ".join(parts).count("[") > " ".join(parts).count("]")
+            nxt = self.next_sig(j)
+            if nxt >= len(self.raw):
+                break
+            n_indent, n_content = self.entry(nxt)
+            if n_indent <= indent and not open_flow:
+                break
+            if val.startswith("[") and not open_flow:
+                break
+            parts.append(n_content)
+            j = nxt + 1
+        return _scalar(" ".join(parts)), j
+
     def value_after_key(self, idx, indent, val):
         if val[:1] in "|>" and re.fullmatch(r"[|>][-+]?\d*", val):
             return self.block_scalar(idx, indent, val)
         if val:
-            return _scalar(val), idx + 1
+            return self.continued(idx, indent, val)
         nxt = self.next_sig(idx + 1)
         if nxt < len(self.raw):
             n_indent, n_content = self.entry(nxt)
@@ -209,17 +227,20 @@ class _Yaml:
                 self.override[idx] = (indent + (len(content) - len(rest)), rest)
                 item, idx = self.parse_map(idx, self.override[idx][0])
             else:
-                item, idx = _scalar(rest), idx + 1
+                item, idx = self.continued(idx, indent, rest)
             out.append(item)
         return out, idx
 
 
 def parse_yaml(text: str):
+    """(node, 1-based line where parsing stopped short of the end, or 0 when the whole text was read)."""
     try:
-        node, _ = _Yaml(text).parse(0, 0)
-        return node
+        y = _Yaml(text)
+        node, idx = y.parse(0, 0)
+        rest = y.next_sig(idx)
+        return node, (rest + 1 if rest < len(y.raw) else 0)
     except (IndexError, ValueError, RecursionError):
-        return None
+        return None, 0
 
 
 # --------------------------------------------------------------------------- repo access
@@ -268,6 +289,11 @@ class Repo:
         return rel
 
 
+def root_package(repo: "Repo") -> list[str]:
+    """The root package.json when there is one, else the first one found (a monorepo package)."""
+    return ["package.json"] if repo.exists("package.json") else repo.glob("package.json")[:1]
+
+
 def short(text: str, n: int = 110) -> str:
     text = " ".join(text.split())
     return text if len(text) <= n else text[: n - 1] + "…"
@@ -295,7 +321,8 @@ class Invocation:
 
 
 PR_EVENTS = {"pull_request", "pull_request_target", "merge_group"}
-SAFE_IF = re.compile(r"^\s*(\$\{\{)?\s*(!?\s*cancelled\(\)|always\(\)|success\(\)|failure\(\)|steps\.[\w-]+\.(outcome|conclusion)\s*[!=]=\s*'\w+'|hashFiles\([^)]*\)\s*!=\s*''|&&|\|\||\s|\(|\))*\s*(\}\})?\s*$")
+SAFE_IF = re.compile(r"^\s*(\$\{\{)?\s*(!\s*cancelled\(\)|always\(\)|success\(\)|steps\.[\w-]+\.(outcome|conclusion)\s*==\s*'success'|github\.event_name\s*==\s*'pull_request(_target)?'|hashFiles\([^)]*\)\s*!=\s*''|&&|\|\||\s|\(|\))*\s*(\}\})?\s*$")
+FAIL_ONLY_IF = re.compile(r"(?<![!\w.])(failure|cancelled)\(\)|\.(outcome|conclusion)\s*==\s*'(failure|cancelled)'")
 NOT_PR_IF = re.compile(r"github\.event_name\s*!=\s*['\"]pull_request['\"]|github\.event_name\s*==\s*['\"](push|schedule|workflow_dispatch|release)['\"]|startsWith\(\s*github\.ref\s*,\s*['\"]refs/tags")
 
 
@@ -313,6 +340,8 @@ def _if_reason(cond: str, where: str) -> tuple[list[str], list[str]]:
     cond = str(cond)
     if not cond or SAFE_IF.match(cond):
         return [], []
+    if FAIL_ONLY_IF.search(cond):
+        return [f"{where} `if: {short(cond, 80)}`：只在前面失敗時跑"], []
     if NOT_PR_IF.search(cond):
         return [f"{where} `if: {short(cond, 80)}`：一般 PR 不跑"], []
     return [], [f"{where} 有條件 `if: {short(cond, 80)}`，腳本未判讀"]
@@ -332,18 +361,25 @@ def github_invocations(repo: Repo) -> tuple[list[Invocation], list[str], list[Ro
     parsed = {}
     notes: list[Row] = []
     for wf in wf_files:
-        doc = parse_yaml(repo.read(wf))
+        doc, stopped = parse_yaml(repo.read(wf))
         if not isinstance(doc, dict):
             notes.append(Row("機器擋", "CI 設定解析", "unknown", wf, "YAML 解析失敗，這個 workflow 的指令沒有列入"))
             continue
+        if stopped:
+            notes.append(Row("機器擋", "CI 設定解析", "unknown", f"{wf}:{stopped}", f"從第 {stopped} 行起沒有解析，後面的 job／step 沒有列入"))
         parsed[wf] = doc
     # workflow_call callers: reusable workflows inherit callers' triggers.
     triggers = {wf: _triggers(doc.get("on", doc.get(True, ""))) for wf, doc in parsed.items()}
     callers: dict[str, set[str]] = {}
+    caller_gates: dict[str, list[list[str]]] = {}  # callee -> each calling job's PR gate
     for wf, doc in parsed.items():
-        for job in (doc.get("jobs") or {}).values():
+        jobs = doc.get("jobs") or {}
+        for jname, job in (jobs.items() if isinstance(jobs, dict) else ()):
             if isinstance(job, dict) and str(job.get("uses", "")).startswith("./.github/workflows/"):
-                callers.setdefault(str(job["uses"])[2:].split("@")[0], set()).add(wf)
+                callee = str(job["uses"])[2:].split("@")[0]
+                callers.setdefault(callee, set()).add(wf)
+                j_line = jobs.lines.get(jname, 0) if isinstance(jobs, YMap) else 0
+                caller_gates.setdefault(callee, []).append(_if_reason(job.get("if", ""), f"{wf}:{j_line} 呼叫端 job `{jname}`")[0])
     for _ in range(3):
         for wf in parsed:
             if "workflow_call" in triggers[wf]:
@@ -354,6 +390,9 @@ def github_invocations(repo: Repo) -> tuple[list[Invocation], list[str], list[Ro
     for wf, doc in parsed.items():
         trig = triggers[wf]
         wf_gate = [] if trig & PR_EVENTS else [f"{wf} 只在 {', '.join(sorted(trig)) or '（無 on）'} 觸發，PR 不跑"]
+        gates = caller_gates.get(wf, [])
+        if "workflow_call" in trig and gates and all(gates):
+            wf_gate.append(f"呼叫 {wf} 的 job 都有 `if:` 讓它不在一般 PR 跑，例如 {gates[0][0]}")
         default_shell = str(((doc.get("defaults") or {}).get("run") or {}).get("shell", "")) if isinstance(doc.get("defaults"), dict) else ""
         jobs = doc.get("jobs") or {}
         if not isinstance(jobs, dict):
@@ -397,8 +436,16 @@ def github_invocations(repo: Repo) -> tuple[list[Invocation], list[str], list[Ro
     return out, wf_files, notes
 
 
-def required_jobs(parsed: dict, contexts: list[str]) -> set[tuple[str, str]]:
-    """(workflow, job) pairs whose failure reaches a required status check through `needs:`."""
+ALWAYS_IF = re.compile(r"always\(\)|!\s*cancelled\(\)")
+
+
+def required_jobs(parsed: dict, contexts: list[str]) -> tuple[set[tuple[str, str]], dict]:
+    """(workflow, job) pairs whose failure reaches a required status check through `needs:`.
+
+    A job that needs a failed job is skipped, and a skipped required check counts as passed, so
+    `needs:` only carries "required" downstream when the needing job has `if: always()`/`!cancelled()`.
+    Second value: jobs that are needed without that `if:` -> the job that needs them.
+    """
     want = {re.sub(r"\s*\(.*\)$", "", c).strip() for c in contexts}
     req: set[tuple[str, str]] = set()
     for wf, doc in parsed.items():
@@ -409,6 +456,7 @@ def required_jobs(parsed: dict, contexts: list[str]) -> set[tuple[str, str]]:
             name = str(job.get("name", "")) if isinstance(job, dict) else ""
             if jname in want or re.sub(r"\s*\(.*\)$", "", name).strip() in want or any(c.endswith(f"/ {jname}") for c in contexts):
                 req.add((wf, jname))
+    skipped: dict[tuple[str, str], str] = {}
     changed = True
     while changed:
         changed = False
@@ -418,7 +466,12 @@ def required_jobs(parsed: dict, contexts: list[str]) -> set[tuple[str, str]]:
                 continue
             needs = job.get("needs", [])
             needs = [needs] if isinstance(needs, str) else list(needs or [])
-            targets = [(wf, n) for n in needs]
+            if ALWAYS_IF.search(str(job.get("if", ""))):
+                targets = [(wf, n) for n in needs]
+            else:
+                targets = []
+                for n in needs:
+                    skipped.setdefault((wf, n), jname)
             uses = str(job.get("uses", ""))
             if uses.startswith("./.github/workflows/"):
                 callee = uses[2:].split("@")[0]
@@ -427,28 +480,32 @@ def required_jobs(parsed: dict, contexts: list[str]) -> set[tuple[str, str]]:
                 if t not in req:
                     req.add(t)
                     changed = True
-    return req
+    return req, {k: v for k, v in skipped.items() if k not in req}
 
 
 def apply_required(invs: list[Invocation], parsed: dict, contexts: list[str]) -> None:
-    req = required_jobs(parsed, contexts)
+    req, skipped = required_jobs(parsed, contexts)
     if not req:
         return  # no context matched a job here; cannot tell, leave as is
     for inv in invs:
         if inv.wf and (inv.wf, inv.job) not in req:
-            inv.gate.append(f"job `{inv.job}` 不在必要檢查（{', '.join(contexts)}）的 needs 鏈上，失敗不擋 merge")
+            by = skipped.get((inv.wf, inv.job))
+            if by:
+                inv.gate.append(f"必要檢查的 job `{by}` needs `{inv.job}` 但沒有 `if: always()`／`!cancelled()`：`{inv.job}` 失敗時 `{by}` 被略過，略過的必要檢查算通過")
+            else:
+                inv.gate.append(f"job `{inv.job}` 不在必要檢查（{', '.join(contexts)}）的 needs 鏈上，失敗不擋 merge")
 
 
 def gitlab_invocations(repo: Repo) -> list[Invocation]:
     if not repo.exists(".gitlab-ci.yml"):
         return []
-    doc = parse_yaml(repo.read(".gitlab-ci.yml"))
+    doc, _ = parse_yaml(repo.read(".gitlab-ci.yml"))
     out = []
     if not isinstance(doc, dict):
         return out
     for jname, job in doc.items():
-        if not isinstance(job, dict) or "script" not in job:
-            continue
+        if not isinstance(job, dict) or "script" not in job or str(jname).startswith("."):
+            continue  # `.name` jobs are templates GitLab never runs
         line = doc.lines.get(jname, 0) if isinstance(doc, YMap) else 0
         sw = [f".gitlab-ci.yml:{line} job `{jname}` allow_failure: true"] if _truthy(job.get("allow_failure", "")) == "true" else []
         gate = []
@@ -468,6 +525,108 @@ SWALLOW_RES = [
     (re.compile(r";\s*(true|:|exit\s+0)\s*$"), "結尾 `; true` 吞掉失敗"),
 ]
 HANDLED = re.compile(r"\|\||&&\s*$|^\s*(if|elif|while|until|!)\b|\bexit\b|\$\(|^\s*\w+=")
+PIPE = re.compile(r"(?<!\|)\|(?![|&])")
+
+
+def _split_shell(text: str, seps: str) -> list[str]:
+    """Split on shell operators outside quotes. seps: regex of the operators to split on."""
+    out, buf, quote, i = [], "", None, 0
+    sep_rx = re.compile(seps)
+    while i < len(text):
+        ch = text[i]
+        if quote:
+            buf += ch
+            if ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch in "\"'":
+            quote = ch
+            buf += ch
+            i += 1
+            continue
+        m = sep_rx.match(text, i)
+        if m:
+            out.append(buf)
+            buf = ""
+            i = m.end()
+            continue
+        buf += ch
+        i += 1
+    out.append(buf)
+    return [x.strip() for x in out if x.strip()]
+
+
+KEYWORD = re.compile(r"^(if|then|else|elif|fi|do|done|while|until|!|time|exec|\{|\}|\(|\))(?=\s|$)\s*|^\w+=\S*\s+")
+
+
+def _command_heads(line: str) -> list[str]:
+    """Each simple command on the line, with leading if/!/time/VAR=val stripped: only these start a run."""
+    heads = []
+    for seg in _split_shell(line, r"&&|\|\||;|\|"):
+        while True:
+            m = KEYWORD.match(seg)
+            if not m or not m.group(0):
+                break
+            seg = seg[m.end():]
+        if seg:
+            heads.append(seg)
+    return heads
+
+
+def _shell_tokens(text: str) -> list[str]:
+    """`;`/newline separated commands with if/then/else/elif/fi/while/until/do/done peeled into own tokens."""
+    toks = []
+    for seg in _split_shell(text, r";|\n"):
+        while True:
+            m = re.match(r"^(if|then|else|elif|fi|while|until|do|done)(?=\s|$)\s*", seg)
+            if not m:
+                break
+            toks.append(m.group(1))
+            seg = seg[m.end():]
+        if seg:
+            toks.append(seg)
+    return toks
+
+
+FAILS = re.compile(r"^(exit|return)\s+[1-9]\d*\b|^false\b")
+FAILS_VAR = re.compile(r"^(exit|return)\s+\"?\$")
+
+
+def _condition_swallow(lines: list[str], i: int) -> str:
+    """A command used as an if/while condition only fails CI when its failure branch exits non-zero.
+
+    Returns a swallow reason, a "?"-prefixed soft reason, or "".
+    """
+    m = re.match(r"^\s*(if|while|until)\s", lines[i])
+    if not m:
+        return ""
+    kw = m.group(1)
+    toks = _shell_tokens("\n".join(lines[i:]))
+    opener, closer, body_kw = (("if", "fi", "then") if kw == "if" else (kw, "done", "do"))
+    depth, cond, body, alt, part = 0, [], [], [], "cond"
+    for t in toks[1:]:
+        if t in ("if", "while", "until"):
+            depth += 1
+        if t in ("fi", "done"):
+            if depth == 0:
+                break
+            depth -= 1
+        if depth == 0 and t == body_kw and part == "cond":
+            part = "body"
+            continue
+        if depth == 0 and t in ("else", "elif") and kw == "if":
+            part = "alt"
+        {"cond": cond, "body": body, "alt": alt}[part].append(t)
+    negated = (cond[:1] and cond[0].lstrip().startswith("!")) or kw == "until"
+    failure = body if negated else alt
+    if kw != "if" and not negated:
+        failure = []  # `while cmd`: failure just ends the loop
+    if any(FAILS.match(t) for t in failure):
+        return ""
+    if any(FAILS_VAR.match(t) for t in failure):
+        return "?放在條件裡，失敗分支用變數 exit，腳本未判讀"
+    return f"`{short(lines[i], 60)}`：指令放在 {kw} 條件裡，失敗分支沒有非 0 的 exit／return／false，失敗不會讓步驟失敗"
 
 
 def _logical_lines(text: str) -> list[str]:
@@ -496,12 +655,14 @@ def expand_block(repo: Repo, text: str, parent: Invocation, cwd: str, pipefail: 
         if not ln.strip() or ln.strip().startswith("#"):
             continue
         lines.append(ln)
-        m = re.search(r"<<-?\s*['\"]?(\w+)['\"]?", ln)
+        m = re.search(r"(?<![<$(])<<(?!<)-?\s*['\"]?([A-Za-z_]\w*)", ln)
         if m:
             heredoc = m.group(1)  # heredoc bodies are data, not commands
     set_plus_e = False
     for i, line in enumerate(lines):
-        checked = bool(re.search(r"PIPESTATUS|\$\?", " ".join(lines[i + 1:i + 4])))
+        # after a pipeline `$?` is the last command's status (e.g. tee), so only PIPESTATUS counts
+        check_rx = r"PIPESTATUS" if PIPE.search(line) else r"PIPESTATUS|\$\?"
+        checked = bool(re.search(check_rx, " ".join(lines[i + 1:i + 4])))
         if re.search(r"\bset\s+\+e\b", line):
             set_plus_e = True
         if re.search(r"\bset\s+-\w*o\s+pipefail|\bset\s+-\w*e", line):
@@ -515,12 +676,15 @@ def expand_block(repo: Repo, text: str, parent: Invocation, cwd: str, pipefail: 
                 inv.swallow.append(f"`{short(line, 60)}`：{why}")
         if set_plus_e and not checked:
             inv.swallow.append("前面有 `set +e`，失敗不會中止，後面也沒有檢查 `$?`／`PIPESTATUS`")
+        cond = _condition_swallow(lines, i)
+        if cond:
+            (inv.soft if cond.startswith("?") else inv.swallow).append(cond.lstrip("?"))
         if not set_e and i < len(lines) - 1 and not HANDLED.search(line):
             inv.soft.append("腳本沒有 `set -e` 且這行不是最後一行，失敗可能被後面的指令蓋掉")
         inv.pipefail = pipefail or checked  # type: ignore[attr-defined]
         out.append(inv)
         if depth < 3:
-            out.extend(_expand_indirect(repo, line, inv, cwd, pipefail, depth))
+            out.extend(_expand_indirect(repo, line, inv, cwd, depth))
     return out
 
 
@@ -566,14 +730,22 @@ def _makefile_target(repo: Repo, cwd: str, target: str) -> tuple[str, str] | Non
     return None
 
 
-PM_RUN = re.compile(r"(?:^|[\s;&|(])(?:pnpm|yarn|bun)\s+(?:run\s+)?((?!exec\b|dlx\b|install\b|add\b|i\b|-)[\w:.-]+)|(?:^|[\s;&|(])npm\s+(?:run(?:-script)?\s+([\w:.-]+)|(test|start)\b)")
-MAKE_RUN = re.compile(r"(?:^|[\s;&|(])make\s+(?:-\S+\s+)*([\w.-]+)")
-SH_RUN = re.compile(r"(?:^|[\s;&|(])(?:(?:/bin/|/usr/bin/env\s+)?(?:bash|sh|zsh)\s+(?:-\w+\s+)*)?((?:\.{0,2}/)?[\w./-]+\.sh)\b")
+# Anchored: matched against each command head from _command_heads, never anywhere in the line.
+PM_RUN = re.compile(r"^(?:pnpm|yarn|bun)\s+(?:run\s+)?((?!exec\b|dlx\b|install\b|add\b|i\b|-)[\w:.-]+)|^npm\s+(?:run(?:-script)?\s+([\w:.-]+)|(test|start)\b)")
+MAKE_RUN = re.compile(r"^make\s+(?:-\S+\s+)*([\w.-]+)")
+SH_RUN = re.compile(r"^(?:(?:/bin/|/usr/bin/env\s+)?(?:bash|sh|zsh)\s+(?:-\w+\s+)*|source\s+|\.\s+)?((?:\.{0,2}/)?[\w./-]+\.sh)\b")
 
 
-def _expand_indirect(repo: Repo, line: str, inv: Invocation, cwd: str, pipefail: bool, depth: int) -> list[Invocation]:
+def _expand_indirect(repo: Repo, line: str, inv: Invocation, cwd: str, depth: int) -> list[Invocation]:
     out = []
-    m = PM_RUN.search(line)
+    for head in _command_heads(line):
+        out.extend(_expand_head(repo, head, inv, cwd, depth))
+    return out
+
+
+def _expand_head(repo: Repo, line: str, inv: Invocation, cwd: str, depth: int) -> list[Invocation]:
+    out = []
+    m = PM_RUN.match(line)
     if m:
         name = m.group(1) or m.group(2) or m.group(3)
         rel, pkg = _package_json(repo, cwd)
@@ -581,16 +753,16 @@ def _expand_indirect(repo: Repo, line: str, inv: Invocation, cwd: str, pipefail:
         if script:
             sub = Invocation(text="", origin=inv.origin, chain=inv.chain + [f"{rel} scripts.{name}"],
                              swallow=list(inv.swallow), gate=list(inv.gate), soft=list(inv.soft), wf=inv.wf, job=inv.job)
-            # npm runs scripts with `sh -c`: `a; b` keeps going after a fails.
+            # npm runs scripts with `sh -c`: `a; b` keeps going after a fails, and there is no pipefail.
             for part_i, part in enumerate(re.split(r"\s*&&\s*", script)):
                 pieces = re.split(r"\s*;\s*", part)
                 for j, piece in enumerate(pieces):
-                    child = expand_block(repo, piece, sub, cwd, pipefail, set_e=True, depth=depth + 1)
+                    child = expand_block(repo, piece, sub, cwd, False, set_e=True, depth=depth + 1)
                     if j < len(pieces) - 1:
                         for c in child:
                             c.swallow.append(f"{rel} scripts.{name} 用 `;` 串接，前段失敗會被後段蓋掉")
                     out.extend(child)
-    m = MAKE_RUN.search(line)
+    m = MAKE_RUN.match(line)
     if m:
         found = _makefile_target(repo, cwd, m.group(1))
         if found:
@@ -598,15 +770,14 @@ def _expand_indirect(repo: Repo, line: str, inv: Invocation, cwd: str, pipefail:
             sub = Invocation(text="", origin=inv.origin, chain=inv.chain + [f"{where} make {m.group(1)}"],
                              swallow=list(inv.swallow), gate=list(inv.gate), soft=list(inv.soft), wf=inv.wf, job=inv.job)
             for rline in recipe.splitlines():
-                child = expand_block(repo, rline.lstrip("@"), sub, cwd, pipefail, set_e=True, depth=depth + 1)
+                child = expand_block(repo, rline.lstrip("@"), sub, cwd, False, set_e=True, depth=depth + 1)  # make: `sh -c`
                 if rline.lstrip("@").startswith("-"):
                     for c in child:
                         c.swallow.append(f"{where} recipe 行首 `-` 忽略失敗")
                 out.extend(child)
-    for sm in SH_RUN.finditer(line):
-        rel = _resolve(repo, cwd, sm.group(1))
-        if not rel or rel in " ".join(inv.chain[:-1]):
-            continue
+    sm = SH_RUN.match(line)
+    rel = _resolve(repo, cwd, sm.group(1)) if sm else None
+    if rel and rel not in " ".join(inv.chain[:-1]):
         body = repo.read(rel)
         has_e = bool(re.search(r"^\s*set\s+-\w*e", body, re.M)) or bool(re.match(r"#!.*\s-\w*e", body))
         has_pf = "pipefail" in body
@@ -621,7 +792,8 @@ def _expand_indirect(repo: Repo, line: str, inv: Invocation, cwd: str, pipefail:
 
 def _gradle(tasks: str):
     rx = re.compile(rf"(?:gradlew|\bgradle)\b.*?(?<![\w-])(?::?[\w-]+:)*(?:{tasks})(?![\w-])")
-    return lambda line: bool(rx.search(line))
+    excluded = re.compile(r"(?:\s-x|\s--exclude-task)(?:\s+|=)\S+")
+    return lambda line: bool(rx.search(excluded.sub(" ", line)))
 
 
 def _rx(pattern: str):
@@ -780,6 +952,29 @@ def gradle_plugin_applied(repo: Repo, plugin_ids: tuple) -> tuple[bool, str]:
     return False, ""
 
 
+def gradle_flag_in_block(repo: Repo, pattern: str, block: str) -> str:
+    """First match of pattern inside a `{ }` block whose header (at any nesting level) names the tool."""
+    for b in repo.glob("*.gradle", "*.gradle.kts"):
+        text = repo.read(b)
+        for m in re.finditer(pattern, text):
+            depth, headers = 0, []
+            for i in range(m.start() - 1, -1, -1):
+                if text[i] == "}":
+                    depth += 1
+                elif text[i] == "{":
+                    if depth == 0:
+                        headers.append(text[text.rfind("\n", 0, i) + 1:i])
+                    else:
+                        depth -= 1
+            if any(re.search(block, h) for h in headers):
+                line = text.count("\n", 0, m.start()) + 1
+                return f"{b}:{line} `{text.splitlines()[line - 1].strip()[:120]}`"
+    return ""
+
+
+IGNORE_BLOCK = {"ktlint": r"ktlint|kotlinter|lintKotlin|LintTask", "detekt": r"detekt"}
+
+
 def gradle_flag(repo: Repo, pattern: str) -> str:
     for b in repo.glob("*.gradle", "*.gradle.kts", "lint.xml"):
         hit = repo.first_line(b, pattern)
@@ -791,7 +986,7 @@ def gradle_flag(repo: Repo, pattern: str) -> str:
 # --------------------------------------------------------------------------- per-layer checks
 
 
-NOISE_LINE = re.compile(r"^\s*(echo|printf|mkdir|unzip|tar|curl|wget|cp|mv|chmod|rm|ln|cat|test|\[|command\s+-v|which|brew\s+install|apt-get|sudo|local\s|export\s|#)")
+NOISE_LINE = re.compile(r"^\s*(echo|printf|mkdir|unzip|tar|curl|wget|cp|mv|chmod|rm|ln|cat|command\s+-v|which|brew\s+install|apt-get|sudo|local|export|#)(?=\s|$)")
 INSTALL_CALL = re.compile(r"(^|[\s/])(install|download|setup|bootstrap)[-_][\w.-]*\.sh\b")
 NOISE_CHAIN = re.compile(r"(^|/)(install|download|setup|bootstrap)[-_]")
 
@@ -801,25 +996,35 @@ def is_noise(inv: Invocation) -> bool:
     return bool(NOISE_LINE.match(inv.text) or INSTALL_CALL.search(inv.text) or any(NOISE_CHAIN.search(c) for c in inv.chain[1:]))
 
 
+def inv_status(inv: Invocation, extra: list[str] | None = None) -> tuple[str, list[str]]:
+    """Whether a failure on this CI line fails CI: (status, reasons)."""
+    reasons = list(inv.gate) + list(inv.swallow)
+    if not getattr(inv, "pipefail", True) and PIPE.search(inv.text):
+        reasons.append("管線沒有 pipefail，`| tee` 之類會吞掉前段的失敗")
+    reasons += extra or []
+    if reasons:
+        return "non-blocking", reasons
+    if inv.soft:
+        return "unknown", list(inv.soft)
+    return "blocking", []
+
+
+def pick_inv(hits: list[Invocation]) -> tuple[str, Invocation, list[str]]:
+    """The best-blocking of several CI lines running the same check: (status, invocation, reasons)."""
+    ranked = [(*inv_status(i), i) for i in hits]
+    status, reasons, inv = min(ranked, key=lambda r: STATUS_ORDER.index(r[0]))
+    return status, inv, reasons
+
+
 def classify(tool: Tool, invs: list[Invocation], repo: Repo) -> list[tuple[str, Invocation, list[str]]]:
     """For every CI line that runs this tool: (status, invocation, reasons)."""
     res = []
     for inv in invs:
         if not tool.match(inv.text) or is_noise(inv):
             continue
-        reasons = list(inv.gate) + list(inv.swallow)
-        if not getattr(inv, "pipefail", True):
-            m = re.search(r"(?<!\|)\|(?!\|)", inv.text)
-            if m:
-                reasons.append("管線沒有 pipefail，`| tee` 之類會吞掉前段的失敗")
-        if tool.needs_flag and not re.search(tool.needs_flag[0], inv.text):
-            reasons.append(tool.needs_flag[1])
-        if reasons:
-            res.append(("non-blocking", inv, reasons))
-        elif inv.soft:
-            res.append(("unknown", inv, list(inv.soft)))
-        else:
-            res.append(("blocking", inv, []))
+        extra = [tool.needs_flag[1]] if tool.needs_flag and not re.search(tool.needs_flag[0], inv.text) else []
+        status, reasons = inv_status(inv, extra)
+        res.append((status, inv, reasons))
     return res
 
 
@@ -868,7 +1073,7 @@ def machine_rows(repo: Repo, invs: list[Invocation], langs: dict) -> tuple[list[
             if tool.id in ("ktlint", "detekt", "spotless") and re.search(r"(?<![\w-])(check|build)(?![\w-])", inv.text) and not re.search(r"ktlint|lintKotlin|detekt|spotless", inv.text):
                 row.note = "；".join(x for x in [row.note, "經由 Gradle `check`／`build` 任務；plugin 是否掛在 check 上未逐一驗證"] if x)
             if tool.id in ("ktlint", "detekt"):
-                ig = gradle_flag(repo, r"ignoreFailures\s*(=|\()\s*true")
+                ig = gradle_flag_in_block(repo, r"ignoreFailures\s*(=|\()\s*true", IGNORE_BLOCK[tool.id])
                 if ig:
                     row.status, row.note = "non-blocking", f"{ig}：ignoreFailures 讓違規不失敗"
             if tool.id == "Android Lint":
@@ -885,15 +1090,20 @@ def machine_rows(repo: Repo, invs: list[Invocation], langs: dict) -> tuple[list[
                     by_kind.setdefault(("format", lang), []).append(fmt)
             # warning-only rules: a second row, so "blocking" never hides a warning-severity hole
             if row.status == "blocking":
-                warn_reason = ""
+                warn_reason, warn_status = "", "non-blocking"
                 if tool.warn_flag and not re.search(tool.warn_flag[0], inv.text):
                     warn_reason = tool.warn_flag[1]
                     if tool.id == "eslint" and not any(re.search(r"[\"']warn[\"']|:\s*1\b", repo.read(c.split(":")[0])) for c in cfg if repo.exists(c.split(":")[0])):
-                        warn_reason = ""
+                        shared = eslint_shared_config(repo)
+                        if shared:
+                            warn_status = "unknown"
+                            warn_reason += f"；設定沒有字面 `warn`，但載入了共用設定 `{shared.group(1)}`，嚴重度 1 的規則用 `eslint --print-config` 看"
+                        else:
+                            warn_reason = ""
                 if tool.id == "Android Lint" and not gradle_flag(repo, r"warningsAsErrors\s*(=\s*)?true|warningsAsErrors\s+true"):
                     warn_reason = "沒有 `warningsAsErrors = true`，warning 級 issue 不擋"
                 if warn_reason:
-                    rows.append(Row(layer, f"{tool.id} 的 warning 級規則（{lang}）", "non-blocking", inv.evidence(),
+                    rows.append(Row(layer, f"{tool.id} 的 warning 級規則（{lang}）", warn_status, inv.evidence(),
                                     "；".join(x for x in [warn_reason, f"逐條嚴重度見 {ref}" if ref else ""] if x)))
         else:
             row = Row(layer, f"{tool.id}（{lang}）", "local-only", "；".join(cfg[:3]), "；".join(x for x in ["CI 沒有呼叫", note] if x))
@@ -926,6 +1136,11 @@ def dart_plugin_rows(repo: Repo, invs, langs) -> list[Row]:
     return rows
 
 
+def eslint_shared_config(repo: Repo):
+    cfg_text = "\n".join(repo.read(c) for c in repo.glob("eslint.config.*", ".eslintrc", ".eslintrc.*"))
+    return re.search(r"""(?:from|require\()\s*['"]((?:@[^/'"]+/)?eslint-config[^'"]*)['"]""", cfg_text)
+
+
 def eslint_plugin_rows(repo: Repo, langs) -> list[Row]:
     if not ({"TypeScript", "JavaScript"} & set(langs)):
         return []
@@ -933,9 +1148,9 @@ def eslint_plugin_rows(repo: Repo, langs) -> list[Row]:
     if not configs:
         return []
     cfg_text = "\n".join(repo.read(c) for c in configs)
-    shared = re.search(r"""(?:from|require\()\s*['"]((?:@[^/'"]+/)?eslint-config[^'"]*)['"]""", cfg_text)
+    shared = eslint_shared_config(repo)
     rows = []
-    for pkg_path in repo.glob("package.json")[:1]:
+    for pkg_path in root_package(repo):
         try:
             pkg = json.loads(repo.read(pkg_path))
         except ValueError:
@@ -1002,10 +1217,9 @@ def custom_check_rows(invs: list[Invocation]) -> list[Row]:
             seen.setdefault(m.group(1), []).append(inv)
     rows = []
     for name, hits in sorted(seen.items()):
-        good = [i for i in hits if not i.gate and not i.swallow]
-        inv = (good or hits)[0]
-        rows.append(Row("機器擋", f"自訂檢查 {name}", "blocking" if good else "non-blocking", inv.evidence(),
-                        "；".join(dict.fromkeys(inv.gate + inv.swallow)) or "它守什麼要讀腳本；腳本自己會不會漏判不在本檢查範圍"))
+        status, inv, reasons = pick_inv(hits)
+        rows.append(Row("機器擋", f"自訂檢查 {name}", status, inv.evidence(),
+                        "；".join(dict.fromkeys(reasons)) or "它守什麼要讀腳本；腳本自己會不會漏判不在本檢查範圍"))
     return rows
 
 
@@ -1039,10 +1253,8 @@ def other_ci_rows(invs: list[Invocation]) -> list[Row]:
         hits = [i for i in invs if re.search(rx, i.text) and not is_noise(i)]
         if not hits:
             continue
-        good = [i for i in hits if not i.gate and not i.swallow]
-        inv = (good or hits)[0]
-        status = "blocking" if good else "non-blocking"
-        rows.append(Row("機器擋", f"{name}（其他 CI 檢查）", status, inv.evidence(), "；".join(dict.fromkeys(inv.gate + inv.swallow))))
+        status, inv, reasons = pick_inv(hits)
+        rows.append(Row("機器擋", f"{name}（其他 CI 檢查）", status, inv.evidence(), "；".join(dict.fromkeys(reasons))))
     return rows
 
 
@@ -1077,7 +1289,7 @@ def run_rows(repo: Repo, invs, langs, by_kind) -> list[Row]:
         test_rows = by_kind.get(("test", lang), [])
         if not test_rows:
             rows.append(Row("跑起來驗", f"測試進 CI（{lang}）", "absent", "CI 指令（含展開）沒有找到測試指令", note))
-    for pkg in repo.glob("package.json")[:1]:
+    for pkg in root_package(repo):
         try:
             scripts = json.loads(repo.read(pkg)).get("scripts") or {}
         except ValueError:
@@ -1088,7 +1300,7 @@ def run_rows(repo: Repo, invs, langs, by_kind) -> list[Row]:
                 rows.append(Row("跑起來驗", f"package script `{name}`", "local-only", f"{pkg} scripts.{name} `{short(scripts[name], 60)}`", "CI 沒有呼叫這個 script；是否已被別的 CI 指令涵蓋要人看"))
     # one-command start
     starts = []
-    for pkg in repo.glob("package.json")[:1]:
+    for pkg in root_package(repo):
         try:
             scripts = json.loads(repo.read(pkg)).get("scripts") or {}
         except ValueError:
@@ -1243,9 +1455,8 @@ def structure_rows(repo: Repo, langs, by_kind, invs) -> list[Row]:
         name = os.path.basename(f)
         ran = [i for i in invs if name in i.text or f in " ".join(i.chain)]
         if ran:
-            good = [i for i in ran if not i.gate and not i.swallow]
-            inv = (good or ran)[0]
-            rows.append(Row("結構", f"架構檢查 {name}", "blocking" if good else "non-blocking", inv.evidence(), "；".join(dict.fromkeys(inv.gate + inv.swallow))))
+            status, inv, reasons = pick_inv(ran)
+            rows.append(Row("結構", f"架構檢查 {name}", status, inv.evidence(), "；".join(dict.fromkeys(reasons))))
         else:
             rows.append(Row("結構", f"架構檢查 {name}", "unknown", f, "檔名像架構測試；是否隨一般測試指令執行要人看"))
     for hit in arch_lint[:3]:
