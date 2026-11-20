@@ -2,9 +2,10 @@
 
 Fails when a source of rules gains an entry without a row in the table:
 global/shared/rules/judgment.md (needs a row in the Claude part and in the Codex
-part), global/claude/hooks/, the numbered 「邊界」 items of global/codex/AGENTS.md,
-global/codex/rules/*.md and global/codex/agents/*.toml. Also fails when a row uses
-a value outside the fixed set, or when a mechanical row points at a file or symbol
+part), global/claude/hooks/, every H2 section and every numbered 「邊界」 item of
+global/codex/AGENTS.md, every global/codex/rules/*.md and every numbered H2
+section in it, and every global/codex/agents/*.toml. Also fails when a row uses a
+value outside the fixed set, or when a mechanical row points at a file or symbol
 that does not exist.
 """
 
@@ -24,27 +25,37 @@ CODEX = REPO_ROOT / "global" / "codex"
 VALUES = {"hook", "腳本", "測試", "設定", "verifier 合約", "注入文字", "按需文字"}
 MECHANICAL = VALUES - {"注入文字", "按需文字"}
 
-# Sections whose heading starts with this prefix describe the Codex side; every
-# other section describes the Claude side.
+# The Codex part of the table starts at the first H2 whose heading starts with
+# this prefix and runs to the end of the file; everything before it is Claude.
 CODEX_PREFIX = "Codex 端"
 
 
-def table_rows() -> list[tuple[str, list[str]]]:
-    """(section heading, cells) for every row of a four-column table
-    (規則｜由什麼強制｜強制點｜備註), header and separator dropped."""
+def table_rows() -> list[tuple[bool, list[str]]]:
+    """(is_codex, cells) for every row of a four-column table
+    (規則｜由什麼強制｜強制點｜備註), header, separator and fenced code dropped."""
     rows = []
-    section = ""
+    codex = False
+    fenced = False
     for line in TABLE.read_text(encoding="utf-8").splitlines():
-        if line.startswith("## "):
-            section = line[3:].strip()
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if line.startswith("## ") and line[3:].strip().startswith(CODEX_PREFIX):
+            codex = True
             continue
         if not line.startswith("|"):
             continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        cells = [c.strip() for c in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
         if len(cells) != 4 or cells[0] == "規則" or set(cells[0]) <= {"-"}:
             continue
-        rows.append((section, cells))
+        rows.append((codex, cells))
     return rows
+
+
+def h2_titles(path: Path) -> list[str]:
+    return re.findall(r"^## (.+?)\s*$", path.read_text(encoding="utf-8"), re.M)
 
 
 def judgment_keys() -> list[str]:
@@ -57,8 +68,8 @@ class RuleEnforcementTableTests(unittest.TestCase):
         self.sectioned = table_rows()
         self.rows = [cells for _, cells in self.sectioned]
         self.assertTrue(self.rows, "docs/rule-enforcement.md has no table rows")
-        self.claude_rules = [c[0] for s, c in self.sectioned if not s.startswith(CODEX_PREFIX)]
-        self.codex_rules = [c[0] for s, c in self.sectioned if s.startswith(CODEX_PREFIX)]
+        self.claude_rules = [c[0] for codex, c in self.sectioned if not codex]
+        self.codex_rules = [c[0] for codex, c in self.sectioned if codex]
 
     def test_every_judgment_entry_has_a_row(self) -> None:
         keys = judgment_keys()
@@ -91,17 +102,35 @@ class RuleEnforcementTableTests(unittest.TestCase):
 
     def test_every_codex_boundary_item_has_a_row(self) -> None:
         text = (CODEX / "AGENTS.md").read_text(encoding="utf-8")
-        block = re.search(r"^## 邊界\s*$(.*?)^## ", text, re.M | re.S)
+        block = re.search(r"^## 邊界\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
         self.assertIsNotNone(block, "no '## 邊界' section in global/codex/AGENTS.md")
-        numbers = re.findall(r"^(\d+)\. ", block.group(1), re.M)
+        numbers = re.findall(r"^\s*(\d+)\.\s", block.group(1), re.M)
         self.assertTrue(numbers, "no numbered items under '## 邊界' in global/codex/AGENTS.md")
         for num in numbers:
             key = f"`global/codex/AGENTS.md`「邊界」{num}："
             with self.subTest(item=num):
                 self.assertTrue(any(r.startswith(key) for r in self.codex_rules), f"no Codex row starting with {key}")
 
+    def test_every_codex_entry_section_has_a_row(self) -> None:
+        titles = h2_titles(CODEX / "AGENTS.md")
+        self.assertTrue(titles, "no H2 sections in global/codex/AGENTS.md")
+        for title in titles:
+            key = f"`global/codex/AGENTS.md`「{title}」"
+            with self.subTest(section=title):
+                self.assertTrue(any(r.startswith(key) for r in self.codex_rules), f"no Codex row starting with {key}")
+
+    def test_every_numbered_codex_rules_section_has_a_row(self) -> None:
+        for path in sorted((CODEX / "rules").glob("*.md")):
+            for title in h2_titles(path):
+                m = re.match(r"(\d+)\.", title)
+                if not m:
+                    continue
+                key = re.compile(rf"`global/codex/rules/{re.escape(path.name)}` §{m.group(1)}(?!\d)")
+                with self.subTest(file=path.name, section=title):
+                    self.assertTrue(any(key.match(r) for r in self.codex_rules), f"no Codex row for {path.name} §{m.group(1)}")
+
     def test_every_codex_rules_file_has_a_row(self) -> None:
-        files = sorted(p.name for p in (CODEX / "rules").iterdir() if p.is_file())
+        files = sorted(p.name for p in (CODEX / "rules").glob("*.md") if p.is_file())
         self.assertTrue(files, "no files in global/codex/rules")
         for name in files:
             key = f"`global/codex/rules/{name}`"
@@ -109,7 +138,7 @@ class RuleEnforcementTableTests(unittest.TestCase):
                 self.assertTrue(any(r.startswith(key) for r in self.codex_rules), f"no Codex row starting with {key}")
 
     def test_every_codex_agent_has_a_row(self) -> None:
-        files = sorted(p.name for p in (CODEX / "agents").iterdir() if p.is_file())
+        files = sorted(p.name for p in (CODEX / "agents").glob("*.toml") if p.is_file())
         self.assertTrue(files, "no files in global/codex/agents")
         for name in files:
             key = f"`global/codex/agents/{name}`"
