@@ -31,7 +31,8 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/shared/skills/create-pr/SKILL.md` | 分析 branch 變更並準備 Pull Request |
 | `global/shared/skills/worktree-session/SKILL.md` | 開工預設在 worktree、互相獨立的 issue 一 issue 一頂層 session（盤點 session 的 brief、launch、result 欄位）、清理；`references/cli.md`（Orca／純 shell／分頁起 issue session 的實測指令、stop 與清理）、`worktree.md`（位置、忽略、清理的證據條件）、`container.md`（容器契約：五個動作、不隨容器變的東西、換容器要動的檔、Orca／shell／Herdr 對照） |
 | `global/shared/skills/writing-principles/SKILL.md` | 長存文件（README、接入指南、設計說明、流程、參考頁、wiki 頁）的 12 條寫作原則；`scripts/check_docs.py`（純標準庫）判機械項，其餘由 verifier 抽樣；`references/sources.md` 收出處短引、`references/examples.md` 收改寫前後片段 |
-| `global/shared/skills/agent-rules/SKILL.md` | 替任何專案 repo 建立或稽核 AGENTS.md／CLAUDE.md 的程式碼規則：三層盤點、機械可驗的規則降級成 lint 或 CI 檢查、常駐檔每行能否單獨判斷適用性、單一來源產生索引；`scripts/rules_index.py`（產生索引、回寫常駐檔區塊、核對 reviewer 版本 ID／severity）、`scripts/active_lints_dart.py`（解 `analysis_options.yaml` include 鏈列出啟用 lint）、`scripts/active_lints_android.py`（合併 `lint --show`、Gradle `lint {}` 與 `lint.xml` 列出啟用 issue）、`references/{dart-flutter,kotlin-android,swift-ios}.md`（各語言的啟用規則查法與散文規則對應表）、`references/report-template.md`（給人讀的稽核報告結構） |
+| `global/shared/skills/agent-rules/SKILL.md` | 替任何專案 repo 建立或稽核 AGENTS.md／CLAUDE.md 的程式碼規則：三層盤點、機械可驗的規則降級成 lint 或 CI 檢查、常駐檔每行能否單獨判斷適用性、單一來源產生索引；`scripts/rules_index.py`（產生索引、回寫常駐檔區塊、核對 reviewer 版本 ID／severity）、`scripts/active_lints_dart.py`（解 `analysis_options.yaml` include 鏈列出啟用 lint）、`scripts/active_lints_android.py`（合併 `lint --show`、Gradle `lint {}` 與 `lint.xml` 列出啟用 issue）、`references/{typescript-eslint,dart-flutter,kotlin-android,swift-ios}.md`（各語言的啟用規則查法與散文規則對應表）、`references/report-template.md`（給人讀的稽核報告結構） |
+| `global/shared/skills/layer-audit/SKILL.md` | 唯讀稽核任何 repo 的防線層：結構、機器擋、跑起來驗、文字規則、獨立審查各查有沒有啟用、CI 有沒有跑、違規會不會讓 CI 失敗，輸出狀態與證據、不打分數；`scripts/layer_audit.py`（純標準庫，解析 GitHub Actions 並展開 package scripts／Makefile／shell 腳本）、`agents/openai.yaml`（Codex 端只允許顯式呼叫）；列出啟用規則指向 `agent-rules` 的語言頁 |
 | `global/shared/rubrics/document-quality.md` | 文件類產出的逐條驗收判準（verifier 讀） |
 | `global/shared/rubrics/code-change.md` | 程式碼變更的逐條驗收判準（含殘留掃描、作假偵測與失敗路徑） |
 | `global/shared/rubrics/research-analysis.md` | 研究與盤點類產出的逐條驗收判準 |
@@ -105,7 +106,7 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | `mods/session-watch/` | 實驗性的 Claude Code mod：`/session-watch` 開一個 pane 每分鐘重畫上面那張表，預設只列這個 checkout 的 session 派出去的（含接手前那一任派的），`/session-watch all` 看整台；`claude --plugin-dir <REPO>/mods/session-watch` 單次載入，不裝進全域；測試跑 `claude plugin test` |
 | `scripts/worktree-clean-check.py` | 判定 issue worktree 能不能不問使用者就清（盤點 session 用，唯讀、fail-closed） |
 | `scripts/tests/` | `issue-status.py`、`session-watch.py`、`stall-check.py`、`worktree-clean-check.py` 的單元測試 |
-| `tests/test_*.py` | sync 腳本、usage-review 腳本、writing-principles 檢查腳本與 shell 守門腳本的單元測試；樣本在 `tests/fixtures/writing-principles/`、`tests/fixtures/agent-rules/` |
+| `tests/test_*.py` | sync 腳本、usage-review 腳本、writing-principles 檢查腳本與 shell 守門腳本的單元測試；樣本在 `tests/fixtures/writing-principles/`、`tests/fixtures/agent-rules/`；`test_layer_audit.py` 的夾具 repo 在測試內建到暫存目錄 |
 | `tests/test-*.sh` | hook 與 ripgreprc 的離線斷言（`block-ci-edit.sh`、`allow-git-c-projects.sh`、`require-issue-session-model.sh`、`controller-context.sh`、`context-size-nudge.sh`、`ripgreprc`），也由 `tests/test_shell_guards.py` 包進 pytest |
 
 ## 為什麼 Claude 側只自建 verifier
