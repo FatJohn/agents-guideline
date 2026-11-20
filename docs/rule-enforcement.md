@@ -16,7 +16,7 @@
 | 測試 | `tests/`、`scripts/tests/` 的測試在違反時變紅 |
 | 設定 | 安裝的設定檔改了工具的預設行為，不照做也會得到正確結果；Codex 角色 TOML 的 model／effort 也算，但只在該角色真的被選中時生效。TOML 的 `sandbox_mode` 不算，理由見「Codex 端：角色」 |
 | verifier 合約 | 派了 verifier 時由驗收角色的定義判定：Claude 是 `global/claude/agents/verifier.md`，Codex 是 `global/codex/agents/verifier.toml`／`sol_verifier.toml` 的 `developer_instructions`；不派就沒有東西會失敗 |
-| 注入文字 | 每個 session 都讀到，但跳過它沒有東西會失敗。Claude：入口、`judgment.md`、路由卡；Codex：本 repo 只有入口 `global/codex/AGENTS.md`，另外派出的角色會讀到自己 TOML 的 `developer_instructions` |
+| 注入文字 | 由平台在 session 開頭放進 context，不必主動去讀，但跳過它沒有東西會失敗。Claude：入口、`judgment.md`、路由卡；Codex：本 repo 只有入口 `global/codex/AGENTS.md`（依據與限制見「Codex 端：載入方式」），另外派出的角色會讀到自己 TOML 的 `developer_instructions` |
 | 按需文字 | 只寫在 skill、docs 或入口路由指向的檔裡，要讀了才知道 |
 
 一條規則只有部分被機器擋住時，值寫整條規則在常見違反情境下的狀態，部分強制寫在備註。「強制點」欄：值是 hook、腳本、測試、設定或 verifier 合約時，第一個反引號是檔案路徑，其後每個反引號都是該檔內 `rg` 得到的符號或檢查名；其餘值寫「—」。
@@ -127,10 +127,10 @@ Codex 端的強制方式跟 Claude 端有三處不同，下面各段的值都由
 | `global/codex/AGENTS.md`「邊界」4：驗證不自驗 | 注入文字 | — | 與 Claude 端相同：不派驗收角色沒有東西會失敗。fallback 的身份標記規則在 `dispatch.md` §0 |
 | `global/codex/AGENTS.md`「邊界」5：同一 working tree 一個寫入者 | 注入文字 | — | 與 Claude 端相同 |
 | `global/codex/AGENTS.md`「邊界」6：長任務留可恢復脈絡 | 注入文字 | — | Claude 端另有 `context-size-nudge.sh` 跨門檻提醒；Codex 端只有文字：本條、`handoff` skill §4「session 交接卡」的何時寫，以及 `dispatch.md` §1 的 300K 分流 |
-| `global/codex/AGENTS.md`「路由」：各情境先讀哪份檔 | 注入文字 | — | 路由表本身每 session 注入；指過去的檔是按需文字 |
-| `global/codex/AGENTS.md`「Codex 注意」：不把本 repo 的 `.md` 連進 `~/.codex/rules/` | 注入文字 | — | `docs/install.md` 與 `scripts/sync-profile.py` 都不寫 `~/.codex/rules/`，照安裝步驟不會做錯；手動連結不擋 |
-| `global/codex/AGENTS.md`「Codex 注意」：派工揭露與 fallback 標記 | 注入文字 | — | 細則在 `dispatch.md` §3「派工三件套」 |
-| `global/codex/AGENTS.md`「Codex 注意」：實作留在主對話，subagent 只派三類 | 注入文字 | — | Claude 端是路由卡注入文字；兩端都沒有東西擋實作型派工 |
+| `global/codex/AGENTS.md`「路由」：各情境先讀哪份檔 | 注入文字 | — | 路由表本身隨入口注入；指過去的檔是按需文字 |
+| `global/codex/AGENTS.md`「Codex 注意」1：不把本 repo 的 `.md` 連進 `~/.codex/rules/` | 注入文字 | — | `docs/install.md` 與 `scripts/sync-profile.py` 都不寫 `~/.codex/rules/`，照安裝步驟不會做錯；手動連結不擋 |
+| `global/codex/AGENTS.md`「Codex 注意」2：派工揭露與 fallback 標記 | 注入文字 | — | 細則在 `dispatch.md` §3「派工三件套」 |
+| `global/codex/AGENTS.md`「Codex 注意」3：實作留在主對話，subagent 只派三類 | 注入文字 | — | Claude 端是路由卡注入文字；兩端都沒有東西擋實作型派工 |
 | `global/codex/AGENTS.md`「Bootstrap」：認機器、展開 `<REPO>` | 注入文字 | — | |
 
 ## Codex 端：規則檔（`global/codex/rules/`）
@@ -155,7 +155,7 @@ Codex 端的強制方式跟 Claude 端有三處不同，下面各段的值都由
 
 TOML 由 `scripts/sync-codex-agents.py` 複製成 `~/.codex/agents/` 的實體檔，該腳本核對 `name`／`description`／`developer_instructions` 存在且 `name` 等於檔名。
 
-TOML 的 `sandbox_mode` 不當成機器擋：選中 named `explorer` 時 model／effort 對得上 TOML，live `sandbox_policy` 卻繼承父 session 的 `workspace-write`，已實測（2026-09-08，codex-cli 0.153.4；`docs/reviews/codex-named-agent-registration.md`）；0.169.0 未實測。走 generic `default` 時同樣繼承父 session（`dispatch.md` §0「Runtime adapter」第 3 項）。所以唯讀角色「不寫 repo」只靠合約文字與 controller 事後 read-back。
+TOML 的 `sandbox_mode` 不當成機器擋：選中 named `explorer` 時 model／effort 對得上 TOML，live `sandbox_policy` 卻繼承父 session 的 `workspace-write`，已實測（2026-09-08，codex-cli 0.153.4；`docs/reviews/codex-named-agent-registration.md`）；0.169.0 未實測。`dispatch.md` §0「Runtime adapter」要求 controller 選一條權限真的唯讀的路徑：named role 的權限 metadata 要符合角色表（第 1 項），generic `default` 只在父 session 已是 read-only 時可派，否則走 `--sandbox read-only` 的 direct CLI 或停止（第 3 項）。照這些路徑派時唯讀由 runtime 擋；但選哪條路徑只有文字，named role 在權限不符時照樣派得出去，所以唯讀角色列記為注入文字。
 
 「不再 spawn subagent」五份 TOML 都寫在合約裡；`docs/install.md` 建議的 `[agents] max_depth = 1` 用意是限制遞迴，但沒有實跑 nested spawn 驗證，本表不把它算成機器擋。
 
