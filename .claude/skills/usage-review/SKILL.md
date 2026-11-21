@@ -77,16 +77,17 @@ python3 <SK>/scripts/extract.py --since 2026-10-24T00:00 --tz +08:00 --out "$TMP
 python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print("\n".join(sorted({"/".join(u.split("/")[3:5]) for s in d["sessions"].values() for u in s["prs"]})))' "$TMPDIR/ur-data.json" > "$TMPDIR/repos.txt"
 mkdir -p "$TMPDIR/esc-prs"
 while read -r r; do gh pr list -R "$r" --state merged --search "merged:>=2026-10-26" --limit 1000 \
-  --json number,title,body,mergedAt,url,headRefName,author,files > "$TMPDIR/esc-prs/${r//\//__}.json" || echo "FAIL $r"; done < "$TMPDIR/repos.txt"
+  --json number,title,body,mergedAt,url,headRefName,author,files > "$TMPDIR/esc-prs/${r//\//__}.json" \
+  || { echo "FAIL $r"; rm -f "$TMPDIR/esc-prs/${r//\//__}.json"; }; done < "$TMPDIR/repos.txt"
 python3 -c 'import json,sys; print(json.dumps([p for f in sys.argv[1:] for p in json.load(open(f))]))' "$TMPDIR"/esc-prs/*.json > "$TMPDIR/esc-prs.json"
 # 3. 出表
 python3 <SK>/scripts/report.py escapes --data "$TMPDIR/ur-data.json" --prs "$TMPDIR/esc-prs.json" --tz +08:00 \
   --author "$(gh api user -q .login)" --window w=2026-10-27T00:00..2026-11-07T00:00
 ```
 
-- 用 `gh pr list -R`，不用 `gh search prs`：後者沒有 `files`、`headRefName`。不要加 `commits` 欄位，`--limit 1000` 時 GraphQL 會超過 500,000 節點上限被拒。某個 repo 回 `HTTP 502` 時，把 `merged:` 拆成幾段日期範圍（`merged:2026-10-27..2026-11-03`）分次抓再合併；重疊抓到的同一個 PR 只算一次。
-- `files` 看起來每個 PR 最多回 100 個檔（2026-11-21 抓的 1,123 個 PR 裡最大值是 100，有 9 個剛好 100），超過的 PR 共用檔會漏算；`files` 是 null 的 PR 算進 `no_file_list`，不參與配對。
-- `--as-of` 是 PR 清單的抓取時間（預設現在）；merge 後還沒滿 N 天的原 PR 標 `censored`，比率看 `mature_with_fix_share`。窗口內沒有原 PR、或清單沒有 `body` 欄位時，`status` 寫「無法計算」，比率是空的，不印 0%。
+- 用 `gh pr list -R`，不用 `gh search prs`：後者沒有 `files`、`headRefName`。不要加 `commits` 欄位，`--limit 1000` 時 GraphQL 會超過 500,000 節點上限被拒。某個 repo 回 `HTTP 502` 時，把 `merged:` 拆成幾段日期範圍（`merged:2026-10-27..2026-11-03`）分次抓再合併；重疊抓到的同一個 PR 只算一次。失敗的 repo 會印 `FAIL` 並刪掉空檔，合併前先補抓。某個 repo 剛好回 1,000 筆時可能被 `--limit` 截斷，同樣拆日期範圍。
+- `files` 看起來每個 PR 最多回 100 個檔（2026-11-21 抓的 1,123 個 PR 裡最大值是 100，有 9 個剛好 100），超過的 PR 共用檔會漏算；`files` 是 null 的原 PR 算進 `no_file_list`（仍在分母），落在某個原 PR 期限內的這類後續候選算進 `followups_no_file_list`，兩者都不參與配對。
+- `--as-of` 是 PR 清單的抓取時間（預設現在）；merge 後還沒滿 N 天的原 PR 標 `censored`，比率看 `mature_with_fix_share`。窗口內沒有原 PR、清單沒有 `body` 欄位、或沒有任何 PR 帶 `files` 時，`status` 寫「無法計算」，比率是空的，不印 0%。
 - `by_coverage` 是對照組：沒被修的原 PR 也按驗收涵蓋分組，比較各組的 `with_fix_share`。涵蓋只從 session 的 `pr-link` 推，判法與限制見 `references/caveats.md`「E. 漏網指標」。
 - 命中清單的 `should_catch` 留空給人填（該由 verifier、code-review、測試、CI 抓到，或事前抓不到）。
 

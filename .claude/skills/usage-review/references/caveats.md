@@ -131,11 +131,11 @@
     處理：依 `--as-of`（PR 清單的抓取時間）把這類原 PR 標 `censored`；`mature_*` 欄只算已滿 N 天的原 PR。比較時用 `mature_with_fix_share`，或把窗口終點設在抓取時間的 N 天前。
 
 24. **判不出性質的 PR**
-    現象：性質依序看 GitHub 的 `Revert "` 標題、標題的 conventional type（先去掉開頭的 `[票號]`）、分支名的類型前綴（`fix/`、`revert/`、`revert-N-`，前面可多一段使用者名）、標題的修正／撤回字眼（修正、修復、更正、撤回、退回、還原、fix、revert 等）；`Merge`、`Release` 開頭的標題判 other。都沒有的是 unknown，例如分支只有使用者名、標題沒有字眼的中文 PR。
-    影響：unknown 不算 fix，真正的修正會漏算；字眼也可能誤判（「修補 vite 安全漏洞」的依賴升級若分支沒有類型前綴會判成 fix）。
+    現象：性質依序看 GitHub 的 `Revert "` 標題、標題的 conventional type（先去掉開頭的 `[票號]`；只認 feat、fix、chore 這類已知 type，`iOS: 修正閃退` 這種領域前綴不算）、分支名的類型前綴（`fix/`、`revert/` 前面可多一段使用者名；GitHub Revert 按鈕建的 `revert-N-` 不帶前綴）、標題的修正／撤回字眼（修正、修復、更正、撤回、退回、還原、fix、revert 等）；`Merge`、`Release` 開頭的標題判 other。都沒有的是 unknown，例如分支只有使用者名、標題沒有字眼的中文 PR。
+    影響：unknown 不算 fix，真正的修正會漏算；字眼也可能誤判：「修補 vite 安全漏洞」的依賴升級若分支沒有類型前綴會判成 fix；「新增還原購買按鈕」的「還原」是恢復不是撤回，也會判成 revert。
     處理：共用檔又引用原 PR 的 unknown 配對另列 `unknown_nature` 表、筆數在 `unknown_nature_pairs`，不計入比率，要算進來就人工改判。字眼清單在 `report.py` 的 `FIX_WORD_RE`／`REVERT_WORD_RE`，加語言時改那裡。
 
 25. **驗收涵蓋只從 `pr-link` 推**
     現象：`sessions[].prs` 記的是 session 裡出現過的 PR 連結；盤點 session 常一次連到多個 PR，驗收也可能派在沒有 `pr-link` 的 session。
     影響：多 PR 的 session 裡的 verifier／review 呼叫分不出是驗哪一個 PR；沒連到的 session 的驗收看不到。
-    處理：只有「只連這一個 PR」的 session 在 merge 前的呼叫才算涵蓋；只有多 PR session 有呼叫時寫 `unknown`；沒有 session 連到也是 `unknown`；所有連到它的 session 在 merge 前都沒有 verifier／review 呼叫才寫 `none`（所以 `none` 仍可能漏看別的 session 派的驗收）。review 用 `weekly` 同一個 regex（啟發式），主對話直接打 `/code-review` 的 fork 也算 code-review。extract 的 `--since` 晚於 PR 開工時，merge 前的派工不在資料裡，會被看成 `none`，所以 extract 的起點要比窗口早。
+    處理：只有「只連這一個 PR」的 session 在 merge 前的呼叫才算涵蓋；只有多 PR session 有呼叫時寫 `unknown`；沒有 session 連到也是 `unknown`；所有連到它的 session 在 merge 前都沒有 verifier／review 呼叫才寫 `none`（所以 `none` 仍可能漏看別的 session 派的驗收）。review 用 `weekly` 同一個 regex（啟發式）；內建 `code-review` 的 fork 子 agent 一律算 code-review，不管它被併進哪個父呼叫，主對話直接打 `/code-review` 的也算。extract 的 `--since` 晚於 PR 開工時，merge 前的派工不在資料裡，會被看成 `none`，所以 extract 的起點要比窗口早。

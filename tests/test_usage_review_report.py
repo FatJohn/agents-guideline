@@ -690,9 +690,29 @@ class EscapesTests(unittest.TestCase):
         self.assertIsNone(s["mature_with_fix_share"])
         self.assertNotIn("0.0%", report.render_md(rep).split("### 成熟")[0])
 
-    def test_without_bodies_the_rate_is_not_computed(self):
-        prs = [{k: v for k, v in p.items() if k != "body"} for p in ESC_PRS]
-        self.assertTrue(rows(esc_rep(self.data, prs=prs), "summary")[0]["status"].startswith("無法計算"))
+    def test_without_bodies_or_files_the_rate_is_not_computed(self):
+        for drop in ("body", "files"):
+            prs = [{k: v for k, v in p.items() if k != drop} for p in ESC_PRS]
+            s = rows(esc_rep(self.data, prs=prs), "summary")[0]
+            self.assertTrue(s["status"].startswith("無法計算"), drop)
+            self.assertIsNone(s["with_fix_share"], drop)
+            self.assertIsNone(s["mature_with_fix_share"], drop)
+
+    def test_followups_without_files_are_counted_not_dropped_silently(self):
+        prs = copy.deepcopy(ESC_PRS)
+        prs[1]["files"] = None   # #2, the fix of #1
+        s = rows(esc_rep(self.data, prs=prs), "summary")[0]
+        self.assertEqual((s["with_fix"], s["no_file_list"], s["followups_no_file_list"]), (2, 0, 1))
+
+    def test_a_code_review_fork_folded_into_a_non_review_call_still_counts(self):
+        data = copy.deepcopy(self.data)
+        data["sessions"][SID_A]["agent_calls"]["tu10"] = call("00:20:00", "general-purpose", "ag9", note=("00:40:00", "completed", 10))
+        data["agents"]["ag9"] = agent("ag9", "general-purpose", "00:20:05", "00:30:00", 1, "tu10", 100, "found callers")
+        data["agents"]["ag10"] = dict(agent("ag10", "general-purpose", "00:21:00", "00:25:00", 1, None, 100, "fork"),
+                                      description="/code-review")
+        self.assertEqual(report.fork_parents(report.Ctx(data, tz="UTC")).get("ag10"), "ag9")
+        hits = {r["original"]: r["fresh_coverage"] for r in rows(esc_rep(data), "escapes")}
+        self.assertEqual(hits[f"{REPO}#1"], "verifier+code-review")
 
     def test_fresh_coverage_from_sessions_linking_the_pr(self):
         cov = {r["fresh_coverage"]: r for r in rows(esc_rep(self.data), "by_coverage")}
@@ -726,6 +746,8 @@ class EscapesTests(unittest.TestCase):
         self.assertEqual(n("新功能", "hotfix/x"), ("fix", "branch:hotfix"))
         self.assertEqual(n("Release 1.2.0", "staging"), ("other", "title:merge-or-release"))
         self.assertEqual(n("新增頁面", "dev/x"), ("unknown", "-"))
+        self.assertEqual(n("iOS: fix login crash", "dev/x"), ("fix", "title:word"))     # area prefix, not a type
+        self.assertEqual(n("Android: 新增頁面", "fix/x"), ("fix", "branch:fix"))
 
     def test_cites(self):
         key = f"{REPO}#1"
@@ -734,6 +756,9 @@ class EscapesTests(unittest.TestCase):
         self.assertTrue(report.cites(f"https://github.com/{REPO}/pull/1", key))
         self.assertFalse(report.cites("see #10 and #21", key))
         self.assertFalse(report.cites("other/repo#1", key))
+        self.assertTrue(report.cites("修正#1的邊界", key))
+        self.assertFalse(report.cites("PR#1", key))
+        self.assertFalse(report.cites("big" + REPO + "#1", key))
 
     def test_cli_escapes(self):
         with tempfile.TemporaryDirectory() as tmp:
