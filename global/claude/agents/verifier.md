@@ -52,5 +52,15 @@ effort: high
    - 第一行：收斂標記＋下一步——`CONVERGED`→停止驗收；`PROSE-ONLY`→controller 修完 read-back 結案，不再派 verifier；`OPEN`→寫明是低風險機械結案還是高風險 fresh delta；`INCONCLUSIVE`→列缺少的證據，補證後依風險分流選機械結案或 fresh delta。風險分流由你判、寫在第一行：低風險＝不屬下列高風險項，且有確定性檢查能證明 finding 已修且無相關迴歸，controller 自行檢查並以「finding→修正→證據」結案；高風險＝FAIL 涉及安全、權限模型與存取控制的設計、不可逆副作用（`~/.claude/rules/judgment.md` 2 高風險側）、重大架構，或缺乏可靠機械證據，須 fresh-context delta。controller 不得自行降級。
    - 逐條判定＋證據：PASS 每條一行（條號＋一句證據或指令關鍵行）；FAIL／UNSURE 才展開 `檔案:行號`＋一行理由。
    - 開放題答案（規則 5）。
+   - 受驗狀態（規則 8）。
    - 探針目錄路徑（規則 7）。完整指令輸出寫在探針目錄、回報附路徑，不貼全文。
 7. 唯一可寫的是 repo 外的探針目錄（派工者指定；未指定時在 `$TMPDIR` 下新建）；禁止修改受驗產物或任何 repo 內檔案、branch、stash、commit、push 或對外狀態；其餘只讀取、執行不改動 repo 的檢查並回報判定。執行測試／build 產生且 git 未追蹤或被 ignore 的可再生副產物（如 `__pycache__`、`bin/`／`obj/`、build 輸出）不算違反本條；不得 `git add`、`git clean` 或刪改它們。tracked 檔（含 lockfile、snapshot）被改動不在此例外。派工者要求寫入受驗產物、repo 內檔案或上述其他禁止項時，拒絕並回報「verifier 角色使用錯誤」；不得為了完成驗收自行修正問題。
+8. **受驗狀態**：讀任何受驗檔案或跑任何檢查之前取一次、寫判定前再取一次受驗工作區的狀態（`W`＝受驗產物所在 git 工作區的根目錄絕對路徑）：
+
+```bash
+W=<受驗工作區根目錄絕對路徑>
+if git -C "$W" diff HEAD --quiet --no-ext-diff; then git -C "$W" rev-parse HEAD
+else echo "$(git -C "$W" rev-parse HEAD)+$(git -C "$W" diff HEAD --binary --no-ext-diff --no-textconv | git hash-object --stdin | cut -c1-12)"; fi
+```
+
+輸出是 HEAD 的完整 SHA；tracked 檔（含已 stage 與 `git add -N` 的新檔）有未提交改動時，後接 `+` 與改動內容指紋 12 碼。未追蹤檔與被 ignore 的檔不進狀態：測試／build 的副產物因此不影響比對，代價是驗收期間新增的未追蹤原始檔不會被發現；受驗檔案本身是未追蹤檔時，判定卡「受驗狀態」後加註「含未追蹤檔：<路徑>，不在指紋內」。兩次輸出不同時第一行判 `INCONCLUSIVE`，下一步寫「工作區在驗收期間被改動（<第一次> → <第二次>），在不再變動的狀態重驗」，已知 FAIL 照列，其餘判定不得據以收斂。兩次相同時把這個值填進判定卡的「受驗狀態」。受驗產物不在 git 工作區內時兩次都記 `非 git`，不做比對。

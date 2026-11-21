@@ -56,10 +56,12 @@ verifier → controller。第一行固定：
 3. UNSURE — <檔案:行號> — <缺什麼證據>
 最大風險：<開放題「這份產出最大的風險是什麼？」的回答>
 探針目錄：<repo 外絕對路徑>
+受驗狀態：<HEAD 完整 SHA；tracked 檔有未提交改動時接 +<指紋 12 碼>；不在 git 工作區寫「非 git」>
 ```
 
 - 下一步怎麼寫（四個狀態各自的下一步、低風險與高風險兩側的判準、controller 不得自行降級）以 verifier 合約為準，本卡不另抄：Claude 見 `~/.claude/agents/verifier.md` 規則 6 的「第一行」；Codex 見 `<REPO>/global/codex/agents/verifier.toml` 規則 12 與 `<REPO>/global/codex/agents/sol_verifier.toml` 規則 9 的「第一行」。controller 收到後怎麼走見 `<REPO>/docs/dispatch.md` §2『修正與驗收輪次』（Codex：`<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』）。狀態語意見 `~/.claude/rules/judgment.md` 7『驗收的停止端』。
 - PASS 每條一行（條號＋一句證據或指令關鍵行）；FAIL 與 UNSURE 才展開 `檔案:行號` 與一行理由。完整指令輸出寫進探針目錄，不貼全文。
+- 受驗狀態是 verifier 開始前與判定前各取一次、兩次相同的值，取法與兩次不同時判 `INCONCLUSIVE` 的規定在 verifier 合約（Claude 規則 8；Codex `verifier.toml` 規則 13、`sol_verifier.toml` 規則 10）。controller 把它照抄到 issue session result 的 `Verification` 欄（`<REPO>/global/shared/skills/worktree-session/SKILL.md` §2）與 PR 的驗收戳記（`<REPO>/global/shared/skills/create-pr/SKILL.md` 2.6）。
 
 ## 4. session 交接卡
 
