@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """report.py - read the JSON written by extract.py and print cost / behaviour tables.
 
-Ten sub-commands (cost, cache, context, reports, dispatch, controller, verifier, agents,
-sessions, weekly) share the same filters. Nothing here reads a jsonl file: the only input is the
+Eleven sub-commands (cost, cache, context, reports, dispatch, controller, verifier, agents,
+sessions, weekly, escapes) share the same filters. Nothing here reads a jsonl file: the only input is the
 extract output (schema: references/schema.md), so this file never has to know about Claude
 Code's internal record format.
 
@@ -30,7 +30,7 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 import usagelib as ul  # noqa: E402
 
-COMMANDS = ("cost", "cache", "context", "reports", "dispatch", "controller", "verifier", "agents", "sessions", "weekly")
+COMMANDS = ("cost", "cache", "context", "reports", "dispatch", "controller", "verifier", "agents", "sessions", "weekly", "escapes")
 MAIN_TTL_S = 3600  # main conversation writes 1h cache
 SUB_TTL_S = 300    # subagents are assumed to write 5m cache
 REWRITE_CW_RATIO = 0.5
@@ -880,12 +880,210 @@ def cmd_weekly(ctx, win, args):
     return tables
 
 
+# ---------------------------------------------------------------- escapes (merged PRs later fixed or reverted)
+
+PR_URL_RE = re.compile(r"github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)", re.I)
+GH_REVERT_RE = re.compile(r'^\s*Revert\s+"', re.I)                     # GitHub's "Revert" button
+TICKET_TAG_RE = re.compile(r"^\s*(\[[^\]]*\]\s*)+")                     # leading [ABC-1][ABC-2] tags
+CC_TYPE_RE = re.compile(r"^\s*([A-Za-z]+)(\([^)]*\))?!?\s*:")           # conventional-commit type
+BRANCH_TYPE_RE = re.compile(r"^(?:[^/]+/)?(fix|hotfix|bugfix|revert|feat|feature|chore|docs|ci|build|test|refactor|perf|content|release)/", re.I)
+GH_REVERT_BRANCH_RE = re.compile(r"^revert-\d+-")                       # branch GitHub creates for a revert
+REVERT_WORD_RE = re.compile(r"撤回|退回|還原|回退|撤銷|復原|\brevert(s|ed)?\b|\broll\s*back\b|\brollback\b", re.I)
+FIX_WORD_RE = re.compile(r"修正|修復|修掉|修補|修好|更正|\bhot\s*fix\b|\bbug\s*fix\b|\bfix(es|ed)?\b", re.I)
+FIX_TYPES, REVERT_TYPES = {"fix", "hotfix", "bugfix"}, {"revert"}
+FRESH_COVERAGE = ("verifier+code-review", "verifier", "code-review", "none", "unknown")
+
+
+def pr_key(p):
+    """'owner/repo#N' (lower-case) from the PR url, else from repository + number; None when neither is there."""
+    m = PR_URL_RE.search(p.get("url") or "")
+    if m:
+        return f"{m.group(1).lower()}#{int(m.group(2))}"
+    repo = p.get("repository")
+    if isinstance(repo, dict):
+        repo = repo.get("nameWithOwner")
+    if repo and p.get("number") is not None:
+        return f"{str(repo).lower()}#{int(p['number'])}"
+    return None
+
+
+def pr_nature(title, branch):
+    """('revert'|'fix'|'other'|'unknown', basis). Order: GitHub revert title, conventional type in the title (after
+    leading [TICKET] tags), branch type prefix, then fix / revert words in the title (any language listed in the
+    regexes). A PR with none of these signals is 'unknown' and is never counted as a fix."""
+    title, branch = title or "", branch or ""
+    if GH_REVERT_RE.match(title):
+        return "revert", "title:github-revert"
+    m = CC_TYPE_RE.match(TICKET_TAG_RE.sub("", title))
+    if m:
+        t = m.group(1).lower()
+        return ("revert" if t in REVERT_TYPES else "fix" if t in FIX_TYPES else "other"), f"title:{t}"
+    if GH_REVERT_BRANCH_RE.match(branch):
+        return "revert", "branch:revert-N"
+    m = BRANCH_TYPE_RE.match(branch)
+    if m:
+        t = m.group(1).lower()
+        return ("revert" if t in REVERT_TYPES else "fix" if t in FIX_TYPES else "other"), f"branch:{t}"
+    if re.match(r"^\s*(Merge|Release)\b", title, re.I):
+        return "other", "title:merge-or-release"
+    if REVERT_WORD_RE.search(title):
+        return "revert", "title:word"
+    if FIX_WORD_RE.search(title):
+        return "fix", "title:word"
+    return "unknown", "-"
+
+
+def cites(text, key):
+    """True when text names the PR `key` ('owner/repo#N'): a bare '#N' (not part of '#N0' or 'other/repo#N'),
+    'owner/repo#N' (GitHub's 'Reverts owner/repo#N' body) or its pull URL."""
+    repo, n = key.split("#")
+    return bool(re.search(rf"(?<![\w/])#{n}(?!\d)", text)
+                or re.search(rf"{re.escape(repo)}(?:#|/pull/){n}(?!\d)", text, re.I))
+
+
+def norm_prs(raw):
+    """Merged PRs from gh JSON -> {key: pr}. Duplicates (overlapping fetches) keep the first copy."""
+    out = {}
+    for p in raw:
+        key = pr_key(p)
+        t = p.get("mergedAt") or p.get("closedAt")
+        if not key or not t:
+            continue
+        files = p.get("files")
+        paths = None if files is None else {f.get("path") if isinstance(f, dict) else f for f in files} - {None}
+        author = p.get("author")
+        out.setdefault(key, {
+            "key": key, "repo": key.split("#")[0], "merged": ul.fmt_ts(ul.parse_ts(t)), "title": p.get("title") or "",
+            "branch": p.get("headRefName") or "", "author": author.get("login") if isinstance(author, dict) else author,
+            "files": paths, "nature": pr_nature(p.get("title"), p.get("headRefName")),
+            "text": (p.get("title") or "") + "\n" + (p.get("body") or ""), "has_body": "body" in p,
+        })
+    return out
+
+
+def fresh_coverage(ctx, key, merged, links, forks):
+    """Fresh acceptance a PR got before its merge, from the sessions whose pr-link points at it. Only sessions that
+    link this PR alone can attribute a call to it; a verifier / review call in a session that links several PRs might
+    be for any of them, so that case is 'unknown'. 'none' means no verifier or review call at all before the merge in
+    any linking session."""
+    sids = links.get(key) or []
+    if not sids:
+        return "unknown"
+    kinds_by_sid = {}
+    for sid in sids:
+        kinds = set()
+        for c in ctx.sessions[sid]["agent_calls"].values():
+            if c["t"] > merged:
+                continue
+            aid = c.get("agent_id")
+            stype = ctx.agent_type(ctx.agents[aid]) if aid in ctx.agents else (c.get("subagent_type") or "")
+            if "verifier" in stype:
+                kinds.add("verifier")
+            elif stype == "general-purpose" and REVIEW_RE.search((c.get("description") or "") + " " + (c.get("prompt_head") or "")):
+                kinds.add("code-review")
+        for a in ctx.agents.values():
+            if a["sid"] == sid and a["first"] <= merged and is_fork(ctx, a) and a["id"] not in forks:
+                kinds.add("code-review")  # /code-review typed in the main thread: a review, though not a fresh one
+        kinds_by_sid[sid] = kinds
+    dedicated = [sid for sid in sids if len(ctx.sessions[sid].get("prs") or []) == 1]
+    found = set().union(*(kinds_by_sid[s] for s in dedicated)) if dedicated else set()
+    if not found and any(kinds_by_sid[s] for s in sids if s not in dedicated):
+        return "unknown"
+    if not found:
+        return "none"
+    return "+".join(k for k in ("verifier", "code-review") if k in found)
+
+
+def cmd_escapes(ctx, win, args):
+    prs = norm_prs(args.prs or [])
+    days = args.fix_days
+    span = dt.timedelta(days=days)
+    as_of = args.as_of
+    links = collections.defaultdict(list)
+    for sid, s in ctx.sessions.items():
+        for u in s.get("prs") or []:
+            k = pr_key({"url": u})
+            if k:
+                links[k].append(sid)
+    origs = sorted((p for p in prs.values() if win.has(p["merged"]) and (not args.author or p["author"] in args.author)),
+                   key=lambda p: (p["merged"], p["key"]))
+    by_repo = collections.defaultdict(list)
+    for p in prs.values():
+        by_repo[p["repo"]].append(p)
+    forks = fork_parents(ctx)
+    pairs, unknown_pairs, overlap_only, cov_of = [], [], 0, {}
+    for o in origs:
+        end = ul.fmt_ts(ul.parse_ts(o["merged"]) + span)
+        o["censored"] = end > as_of
+        cov_of[o["key"]] = fresh_coverage(ctx, o["key"], o["merged"], links, forks)
+        if not o["files"]:
+            continue
+        for f in by_repo[o["repo"]]:
+            if f["key"] == o["key"] or not f["files"] or not (o["merged"] < f["merged"] <= end):
+                continue
+            shared = sorted(o["files"] & f["files"])
+            if not shared:
+                continue
+            if not cites(f["text"], o["key"]):
+                overlap_only += f["nature"][0] in ("fix", "revert")
+                continue
+            row = (o, f, shared, (ul.parse_ts(f["merged"]) - ul.parse_ts(o["merged"])).total_seconds() / 86400)
+            if f["nature"][0] in ("fix", "revert"):
+                pairs.append(row)
+            elif f["nature"][0] == "unknown":
+                unknown_pairs.append(row)
+    hit = {o["key"] for o, *_ in pairs}
+    mature = [o for o in origs if not o["censored"]]
+    hit_mature = [o for o in mature if o["key"] in hit]
+    no_files = sum(1 for o in origs if not o["files"])
+    if not origs:
+        status = "無法計算：窗口內沒有原 PR"
+    elif not any(p["has_body"] for p in prs.values()):
+        status = "無法計算：--prs 沒有 body 欄位，判不出後續 PR 有沒有引用原 PR"
+    elif not mature:
+        status = f"成熟比率無法計算：每個原 PR 都還沒滿 {days} 天"
+    else:
+        status = "ok"
+    tables = [table("summary", f"漏網：merge 後 {days} 天內被引用它的 fix／revert PR 改到同一批檔的原 PR",
+                    ["status", "original_prs", "with_fix", "with_fix_share", "mature_prs", "mature_with_fix", "mature_with_fix_share",
+                     "censored_prs", "no_file_list", "overlap_only_pairs", "unknown_nature_pairs"],
+                    [[status, len(origs), len(hit), ratio(len(hit), len(origs)), len(mature), len(hit_mature),
+                      ratio(len(hit_mature), len(mature)), len(origs) - len(mature), no_files, overlap_only, len(unknown_pairs)]],
+                    f"原 PR＝--prs 裡 merge 時間在窗口內的 PR（有 --author 時只算該作者）。後續修正＝同 repo、merge 在原 PR 之後 {days} 天內、"
+                    "與原 PR 至少共用一個檔、標題或描述引用原 PR（#N、owner/repo#N 或 PR 網址）、性質判為 fix 或 revert 的 PR（作者不限）。"
+                    f"mature＝merge 後已滿 {days} 天（以 --as-of {as_of} 為準）；censored 的原 PR 觀察期不滿，with_fix_share 會偏低，看比率以 mature 為準。"
+                    "overlap_only_pairs＝共用檔且是 fix／revert、但沒有引用原 PR 的配對數，不計入（只靠共用檔時多半是同一批檔被別的缺陷修到）。"
+                    "unknown_nature_pairs＝共用檔又引用原 PR、但性質判不出的配對數，不計入，列在最後一張表給人看。引用也可能只是順帶提到，命中要人工判。")]
+    cov_rows = []
+    for c in FRESH_COVERAGE:
+        os_ = [o for o in mature if cov_of[o["key"]] == c]
+        h = sum(1 for o in os_ if o["key"] in hit)
+        cov_rows.append([c, len(os_), h, ratio(h, len(os_))])
+    tables.append(table("by_coverage", "成熟原 PR 依 merge 前的 fresh 驗收涵蓋分組（沒被修的原 PR 就是對照組）",
+                        ["fresh_coverage", "mature_prs", "with_fix", "with_fix_share"], cov_rows,
+                        "涵蓋由 session 的 pr-link 與 merge 前的 Agent 呼叫推：只連這一個 PR 的 session 裡有 verifier／review 呼叫才算；"
+                        "只有連多個 PR 的 session 有呼叫時判不出是驗哪個 PR，寫 unknown；沒有 session 連到這個 PR 也是 unknown；"
+                        "所有連到它的 session 在 merge 前都沒有 verifier／review 呼叫才寫 none。review 的判定同 weekly（啟發式）。"))
+    rows = [[o["key"], ctx.day(o["merged"]), o["censored"], cov_of[o["key"]], o["title"][:60], f["key"], f["nature"][0],
+             f["nature"][1], f["title"][:60], len(shared), gap, ""] for o, f, shared, gap in pairs]
+    tables.append(table("escapes", "命中清單（一個原 PR 可能對到多個後續 PR）",
+                        ["original", "original_merged", "censored", "fresh_coverage", "original_title", "followup", "nature",
+                         "nature_basis", "followup_title", "shared_files", "gap_days", "should_catch"], rows,
+                        "should_catch 留給人填（verifier／code-review／測試／CI／無法事前抓），腳本不判。censored＝原 PR 還沒滿觀察期。"
+                        "nature_basis：title:github-revert／title:<type>／branch:<type>／branch:revert-N／title:word。"))
+    urows = [[o["key"], f["key"], f["title"][:60], f["branch"][:40], len(shared), gap] for o, f, shared, gap in unknown_pairs]
+    tables.append(table("unknown_nature", "判不出性質的候選（不計入比率）",
+                        ["original", "followup", "followup_title", "followup_branch", "shared_files", "gap_days"], urows,
+                        "標題沒有 conventional type、分支沒有類型前綴、標題也沒有修正／撤回類字眼。要算進來就人工改判。"))
+    return tables
+
+
 # ---------------------------------------------------------------- driver
 
 CMD_FUNCS = {
     "cost": cmd_cost, "cache": cmd_cache, "context": cmd_context, "reports": cmd_reports, "dispatch": cmd_dispatch,
     "controller": cmd_controller, "verifier": cmd_verifier, "agents": cmd_agents, "sessions": cmd_sessions,
-    "weekly": cmd_weekly,
+    "weekly": cmd_weekly, "escapes": cmd_escapes,
 }
 
 CMD_NOTES = {
@@ -894,17 +1092,23 @@ CMD_NOTES = {
     "verifier": ["verifier 判定由 final_head 的 regex 抓出，是啟發式，不等於 verifier 實際結論欄位。"],
     "dispatch": ["平行度由 Agent 呼叫到第一筆通知（或 tool_result）的區間推得；在途判定是近似值。"],
     "weekly": ["verifier 判定、首輪、機械結案後 delta、review 分類與 fork 歸屬都是啟發式；接手門檻模擬是粗估。"],
+    "escapes": ["fix／revert 判定、共用檔即相關、驗收涵蓋與 review 分類都是啟發式；命中要人工判是否真的在修原 PR 的缺陷。"],
 }
 
 
 def make_report(data, command, *, tz=None, windows=None, projects=(), exclude=(), corrected=False, top=10, data_path=None,
-                exclude_projects=(), prs=None, ctx_threshold=300_000, sim_thresholds=(200_000, 300_000, 400_000, 500_000)):
+                exclude_projects=(), prs=None, ctx_threshold=300_000, sim_thresholds=(200_000, 300_000, 400_000, 500_000),
+                fix_days=14, as_of=None, author=()):
     """Build the report dict for one sub-command (render_md / to_json turn it into text)."""
     if command not in CMD_FUNCS:
         raise ValueError(f"unknown command {command!r}")
     ctx = Ctx(data, tz=tz, projects=projects, exclude=exclude, corrected=corrected, exclude_projects=exclude_projects)
     wins = parse_windows(windows or [], ctx.tz)
-    ns = argparse.Namespace(top=top, prs=prs, ctx_threshold=ctx_threshold, sim_thresholds=list(sim_thresholds))
+    if command == "escapes" and prs is None:
+        raise ValueError("escapes needs --prs")
+    as_of_s = ul.fmt_ts(ul.parse_cli_time(as_of, ctx.tz) if as_of else dt.datetime.now(dt.timezone.utc))
+    ns = argparse.Namespace(top=top, prs=prs, ctx_threshold=ctx_threshold, sim_thresholds=list(sim_thresholds),
+                            fix_days=fix_days, as_of=as_of_s, author=list(author))
     header = {
         "資料檔": f"{data_path or '(in memory)'}（generated_at {data.get('generated_at')}，schema_version {data.get('schema_version')}）",
         "顯示時區": ul.fmt_offset(ctx.tz),
@@ -951,6 +1155,7 @@ def build_parser():
         "agents": "per subagent type: requests, tools, wall clock, cost",
         "sessions": "most expensive sessions",
         "weekly": "rules-effect review: $/PR, PR/h, main ctx vs threshold, verifier rounds, review cost per call, handoff simulation",
+        "escapes": "merged PRs later touched by a fix / revert PR on a shared file, with the fresh acceptance each one got",
     }
     subs = {name: sub.add_parser(name, parents=[common], help=helps[name], description=helps[name]) for name in COMMANDS}
     w = subs["weekly"]
@@ -958,6 +1163,12 @@ def build_parser():
     w.add_argument("--ctx-threshold", type=int, default=300_000, help="main ctx threshold for the crossed-session columns (default 300000)")
     w.add_argument("--sim-threshold", type=int, action="append", metavar="N",
                    help="handoff simulation threshold (repeatable; default 200000 300000 400000 500000)")
+    e = subs["escapes"]
+    e.add_argument("--prs", metavar="PATH", required=True,
+                   help="JSON list of merged PRs with url, title, body, mergedAt, headRefName, author, files (gh pr list --json ...)")
+    e.add_argument("--fix-days", type=int, default=14, help="follow-up window after the original merge, in days (default 14)")
+    e.add_argument("--as-of", metavar="ISO", help="when the PR list was fetched; originals younger than --fix-days are marked censored (default: now)")
+    e.add_argument("--author", action="append", default=[], metavar="LOGIN", help="only PRs by LOGIN count as originals (repeatable)")
     return p
 
 
@@ -970,7 +1181,7 @@ def main(argv=None) -> int:
         print(f"report.py: {exc}", file=sys.stderr)
         return 1
     extra = {}
-    if args.command == "weekly":
+    if args.command in ("weekly", "escapes"):
         if args.prs:
             try:
                 extra["prs"] = json.loads(Path(args.prs).read_text(encoding="utf-8"))
@@ -979,9 +1190,14 @@ def main(argv=None) -> int:
                 return 1
             if not isinstance(extra["prs"], list) or not all(isinstance(x, dict) for x in extra["prs"]):
                 parser.error("--prs must be a JSON list of objects")
+    if args.command == "weekly":
         extra["ctx_threshold"] = args.ctx_threshold
         if args.sim_threshold:
             extra["sim_thresholds"] = args.sim_threshold
+    if args.command == "escapes":
+        if args.fix_days < 1:
+            parser.error("--fix-days must be >= 1")
+        extra.update(fix_days=args.fix_days, as_of=args.as_of, author=args.author)
     try:
         rep = make_report(data, args.command, tz=args.tz, windows=args.window, projects=args.project,
                           exclude=args.exclude_session, corrected=args.corrected, top=args.top, data_path=args.data,

@@ -49,8 +49,9 @@ python3 <SK>/scripts/report.py dispatch --data "$TMPDIR/ur-data.json" \
 | `agents` | 每種 subagent 的 request 數、工具數、牆鐘、成本（中位／P90）、通知 token 中位 | |
 | `sessions` | 最貴前 N 個 session（含 subagent 成本）、ctx 中位、派工數、人類訊息數 | 人類訊息只算 `human`＋`ask_answer` |
 | `weekly` | 每週規則效果：$/PR、PR/h、$/h、token／request／Agent 呼叫每 PR、主對話與 subagent 每 PR；主對話 ctx 對門檻（跨過的 session、這些 session 裡 ctx ≥ 門檻的 request 數中位、≥門檻占主對話成本）；verifier 判定、首輪 OPEN、機械結案後又派 delta；verifier 與 fresh review 按 model 的每次成本與每 session 輪數；接手門檻模擬 | 專屬旗標 `--prs`、`--ctx-threshold`、`--sim-threshold`；判定、首輪、review 分類、fork 歸屬是啟發式，模擬是粗估 |
+| `escapes` | 漏網：窗口內 merge 的原 PR，有多少在 N 天內被引用它的 fix／revert PR 改到同一批檔；比率（全部與已滿 N 天的 mature 兩種）、依 merge 前 fresh 驗收涵蓋（verifier／code-review／none／unknown）分組、逐筆清單與留給人填的 `should_catch` 欄 | 專屬旗標 `--prs`（必填）、`--fix-days`、`--as-of`、`--author`；性質判定、引用、涵蓋都是啟發式，命中要人工判 |
 
-歸屬規則：request 級表格（cost、cache、context）用 request 時間；agent 級表格（reports、agents、verifier）用 subagent 的開始時間並計入它全部的 request，不會被窗口切成兩半；dispatch、controller 用 Agent 呼叫、改檔的時間。`weekly` 各表分別照這三種：成本與 context 用 request 時間，verifier 輪次用 subagent 開始時間，review 每次成本用 Agent 呼叫時間。
+歸屬規則：request 級表格（cost、cache、context）用 request 時間；agent 級表格（reports、agents、verifier）用 subagent 的開始時間並計入它全部的 request，不會被窗口切成兩半；dispatch、controller 用 Agent 呼叫、改檔的時間。`weekly` 各表分別照這三種：成本與 context 用 request 時間，verifier 輪次用 subagent 開始時間，review 每次成本用 Agent 呼叫時間。`escapes` 用原 PR 的 merge 時間。
 
 ## 每週規則效果（`weekly`）
 
@@ -64,6 +65,30 @@ python3 <SK>/scripts/report.py weekly --data "$TMPDIR/ur-data.json" --prs "$TMPD
 - 內建 `code-review` skill 通常會再 fork 沒有 Agent 呼叫的 general-purpose 子 agent（偶爾不只一個，description 是 `/code-review …` 或空白）；`weekly` 的 review 表把它併回 fork 當下還在跑的父呼叫（主對話直接打 `/code-review` 的 fork 沒有父呼叫，不併），`agents` 子命令仍算成獨立 agent（按 agent 數看 review 會變兩倍）。
 - 接手門檻模擬是粗估：每個 session 只換手一次、不算新 session 重讀檔案，方向相反，不是嚴格上界。要用接手規則上線前的窗口：規則生效後跨過較高門檻的 session 被截斷，模擬出來接近 0。
 - 300K 提醒的觸發、接手 session 的啟動、brief 前 600 字（`prompt_head`）之後的字串（例如宣稱對照）需要讀 raw jsonl，不在 extract 的輸出裡，`weekly` 不量。
+
+## 漏網（`escapes`）
+
+驗收與 review 放過了什麼：窗口內 merge 的原 PR，N 天內（`--fix-days`，預設 14）有沒有同 repo 的後續 PR 同時符合四件事：與原 PR 共用至少一個檔、標題或描述引用原 PR（`#N`、`owner/repo#N` 或 PR 網址）、性質判為 fix 或 revert、merge 在原 PR 之後。後續 PR 作者不限；原 PR 用 `--author` 限定成自己的。
+
+```bash
+# 1. extract 的起點要比窗口早（PR merge 前的驗收派工要在資料裡），窗口終點要早於現在 N 天
+python3 <SK>/scripts/extract.py --since 2026-10-24T00:00 --tz +08:00 --out "$TMPDIR/ur-data.json"
+# 2. 本機 session 連過的 repo，逐 repo 抓已 merge PR（從窗口起點的前一天抓到現在，免得時區差切掉窗口開頭）
+python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print("\n".join(sorted({"/".join(u.split("/")[3:5]) for s in d["sessions"].values() for u in s["prs"]})))' "$TMPDIR/ur-data.json" > "$TMPDIR/repos.txt"
+mkdir -p "$TMPDIR/esc-prs"
+while read -r r; do gh pr list -R "$r" --state merged --search "merged:>=2026-10-26" --limit 1000 \
+  --json number,title,body,mergedAt,url,headRefName,author,files > "$TMPDIR/esc-prs/${r//\//__}.json" || echo "FAIL $r"; done < "$TMPDIR/repos.txt"
+python3 -c 'import json,sys; print(json.dumps([p for f in sys.argv[1:] for p in json.load(open(f))]))' "$TMPDIR"/esc-prs/*.json > "$TMPDIR/esc-prs.json"
+# 3. 出表
+python3 <SK>/scripts/report.py escapes --data "$TMPDIR/ur-data.json" --prs "$TMPDIR/esc-prs.json" --tz +08:00 \
+  --author "$(gh api user -q .login)" --window w=2026-10-27T00:00..2026-11-07T00:00
+```
+
+- 用 `gh pr list -R`，不用 `gh search prs`：後者沒有 `files`、`headRefName`。不要加 `commits` 欄位，`--limit 1000` 時 GraphQL 會超過 500,000 節點上限被拒。某個 repo 回 `HTTP 502` 時，把 `merged:` 拆成幾段日期範圍（`merged:2026-10-27..2026-11-03`）分次抓再合併；重疊抓到的同一個 PR 只算一次。
+- `files` 看起來每個 PR 最多回 100 個檔（2026-11-21 抓的 1,123 個 PR 裡最大值是 100，有 9 個剛好 100），超過的 PR 共用檔會漏算；`files` 是 null 的 PR 算進 `no_file_list`，不參與配對。
+- `--as-of` 是 PR 清單的抓取時間（預設現在）；merge 後還沒滿 N 天的原 PR 標 `censored`，比率看 `mature_with_fix_share`。窗口內沒有原 PR、或清單沒有 `body` 欄位時，`status` 寫「無法計算」，比率是空的，不印 0%。
+- `by_coverage` 是對照組：沒被修的原 PR 也按驗收涵蓋分組，比較各組的 `with_fix_share`。涵蓋只從 session 的 `pr-link` 推，判法與限制見 `references/caveats.md`「E. 漏網指標」。
+- 命中清單的 `should_catch` 留空給人填（該由 verifier、code-review、測試、CI 抓到，或事前抓不到）。
 
 ## 窗口怎麼切
 
@@ -94,7 +119,7 @@ jsonl 是 Claude Code 的內部紀錄檔。官方 sessions 文件明寫：「The
 
 ## 未納入（需要時另做）
 
-- **lead time、單一 PR 的成本**：要用 `gh` 把 session 與 PR 配對，本 skill 只存 `sessions[].prs`（`pr-link` 記錄）；窗口層級的 $/PR 由 `weekly --prs` 提供。
+- **lead time、單一 PR 的成本**：要用 `gh` 把 session 與 PR 配對，本 skill 只存 `sessions[].prs`（`pr-link` 記錄）；窗口層級的 $/PR 由 `weekly --prs` 提供，merge 後被修的比率由 `escapes --prs` 提供。
 - **品質人工改判**：verifier 判定、finding 是否成立需要人看原文，工具只給 regex 分布。
 - **polling 浪費**（背景工作期間反覆輪詢）：判定規則與環境相關，未做成通用子命令。
 - **advisor 用量展開**：`usage.iterations[]` 的 `advisor_message` 不展開，見 caveats。
@@ -103,6 +128,6 @@ jsonl 是 Claude Code 的內部紀錄檔。官方 sessions 文件明寫：「The
 ## 檔案
 
 - `scripts/extract.py`、`scripts/usagelib.py`、`scripts/pricing.json`：正規化、共用函式、價格表。
-- `scripts/report.py`：十個子命令。
+- `scripts/report.py`：十一個子命令。
 - `references/schema.md`：extract 輸出的欄位定義（canonical）。
 - `references/caveats.md`：量 jsonl 的已知陷阱（現象 → 影響 → 處理）。

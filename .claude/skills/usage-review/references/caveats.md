@@ -112,3 +112,30 @@
     現象：verifier 判定 regex、`bash_writes_heuristic`、`out_est`、`humans[].kind` 都是依文字樣式猜的。
     影響：會有誤判與漏判；regex 誤判在舊分析中常需要人工改判。
     處理：這類欄位名帶 `_heuristic` 或在 `schema.md` 標明啟發式；回報時要註明，重要結論回頭抽樣核對原文。
+
+## E. 漏網指標（`escapes`）
+
+21. **共用檔不等於修同一個缺陷**
+    現象：後續 fix PR 改到原 PR 的檔，常常是在修同一批檔裡別的缺陷（較早的票、別的 PR 留下的問題）。一份本機樣本（2026-11-21，一個 11 天窗口、337 個原 PR）只用「14 天內、共用檔、fix／revert」三個條件時命中 193 個原 PR（57%）；抽 10 筆讀後續 PR 描述，0 筆在修原 PR 的缺陷，描述都寫著修的是別的來源。
+    影響：只靠共用檔量到的是那個 repo 的修改頻率，不是漏網率。
+    處理：計入比率的配對另外要求後續 PR 的標題或描述引用原 PR（`#N`、`owner/repo#N`、PR 網址）。只共用檔、沒引用的配對只報筆數（`overlap_only_pairs`）。引用也可能只是順帶提到（「與 #69～#71 相同」）；同一份樣本加上引用後命中 7 筆，人工判 4 筆是、3 筆不是（2 筆順帶提到、1 筆是原 PR 之前就有的缺陷）。命中清單一律人工判。
+
+22. **後續 PR 沒寫引用就漏算**
+    現象：引用原 PR 是 PR 作者的寫作習慣，不是 GitHub 的資料結構；GitHub 的 Revert 按鈕會在描述寫 `Reverts owner/repo#N`，手寫的修正不一定會寫。
+    影響：比率是下限；不寫引用的 repo 或作者看起來漏網少。
+    處理：人工；跨 repo 或跨作者比較前，先看 `overlap_only_pairs` 的量級。
+
+23. **右截斷：窗口尾端的原 PR 觀察期不滿**
+    現象：merge 後還沒滿 N 天的原 PR，後續修正可能還沒發生。
+    影響：把它們算進分母會讓比率偏低。
+    處理：依 `--as-of`（PR 清單的抓取時間）把這類原 PR 標 `censored`；`mature_*` 欄只算已滿 N 天的原 PR。比較時用 `mature_with_fix_share`，或把窗口終點設在抓取時間的 N 天前。
+
+24. **判不出性質的 PR**
+    現象：性質依序看 GitHub 的 `Revert "` 標題、標題的 conventional type（先去掉開頭的 `[票號]`）、分支名的類型前綴（`fix/`、`revert/`、`revert-N-`，前面可多一段使用者名）、標題的修正／撤回字眼（修正、修復、更正、撤回、退回、還原、fix、revert 等）；`Merge`、`Release` 開頭的標題判 other。都沒有的是 unknown，例如分支只有使用者名、標題沒有字眼的中文 PR。
+    影響：unknown 不算 fix，真正的修正會漏算；字眼也可能誤判（「修補 vite 安全漏洞」的依賴升級若分支沒有類型前綴會判成 fix）。
+    處理：共用檔又引用原 PR 的 unknown 配對另列 `unknown_nature` 表、筆數在 `unknown_nature_pairs`，不計入比率，要算進來就人工改判。字眼清單在 `report.py` 的 `FIX_WORD_RE`／`REVERT_WORD_RE`，加語言時改那裡。
+
+25. **驗收涵蓋只從 `pr-link` 推**
+    現象：`sessions[].prs` 記的是 session 裡出現過的 PR 連結；盤點 session 常一次連到多個 PR，驗收也可能派在沒有 `pr-link` 的 session。
+    影響：多 PR 的 session 裡的 verifier／review 呼叫分不出是驗哪一個 PR；沒連到的 session 的驗收看不到。
+    處理：只有「只連這一個 PR」的 session 在 merge 前的呼叫才算涵蓋；只有多 PR session 有呼叫時寫 `unknown`；沒有 session 連到也是 `unknown`；所有連到它的 session 在 merge 前都沒有 verifier／review 呼叫才寫 `none`（所以 `none` 仍可能漏看別的 session 派的驗收）。review 用 `weekly` 同一個 regex（啟發式），主對話直接打 `/code-review` 的 fork 也算 code-review。extract 的 `--since` 晚於 PR 開工時，merge 前的派工不在資料裡，會被看成 `none`，所以 extract 的起點要比窗口早。
