@@ -143,7 +143,7 @@ Summary 幾句話讓 reviewer 知道做了什麼、為什麼；Title 照 2.2。
   - 一筆＝一次派出的 fresh-context 驗收（verifier、執行 code-review 的 fresh subagent、Codex 的 reviewer／sol_verifier），依派出順序列，delta 輪另記一筆；主對話自己跑的檢查不算，寫在上面的指令列。
   - `<判定>`：verifier 類寫判定卡第一行的狀態；code-review 類寫 `findings=<件數>`。
   - `<受驗 SHA>`：verifier 類照抄判定卡的「受驗狀態」（帶 `+指紋` 時保留）；code-review 類寫派出當下的 `git rev-parse HEAD`。SHA 可縮成前 12 碼。
-  - `+<n>`：`git rev-list --count <受驗 SHA>..HEAD`（帶指紋時只取 `+` 前的 SHA，把受驗改動 commit 進去的那個也算在內）。
+  - `+<n>`：`git rev-list --count <起點>..HEAD`。起點通常是受驗 SHA；受驗狀態帶 `+指紋` 時，起點是把受驗改動原樣 commit 進去的那個 commit——沿 `git rev-list --reverse <+ 前的 SHA>..HEAD` 找第一個讓 `git diff <+ 前的 SHA> <commit> --binary --no-ext-diff --no-textconv | git hash-object --stdin | cut -c1-12` 等於指紋的 commit，它算已受驗、不計入 n；找不到就以 `+` 前的 SHA 為起點，多出的 commit 照下一條分類。
   - `<結案方式>`：`+0` 寫 `無後續`；其後的 commit 是照判定卡分流由 controller 修正並以確定性檢查結案的寫 `機械結案`；其後又派了 delta 驗收的寫 `delta`（delta 那次另記一筆）；其餘 commit 沒經過上述任一種的寫 `未驗收`。
   - 整行自成一行、以 `Fresh-verification: ` 開頭，不加反引號、粗體或清單符號，下面的查詢才對得到行首。
   - 查詢：`gh pr list -R <owner/repo> --state all -L 200 --search '"Fresh-verification" in:body' --json number,body --jq '.[] | .number as $n | .body | split("\n")[] | "#\($n) \(.)"' | rg '^#\d+ Fresh-verification: '`；單一 PR 用 `gh pr view <n> -R <owner/repo> --json body -q .body | rg '^Fresh-verification: '`；只看沒驗或驗後有改動的，再接 `| rg '無 fresh 驗收|未驗收'`。
