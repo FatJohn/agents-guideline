@@ -478,7 +478,7 @@ class ReportTests(unittest.TestCase):
             data = helpers.run_extract(helpers.build_root(tmp))
         self.assertGreater(len(data["reqs"]), 0)
         for command in report.COMMANDS:
-            rep = report.make_report(data, command, tz="UTC")
+            rep = report.make_report(data, command, tz="UTC", **({"prs": []} if command == "escapes" else {}))
             json.loads(report.to_json(rep))
             self.assertIn("usage-review", report.render_md(rep))
         total = rows(report.make_report(data, "cost", tz="UTC"), "summary")[0]["cost_usd"]
@@ -608,6 +608,148 @@ class WeeklyTests(unittest.TestCase):
                 with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                     report.main(["weekly", "--data", str(path), "--prs", str(prs)])
         self.assertEqual(report.fmt_cell("reqs_per_pr", 1.984), "1.98")
+
+
+# -- escapes ------------------------------------------------------------------------------------------------------
+
+REPO = "acme/widgets"
+
+
+def pr(n, merged, files, title, author="dev", body="", branch="dev/x"):
+    return {"url": f"https://github.com/{REPO}/pull/{n}", "number": n, "title": title, "body": body,
+            "mergedAt": merged, "headRefName": branch, "author": {"login": author}, "files": [{"path": f} for f in files]}
+
+
+# Originals are by "dev"; follow-ups by "other" (so --author keeps them out of the originals).
+ESC_PRS = [
+    pr(1, "2031-01-02T01:00:00Z", ["src/a.py", "src/b.py"], "feat(core): parse input"),
+    pr(2, "2031-01-05T01:00:00Z", ["src/a.py"], "fix(core): empty input crashes the parser", "other", "Fixes the parser from #1."),
+    pr(3, "2031-01-02T02:00:00Z", ["src/c.py"], "feat: c"),
+    pr(4, "2031-01-03T02:00:00Z", ["src/d.py"], "fix: d (#3)", "other"),                       # no shared file
+    pr(5, "2031-01-02T03:00:00Z", ["src/e.py"], "feat: e"),
+    pr(6, "2031-01-20T03:00:00Z", ["src/e.py"], "修正 #5 的邊界", "other"),                        # 18 days later
+    pr(7, "2031-01-02T04:00:00Z", ["src/g.py"], "feat: g"),
+    pr(8, "2031-01-03T04:00:00Z", ["src/g.py"], 'Revert "feat: g"', "other", f"Reverts {REPO}#7", "revert-7-dev/g"),
+    pr(9, "2031-01-20T05:00:00Z", ["src/h.py"], "feat: h"),                                    # too young at --as-of
+    pr(10, "2031-01-04T00:00:00Z", ["src/a.py"], "fix: unrelated a", "other", "See #10 and #11."),  # shared file, no citation
+    pr(11, "2031-01-03T00:00:00Z", ["src/b.py"], "調整 #1 的文字", "other"),                       # nature unknown
+    pr(12, "2031-01-22T05:00:00Z", ["src/h.py"], "fix: h edge case", "other", "follow-up of #9"),
+]
+ESC_WIN = ["w=2031-01-01T00:00:00Z..2031-02-01T00:00:00Z"]
+
+
+def esc_rep(data, prs=ESC_PRS, windows=ESC_WIN, **kw):
+    kw.setdefault("as_of", "2031-01-25T00:00:00Z")
+    return report.make_report(copy.deepcopy(data), "escapes", tz="UTC", windows=windows, prs=copy.deepcopy(prs),
+                              author=["dev"], **kw)
+
+
+class EscapesTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        data = make_data()
+        data["sessions"][SID_A]["prs"] = [f"https://github.com/{REPO}/pull/1"]   # verifier ag2 ran at 00:12, PR merged 01:00
+        data["sessions"][SID_B]["prs"] = [f"https://github.com/{REPO}/pull/3"]   # beta has no Agent calls
+        cls.data = data
+
+    def test_counted_pairs_need_window_shared_file_citation_and_fix_or_revert(self):
+        pairs = {(r["original"], r["followup"]): r for r in rows(esc_rep(self.data), "escapes")}
+        key = lambda n: f"{REPO}#{n}"
+        self.assertIn((key(1), key(2)), pairs)            # (a) within 14 days, shared file, fix
+        self.assertNotIn((key(3), key(4)), pairs)         # (b) no shared file
+        self.assertNotIn((key(5), key(6)), pairs)         # (c) beyond 14 days
+        self.assertIn((key(7), key(8)), pairs)            # (d) GitHub revert
+        self.assertNotIn((key(1), key(10)), pairs)        # shared file and fix, but #1 is not cited
+        self.assertEqual(sorted(pairs), [(key(1), key(2)), (key(7), key(8)), (key(9), key(12))])
+        a, d = pairs[(key(1), key(2))], pairs[(key(7), key(8))]
+        self.assertEqual((a["nature"], a["nature_basis"], a["shared_files"], a["gap_days"]), ("fix", "title:fix", 1, 3.0))
+        self.assertEqual((d["nature"], d["nature_basis"]), ("revert", "title:github-revert"))
+        self.assertEqual(a["should_catch"], "")
+
+    def test_fix_days_flag_moves_the_cutoff(self):
+        pairs = {(r["original"], r["followup"]) for r in rows(esc_rep(self.data, fix_days=20), "escapes")}
+        self.assertIn((f"{REPO}#5", f"{REPO}#6"), pairs)
+
+    def test_summary_counts_and_censored_originals(self):
+        s = rows(esc_rep(self.data), "summary")[0]
+        self.assertEqual((s["status"], s["original_prs"], s["with_fix"], s["mature_prs"], s["mature_with_fix"], s["censored_prs"]),
+                         ("ok", 5, 3, 4, 2, 1))
+        self.assertAlmostEqual(s["mature_with_fix_share"], 0.5)
+        self.assertEqual((s["overlap_only_pairs"], s["unknown_nature_pairs"]), (1, 1))
+        flagged = {r["original"]: r["censored"] for r in rows(esc_rep(self.data), "escapes")}
+        self.assertEqual(flagged, {f"{REPO}#1": False, f"{REPO}#7": False, f"{REPO}#9": True})   # (f)
+        self.assertEqual([(r["original"], r["followup"]) for r in rows(esc_rep(self.data), "unknown_nature")],
+                         [(f"{REPO}#1", f"{REPO}#11")])
+
+    def test_empty_window_says_it_cannot_compute_instead_of_zero_percent(self):
+        rep = esc_rep(self.data, windows=["w=2032-01-01T00:00:00Z.."])
+        s = rows(rep, "summary")[0]
+        self.assertTrue(s["status"].startswith("無法計算"))                    # (e)
+        self.assertEqual(s["original_prs"], 0)
+        self.assertIsNone(s["with_fix_share"])
+        self.assertIsNone(s["mature_with_fix_share"])
+        self.assertNotIn("0.0%", report.render_md(rep).split("### 成熟")[0])
+
+    def test_without_bodies_the_rate_is_not_computed(self):
+        prs = [{k: v for k, v in p.items() if k != "body"} for p in ESC_PRS]
+        self.assertTrue(rows(esc_rep(self.data, prs=prs), "summary")[0]["status"].startswith("無法計算"))
+
+    def test_fresh_coverage_from_sessions_linking_the_pr(self):
+        cov = {r["fresh_coverage"]: r for r in rows(esc_rep(self.data), "by_coverage")}
+        self.assertEqual((cov["verifier"]["mature_prs"], cov["verifier"]["with_fix"]), (1, 1))    # #1, only SID_A links it
+        self.assertEqual((cov["none"]["mature_prs"], cov["none"]["with_fix"]), (1, 0))            # #3, beta made no calls
+        self.assertEqual((cov["unknown"]["mature_prs"], cov["unknown"]["with_fix"]), (2, 1))      # #5, #7: no session
+        hits = {r["original"]: r["fresh_coverage"] for r in rows(esc_rep(self.data), "escapes")}
+        self.assertEqual(hits[f"{REPO}#1"], "verifier")
+
+    def test_coverage_is_unknown_when_only_a_multi_pr_session_made_calls(self):
+        data = copy.deepcopy(self.data)
+        data["sessions"][SID_A]["prs"] = [f"https://github.com/{REPO}/pull/1", f"https://github.com/{REPO}/pull/7"]
+        hits = {r["original"]: r["fresh_coverage"] for r in rows(esc_rep(data), "escapes")}
+        self.assertEqual(hits[f"{REPO}#1"], "unknown")
+
+    def test_calls_after_the_merge_do_not_count(self):
+        data = copy.deepcopy(self.data)
+        prs = copy.deepcopy(ESC_PRS)
+        prs[0]["mergedAt"] = "2031-01-02T00:05:00Z"   # before the verifier call at 00:10
+        hits = {r["original"]: r["fresh_coverage"] for r in rows(esc_rep(data, prs=prs), "escapes")}
+        self.assertEqual(hits[f"{REPO}#1"], "none")
+
+    def test_pr_nature(self):
+        n = report.pr_nature
+        self.assertEqual(n("[ABC-1] fix(ui): x", ""), ("fix", "title:fix"))
+        self.assertEqual(n("feat: x", "fix/y"), ("other", "title:feat"))
+        self.assertEqual(n("修正換題時的錯誤", "JohnDoe/x"), ("fix", "title:word"))
+        self.assertEqual(n("撤回滾輪接手", "JohnDoe/x"), ("revert", "title:word"))
+        self.assertEqual(n("新功能", "revert-12-dev/x"), ("revert", "branch:revert-N"))
+        self.assertEqual(n("新功能", "dev/hotfix/x"), ("fix", "branch:hotfix"))   # one user/ segment allowed
+        self.assertEqual(n("新功能", "hotfix/x"), ("fix", "branch:hotfix"))
+        self.assertEqual(n("Release 1.2.0", "staging"), ("other", "title:merge-or-release"))
+        self.assertEqual(n("新增頁面", "dev/x"), ("unknown", "-"))
+
+    def test_cites(self):
+        key = f"{REPO}#1"
+        self.assertTrue(report.cites("follow-up of #1.", key))
+        self.assertTrue(report.cites(f"Reverts {REPO}#1", key))
+        self.assertTrue(report.cites(f"https://github.com/{REPO}/pull/1", key))
+        self.assertFalse(report.cites("see #10 and #21", key))
+        self.assertFalse(report.cites("other/repo#1", key))
+
+    def test_cli_escapes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path, prs = Path(tmp) / "data.json", Path(tmp) / "prs.json"
+            path.write_text(json.dumps(self.data), encoding="utf-8")
+            prs.write_text(json.dumps(ESC_PRS), encoding="utf-8")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = report.main(["escapes", "--data", str(path), "--prs", str(prs), "--tz", "UTC", "--format", "json",
+                                    "--window", ESC_WIN[0], "--author", "dev", "--as-of", "2031-01-25T00:00:00Z", "--fix-days", "14"])
+            self.assertEqual(code, 0)
+            tabs = {t["id"]: t for t in json.loads(out.getvalue())["windows"][0]["tables"]}
+            self.assertEqual(tabs["summary"]["rows"][0]["with_fix"], 3)
+            for argv in (["escapes", "--data", str(path)], ["escapes", "--data", str(path), "--prs", str(prs), "--fix-days", "0"]):
+                with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    report.main(argv)
 
 
 if __name__ == "__main__":
