@@ -21,8 +21,8 @@
 - **處理優先序**：正確性 → 安全 → repo 自己的編號規則 → 效能 → 其他。
 - **repo 有自己的 review 判準時先讀**（`docs/code-review.md`、styleguide、`AGENTS.md` 的 review 小節等）；引用其規則 ID 前確認那條真的存在，沒有規則涵蓋的缺陷說明為什麼它是缺陷，不引用不存在的規則。
   - **受審 diff 改到判準時用 base 版判**：改動若能改到判它的檢查，那個檢查就失效。受審 diff 新增、修改或刪除了 repo 的 review 判準檔，或判準檔以路徑引用的規則文件時，整個 diff 照該檔的 base 版判；判準的修改本身也是受審內容，被刪掉或放寬的規則照 base 版檢查本 diff 的程式碼，違反就照常列 finding。
-  - **base 怎麼定**：用 brief 給的 base ref；沒給時取 `git merge-base HEAD origin/<預設分支>`，預設分支看 `git symbolic-ref refs/remotes/origin/HEAD`。base 版用 `git show <base>:<路徑>` 讀。
-  - **怎麼判斷改到判準**：`git diff --no-renames --name-only <base>...HEAD` 列出的路徑，與上面讀到的判準檔及其引用的規則文件取交集，有交集就是改到。
+  - **base 怎麼定**：用 brief 給的 base ref；沒給時取 `git merge-base HEAD origin/<預設分支>`，預設分支看 `git symbolic-ref refs/remotes/origin/HEAD`，失敗時看 `git remote show origin` 的 `HEAD branch`。base 版用 `git show <base>:<路徑>` 讀。
+  - **怎麼判斷改到判準**：判準檔清單是 HEAD 與 base 兩邊的聯集：上面在 HEAD 讀到的判準檔及其引用的規則文件，加上 base 版有的判準檔（同樣的候選位置用 `git show <base>:<路徑>` 查）及其引用的規則文件。`git diff --no-renames --name-only <base>...HEAD` 列出的路徑與這份清單有交集就是改到；判準檔在分支被刪或改名時，舊路徑仍會出現在 diff 列出的路徑裡（狀態是刪除）。
   - **base 沒有該檔**（`git show` 失敗，判準是這次新增的）：新判準只當受審內容，不據它放行，也不引用它的規則 ID 列 finding；其餘部分照 base 既有的判準與本檔判，沒有既有判準涵蓋的缺陷照上一條說明為什麼是缺陷。
 
 ## 2. 斷言前先查證
