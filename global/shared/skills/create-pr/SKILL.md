@@ -116,7 +116,8 @@ Summary 幾句話讓 reviewer 知道做了什麼、為什麼；Title 照 2.2。
   ## Verification
   （只列「實際執行過」的指令與關鍵輸出，例如「flutter test: 21/21 passed」
    「tsc --noEmit: clean」。沒跑過任何驗證就誠實寫「未執行自動驗證」，
-   不得寫「測試通過」之類無憑據的空話。）
+   不得寫「測試通過」之類無憑據的空話。
+   最後一行固定是驗收戳記，見下方「驗收戳記」。）
   ```
 
   其餘段落**符合觸發條件才加**：
@@ -132,6 +133,20 @@ Summary 幾句話讓 reviewer 知道做了什麼、為什麼；Title 照 2.2。
 
   沒觸發的選配段整段不出現，不留空標題或「N/A」。觸發很多時只保留 reviewer 必須單獨看到的段落（`## 注意事項` 一律保留），其餘併進 `## 主要變更`。
 
+- **驗收戳記**：每個 PR 都寫一行，不因沒做 fresh 驗收而省略。無 template 時放 `## Verification` 最後一行；有 template 時放 template 的驗證／測試段最後一行，沒有這類段就放 body 最後一行（repo 文件另有規定照 2.2 第 1 點）。格式固定，二選一：
+
+  ```text
+  Fresh-verification: <角色> <判定> @<受驗 SHA> +<n> <結案方式>; <下一筆>…
+  Fresh-verification: 無 fresh 驗收 — <原因>
+  ```
+
+  - 一筆＝一次派出的 fresh-context 驗收（verifier、執行 code-review 的 fresh subagent、Codex 的 reviewer／sol_verifier），依派出順序列，delta 輪另記一筆；主對話自己跑的檢查不算，寫在上面的指令列。
+  - `<判定>`：verifier 類寫判定卡第一行的狀態；code-review 類寫 `findings=<件數>`。
+  - `<受驗 SHA>`：verifier 類照抄判定卡的「受驗狀態」（帶 `+指紋` 時保留）；code-review 類寫派出當下的 `git rev-parse HEAD`。SHA 可縮成前 12 碼。
+  - `+<n>`：`git rev-list --count <受驗 SHA>..HEAD`（帶指紋時只取 `+` 前的 SHA，把受驗改動 commit 進去的那個也算在內）。
+  - `<結案方式>`：`+0` 寫 `無後續`；其後的 commit 是照判定卡分流由 controller 修正並以確定性檢查結案的寫 `機械結案`；其後又派了 delta 驗收的寫 `delta`（delta 那次另記一筆）；其餘 commit 沒經過上述任一種的寫 `未驗收`。
+  - 整行自成一行、以 `Fresh-verification: ` 開頭，不加反引號、粗體或清單符號，下面的查詢才對得到行首。
+  - 查詢：`gh pr list -R <owner/repo> --state all -L 200 --search '"Fresh-verification" in:body' --json number,body --jq '.[] | .number as $n | .body | split("\n")[] | "#\($n) \(.)"' | rg '^#\d+ Fresh-verification: '`；單一 PR 用 `gh pr view <n> -R <owner/repo> --json body -q .body | rg '^Fresh-verification: '`；只看沒驗或驗後有改動的，再接 `| rg '無 fresh 驗收|未驗收'`。
 - alert 語法只用在 reviewer 絕不能錯過的事。
 - 長輸出（完整 test log、大量檔案清單）用 `<details><summary>完整測試輸出</summary>` 摺疊：證據留著，但不佔版面。
 - **不要自己加 checklist**（`- [ ] 已加測試`）：會被無腦全勾。repo template 自帶的 checklist 照填。
@@ -198,6 +213,8 @@ merge 時不等 CI：branch protection 擋下就回報 `gh` 錯誤原文，不�
 
 **Verification**: `flutter test`: 34/34 passed；`flutter analyze`: no issues。上述兩條路徑已在 iOS simulator 實際點過。
 
+Fresh-verification: verifier OPEN @3f9c2a7b1d04 +1 delta; verifier CONVERGED @8e41d0c95a12 +0 無後續
+
 ### 範例 B：多項並列（分類區段）
 
 **Title**: `修正 email 驗證與補上 API 逾時重試`
@@ -216,5 +233,7 @@ merge 時不等 CI：branch protection 擋下就回報 `gh` 錯誤原文，不�
 - 三個模組各自實作的日期格式化收斂成單一 `formatDate` util，行為不變
 
 **Verification**: `npm test`: 88/88 passed；`tsc --noEmit`: clean。
+
+Fresh-verification: 無 fresh 驗收 — 三項都是一般程式修改，repo 不要求 fresh review，作者未派
 
 （本例逐條比對 2.6 的觸發條件後**一段選配段都沒觸發**：純後端邏輯、無 UI 可見變更；diff 5 個檔未達 10；三項都有單元測試覆蓋，reviewer 不需手動重現；沒有 migration、feature flag 或新環境變數；也沒有關聯 issue。所以就只有固定三段。選配段不是「有主軸的 PR 才用」，而是每次都照表逐條比對——範例 A 那種 UI 功能就會觸發到兩段。）

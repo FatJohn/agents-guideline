@@ -55,7 +55,7 @@
 | `global/claude/route-card.md`「subagent 只有三類」：使用者說開新 session 段 | 注入文字 | — | 開出來的 issue session 帶不帶 model／effort 由 `require-issue-session-model.sh` 擋；開不開、開成什麼形狀不擋 |
 | `global/claude/route-card.md`「subagent 只有三類」：≥2 個獨立 issue 一 issue 一 session 段 | 注入文字 | — | |
 | `global/claude/route-card.md`「Brief」 | 注入文字 | — | |
-| `global/claude/route-card.md`「寫入」 | 注入文字 | — | |
+| `global/claude/route-card.md`「寫入」 | verifier 合約 | `global/claude/agents/verifier.md` 的 `受驗狀態` `工作區在驗收期間被改動` | verifier 規則 8 開始與判定前各取一次 HEAD＋tracked 改動指紋，不同就判 `INCONCLUSIVE`：只事後發現、不阻止寫入；未追蹤檔不在指紋內，驗收期間新增的未追蹤檔抓不到；不派 verifier 沒有東西會失敗 |
 | `global/claude/route-card.md`「揭露與授權」：派工揭露與授權段 | 注入文字 | — | |
 | `global/claude/route-card.md`「揭露與授權」：驗收後修正分流段 | 注入文字 | — | verifier 合約只管第一行寫出分流；controller 拿到後照不照做（機械結案後不重派、不自行降級、第三輪停下）沒有東西會失敗 |
 
@@ -164,5 +164,5 @@ TOML 的 `sandbox_mode` 不當成機器擋：選中 named `explorer` 時 model�
 | `global/codex/agents/scanner.toml`：唯讀掃描、不寫 repo | 注入文字 | — | 派出的 scanner 讀到自己的合約；「不寫 repo」「超界交回」都沒有東西擋 |
 | `global/codex/agents/explorer.toml`：唯讀探索、不寫 repo | 注入文字 | — | 同 scanner |
 | `global/codex/agents/reviewer.toml`：唯讀 fresh review | 注入文字 | — | finding 自查照 `review-findings.md` 也是合約文字。Claude 端的 fresh review 是 `general-purpose` 跑內建 `code-review`，不寫 repo 同樣只靠 brief |
-| `global/codex/agents/verifier.toml`：一般驗收逐條判定、只寫 repo 外探針目錄 | verifier 合約 | `global/codex/agents/verifier.toml` 的 `verifier 角色使用錯誤` `INCONCLUSIVE` | repo 內不寫只靠合約與 controller 事後 read-back，合約規則 1 自述 sandbox 不擋 repo 內。Claude 端 `verifier.md` 的 `tools` 不含 Edit／Write |
-| `global/codex/agents/sol_verifier.toml`：高風險驗收 | verifier 合約 | `global/codex/agents/sol_verifier.toml` 的 `verifier 角色使用錯誤` `INCONCLUSIVE` | 寫入限制同 `verifier.toml`。Claude 端沒有獨立高風險角色，同一個 verifier 處理 |
+| `global/codex/agents/verifier.toml`：一般驗收逐條判定、只寫 repo 外探針目錄 | verifier 合約 | `global/codex/agents/verifier.toml` 的 `verifier 角色使用錯誤` `INCONCLUSIVE` `受驗狀態` | repo 內不寫只靠合約與 controller 事後 read-back，合約規則 1 自述 sandbox 不擋 repo 內。Claude 端 `verifier.md` 的 `tools` 不含 Edit／Write。規則 13 兩次取受驗狀態，驗收期間工作區被改動判 `INCONCLUSIVE`，同 Claude 端「寫入」列 |
+| `global/codex/agents/sol_verifier.toml`：高風險驗收 | verifier 合約 | `global/codex/agents/sol_verifier.toml` 的 `verifier 角色使用錯誤` `INCONCLUSIVE` `受驗狀態` | 寫入限制同 `verifier.toml`；受驗狀態比對在規則 10。Claude 端沒有獨立高風險角色，同一個 verifier 處理 |
