@@ -891,6 +891,8 @@ GH_REVERT_BRANCH_RE = re.compile(r"^revert-\d+-")                       # branch
 REVERT_WORD_RE = re.compile(r"撤回|退回|還原|回退|撤銷|復原|\brevert(s|ed)?\b|\broll\s*back\b|\brollback\b", re.I)
 FIX_WORD_RE = re.compile(r"修正|修復|修掉|修補|修好|更正|\bhot\s*fix\b|\bbug\s*fix\b|\bfix(es|ed)?\b", re.I)
 FIX_TYPES, REVERT_TYPES = {"fix", "hotfix", "bugfix"}, {"revert"}
+CC_TYPES = FIX_TYPES | REVERT_TYPES | {"feat", "feature", "chore", "docs", "ci", "build", "test", "tests", "refactor", "perf", "style",
+                                      "release", "deps"}  # 'iOS: fix crash' is an area prefix, not a type
 FRESH_COVERAGE = ("verifier+code-review", "verifier", "code-review", "none", "unknown")
 
 
@@ -915,7 +917,7 @@ def pr_nature(title, branch):
     if GH_REVERT_RE.match(title):
         return "revert", "title:github-revert"
     m = CC_TYPE_RE.match(TICKET_TAG_RE.sub("", title))
-    if m:
+    if m and m.group(1).lower() in CC_TYPES:
         t = m.group(1).lower()
         return ("revert" if t in REVERT_TYPES else "fix" if t in FIX_TYPES else "other"), f"title:{t}"
     if GH_REVERT_BRANCH_RE.match(branch):
@@ -937,8 +939,8 @@ def cites(text, key):
     """True when text names the PR `key` ('owner/repo#N'): a bare '#N' (not part of '#N0' or 'other/repo#N'),
     'owner/repo#N' (GitHub's 'Reverts owner/repo#N' body) or its pull URL."""
     repo, n = key.split("#")
-    return bool(re.search(rf"(?<![\w/])#{n}(?!\d)", text)
-                or re.search(rf"{re.escape(repo)}(?:#|/pull/){n}(?!\d)", text, re.I))
+    return bool(re.search(rf"(?<![A-Za-z0-9_/])#{n}(?!\d)", text)   # '修正#5' cites #5 (Python's \w includes Han)
+                or re.search(rf"(?<![\w.-]){re.escape(repo)}(?:#|/pull/){n}(?!\d)", text, re.I))
 
 
 def norm_prs(raw):
@@ -961,7 +963,7 @@ def norm_prs(raw):
     return out
 
 
-def fresh_coverage(ctx, key, merged, links, forks):
+def fresh_coverage(ctx, key, merged, links):
     """Fresh acceptance a PR got before its merge, from the sessions whose pr-link points at it. Only sessions that
     link this PR alone can attribute a call to it; a verifier / review call in a session that links several PRs might
     be for any of them, so that case is 'unknown'. 'none' means no verifier or review call at all before the merge in
@@ -982,8 +984,8 @@ def fresh_coverage(ctx, key, merged, links, forks):
             elif stype == "general-purpose" and REVIEW_RE.search((c.get("description") or "") + " " + (c.get("prompt_head") or "")):
                 kinds.add("code-review")
         for a in ctx.agents.values():
-            if a["sid"] == sid and a["first"] <= merged and is_fork(ctx, a) and a["id"] not in forks:
-                kinds.add("code-review")  # /code-review typed in the main thread: a review, though not a fresh one
+            if a["sid"] == sid and a["first"] <= merged and is_fork(ctx, a):
+                kinds.add("code-review")  # a code-review fork, folded into any in-flight call or typed in the main thread
         kinds_by_sid[sid] = kinds
     dedicated = [sid for sid in sids if len(ctx.sessions[sid].get("prs") or []) == 1]
     found = set().union(*(kinds_by_sid[s] for s in dedicated)) if dedicated else set()
@@ -1010,16 +1012,19 @@ def cmd_escapes(ctx, win, args):
     by_repo = collections.defaultdict(list)
     for p in prs.values():
         by_repo[p["repo"]].append(p)
-    forks = fork_parents(ctx)
     pairs, unknown_pairs, overlap_only, cov_of = [], [], 0, {}
+    followups_no_files = set()
     for o in origs:
         end = ul.fmt_ts(ul.parse_ts(o["merged"]) + span)
         o["censored"] = end > as_of
-        cov_of[o["key"]] = fresh_coverage(ctx, o["key"], o["merged"], links, forks)
+        cov_of[o["key"]] = fresh_coverage(ctx, o["key"], o["merged"], links)
         if not o["files"]:
             continue
         for f in by_repo[o["repo"]]:
-            if f["key"] == o["key"] or not f["files"] or not (o["merged"] < f["merged"] <= end):
+            if f["key"] == o["key"] or not (o["merged"] < f["merged"] <= end):
+                continue
+            if not f["files"]:
+                followups_no_files.add(f["key"])
                 continue
             shared = sorted(o["files"] & f["files"])
             if not shared:
@@ -1040,19 +1045,24 @@ def cmd_escapes(ctx, win, args):
         status = "無法計算：窗口內沒有原 PR"
     elif not any(p["has_body"] for p in prs.values()):
         status = "無法計算：--prs 沒有 body 欄位，判不出後續 PR 有沒有引用原 PR"
+    elif not any(p["files"] for p in prs.values()):
+        status = "無法計算：--prs 沒有 files，判不出共用檔"
     elif not mature:
         status = f"成熟比率無法計算：每個原 PR 都還沒滿 {days} 天"
     else:
         status = "ok"
+    share = ratio(len(hit), len(origs)) if status == "ok" or status.startswith("成熟") else None
+    mature_share = ratio(len(hit_mature), len(mature)) if status == "ok" else None
     tables = [table("summary", f"漏網：merge 後 {days} 天內被引用它的 fix／revert PR 改到同一批檔的原 PR",
                     ["status", "original_prs", "with_fix", "with_fix_share", "mature_prs", "mature_with_fix", "mature_with_fix_share",
-                     "censored_prs", "no_file_list", "overlap_only_pairs", "unknown_nature_pairs"],
-                    [[status, len(origs), len(hit), ratio(len(hit), len(origs)), len(mature), len(hit_mature),
-                      ratio(len(hit_mature), len(mature)), len(origs) - len(mature), no_files, overlap_only, len(unknown_pairs)]],
+                     "censored_prs", "no_file_list", "followups_no_file_list", "overlap_only_pairs", "unknown_nature_pairs"],
+                    [[status, len(origs), len(hit), share, len(mature), len(hit_mature), mature_share,
+                      len(origs) - len(mature), no_files, len(followups_no_files), overlap_only, len(unknown_pairs)]],
                     f"原 PR＝--prs 裡 merge 時間在窗口內的 PR（有 --author 時只算該作者）。後續修正＝同 repo、merge 在原 PR 之後 {days} 天內、"
                     "與原 PR 至少共用一個檔、標題或描述引用原 PR（#N、owner/repo#N 或 PR 網址）、性質判為 fix 或 revert 的 PR（作者不限）。"
                     f"mature＝merge 後已滿 {days} 天（以 --as-of {as_of} 為準）；censored 的原 PR 觀察期不滿，with_fix_share 會偏低，看比率以 mature 為準。"
-                    "overlap_only_pairs＝共用檔且是 fix／revert、但沒有引用原 PR 的配對數，不計入（只靠共用檔時多半是同一批檔被別的缺陷修到）。"
+                    "no_file_list＝沒有檔案清單的原 PR（仍在分母、配不到後續 PR）；followups_no_file_list＝落在某個原 PR 期限內、"
+                    "但沒有檔案清單而無法配對的後續候選 PR。overlap_only_pairs＝共用檔且是 fix／revert、但沒有引用原 PR 的配對數，不計入（只靠共用檔時多半是同一批檔被別的缺陷修到）。"
                     "unknown_nature_pairs＝共用檔又引用原 PR、但性質判不出的配對數，不計入，列在最後一張表給人看。引用也可能只是順帶提到，命中要人工判。")]
     cov_rows = []
     for c in FRESH_COVERAGE:
