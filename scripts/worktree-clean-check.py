@@ -433,7 +433,9 @@ def check_tree(wt, fields, authorized=False):
     if fields is None or authorized:  # --user-authorized 不看 Keep 宣告；憑證形狀與巢狀 repo 照下面擋
         fields = fields or {}
     elif fields.get("Keep ignored") != "無":  # 不給預設值：寫法變形時 fields 沒有這欄，也要擋
-        problems.append(f"result.md 的 Keep ignored 不是「無」（{fields.get('Keep ignored')!r}），有 issue session 要保留的 ignored 檔")
+        doomed = sorted(r for r in ignored if r.split("/")[0] != ".worktrees")
+        problems.append(f"result.md 的 Keep ignored 不是「無」（{fields.get('Keep ignored')!r}），有 issue session 要保留的 ignored 檔；"
+                        f"清掉會一起刪的 ignored 項目 {len(doomed)} 個（/ 結尾是整個目錄）：{doomed[:20]}")
     disposable = split_paths(fields.get("Disposable secrets"))
     secrets, repos, unreadable, roots, nested = [], [], [], {}, {}
     for rel in ignored:

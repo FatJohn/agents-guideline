@@ -761,8 +761,13 @@ class IgnoredDefault(Base):
         self.assertEqual(self.run_with(*rels), [])
 
     def test_keep_ignored_listed_is_blocked(self):
-        problems = self.run_with("build/app.js", Keep="build/app.js（手寫設定）")
-        self.assertTrue(any("Keep ignored" in p for p in problems))
+        problems = self.run_with("build/app.js", "notes/todo.md", Keep="build/app.js（手寫設定）")
+        keep = [p for p in problems if "Keep ignored" in p]
+        self.assertEqual(len(keep), 1, problems)
+        self.assertIn("項目 2 個", keep[0])
+        self.assertIn("'build/app.js'", keep[0])
+        self.assertIn("'notes/todo.md'", keep[0])
+        self.assertNotIn(".worktrees", keep[0])
 
     def test_keep_ignored_listed_blocks_even_rebuildable(self):
         self.assertTrue(any("Keep ignored" in p for p in self.run_with("node_modules/x", Keep="node_modules/x")))
