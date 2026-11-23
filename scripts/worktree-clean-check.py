@@ -8,8 +8,8 @@ worktree 並回報。全部檢查都會跑完，一次列出所有原因。exit 
 不刪任何東西。
 
 `--user-authorized`（SKILL §3「使用者說『做完』或授權清」）：使用者當次對這個 worktree 說做完或授權清時才帶。
-不看 result.md 的自報欄位，沒有 result.md 也可以；PR read-back、交付內容在 base、工作區乾淨、閒置、憑證形狀、
-巢狀 repo 照擋，有 result.md 時 `Keep ignored`／`Disposable secrets` 兩欄、字元白名單與 HTML entity 照原規則看。
+不看 result.md 的自報欄位、`Keep ignored`、字元白名單與 HTML entity，沒有 result.md 也可以；PR read-back、交付內容
+在 base、工作區乾淨、閒置、憑證形狀、巢狀 repo 照擋。result.md 只剩 `Disposable secrets` 會被採用（條件見 evaluate）。
 
 已知判不到的形狀（都是用 cwd 與 git 狀態判定的固有限制）：
   - cwd 在別處、但開著 worktree 內檔案寫入的 process；
@@ -28,7 +28,8 @@ worktree 並回報。全部檢查都會跑完，一次列出所有原因。exit 
   - 互動 shell 只跑 builtin 迴圈、沒有子程序時，看起來和閒置相同；
   - session 在等使用者回答時，stall-check 的狀態也是 idle；
   - stacked PR：內容核對的對象是該 PR 的 base branch，不一定是 main；
-  - `--user-authorized`：`Pending authorization` 真的列了還沒做的事也不擋（2026-11-23 使用者決定接受）。
+  - `--user-authorized`：`Pending authorization` 真的列了還沒做的事也不擋；`Keep ignored` 宣告要保留的 ignored 檔
+    會跟著刪（2026-11-23 使用者決定接受：交付已合併就夠）。
 exit code：可清 0；不可清 1；參數錯 2。"""
 import argparse
 import fnmatch
@@ -82,10 +83,6 @@ INLINE = {"Worktree": ("Branch",), "Base SHA": ("Candidate SHA", "Dirty")}
 LINE_START_RE = re.compile(r"^(?:" + "|".join(re.escape(k) for k in KEYS + OPTIONAL) + r"):")
 INVISIBLE_RE = re.compile("[\ufeff\u200b-\u200f\u2060]")
 LOCKED = object()
-# --user-authorized 時只丟掉這個形狀的 result.md 寫法問題（自報欄位的行數與延續行）。其餘照擋：`Keep ignored`、
-# `Disposable secrets` 兩欄決定 ignored 檔刪不刪，字元白名單與 HTML entity 是保護 Keep 宣告用的。
-SELF_REPORT_FORMAT_RE = re.compile(
-    r"result\.md 的 (?:" + "|".join(re.escape(k) for k in KEYS if k != "Keep ignored") + r") 欄")
 HEX_RE = re.compile(r"[0-9a-fA-F]{7,40}")
 FULL_SHA_RE = re.compile(r"[0-9a-f]{40}")  # gh 回的 oid 交給 git 前要是完整 SHA：縮寫會先被當成 ref 名解析
 KEEP_LOOSE_RE = re.compile("[\\W_]*".join("keep") + "[\\W_]*" + "[\\W_]*".join("ignored"))  # 字母之間可夾任何非字母
@@ -409,7 +406,7 @@ def split_paths(value):
     return {p.strip() for p in re.split(r"[,，、]", value) if p.strip()}
 
 
-def check_tree(wt, fields):
+def check_tree(wt, fields, authorized=False):
     """工作區乾淨，且沒有清掉就回不來的 ignored 檔。不受 status.showUntrackedFiles 等設定影響。"""
     rc, out = git(wt, "status", "--porcelain", "-z", "--untracked-files=all", "--ignored=matching",
                   "--ignore-submodules=none")
@@ -433,8 +430,8 @@ def check_tree(wt, fields):
         hidden = [ln[2:] for ln in entries if ln[0] == "S" or ln[0].islower()]
         if hidden:
             problems.append(f"有 skip-worktree／assume-unchanged 的檔：{hidden[:3]}")
-    if fields is None:  # --user-authorized 且沒有 result.md：沒有 Keep 宣告可看，憑證形狀與巢狀 repo 照下面擋
-        fields = {}
+    if fields is None or authorized:  # --user-authorized 不看 Keep 宣告；憑證形狀與巢狀 repo 照下面擋
+        fields = fields or {}
     elif fields.get("Keep ignored") != "無":  # 不給預設值：寫法變形時 fields 沒有這欄，也要擋
         problems.append(f"result.md 的 Keep ignored 不是「無」（{fields.get('Keep ignored')!r}），有 issue session 要保留的 ignored 檔")
     disposable = split_paths(fields.get("Disposable secrets"))
@@ -566,13 +563,13 @@ def evaluate(repo, wt, fetch=True, authorized=False):
     if result.is_file():
         fields, problems = parse_result(result.read_text(encoding="utf-8", errors="replace"))
     if authorized:
-        # 這個模式下 result.md 只能讓判定更嚴。會讓判定變鬆的宣告（Disposable secrets）只在整份檔寫法合格（下面過濾前
-        # 沒有任何寫法問題）、且 Worktree 欄就是這個 worktree 時採用：被過濾掉的寫法問題因此影響不到它。
+        # 這個模式下 result.md 只能讓判定更嚴。會讓判定變鬆的宣告（Disposable secrets）只在整份檔寫法合格（下面丟掉前
+        # 沒有任何寫法問題）、且 Worktree 欄就是這個 worktree 時採用：被丟掉的寫法問題因此影響不到它。
         if fields is not None and (problems or fields.get("Worktree") != wt):
             fields.pop("Disposable secrets", None)
-        problems = [p for p in problems if not SELF_REPORT_FORMAT_RE.match(p)]
+        problems = []
         if fields is None and os.path.lexists(result):
-            problems.append(".worktrees/result.md 不是一般檔（目錄或斷掉的 symlink），讀不到 Keep ignored 宣告")
+            problems.append(".worktrees/result.md 不是一般檔（目錄或斷掉的 symlink）")
     elif fields is None:
         return ["沒有 .worktrees/result.md，來源不明"], {}
     else:
@@ -585,7 +582,7 @@ def evaluate(repo, wt, fetch=True, authorized=False):
         return problems + ["讀不到 HEAD"], fields or {}
     head = head.strip()
     problems += check_delivery(repo, wt, fields or {}, branch, head, fetch, authorized)
-    problems += check_tree(wt, fields)
+    problems += check_tree(wt, fields, authorized)
     problems += check_idle(wt)
     return problems, {**(fields or {}), "head": head, "branch": branch}
 
@@ -596,7 +593,8 @@ def main():
     ap.add_argument("--worktree", required=True, help="要判定的 worktree 絕對路徑")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--user-authorized", action="store_true",
-                    help="使用者當次對這個 worktree 說做完或授權清時才帶：不看 result.md 的自報欄位，其餘照擋")
+                    help="使用者當次對這個 worktree 說做完或授權清時才帶：不看 result.md 的自報欄位、Keep ignored、"
+                         "字元白名單與 HTML entity，其餘照擋")
     a = ap.parse_args()
     problems, info = evaluate(a.repo, a.worktree, authorized=a.user_authorized)
     if a.json:

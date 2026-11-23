@@ -1027,7 +1027,7 @@ class NestedRebuildableGuards(Base):
 
 
 class Authorized(Base):
-    """--user-authorized：result.md 的自報欄位不擋，git／gh 的證據與會刪檔的宣告照擋。"""
+    """--user-authorized：result.md 只採用 Disposable secrets，git／gh 的證據、憑證形狀與巢狀 repo 照擋。"""
 
     STALE = dict(Status="ready for authorization", Pending="merge 與推 tag", Blocker="等 review", Dirty="3",
                  Cand="1234567", Worktree="/elsewhere", Branch="other", Base="1111111, 2222222",
@@ -1056,21 +1056,19 @@ class Authorized(Base):
         problems = self.check(kw.pop("merged", self.m), authorized=True, **kw)
         self.assertTrue(any(needle in p for p in problems), problems)
 
-    def test_keep_ignored_declaration_still_blocks(self):
+    def test_keep_ignored_declaration_is_not_read(self):
+        """2026-11-23 使用者決定：授權清時交付已合併就夠，Keep 宣告與保護它的字元白名單、HTML entity 都不看。"""
+        (self.repo / ".git" / "info" / "exclude").write_text(".worktrees/\nnotes/\n")
+        (self.wt / "notes").mkdir()
+        (self.wt / "notes" / "todo.md").write_text("n\n")
         for over in (dict(Keep="notes/todo.md"), dict(Keep="無（但 notes 要留）"), dict(Keep=None),
-                     dict(extra="Keep ignored: notes.md\n"), dict(extra="備註：Keep-ignored 見上\n")):
+                     dict(extra="Keep ignored: notes.md\n"), dict(extra="備註：Keep-ignored 見上\n"),
+                     dict(extra="備註：≥ 兩個 PR ✅\n"), dict(extra="K\u0435ep ignored: notes.md\n"),
+                     dict(extra="&#75;eep ignored: notes.md\n"), dict(extra="Keep&nbsp;ignored: notes.md 要留\n")):
             with self.subTest(over):
                 self.write(self.m, **over)
-                self.blocked("Keep ignored")
-
-    def test_guards_around_keep_declaration_still_block(self):
-        """字元白名單與 HTML entity 是保護 Keep 宣告用的：同形字或 entity 寫的第二份宣告要擋得到。"""
-        for extra, needle in (("備註：≥ 兩個 PR ✅\n", "白名單外"), ("K\u0435ep ignored: notes.md\n", "白名單外"),
-                              ("Ke\u0301ep ignored: notes.md\n", "白名單外"), ("&#75;eep ignored: notes.md\n", "HTML entity"),
-                              ("Keep&nbsp;ignored: notes.md 要留\n", "HTML entity")):
-            with self.subTest(extra):
-                self.write(self.m, extra=extra)
-                self.blocked(needle)
+                self.assertEqual(self.check(self.m, authorized=True), [])
+                self.assertTrue(self.check(self.m))
 
     def test_result_md_that_is_not_a_regular_file_blocks(self):
         d = self.wt / ".worktrees"
@@ -1093,7 +1091,7 @@ class Authorized(Base):
         (self.wt / "x.env").write_text("s\n")
         self.write(self.m, Status="ready for authorization", Pending="merge", extra="Disposable secrets: x.env\n")
         self.assertEqual(self.check(self.m, authorized=True), [])
-        for extra in ("Worktree: /other\n", "Status: working\n", "- 見上\n"):
+        for extra in ("Worktree: /other\n", "Status: working\n", "- 見上\n", "備註：✅\n", "備註&nbsp;\n"):
             with self.subTest(extra):
                 self.write(self.m, extra=extra + "Disposable secrets: x.env\n")
                 self.blocked("憑證形狀")
@@ -1133,11 +1131,12 @@ class Authorized(Base):
         problems = self.check(m, authorized=True, files=[{"path": "new.txt"}, {"path": "renamed.txt"}], changedFiles=2)
         self.assertTrue(any("old.txt" in p for p in problems), problems)
 
-    def test_keep_ignored_continuation_still_blocks(self):
+    def test_keep_ignored_continuation_passes(self):
         self.write(self.m)
         f = self.wt / ".worktrees" / "result.md"
         f.write_text(f.read_text(encoding="utf-8").replace("Keep ignored: 無\n", "Keep ignored: 無\n- notes.md\n"), encoding="utf-8")
-        self.blocked("Keep ignored 欄後面不是下一個欄位")
+        self.assertEqual(self.check(self.m, authorized=True), [])
+        self.assertTrue(any("Keep ignored 欄後面不是下一個欄位" in p for p in self.check(self.m)))
 
     def test_disposable_secrets_format_still_blocks(self):
         (self.wt / "x.env").write_text("s\n")
