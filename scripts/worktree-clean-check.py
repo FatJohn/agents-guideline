@@ -7,6 +7,10 @@ worktree 並回報。全部檢查都會跑完，一次列出所有原因。exit 
 只讀：`git fetch` 只更新遠端 ref，其餘是 git／gh／lsof／ps 的查詢與 `stall-check.py --json`，不關 session、
 不刪任何東西。
 
+`--user-authorized`（SKILL §3「使用者說『做完』或授權清」）：使用者當次對這個 worktree 說做完或授權清時才帶。
+不看 result.md 的自報欄位，沒有 result.md 也可以；PR read-back、交付內容在 base、工作區乾淨、閒置、憑證形狀、
+巢狀 repo 照擋，有 result.md 時 `Keep ignored`／`Disposable secrets` 兩欄、字元白名單與 HTML entity 照原規則看。
+
 已知判不到的形狀（都是用 cwd 與 git 狀態判定的固有限制）：
   - cwd 在別處、但開著 worktree 內檔案寫入的 process；
   - 只留在 worktree reflog 或 `refs/worktree/*` 的 commit（`git reset` 丟掉的）；進行中的 merge；
@@ -23,7 +27,8 @@ worktree 並回報。全部檢查都會跑完，一次列出所有原因。exit 
   - 讀不到的目錄：git status 只在 stderr 警告、不列出它（ignored 目錄底下讀不到的子目錄另會擋）；
   - 互動 shell 只跑 builtin 迴圈、沒有子程序時，看起來和閒置相同；
   - session 在等使用者回答時，stall-check 的狀態也是 idle；
-  - stacked PR：內容核對的對象是該 PR 的 base branch，不一定是 main。
+  - stacked PR：內容核對的對象是該 PR 的 base branch，不一定是 main；
+  - `--user-authorized`：`Pending authorization` 真的列了還沒做的事也不擋（2026-11-23 使用者決定接受）。
 exit code：可清 0；不可清 1；參數錯 2。"""
 import argparse
 import fnmatch
@@ -44,6 +49,11 @@ SHELLS = {"zsh", "bash", "sh", "fish", "dash"}  # 只有 idle 的 claude 當子�
 # 或 self_ignoring_root 認得的自我忽略目錄。
 REBUILDABLE = {"node_modules", "DerivedData", "Pods", ".dart_tool", ".gradle", ".next", ".venv", "__pycache__", ".pytest_cache"}
 REBUILDABLE_NAMES = {".DS_Store"}
+# 巢狀在別的 ignored 目錄底下也整包放行、不往下找的產物目錄（比對路徑尾段，分大小寫）。2026-11 Flutter 外掛的 worktree 實測：
+# `example/build/ios/SourcePackages/` 是 Xcode 放 SwiftPM 依賴的地方（DerivedData 底下同一個目錄），每個 checkout 都帶 `.git`；
+# `example/ios/Flutter/ephemeral/` 是 flutter 工具產生的，裡面有 `flutter_native_integration.env`。只有 `ephemeral` 一段不放行：名稱太泛用。
+# 底下有 tracked 檔、或本身是 git repo 的不算（nested_rebuildable）。
+NESTED_REBUILDABLE = (("SourcePackages",), ("Flutter", "ephemeral"))
 # husky 在 .husky/_ 產生的檔名（實測本機 husky 目錄）；這裡以外的東西可能是使用者放的，不放行
 HUSKY_GENERATED = {".gitignore", "h", "husky.sh", "applypatch-msg", "commit-msg", "post-applypatch", "post-checkout", "post-commit",
                    "post-merge", "post-rewrite", "pre-applypatch", "pre-auto-gc", "pre-commit", "pre-merge-commit", "pre-push",
@@ -72,7 +82,12 @@ INLINE = {"Worktree": ("Branch",), "Base SHA": ("Candidate SHA", "Dirty")}
 LINE_START_RE = re.compile(r"^(?:" + "|".join(re.escape(k) for k in KEYS + OPTIONAL) + r"):")
 INVISIBLE_RE = re.compile("[\ufeff\u200b-\u200f\u2060]")
 LOCKED = object()
+# --user-authorized 時只丟掉這個形狀的 result.md 寫法問題（自報欄位的行數與延續行）。其餘照擋：`Keep ignored`、
+# `Disposable secrets` 兩欄決定 ignored 檔刪不刪，字元白名單與 HTML entity 是保護 Keep 宣告用的。
+SELF_REPORT_FORMAT_RE = re.compile(
+    r"result\.md 的 (?:" + "|".join(re.escape(k) for k in KEYS if k != "Keep ignored") + r") 欄")
 HEX_RE = re.compile(r"[0-9a-fA-F]{7,40}")
+FULL_SHA_RE = re.compile(r"[0-9a-f]{40}")  # gh 回的 oid 交給 git 前要是完整 SHA：縮寫會先被當成 ref 名解析
 KEEP_LOOSE_RE = re.compile("[\\W_]*".join("keep") + "[\\W_]*" + "[\\W_]*".join("ignored"))  # 字母之間可夾任何非字母
 # result.md 的字元白名單（2026-11-11 使用者決定）：同形字、組合字元、HTML entity 列舉不完，白名單外一律擋。
 # ASCII、§·×、一般標點（U+2010–2027：破折號、引號、刪節號）、箭頭、CJK 標點與假名、注音、CJK 漢字、全形字與半形片假名
@@ -182,7 +197,7 @@ def query_prs(repo, branch):
     if not slug:
         return None
     rc, out = run(["gh", "-R", slug, "pr", "list", "--head", branch, "--state", "all", "--limit", "5",
-                   "--json", "number,state,headRefOid,baseRefName,mergeCommit,url,files,changedFiles"])
+                   "--json", "number,state,headRefOid,baseRefName,baseRefOid,mergeCommit,url,files,changedFiles"])
     if rc != 0:
         return None
     try:
@@ -192,8 +207,8 @@ def query_prs(repo, branch):
     return data if isinstance(data, list) else None
 
 
-def check_delivery(repo, wt, fields, branch, head, fetch=True):
-    """第 2、4 條：result.md 的完成欄位、PR read-back、完整交付 diff 都在 PR 的 base 上。"""
+def self_report_problems(fields, head):
+    """第 2 條裡 issue session 自報的完成欄位。"""
     problems = []
     if not fields.get("Issue") or fields["Issue"].lower().startswith("unknown"):  # §2 規定填不出來時寫「unknown＋原因」
         problems.append("result.md 的 Issue 欄是空的或 unknown")
@@ -208,6 +223,13 @@ def check_delivery(repo, wt, fields, branch, head, fetch=True):
     cand = fields.get("Candidate SHA", "")
     if not (HEX_RE.fullmatch(cand) and head.lower().startswith(cand.lower())):
         problems.append("result.md 的 Candidate SHA 與 HEAD 不符")
+    return problems
+
+
+def check_delivery(repo, wt, fields, branch, head, fetch=True, authorized=False):
+    """第 2、4 條：result.md 的完成欄位、PR read-back、完整交付 diff 都在 PR 的 base 上。
+    authorized（使用者當次說做完或授權清）時不看 result.md 的自報欄位，交付清單的起點改由 git 算。"""
+    problems = [] if authorized else self_report_problems(fields, head)
     prs = query_prs(repo, branch)
     if prs is None:
         return problems + ["PR 查不到（gh 失敗或 origin 解析不了）"]
@@ -217,9 +239,10 @@ def check_delivery(repo, wt, fields, branch, head, fetch=True):
     if len(merged) != 1:
         return problems + ["沒有恰好一個 MERGED 且 head 等於 worktree HEAD 的 PR"]
     pr = merged[0]
-    merge_oid = ((pr.get("mergeCommit") or {}).get("oid") or "").lower()
+    merge_oid = (pr.get("mergeCommit") or {}).get("oid")
+    merge_oid = merge_oid if isinstance(merge_oid, str) and FULL_SHA_RE.fullmatch(merge_oid) else ""
     sha = fields.get("Merged", "").lower()
-    if not (HEX_RE.fullmatch(sha) and merge_oid.startswith(sha)):
+    if not authorized and not (HEX_RE.fullmatch(sha) and merge_oid.startswith(sha)):
         problems.append("result.md 的 Merged 欄與 PR 的 merge commit 不符")
     base_ref = pr.get("baseRefName")
     if not base_ref:
@@ -227,18 +250,30 @@ def check_delivery(repo, wt, fields, branch, head, fetch=True):
     target = f"refs/remotes/origin/{base_ref}"  # 完整 ref：本機同名 branch／tag 蓋不掉；fetch 明寫 refspec：窄 refspec 的 clone 也會更新
     if fetch and git(repo, "fetch", "-q", "origin", f"+refs/heads/{base_ref}:{target}")[0] != 0:
         return problems + [f"git fetch origin {base_ref} 失敗"]
-    if merge_oid and git(repo, "merge-base", "--is-ancestor", merge_oid, target)[0] != 0:
+    if not merge_oid:
+        problems.append("PR 沒有 merge commit（或不是完整 SHA）")
+    elif git(repo, "merge-base", "--is-ancestor", merge_oid, target)[0] != 0:
         problems.append(f"merge commit 不在 origin/{base_ref} 上（可能被改寫歷史）")
     pr_files = [f.get("path") for f in (pr.get("files") or []) if f.get("path")]
     if not pr_files or len(pr_files) != pr.get("changedFiles"):
         return problems + ["PR 的檔案清單是空的或不完整，算不出交付清單"]
-    base = fields.get("Base SHA", "")
-    if not HEX_RE.fullmatch(base):
-        return problems + ["result.md 的 Base SHA 不是單一 SHA，算不出交付清單"]
-    if git(wt, "merge-base", "--is-ancestor", base, "HEAD")[0] != 0:
-        return problems + ["Base SHA 不是 HEAD 的祖先，算不出交付清單"]
-    if git(repo, "merge-base", "--is-ancestor", base, target)[0] != 0:
-        return problems + [f"Base SHA 不在 origin/{base_ref} 上，算不出交付清單"]
+    if authorized:
+        # 起點取 PR 的 baseRefOid（merge 前的 base）與 HEAD 的 merge-base，不取 origin/<base>：一般 merge commit 合併後
+        # HEAD 已是 base 的祖先，merge-base 就是 HEAD，diff 是空的，更名前的舊路徑會漏掉（gh 的 files 只列新路徑）。
+        base_oid = pr.get("baseRefOid")
+        full = isinstance(base_oid, str) and FULL_SHA_RE.fullmatch(base_oid)
+        rc, out = git(wt, "merge-base", "HEAD", base_oid) if full else (1, "")
+        base = out.strip()
+        if rc != 0 or not HEX_RE.fullmatch(base) or base == head:
+            return problems + ["算不出 HEAD 與 PR baseRefOid 的 merge-base（或它就是 HEAD），算不出交付清單"]
+    else:
+        base = fields.get("Base SHA", "")
+        if not HEX_RE.fullmatch(base):
+            return problems + ["result.md 的 Base SHA 不是單一 SHA，算不出交付清單"]
+        if git(wt, "merge-base", "--is-ancestor", base, "HEAD")[0] != 0:
+            return problems + ["Base SHA 不是 HEAD 的祖先，算不出交付清單"]
+        if git(repo, "merge-base", "--is-ancestor", base, target)[0] != 0:
+            return problems + [f"Base SHA 不在 origin/{base_ref} 上，算不出交付清單"]
     rc, out = git(wt, "diff", "--name-only", "--no-renames", "-z", base, "HEAD")
     if rc != 0:
         return problems + ["讀不到交付清單"]
@@ -314,7 +349,25 @@ def bare_repo(path):
     return os.path.isfile(path / "HEAD") and os.path.isdir(path / "objects") and os.path.isdir(path / "refs")
 
 
-def scan_ignored(wt, rel):
+def nested_rebuildable(wt, parts, tracked, cache):
+    """路徑本身或任一層上層目錄是 NESTED_REBUILDABLE 列的產物目錄。底下有 tracked 檔的是原始碼目錄，本身是 git repo 的
+    可能有沒推的 commit，兩者都不算。"""
+    for tail in NESTED_REBUILDABLE:
+        for i in range(len(tail), len(parts) + 1):
+            if tuple(parts[i - len(tail):i]) != tail:
+                continue
+            root = "/".join(parts[:i])
+            if root not in cache:
+                prefix = fold_path(root) + "/"
+                top = Path(wt, root)
+                cache[root] = not any(path.startswith(prefix) for path in tracked) \
+                    and not os.path.lexists(top / ".git") and not bare_repo(top)
+            if cache[root]:
+                return True
+    return False
+
+
+def scan_ignored(wt, rel, tracked, cache):
     """回 (路徑, 原因) 清單：檔案的路徑任一段命中憑證形狀就列出那個檔（目錄名像憑證時列出它底下每個檔，
     `Disposable secrets` 只寫目錄蓋不到）；巢狀 `.git`（不分大小寫）與 bare repo 另列。
     不跟 symlink：刪 worktree 只刪連結本身。讀不到的目錄回報出來，由呼叫端擋下。"""
@@ -337,6 +390,8 @@ def scan_ignored(wt, rel):
     for dirpath, dirnames, filenames in os.walk(top, onerror=errors.append, followlinks=False):
         if bare_repo(Path(dirpath)):
             hits.append((Path(dirpath).relative_to(wt).as_posix(), "git"))
+        here = Path(dirpath).relative_to(wt).parts
+        dirnames[:] = [d for d in dirnames if not nested_rebuildable(wt, here + (d,), tracked, cache)]
         for name in dirnames + filenames:
             path = Path(dirpath, name).relative_to(wt).as_posix()
             if norm_name(name) == ".git":
@@ -378,21 +433,25 @@ def check_tree(wt, fields):
         hidden = [ln[2:] for ln in entries if ln[0] == "S" or ln[0].islower()]
         if hidden:
             problems.append(f"有 skip-worktree／assume-unchanged 的檔：{hidden[:3]}")
-    if fields.get("Keep ignored") != "無":  # 不給預設值：寫法變形時 fields 沒有這欄，也要擋
+    if fields is None:  # --user-authorized 且沒有 result.md：沒有 Keep 宣告可看，憑證形狀與巢狀 repo 照下面擋
+        fields = {}
+    elif fields.get("Keep ignored") != "無":  # 不給預設值：寫法變形時 fields 沒有這欄，也要擋
         problems.append(f"result.md 的 Keep ignored 不是「無」（{fields.get('Keep ignored')!r}），有 issue session 要保留的 ignored 檔")
     disposable = split_paths(fields.get("Disposable secrets"))
-    secrets, repos, unreadable, roots = [], [], [], {}
+    secrets, repos, unreadable, roots, nested = [], [], [], {}, {}
     for rel in ignored:
         parts = rel.rstrip("/").split("/")
         if parts[0] == ".worktrees":
             continue
         if rel.endswith("/") and parts[-1] in REBUILDABLE:
             continue
+        if nested_rebuildable(wt, parts if rel.endswith("/") else parts[:-1], tracked, nested):
+            continue
         if not rel.endswith("/") and parts[-1] in REBUILDABLE_NAMES:
             continue
         if self_ignoring_root(wt, parts, tracked, roots):
             continue
-        for path, kind in scan_ignored(wt, rel):
+        for path, kind in scan_ignored(wt, rel, tracked, nested):
             if kind == "git":
                 repos.append(path)
             elif kind == "unreadable":
@@ -443,11 +502,12 @@ def idle_problems(wt, rows, lsof_out, ps_out, self_pid):
             procs[pid] = comm
     if not seen_self:
         return problems + ["lsof 沒有列出自己，process 清單不可信"]
-    children, args = {}, {}
+    children, args, parent = {}, {}, {}
     for line in ps_out.splitlines():
         parts = line.split(None, 2)
         if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
             args[int(parts[0])] = parts[2] if len(parts) == 3 else ""
+            parent[int(parts[0])] = int(parts[1])
             children.setdefault(int(parts[1]), []).append(int(parts[0]))
     if self_pid not in args:
         return problems + ["ps 沒有列出自己，process 清單不可信"]
@@ -458,6 +518,11 @@ def idle_problems(wt, rows, lsof_out, ps_out, self_pid):
         tokens = args.get(pid, "").split()
         plain = bool(tokens) and all(t.startswith("-") for t in tokens[1:])
         if name in SHELLS and plain and not set(children.get(pid, [])) - idle:
+            continue
+        # Claude Code 會起 `caffeinate -i -t 300` 當子程序（2026-11-23 實測），session 轉 idle 後它可能還在。
+        # 只放行 idle session 自己的、沒帶要執行的指令、也沒有子程序的那一個。
+        if name == "caffeinate" and parent.get(pid) in idle and not children.get(pid) \
+                and all(t.startswith("-") or t.isdigit() for t in tokens[1:]):
             continue
         problems.append(f"worktree 內有還在跑的 process：{pid} {comm}")
     return problems
@@ -480,7 +545,7 @@ def check_idle(wt):
         return [f"process 清單讀不懂：{e}"]
 
 
-def evaluate(repo, wt, fetch=True):
+def evaluate(repo, wt, fetch=True, authorized=False):
     repo, wt = os.path.realpath(repo), os.path.realpath(wt)
     entries = worktree_entries(repo)
     if entries is None:
@@ -497,21 +562,32 @@ def evaluate(repo, wt, fetch=True):
     if any(p != wt and p.startswith(wt + "/") for p, _ in entries):
         return ["這個 worktree 底下還有巢狀 worktree"], {}
     result = Path(wt) / ".worktrees" / "result.md"
-    if not result.is_file():
+    fields, problems = None, []
+    if result.is_file():
+        fields, problems = parse_result(result.read_text(encoding="utf-8", errors="replace"))
+    if authorized:
+        # 這個模式下 result.md 只能讓判定更嚴。會讓判定變鬆的宣告（Disposable secrets）只在整份檔寫法合格（下面過濾前
+        # 沒有任何寫法問題）、且 Worktree 欄就是這個 worktree 時採用：被過濾掉的寫法問題因此影響不到它。
+        if fields is not None and (problems or fields.get("Worktree") != wt):
+            fields.pop("Disposable secrets", None)
+        problems = [p for p in problems if not SELF_REPORT_FORMAT_RE.match(p)]
+        if fields is None and os.path.lexists(result):
+            problems.append(".worktrees/result.md 不是一般檔（目錄或斷掉的 symlink），讀不到 Keep ignored 宣告")
+    elif fields is None:
         return ["沒有 .worktrees/result.md，來源不明"], {}
-    fields, problems = parse_result(result.read_text(encoding="utf-8", errors="replace"))
-    if fields.get("Worktree") != wt:
-        problems.append("result.md 的 Worktree 欄不等於這個 worktree")
-    if fields.get("Branch") != branch:
-        problems.append("result.md 的 Branch 欄不等於實際 branch")
+    else:
+        if fields.get("Worktree") != wt:
+            problems.append("result.md 的 Worktree 欄不等於這個 worktree")
+        if fields.get("Branch") != branch:
+            problems.append("result.md 的 Branch 欄不等於實際 branch")
     rc, head = git(wt, "rev-parse", "HEAD")
     if rc != 0:
-        return problems + ["讀不到 HEAD"], fields
+        return problems + ["讀不到 HEAD"], fields or {}
     head = head.strip()
-    problems += check_delivery(repo, wt, fields, branch, head, fetch)
+    problems += check_delivery(repo, wt, fields or {}, branch, head, fetch, authorized)
     problems += check_tree(wt, fields)
     problems += check_idle(wt)
-    return problems, {**fields, "head": head, "branch": branch}
+    return problems, {**(fields or {}), "head": head, "branch": branch}
 
 
 def main():
@@ -519,8 +595,10 @@ def main():
     ap.add_argument("--repo", required=True, help="該 worktree 所屬 repo 的路徑")
     ap.add_argument("--worktree", required=True, help="要判定的 worktree 絕對路徑")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--user-authorized", action="store_true",
+                    help="使用者當次對這個 worktree 說做完或授權清時才帶：不看 result.md 的自報欄位，其餘照擋")
     a = ap.parse_args()
-    problems, info = evaluate(a.repo, a.worktree)
+    problems, info = evaluate(a.repo, a.worktree, authorized=a.user_authorized)
     if a.json:
         print(json.dumps({"clean": not problems, "problems": problems, "head": info.get("head"),
                           "branch": info.get("branch")}, ensure_ascii=False))

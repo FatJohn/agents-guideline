@@ -85,14 +85,14 @@ class Base(unittest.TestCase):
             f"Pending authorization: {f['Pending']}\nBlocker: {f['Blocker']}\nMerged: {merged}\n" + f["extra"],
             encoding="utf-8")
 
-    def check(self, merged, **pr_over):
+    def check(self, merged, authorized=False, **pr_over):
         files = git(self.wt, "diff", "--name-only", self.base, self.head).splitlines()
         files = [f.strip('"') for f in files]
-        pr = {"number": 1, "state": "MERGED", "headRefOid": self.head, "baseRefName": "main",
+        pr = {"number": 1, "state": "MERGED", "headRefOid": self.head, "baseRefName": "main", "baseRefOid": self.base,
               "mergeCommit": {"oid": merged}, "url": "u", "files": [{"path": f} for f in files], "changedFiles": len(files)}
         pr.update(pr_over)
         with mock.patch.object(wcc, "query_prs", return_value=[pr]):
-            return wcc.evaluate(str(self.repo), str(self.wt))[0]
+            return wcc.evaluate(str(self.repo), str(self.wt), authorized=authorized)[0]
 
 
 class Delivery(Base):
@@ -941,6 +941,273 @@ class IgnoredDefault(Base):
         self.mode(self.DIRS)
         self.assertEqual(self.run_with("node_modules/forge/tests/server.pem"), [])
 
+    def test_swiftpm_checkouts_in_ignored_build_dir_pass(self):
+        self.mode(self.DIRS)
+        (self.wt / "example/build/ios/SourcePackages/checkouts/lib").mkdir(parents=True)
+        git(self.wt / "example/build/ios/SourcePackages/checkouts/lib", "init", "-q")
+        subprocess.run(["git", "init", "-q", "--bare", str(self.wt / "example/build/ios/SourcePackages/repositories/lib-1a")],
+                       check=True)
+        self.assertEqual(self.run_with("example/build/ios/SourcePackages/checkouts/lib/Package.swift"), [])
+
+    def test_swiftpm_dir_ignored_by_its_own_rule_passes(self):
+        self.mode("SourcePackages/\n")
+        (self.wt / "SourcePackages/checkouts/lib").mkdir(parents=True)
+        git(self.wt / "SourcePackages/checkouts/lib", "init", "-q")
+        self.assertEqual(self.run_with("SourcePackages/checkouts/lib/Package.swift"), [])
+
+    def test_swiftpm_contents_listed_item_by_item_pass(self):
+        self.assertEqual(self.run_with("build/SourcePackages/artifacts/key.pem"), [])
+
+    def test_nested_repo_beside_swiftpm_dir_is_blocked(self):
+        self.mode(self.DIRS)
+        (self.wt / "build/ios/checkouts/lib").mkdir(parents=True)
+        git(self.wt / "build/ios/checkouts/lib", "init", "-q")
+        self.assertTrue(any("巢狀 git repo" in p for p in self.run_with("build/ios/SourcePackages/x")))
+
+    def test_lowercase_swiftpm_name_is_blocked(self):
+        self.mode(self.DIRS)
+        self.assertTrue(any("憑證形狀" in p for p in self.run_with("build/sourcepackages/key.pem")))
+
+    def test_file_named_like_swiftpm_dir_is_scanned(self):
+        problems = self.run_with("credentials/SourcePackages")
+        self.assertTrue(any("credentials/SourcePackages" in p for p in problems), problems)
+
+    def test_flutter_ephemeral_env_passes(self):
+        self.mode("Flutter/ephemeral/\n")
+        self.assertEqual(self.run_with("example/ios/Flutter/ephemeral/flutter_native_integration.env"), [])
+
+    def test_flutter_ephemeral_inside_ignored_dir_passes(self):
+        self.mode(self.DIRS)
+        self.assertEqual(self.run_with("example/ios/Flutter/ephemeral/flutter_native_integration.env"), [])
+
+    def test_ephemeral_without_flutter_parent_is_blocked(self):
+        self.mode(self.DIRS)
+        for rel in ("example/ios/ephemeral/a.env", "example/Flutter/x/ephemeral/a.env", "ephemeral/Flutter/a.env"):
+            with self.subTest(rel):
+                self.assertTrue(any("憑證形狀" in p for p in self.run_with(rel)), rel)
+
+
+class NestedRebuildableGuards(Base):
+    """產物目錄的放行只給沒有 tracked 檔、本身不是 git repo 的目錄。"""
+
+    def deliver(self, *tracked):
+        for rel in tracked:
+            f = self.wt / rel
+            f.parent.mkdir(parents=True)
+            f.write_text("t\n")
+        git(self.wt, "add", ".")
+        git(self.wt, "commit", "-q", "--amend", "-m", "feat")
+        self.head = git(self.wt, "rev-parse", "HEAD")
+        self.m = self.rebase_merge()
+        self.write(self.m)
+
+    def test_ignored_secret_beside_tracked_files_is_blocked(self):
+        self.deliver("pkg/SourcePackages/tracked.txt", "ios/Flutter/ephemeral/tracked.txt")
+        (self.wt / "pkg/SourcePackages/prod.env").write_text("s\n")
+        (self.wt / "ios/Flutter/ephemeral/prod.env").write_text("s\n")
+        for authorized in (False, True):
+            problems = self.check(self.m, authorized=authorized)
+            self.assertTrue(any("pkg/SourcePackages/prod.env" in p and "ios/Flutter/ephemeral/prod.env" in p
+                                for p in problems), problems)
+
+    def test_nested_repo_beside_tracked_files_is_blocked(self):
+        self.deliver("pkg/SourcePackages/tracked.txt")
+        (self.repo / ".git" / "info" / "exclude").write_text(".worktrees/\nvendor/\n")
+        (self.wt / "pkg/SourcePackages/vendor").mkdir()
+        git(self.wt / "pkg/SourcePackages/vendor", "init", "-q")
+        self.assertTrue(any("巢狀 git repo" in p for p in self.check(self.m)))
+
+    def test_swiftpm_dir_that_is_itself_a_repo_is_blocked(self):
+        self.deliver()
+        (self.repo / ".git" / "info" / "exclude").write_text(".worktrees/\nbuild/\n")
+        (self.wt / "build/SourcePackages").mkdir(parents=True)
+        git(self.wt / "build/SourcePackages", "init", "-q")
+        (self.wt / "build/SourcePackages/f").write_text("x\n")
+        self.assertTrue(any("巢狀 git repo" in p for p in self.check(self.m)))
+
+
+class Authorized(Base):
+    """--user-authorized：result.md 的自報欄位不擋，git／gh 的證據與會刪檔的宣告照擋。"""
+
+    STALE = dict(Status="ready for authorization", Pending="merge 與推 tag", Blocker="等 review", Dirty="3",
+                 Cand="1234567", Worktree="/elsewhere", Branch="other", Base="1111111, 2222222",
+                 extra="備註：這個 session 開了兩個 PR\n")
+
+    def setUp(self):
+        super().setUp()
+        self.m = self.rebase_merge()
+
+    def test_stale_self_report_passes_only_when_authorized(self):
+        self.write("aaaaaaa, bbbbbbb", **self.STALE)
+        self.assertEqual(self.check(self.m, authorized=True), [])
+        self.assertGreaterEqual(len(self.check(self.m)), 10)
+
+    def test_no_result_md_passes_only_when_authorized(self):
+        self.assertEqual(self.check(self.m, authorized=True), [])
+        self.assertEqual(self.check(self.m), ["沒有 .worktrees/result.md，來源不明"])
+
+    def test_merge_commit_passes(self):
+        git(self.repo, "reset", "-q", "--hard", self.base)
+        git(self.repo, "push", "-qf", "origin", "main")
+        m = self.merge_commit()
+        self.assertEqual(self.check(m, authorized=True), [])
+
+    def blocked(self, needle, **kw):
+        problems = self.check(kw.pop("merged", self.m), authorized=True, **kw)
+        self.assertTrue(any(needle in p for p in problems), problems)
+
+    def test_keep_ignored_declaration_still_blocks(self):
+        for over in (dict(Keep="notes/todo.md"), dict(Keep="無（但 notes 要留）"), dict(Keep=None),
+                     dict(extra="Keep ignored: notes.md\n"), dict(extra="備註：Keep-ignored 見上\n")):
+            with self.subTest(over):
+                self.write(self.m, **over)
+                self.blocked("Keep ignored")
+
+    def test_guards_around_keep_declaration_still_block(self):
+        """字元白名單與 HTML entity 是保護 Keep 宣告用的：同形字或 entity 寫的第二份宣告要擋得到。"""
+        for extra, needle in (("備註：≥ 兩個 PR ✅\n", "白名單外"), ("K\u0435ep ignored: notes.md\n", "白名單外"),
+                              ("Ke\u0301ep ignored: notes.md\n", "白名單外"), ("&#75;eep ignored: notes.md\n", "HTML entity"),
+                              ("Keep&nbsp;ignored: notes.md 要留\n", "HTML entity")):
+            with self.subTest(extra):
+                self.write(self.m, extra=extra)
+                self.blocked(needle)
+
+    def test_result_md_that_is_not_a_regular_file_blocks(self):
+        d = self.wt / ".worktrees"
+        d.mkdir()
+        (d / "result.md").mkdir()
+        self.blocked("不是一般檔")
+        (d / "result.md").rmdir()
+        (d / "result.md").symlink_to(self.root / "nope")
+        self.blocked("不是一般檔")
+
+    def test_disposable_secrets_from_another_worktree_are_ignored(self):
+        (self.wt / "x.env").write_text("s\n")
+        self.write(self.m, extra="Disposable secrets: x.env\n")
+        self.assertEqual(self.check(self.m, authorized=True), [])
+        self.write(self.m, Worktree=str(self.root / "other"), extra="Disposable secrets: x.env\n")
+        self.blocked("憑證形狀")
+
+    def test_disposable_secrets_need_a_well_formed_result_md(self):
+        """授權模式丟掉的寫法問題不能反過來讓 Disposable secrets 生效：第二行 Worktree 就是一例。"""
+        (self.wt / "x.env").write_text("s\n")
+        self.write(self.m, Status="ready for authorization", Pending="merge", extra="Disposable secrets: x.env\n")
+        self.assertEqual(self.check(self.m, authorized=True), [])
+        for extra in ("Worktree: /other\n", "Status: working\n", "- 見上\n"):
+            with self.subTest(extra):
+                self.write(self.m, extra=extra + "Disposable secrets: x.env\n")
+                self.blocked("憑證形狀")
+
+    def test_pr_without_merge_commit_blocks(self):
+        self.blocked("PR 沒有 merge commit", mergeCommit=None)
+        self.blocked("PR 沒有 merge commit", mergeCommit={"oid": self.m[:12]})
+        self.blocked("PR 沒有 merge commit", mergeCommit={"oid": "main"})
+
+    def test_base_ref_oid_required(self):
+        self.blocked("baseRefOid", baseRefOid=None)
+        self.blocked("baseRefOid", baseRefOid="main")
+        self.blocked("baseRefOid", baseRefOid="0" * 40)
+        self.blocked("baseRefOid", baseRefOid=self.base[:7])
+        self.blocked("baseRefOid", baseRefOid=self.base[:12])
+        self.blocked("baseRefOid", baseRefOid=self.base.upper())
+        self.blocked("baseRefOid", baseRefOid=["x"])
+
+    def test_base_ref_oid_that_contains_head_blocks(self):
+        """merge-base 等於 HEAD 時 diff 是空的，交付清單只剩 gh 的 files：擋下，不當成通過。"""
+        git(self.repo, "reset", "-q", "--hard", self.base)
+        git(self.repo, "push", "-qf", "origin", "main")
+        m = self.merge_commit()
+        self.blocked("baseRefOid", merged=m, baseRefOid=m)
+
+    def test_rename_merged_by_merge_commit_with_old_path_back_on_base_blocks(self):
+        git(self.repo, "reset", "-q", "--hard", self.base)
+        git(self.repo, "push", "-qf", "origin", "main")
+        git(self.wt, "mv", "old.txt", "renamed.txt")
+        git(self.wt, "commit", "-qm", "mv")
+        self.head = git(self.wt, "rev-parse", "HEAD")
+        m = self.merge_commit()
+        (self.repo / "old.txt").write_text("old\n")
+        git(self.repo, "add", ".")
+        git(self.repo, "commit", "-qm", "old path back")
+        git(self.repo, "push", "-q", "origin", "main")
+        problems = self.check(m, authorized=True, files=[{"path": "new.txt"}, {"path": "renamed.txt"}], changedFiles=2)
+        self.assertTrue(any("old.txt" in p for p in problems), problems)
+
+    def test_keep_ignored_continuation_still_blocks(self):
+        self.write(self.m)
+        f = self.wt / ".worktrees" / "result.md"
+        f.write_text(f.read_text(encoding="utf-8").replace("Keep ignored: 無\n", "Keep ignored: 無\n- notes.md\n"), encoding="utf-8")
+        self.blocked("Keep ignored 欄後面不是下一個欄位")
+
+    def test_disposable_secrets_format_still_blocks(self):
+        (self.wt / "x.env").write_text("s\n")
+        self.write(self.m, extra="Disposable secrets: x.env\nDisposable secrets: x.env\n")
+        self.blocked("Disposable secrets")
+
+    def test_credential_and_nested_repo_still_block(self):
+        (self.wt / "x.env").write_text("s\n")
+        self.blocked("憑證形狀")
+        (self.wt / "x.env").unlink()
+        (self.repo / ".git" / "info" / "exclude").write_text(".worktrees/\nvendor/\n")
+        (self.wt / "vendor" / "lib").mkdir(parents=True)
+        git(self.wt / "vendor" / "lib", "init", "-q")
+        self.blocked("巢狀 git repo")
+
+    def test_dirty_tree_still_blocks(self):
+        (self.wt / "u.txt").write_text("u\n")
+        self.blocked("不乾淨")
+
+    def test_other_file_in_dot_worktrees_still_blocks(self):
+        (self.wt / ".worktrees").mkdir()
+        (self.wt / ".worktrees" / "notes.md").write_text("n\n")
+        self.blocked(".worktrees/ 內除了 result.md 還有別的")
+
+    def test_pr_evidence_still_required(self):
+        self.blocked("OPEN", state="OPEN")
+        self.blocked("沒有恰好一個 MERGED", headRefOid="0" * 40)
+        self.blocked("merge commit 不在", mergeCommit={"oid": self.head})
+        self.blocked("PR 的檔案清單", files=[])
+        with mock.patch.object(wcc, "query_prs", return_value=None):
+            self.assertTrue(any("PR 查不到" in p for p in wcc.evaluate(str(self.repo), str(self.wt), authorized=True)[0]))
+
+    def test_base_advanced_over_same_file_still_blocks(self):
+        (self.repo / "new.txt").write_text("changed\n")
+        git(self.repo, "commit", "-qam", "later")
+        git(self.repo, "push", "-q", "origin", "main")
+        self.blocked("交付內容")
+
+    def test_rename_with_old_path_still_on_base_still_blocks(self):
+        """交付清單的起點由 merge-base 算：gh 的 files 只列更名後的新路徑，舊路徑要靠這段 diff 補上。"""
+        git(self.wt, "mv", "old.txt", "renamed.txt")
+        git(self.wt, "commit", "-qm", "mv")
+        self.head = git(self.wt, "rev-parse", "HEAD")
+        (self.repo / "renamed.txt").write_text("old\n")
+        git(self.repo, "add", ".")
+        git(self.repo, "commit", "-qm", "partial")
+        git(self.repo, "push", "-q", "origin", "main")
+        problems = self.check(git(self.repo, "rev-parse", "HEAD"), authorized=True,
+                              files=[{"path": "new.txt"}, {"path": "renamed.txt"}], changedFiles=2)
+        self.assertTrue(any("old.txt" in p for p in problems), problems)
+
+    def test_idle_check_still_applies(self):
+        with mock.patch.object(wcc, "check_idle", return_value=["claude session 6 狀態是 working"]):
+            self.blocked("working")
+
+    def test_selection_still_applies(self):
+        self.assertIn("這是 main worktree", wcc.evaluate(str(self.repo), str(self.repo), authorized=True)[0])
+        git(self.repo, "worktree", "lock", str(self.wt))
+        self.addCleanup(git, self.repo, "worktree", "unlock", str(self.wt))
+        self.blocked("lock")
+
+    def test_flag_reaches_evaluate(self):
+        for argv, expected in ((["--user-authorized"], True), ([], False)):
+            with mock.patch.object(wcc, "evaluate", return_value=(["x"], {})) as ev, \
+                    mock.patch.object(wcc.sys, "argv", ["x", "--repo", "r", "--worktree", "w", "--json", *argv]), \
+                    mock.patch("builtins.print"):
+                self.assertEqual(wcc.main(), 1)
+            self.assertEqual(ev.call_args.kwargs, {"authorized": expected})
+
+
 class Selection(Base):
     def test_locked_worktree(self):
         git(self.repo, "worktree", "lock", str(self.wt))
@@ -1003,6 +1270,35 @@ class IdleShapes(unittest.TestCase):
         for state in ("working", "turn", "sub", "quiet", "no-log"):
             rows = [{"pid": 6, "state": state, "cwd": self.WT}]
             self.assertTrue(self.run_it(rows, [(6, "2.1.319", self.WT)], [(6, 1, "claude")]), state)
+
+    CLAUDE = [{"pid": 6, "state": "idle", "cwd": WT}]
+
+    def caffeinate(self, args="caffeinate -i -t 300", ppid=6, rows=None, extra_ps=()):
+        lsof = [(6, "2.1.319", self.WT), (11, "caffeinate", self.WT)]
+        ps = [(6, 1, "claude"), (11, ppid, args), *extra_ps]
+        return self.run_it(self.CLAUDE if rows is None else rows, lsof, ps)
+
+    def test_caffeinate_of_idle_claude_passes(self):
+        self.assertEqual(self.caffeinate(), [])
+        self.assertEqual(self.caffeinate("/usr/bin/caffeinate -i -s -w 6"), [])
+
+    def test_caffeinate_of_working_claude_blocked(self):
+        problems = self.caffeinate(rows=[{"pid": 6, "state": "working", "cwd": self.WT}])
+        self.assertTrue(any("11 caffeinate" in p for p in problems), problems)
+
+    def test_caffeinate_not_owned_by_idle_claude_blocked(self):
+        self.assertTrue(any("11 caffeinate" in p for p in self.caffeinate(ppid=1)))
+
+    def test_caffeinate_running_a_command_blocked(self):
+        self.assertTrue(any("11 caffeinate" in p for p in self.caffeinate("caffeinate -i make build")))
+
+    def test_caffeinate_with_child_blocked(self):
+        self.assertTrue(any("11 caffeinate" in p for p in self.caffeinate(extra_ps=[(12, 11, "make")])))
+
+    def test_other_child_of_idle_claude_blocked(self):
+        rows = [(6, "2.1.319", self.WT), (11, "node", self.WT)]
+        problems = self.run_it(self.CLAUDE, rows, [(6, 1, "claude"), (11, 6, "node server.js")])
+        self.assertTrue(any("11 node" in p for p in problems), problems)
 
     def test_foreground_command_blocked(self):
         self.assertTrue(self.run_it([], [(7, "sleep", self.WT + "/sub")], [(7, 1, "sleep 600")]))

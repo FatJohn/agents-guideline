@@ -29,7 +29,7 @@ squash／rebase merge 的 branch 不是 base 的祖先，第二個 `test` 改成
 
 ## 直接清的閘門
 
-SKILL §3「直接清」不用 markdown 裡的 shell 管線判定，而是跑 `<REPO>/scripts/worktree-clean-check.py`：管線在工具失敗或清單為空時會放行，也沒有測試（2026-11-06 fresh 驗收實跑出來：一般 merge commit 的路徑上，`merge-base` 等於 HEAD，內容核對的清單是空的，整個 revert 後閘門仍過）。這支腳本 fail-closed，交付清單是 PR 的 files 併上 `Base SHA` 到 HEAD 的 diff，比對對象是 fetch 過的 `refs/remotes/origin/<baseRefName>`；base 在 merge 之後又改了同一批檔時會擋下，這是有意保留的，不放寬。
+SKILL §3「直接清」不用 markdown 裡的 shell 管線判定，而是跑 `<REPO>/scripts/worktree-clean-check.py`：管線在工具失敗或清單為空時會放行，也沒有測試（2026-11-06 fresh 驗收實跑出來：一般 merge commit 的路徑上，`merge-base` 等於 HEAD，內容核對的清單是空的，整個 revert 後閘門仍過）。這支腳本 fail-closed，交付清單是 PR 的 files 併上 `Base SHA` 到 HEAD 的 diff（帶 `--user-authorized` 時起點不讀 `Base SHA`，改取 HEAD 與 PR `baseRefOid` 的 merge-base；它等於 HEAD 就擋，理由同上面那個陷阱），比對對象是 fetch 過的 `refs/remotes/origin/<baseRefName>`；base 在 merge 之後又改了同一批檔時會擋下，這是有意保留的，不放寬。
 
 ## Harness 事實
 
