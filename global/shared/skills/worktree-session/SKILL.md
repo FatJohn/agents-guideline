@@ -60,13 +60,15 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 
 1. **來源明確**：worktree 內的 `.worktrees/result.md` 存在，`Worktree` 欄等於該 worktree 絕對路徑。依 §2，issue session 在該 issue 的每個 worktree 都會寫這份檔（含多 repo issue 在子 repo 開的）。這是交付檔的自報，手寫也會過；不要為了清 worktree 自己補寫。
 2. **已交付**：`Issue` 有值，`Status` 是 `merged`，`Merged` 欄等於 PR 的 merge commit，`Pending authorization` 與 `Blocker` 都是「無」，PR read-back 是 `MERGED`，且 PR head 等於 worktree HEAD。多 repo issue 逐個 worktree 判定，不以其中一個 PR 代表全部。
-3. **閒置**：該 worktree 內的 claude session 全部是 `idle`，且 cwd 在 worktree 內的 process 只剩這些 session 與互動 shell（shell 的子程序只能是這些 session）。
+3. **閒置**：該 worktree 內的 claude session 全部是 `idle`，且 cwd 在 worktree 內的 process 只剩這些 session、互動 shell（shell 的子程序只能是這些 session），以及 idle session 自己起的 `caffeinate`（沒帶要執行的指令、沒有子程序）。
 4. **內容已在 base**：`references/worktree.md`「清理的證據條件」成立；工作區連隱藏狀態（skip-worktree、被設定隱藏的 untracked）都是乾淨的，完整交付清單（含刪除與更名前的舊路徑）與 PR 的 base 內容相同。
-5. **沒有清掉就回不來的檔**：ignored 檔預設可清（`build/`、`.tools/`、`test-results/` 這類產物不必列白名單），下列任一成立就擋：`result.md` 的 `Keep ignored` 不是「無」，或缺這欄（舊格式判不出有沒有要留的檔）；有憑證形狀的 ignored 檔而沒有逐條列在 `Disposable secrets`（比對路徑每一段，不分大小寫，ignored 目錄會往下逐檔找；形狀清單以腳本的 `CREDENTIAL_PATTERNS` 為準，本條不另抄）；ignored 項目裡有巢狀 git repo（`.git` 目錄或 gitfile，不分大小寫；或沒有 `.git` 的 bare repo）。工具專屬產物目錄（腳本的 `REBUILDABLE`、`REBUILDABLE_NAMES`、`SELF_IGNORING`、`HUSKY_GENERATED`）照舊整包放行、不往下找。另外 `.worktrees/` 內只有 `result.md`，底下沒有巢狀 worktree。ignored 檔不算 dirty，會隨 worktree 一起消失。
+5. **沒有清掉就回不來的檔**：ignored 檔預設可清（`build/`、`.tools/`、`test-results/` 這類產物不必列白名單），下列任一成立就擋：`result.md` 的 `Keep ignored` 不是「無」，或缺這欄（舊格式判不出有沒有要留的檔）；有憑證形狀的 ignored 檔而沒有逐條列在 `Disposable secrets`（比對路徑每一段，不分大小寫，ignored 目錄會往下逐檔找；形狀清單以腳本的 `CREDENTIAL_PATTERNS` 為準，本條不另抄）；ignored 項目裡有巢狀 git repo（`.git` 目錄或 gitfile，不分大小寫；或沒有 `.git` 的 bare repo）。工具專屬產物目錄（腳本的 `REBUILDABLE`、`REBUILDABLE_NAMES`、`SELF_IGNORING`、`HUSKY_GENERATED`）照舊整包放行、不往下找；`NESTED_REBUILDABLE` 列的兩種（SwiftPM 的 `SourcePackages/`、Flutter 的 `Flutter/ephemeral/`）巢狀在別的 ignored 目錄底下也放行，但底下有 tracked 檔、或本身是 git repo 的不算。另外 `.worktrees/` 內只有 `result.md`，底下沒有巢狀 worktree。ignored 檔不算 dirty，會隨 worktree 一起消失。
 
 腳本判不到的形狀列在它的開頭說明。其中要注意一項：session 在等使用者回答時狀態也是 `idle`，所以 `Status` 與 `Pending authorization` 要由 issue session 誠實填，還在對話的 session 不要先寫 `merged`。
 
-**使用者說「做完」**：使用者在盤點 session 說某個 issue session 做完，且上面五條全部成立（腳本 exit 0），這句話就是該 issue 下列動作的當次授權（全域邊界 3），盤點 session 直接收尾，不再逐項問：關 issue（多 repo issue 等每個 worktree 都判定過才關）、關該 session 和 terminal、清 worktree 與 branch、刪該 session 留下的匿名 docker volume。步驟見 `references/cli.md`「清理」。merge、改 CI、不屬於該 session 的刪除、花錢或對外的新決定照舊要問。使用者沒說做完時只做上面的直接清，不關 issue、不刪 volume。
+**使用者說「做完」或授權清**：使用者在盤點 session 說某個 issue session 做完，或點名某個 worktree 說可以清，判定改跑 `worktree-clean-check.py --user-authorized`。這個模式不看 `result.md` 的自報欄位（`Status`、`Pending authorization`、`Blocker`、`Merged`、`Base SHA` 等，沒有 `result.md` 也可以）：第 1 條由使用者點名取代，第 2 條只看 PR read-back，第 3、4、5 條照擋；有 `result.md` 時，`Keep ignored`、`Disposable secrets` 兩欄與保護它們的寫法檢查（字元白名單、HTML entity）照原規則看，`Disposable secrets` 只在整份 `result.md` 寫法合格、且 `Worktree` 欄就是這個 worktree 時採用。旗標只在使用者當次對該 worktree 這樣說時帶，不因為看起來做完了自己帶。exit 0 時這句話就是下列動作的當次授權（全域邊界 3），盤點 session 直接收尾，不再逐項問：關該 worktree 內 idle 的 session 和 terminal、清 worktree 與 branch；使用者說的是「做完」時，再加關 issue（多 repo issue 等每個 worktree 都判定過才關）與刪該 session 留下的匿名 docker volume。步驟見 `references/cli.md`「清理」。merge、改 CI、不屬於該 session 的刪除、花錢或對外的新決定照舊要問。使用者沒說做完時只做上面的直接清，不關 issue、不刪 volume。
+
+授權清一個 worktree 就包含關掉它裡面 idle 的 session 和 terminal，不另外問，也不請使用者自己去關；腳本擋下、使用者看過原因仍說清的時候也一樣。session 不是 idle、或 terminal 有前景指令在跑時，先回報它在做什麼再問（`orca terminal close --all` 會連前景指令一起停）。
 
 **要先問**：任一條判不出來或不成立就保留 worktree，回報原因；來源不明的 worktree／branch 要使用者明確授權才能刪（全域邊界 3）。
 
@@ -74,6 +76,7 @@ Merged: <merge SHA；merge 後補；未 merge 寫「—」>
 |---|---|---|
 | Orca 起的 issue session 閒置；`result.md` 寫 `merged`、Pending「無」；PR `MERGED` 且 head 等於 HEAD；工作區乾淨 | 直接清 | 五條全部成立 |
 | worktree 沒有 `result.md`（例如使用者手動開的），它的 branch 的 PR 已 `MERGED` | 要先問 | 來源不明，PR 狀態證明不了這個 worktree 是為該 issue 建的 |
+| 使用者說「#12 做完了」；`result.md` 還寫 `ready for authorization`、Pending 列著 merge；PR `MERGED` 且 head 等於 HEAD；session 閒置；工作區乾淨 | 帶 `--user-authorized` 判定，過了就收尾 | 自報欄位由使用者的話取代，其餘證據照看 |
 | PR 已 `MERGED`，`result.md` 還寫 `ready for authorization` | 先送回 issue session 補；補不了才問 | 狀態不推進，`issue-status.py` 會判 `unknown` |
 | `result.md` 寫 `merged`，但 session 在跑工具或背景 subagent，或 terminal 有前景指令 | 保留，等它停下再判 | 第 3 條不成立 |
 | `result.md` 與 PR 都對，但 base 之後又改了同一批檔 | 要先問 | `git diff` 不為空，證據條件不放寬 |
