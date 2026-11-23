@@ -43,7 +43,7 @@
 
 直接清（SKILL §3）不分容器，都先做這兩步，成功才往下：
 
-1. `python3 <REPO>/scripts/worktree-clean-check.py --repo <repo> --worktree <wt>`，exit 0 才繼續。使用者當次對這個 worktree 說做完或授權清時加 `--user-authorized`（SKILL §3「使用者說『做完』或授權清」）。exit 1 時把腳本列的原因回報給使用者（SKILL §3「要先問」）。使用者看過原因仍說清時，`worktree.md`「清理的證據條件」照樣要成立才往下做：第 1 條沒有例外，工作區不乾淨或還有 session、process 在用就不清，回報未提交的檔等使用者決定，下面的步驟不帶 `--force`；第 2 條只在使用者明確撤銷該交付時略過。原因是 `Keep ignored` 或憑證形狀的檔時，先講明哪些檔會跟著刪。
+1. `python3 <REPO>/scripts/worktree-clean-check.py --repo <repo> --worktree <wt>`，exit 0 才繼續。使用者當次對這個 worktree 說做完或授權清時加 `--user-authorized`（SKILL §3「使用者說『做完』或授權清」）。exit 1 時把腳本列的原因回報給使用者（SKILL §3「要先問」）。使用者看過原因仍說清時，`worktree.md`「清理的證據條件」照樣要成立才往下做：第 1 條沒有例外，工作區不乾淨或還有 session、process 在用就不清，回報未提交的檔等使用者決定，下面的步驟不帶 `--force`；第 2 條只在使用者明確撤銷該交付時略過。原因是 `Keep ignored` 或憑證形狀的檔時，先把腳本列出的檔轉述給使用者，講明它們會跟著刪（`Keep ignored` 那條列的是會一起刪的 ignored 項目，不含 `.worktrees/`；`/` 結尾代表整個目錄，總數算項目不算檔，最多列 20 個）。
 2. 讀 `<wt>/.worktrees/result.md`，把後續事項帶進下一個相關 brief 或 handoff；檔案隨 worktree 一起刪。帶 `--user-authorized` 且 worktree 沒有 `result.md` 時略過這一步。
 
 Orca 建的 worktree 依序做：
