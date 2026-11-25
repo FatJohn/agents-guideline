@@ -89,6 +89,9 @@ verifier 回報狀態使用 `CONVERGED`／`INCONCLUSIVE`／`PROSE-ONLY`／`OPEN`
 1.【需求與 plan 是否落地】
 2.【測試／靜態檢查／實跑證據是否足夠】
 3.【是否有規則衝突、行為回歸、路徑錯誤或缺漏的測試】
+4.【diff 含外部呼叫、權限請求或不可逆副作用時：`<REPO>/global/shared/rubrics/code-change.md` §7 每題逐一回答，查過沒問題的寫查了哪裡；不含則刪掉本條】
+寫入入口與共享狀態：【diff 新增或改動了哪些寫入入口與共享狀態；條件 4 成立時逐一列出每個寫入入口與外部呼叫（函式名＋檔案:行號），以及會寫同一筆資料的既有入口；都沒有寫「無」】。
+已知、不必重報：【待授權或等後續步驟的事、已決定不修的既有問題、已寫進 PR 內文或同時派出的驗收 brief 的風險，每項一句；認為理由不成立時才報；無則寫「無」】。不列製作者自己擔心的「特別留意」檢查點。
 finding 品質：每條 finding 發出前依 `<REPO>/global/shared/rubrics/review-findings.md` §1–§3 自查；目標 repo 自己的 review 判準在【路徑；無則寫「無」】。
 限制：遇到一般文件或一般驗收，停止並回報「需 verifier/Terra high」；遇到安全、不可逆、重大架構／安全判斷或正式高風險驗收，停止並回報「需 sol_verifier/Sol high」（「不可逆」依 `<REPO>/global/shared/rules/judgment.md` 第 2 條「不可逆副作用的定義」的 canonical 定義，一般側操作照 `<REPO>/global/shared/rubrics/code-change.md` §7 審完、不升級）；不得自行修正。
 回報格式：依 `<REPO>/global/codex/rules/dispatch.md` §4，逐條判定並附證據位置與最大未解風險。
