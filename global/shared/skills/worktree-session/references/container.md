@@ -8,7 +8,7 @@
 - **交接檔**：brief 在 `<repo>/.worktrees/briefs/<issue>.md`，result 在 `<wt>/.worktrees/result.md`，欄位依 SKILL §2；兩者都是純檔案，任何容器、任何 agent 都讀得到。
 - **worktree 由 git 管**：容器建的 worktree 必須出現在 `git -C <repo> worktree list --porcelain`，位置與忽略方式依 `worktree.md`「所有權與路徑」；清理條件依 `worktree.md`「清理的證據條件」，直接清的閘門是 `<REPO>/scripts/worktree-clean-check.py`。
 - **三支腳本只讀 git、gh、process 與 session jsonl**：`issue-status.py`（進度板）、`stall-check.py`（Claude session 在做什麼）、`worktree-clean-check.py`（能不能清）。容器資訊只能當可選加值（`issue-status.py` 讀 `orca worktree list` 補 linkedIssue，orca 不在就略過），不能是判定輸入。
-- **狀態變化的通知不隨容器變**：`issue-status.py --watch` 只讀 result.md、git、gh，Claude 端掛在盤點 session 的 `Monitor` 上（cli.md「query status／collect」），換容器不用改。
+- **交付的通知不隨容器變**：`issue-status.py --watch` 只讀 result.md、git、gh，Claude 端掛在盤點 session 的 `Monitor` 上（cli.md「query status／collect」），換容器不用改。
 - **狀態推進只靠 `result.md` 與 `gh pr view`**：容器回報的 idle／done／blocked、pane 顏色、看板欄位都不對應 SKILL §2 的任何 `Status`。
 
 ## 五個動作與各容器對照

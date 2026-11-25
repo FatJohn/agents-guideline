@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """一次列出一個或多個 repo（`--repo` 可重複）每個 issue worktree 的狀態，給「盤點 session」取代反覆
-`orca terminal read`。`--watch <秒>` 改成持續監看、只在狀態變了才印一行，給 Claude Code 的 Monitor 當事件來源。
+`orca terminal read`。`--watch <秒>` 改成持續監看、只在某個 worktree 交付時印一行，給 Claude Code 的 Monitor 當事件來源。
 
 用途：issue session 把交付包寫在 `<worktree>/.worktrees/result.md`（欄位見
 `global/shared/skills/worktree-session/SKILL.md` §2「issue session result」）。這支腳本讀每個 worktree 的
 result.md，再拿 git／gh 的事實對照，每個 worktree 輸出一行。它只是彙整 result.md 與 git／gh 事實，不是
 完成證據：要宣稱完成、要 merge，仍要看 PR、CI 與 verifier 的回報本身。
 
-完全唯讀：只跑 `git -C <path>`（rev-parse、status、worktree list、remote get-url；status 加
+對 repo 完全唯讀（`--watch` 另在 `~/.cache/issue-status-watch/announced.json` 記已報過交付的 worktree，不寫 repo）：只跑 `git -C <path>`（rev-parse、status、worktree list、remote get-url；status 加
 --no-optional-locks 不更新 index）、`gh -R <owner/repo> pr list`、可選的 `orca worktree list --json`；
-不寫檔、不改 git 狀態、不碰 `orca terminal` 系列、不讀 TUI 或 process 狀態（TUI idle、process 結束都不對應
+不寫 repo 內的檔、不改 git 狀態、不碰 `orca terminal` 系列、不讀 TUI 或 process 狀態（TUI idle、process 結束都不對應
 任何狀態）。orca 不在或失敗就略過，只少了 linkedIssue 欄。
 
 worktree 列舉用 `git -C <repo> worktree list --porcelain`，涵蓋 Orca 建的 `<repo>/.orca/workspaces/...`
@@ -46,6 +46,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -416,80 +417,69 @@ def collect(repos, args, pr_cache=None):
     return rows, skipped, bad, len(seen)
 
 
-IN_FLIGHT = ("working", "awaiting verification")
+STATE_FILE = Path.home() / ".cache" / "issue-status-watch" / "announced.json"
 
 
-def watch_key(row):
-    """自報還在做（working／awaiting verification）的 session 寫完 result.md 後繼續改檔、commit，
-    Dirty／Candidate SHA 一定會跟現況對不上而被判 unknown「result.md 過時」；這是正常的工作中狀態，
-    監看不把它當變化，否則每次改檔都叫醒盤點 session。一次性列表照舊顯示 unknown。"""
-    status, reason = row["status"], row["reason"]
-    if status == "unknown" and row["reported_status"] in IN_FLIGHT and (reason or "").startswith("result.md 過時"):
-        status, reason = row["reported_status"], None
-    return (status, reason, row["pr_text"], row["pending_authorization"], row["blocker"])
+def delivered(row):
+    """盤點 session 該接手收尾的列：沒有 OPEN 的 PR，且 result.md 自報 merged，或 PR 已 MERGED。
+    PR 那一支要求有 result.md 且 PR head 等於 HEAD：`gh pr list --head` 會撈到同名 branch 以前
+    merge 過的 PR，重用 branch 名的新 worktree 不能一開工就被報。"""
+    pr = row["pr"] or {}
+    if pr.get("state") == "OPEN":
+        return False
+    if row["reported_status"] == "merged":
+        return True
+    return pr.get("state") == "MERGED" and bool(row["result_mtime"]) and pr.get("headRefOid") == row["head"]
 
 
-def watch_view(row):
-    """事件行顯示用：把 watch_key 視為工作中的「result.md 過時」還原成自報狀態，
-    讓印出來的狀態與 `was …` 跟判定變化用的是同一個值。"""
-    status, reason = watch_key(row)[:2]
-    return {**row, "status": status, "reason": reason}
+def announce_key(row):
+    """帶 HEAD：同一路徑重建成別的 issue、或同一 worktree 的後續 PR 交付時要能再報一次。
+    不用 PR 編號，gh 一次查不到會讓同一個交付換 key 而重報。"""
+    return f"{row['path']}\t{row['head']}"
 
 
-def is_none_text(value):
-    """欄位值算不算「無」：空、`-`、`—`、`無`（後面可接句號或括號說明），以及填不出來的 `unknown…`。"""
-    v = (value or "").strip()
-    return v in ("", "-", "—", "無") or v.startswith(("無。", "無（", "無(", "無，")) or v.lower().startswith("unknown")
+def load_announced():
+    """已報過交付的 worktree。Monitor 每 30 分鐘到期要重掛，沒有這份紀錄的話，merge 了還沒清的
+    worktree 每次重掛都會再叫醒盤點 session 一次。讀不到就當沒報過（寧可重報）。"""
+    try:
+        keys = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        return {k for k in keys if isinstance(k, str) and os.path.isdir(k.split("\t")[0])}
+    except (OSError, ValueError, TypeError):
+        return set()
 
 
-def needs_user(row):
-    """要提醒盤點 session「有人在等使用者」的列：輪到使用者（blocked／ready for authorization），
-    或還在做但 Pending authorization 不是「無」。blocked 的 session 繼續做不被擋的部分而讓 result.md
-    過時時，狀態會被降成 unknown；這裡照自報狀態算，blocker 才不會漏報。"""
-    status = watch_key(row)[0]
-    if status == "unknown" and (row["reason"] or "").startswith("result.md 過時"):
-        status = row["reported_status"]
-    return status in ("blocked", "ready for authorization") or (
-        status in IN_FLIGHT and not is_none_text(row["pending_authorization"]))
+def save_announced(announced):
+    """先重讀再合併：同一台機器上可能有另一個監看（別的 repo、換手中的舊 session）在寫同一份檔。"""
+    try:
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=STATE_FILE.parent, suffix=".tmp")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(sorted(announced | load_announced()), f)
+        os.replace(tmp, STATE_FILE)
+    except OSError:
+        pass
 
 
 def watch(repos, args):
-    """每 args.watch 秒重跑一次，只在某個 worktree 的狀態、原因、PR、Pending、Blocker 變了才印一行。
-    給 Claude Code 的 Monitor 用：每行 stdout 是一個事件，沒變化就不印。不會自己結束。"""
+    """每 args.watch 秒重跑一次，只在某個 worktree 交付（見 delivered）時印一行，每個 worktree 只報一次。
+    給 Claude Code 的 Monitor 用：每行 stdout 都會叫醒盤點 session 一輪，所以它不必處理的變化
+    （等使用者、unknown、新增、移除、基線）都不印。不會自己結束。"""
     def emit(line):
         print(f"[{datetime.now().strftime('%H:%M')}] {line}", flush=True)
 
-    pr_cache, prev, bad_prev, first, last_err = {}, {}, set(), True, None
+    pr_cache, announced, bad_prev, last_err = {}, load_announced(), set(), None
     while True:
         try:
-            rows, _, bad, n_repos = collect(repos, args, pr_cache)
+            rows, _, bad, _ = collect(repos, args, pr_cache)
             for b in sorted(set(bad) - bad_prev):
                 emit(f"error: {b} 不是 git repo 或讀不到 worktree 清單；它的 worktree 暫停追蹤")
             bad_prev = set(bad)
-            cur = {r["path"]: r for r in rows}
-            if first:
-                reported = [f"{r['name']}={watch_key(r)[0]}" for r in rows if r["result_mtime"]]
-                emit(f"watching {len(rows)} worktrees in {n_repos} repos every {args.watch}s; "
-                     f"有 result.md 的：{', '.join(reported) or '無'}")
-                for r in rows:
-                    if r["result_mtime"] and needs_user(r):
-                        emit("waiting on user: " + render_text([watch_view(r)]))
-            else:
-                for path, r in cur.items():
-                    old = prev.get(path)
-                    if old is None:
-                        emit(("new (waiting on user): " if needs_user(r) else "new: ") + render_text([watch_view(r)]))
-                    elif watch_key(old) != watch_key(r):
-                        tag = "; waiting on user" if needs_user(r) else ""
-                        emit(f"changed (was {watch_key(old)[0]}{tag}): " + render_text([watch_view(r)]))
-            # 讀不到的 repo 保留上一輪狀態：不報 removed，恢復後也不會被當成全部新增
-            kept = {p: o for p, o in prev.items() if p not in cur and o["repo_arg"] in bad}
-            if not first:
-                for path, old in prev.items():
-                    if path not in cur and path not in kept:
-                        emit(f"removed: {old['name']} (was {watch_key(old)[0]})")
-            first = False
-            prev = {**kept, **cur}
+            fresh = [r for r in rows if delivered(r) and announce_key(r) not in announced]
+            for r in fresh:
+                emit("delivered: " + render_text([r]))
+            if fresh:
+                announced |= {announce_key(r) for r in fresh}
+                save_announced(announced)
             last_err = None
         except Exception as e:  # 單輪失敗不結束監看；同一個錯誤連續發生只印一次
             msg = f"error: 本輪讀取失敗：{type(e).__name__}: {e}"
@@ -509,8 +499,9 @@ def main(argv=None):
     ap.add_argument("--no-gh", action="store_true",
                     help="跳過 PR 查詢；此時 ready for authorization／merged 一律 unknown「未查 PR」")
     ap.add_argument("--watch", type=int, metavar="SECONDS",
-                    help="持續監看：第一輪印一行基線（輪到使用者、或還在做但 Pending authorization 不是「無」的各再印一行 waiting on user；之後的事件行遇到這種列也標 waiting on user），之後只在某個 worktree 的狀態、原因、PR、Pending authorization、"
-                         "Blocker 變了才印一行（新增、移除也印；自報 working／awaiting verification 而只是 result.md 過時的不算變化）；不會自己結束。給 Claude Code 的 Monitor 當事件來源。"
+                    help="持續監看：只在某個 worktree 交付時印一行 delivered（沒有 OPEN 的 PR，且 result.md 自報 merged，或 PR 已 MERGED 且 head 等於 HEAD），"
+                         "每個 worktree 只報一次，重掛也不重報（紀錄在 ~/.cache/issue-status-watch/announced.json）；等使用者、unknown、"
+                         "新增、移除都不印；不會自己結束。給 Claude Code 的 Monitor 當事件來源。"
                          "gh 在該 worktree 的 HEAD 或 result.md mtime 變了、或距上次查詢滿 5 分鐘才重查，失敗時沿用上次結果。最小 10 秒")
     args = ap.parse_args(argv)
     if args.watch is not None:
