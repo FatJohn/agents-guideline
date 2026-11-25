@@ -52,9 +52,9 @@ def write_result(wt, status="working", cand=None, dirty="0", merged="—", pendi
     )
 
 
-def pr(number, state):
+def pr(number, state, head="f" * 40):
     return {"number": number, "state": state, "url": f"https://github.com/acme/widgets/pull/{number}",
-            "mergedAt": "2026-10-17T00:00:00Z" if state == "MERGED" else None, "headRefOid": "f" * 40}
+            "mergedAt": "2026-10-17T00:00:00Z" if state == "MERGED" else None, "headRefOid": head}
 
 
 class IssueStatusTests(unittest.TestCase):
@@ -67,6 +67,9 @@ class IssueStatusTests(unittest.TestCase):
         orca = mock.patch.object(iss, "orca_info", return_value={})
         orca.start()
         self.addCleanup(orca.stop)
+        state = mock.patch.object(iss, "STATE_FILE", self.root / "watch-state" / "announced.json")
+        state.start()
+        self.addCleanup(state.stop)
         self.repo = self.root / "repo"
         self.repo.mkdir()
         git(self.repo, "init", "-q", "-b", "main")
@@ -479,31 +482,115 @@ class IssueStatusTests(unittest.TestCase):
                 iss.main(["--repo", str(self.repo), "--watch", "10", *extra])
         return [ln.split("] ", 1)[1] for ln in out.getvalue().splitlines()]
 
-    def test_watch_prints_baseline_then_only_changes(self):
+    def merged_result(self, wt):
+        write_result(wt, status="merged", merged="a" * 40)
+
+    def test_watch_is_silent_until_a_worktree_is_delivered(self):
         a = self.add_wt("a")
         write_result(a)
-        self.add_wt("quiet")
         lines = self.run_watch([
-            lambda: None,  # 沒變化：不印
             lambda: write_result(a, status="blocked", blocker="等 API key"),
-        ])
-        self.assertEqual(len(lines), 2, lines)
-        self.assertTrue(lines[0].startswith("watching 2 worktrees in 1 repos every 10s"))
-        self.assertIn(f"{self._rel('a')}=working", lines[0])
-        self.assertNotIn("quiet=", lines[0])  # 沒有 result.md 不進基線清單
-        self.assertTrue(lines[1].startswith(f"changed (was working; waiting on user): {self._rel('a')}"))
-        self.assertIn("blocked", lines[1])
-        self.assertIn("blocker=等 API key", lines[1])
-
-    def test_watch_reports_new_and_removed_worktrees(self):
-        a = self.add_wt("a")
-        lines = self.run_watch([
+            lambda: write_result(a, pending="merge PR"),
+            lambda: write_result(a, dirty="?"),  # unknown
             lambda: self.add_wt("b"),
             lambda: git(self.repo, "worktree", "remove", "--force", str(a)),
         ])
-        self.assertTrue(lines[1].startswith(f"new: {self._rel('b')}"), lines)
-        self.assertEqual(lines[2], f"removed: {self._rel('a')} (was unknown)")
-        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines, [])
+
+    def test_watch_reports_self_reported_merge_once(self):
+        a = self.add_wt("a")
+        write_result(a, status="ready for authorization")
+        gh = mock.Mock(side_effect=lambda *_: [pr(1, "MERGED")] if "Status: merged" in (a / ".worktrees/result.md").read_text()
+                       else [pr(1, "OPEN")])
+        with mock.patch.object(iss, "PR_CACHE_TTL", 0):
+            lines = self.run_watch([lambda: self.merged_result(a), lambda: None, lambda: write_result(
+                a, status="merged", merged="a" * 40, extra="note\n")], gh=gh)
+        self.assertEqual(len(lines), 1, lines)
+        self.assertTrue(lines[0].startswith(f"delivered: {self._rel('a')} | merged"), lines[0])
+        self.assertIn("pr=#1 MERGED", lines[0])
+
+    def test_watch_sees_github_side_merge_after_ttl_without_local_change(self):
+        a = self.add_wt("a")
+        write_result(a, status="ready for authorization", pending="merge PR")
+        head = git(a, "rev-parse", "HEAD")
+        gh = mock.Mock(side_effect=[[pr(1, "OPEN", head)], [pr(1, "MERGED", head)], [pr(1, "MERGED", head)]])
+        with mock.patch.object(iss, "PR_CACHE_TTL", 0):
+            lines = self.run_watch([lambda: None, lambda: None], gh=gh)
+        self.assertEqual(len(lines), 1, lines)
+        self.assertTrue(lines[0].startswith(f"delivered: {self._rel('a')} | unknown"), lines[0])
+        self.assertIn("pr=#1 MERGED", lines[0])
+        self.assertIn("pending=merge PR", lines[0])
+
+    def test_watch_merged_pr_with_another_open_pr_is_not_delivered(self):
+        a = self.add_wt("a")
+        write_result(a)
+        lines = self.run_watch([lambda: None], gh=mock.Mock(return_value=[pr(1, "MERGED"), pr(2, "OPEN")]))
+        self.assertEqual(lines, [])
+
+    def test_watch_first_arm_reports_already_delivered_and_rearm_does_not_repeat(self):
+        a = self.add_wt("a")
+        self.merged_result(a)
+        gh = mock.Mock(return_value=[pr(1, "MERGED")])
+        first = self.run_watch([], gh=gh)
+        self.assertEqual(len(first), 1, first)
+        self.assertTrue(first[0].startswith("delivered: "), first[0])
+        b = self.add_wt("b")
+        again = self.run_watch([lambda: self.merged_result(b)], gh=gh)  # 重掛：a 不重報，b 是新的
+        self.assertEqual(len(again), 1, again)
+        self.assertIn(self._rel("b"), again[0])
+
+    def test_watch_state_survives_corrupt_or_wrongly_typed_file(self):
+        a = self.add_wt("a")
+        self.merged_result(a)
+        gh = mock.Mock(return_value=[pr(1, "MERGED")])
+        self.run_watch([], gh=gh)
+        self.assertEqual(json.loads(iss.STATE_FILE.read_text()), [f"{a}\t{git(a, 'rev-parse', 'HEAD')}"])
+        for junk in ("{not json", "[1, null]", "7"):
+            iss.STATE_FILE.write_text(junk)
+            self.assertEqual(len(self.run_watch([], gh=gh)), 1, junk)  # 讀不到就重報，不當掉
+
+    def test_watch_save_keeps_keys_another_watcher_wrote(self):
+        a = self.add_wt("a")
+        self.merged_result(a)
+        other = f"{self.repo}\tdeadbeef"
+        iss.STATE_FILE.parent.mkdir(parents=True)
+        iss.STATE_FILE.write_text("[]")
+
+        def sneak():  # 另一個 watcher 在本 watcher 啟動後寫入
+            iss.STATE_FILE.write_text(json.dumps([other]))
+
+        gh = mock.Mock(side_effect=[[pr(1, "OPEN")], [pr(1, "MERGED")]])
+        with mock.patch.object(iss, "PR_CACHE_TTL", 0):
+            self.run_watch([sneak], gh=gh)
+        self.assertIn(other, json.loads(iss.STATE_FILE.read_text()))
+        self.assertEqual(len(json.loads(iss.STATE_FILE.read_text())), 2)
+
+    def test_watch_gh_failure_does_not_make_the_same_delivery_report_twice(self):
+        a = self.add_wt("a")
+        self.merged_result(a)
+        gh = mock.Mock(side_effect=[iss.GhError("timeout"), [pr(1, "MERGED")]])
+        with mock.patch.object(iss, "PR_CACHE_TTL", 0):
+            self.assertEqual(len(self.run_watch([lambda: None], gh=gh)), 1)
+        self.assertEqual(self.run_watch([], gh=mock.Mock(side_effect=iss.GhError("timeout"))), [])  # 重掛時 gh 失敗
+
+    def test_watch_follow_up_pr_reports_when_it_merges_not_while_open(self):
+        a = self.add_wt("a")
+        self.merged_result(a)
+        self.assertEqual(len(self.run_watch([], gh=mock.Mock(return_value=[pr(1, "MERGED")]))), 1)
+        self.commit(a)
+        self.merged_result(a)  # result.md 還寫 merged，但同 branch 開了 #2
+        still_open = [pr(1, "MERGED"), pr(2, "OPEN")]
+        self.assertEqual(self.run_watch([], gh=mock.Mock(return_value=still_open)), [])
+        lines = self.run_watch([], gh=mock.Mock(return_value=[pr(1, "MERGED"), pr(2, "MERGED")]))
+        self.assertEqual(len(lines), 1, lines)
+
+    def test_watch_old_merged_pr_on_a_reused_branch_is_not_delivered(self):
+        a = self.add_wt("a")
+        head = git(a, "rev-parse", "HEAD")
+        self.assertEqual(self.run_watch([], gh=mock.Mock(return_value=[pr(12, "MERGED", head)])), [])  # 無 result.md
+        write_result(a)
+        self.assertEqual(self.run_watch([], gh=mock.Mock(return_value=[pr(12, "MERGED")])), [])  # PR head ≠ HEAD
+        self.assertEqual(len(self.run_watch([], gh=mock.Mock(return_value=[pr(12, "MERGED", head)]))), 1)
 
     def test_watch_requeries_gh_only_when_head_or_result_changes(self):
         a = self.add_wt("a")
@@ -512,29 +599,16 @@ class IssueStatusTests(unittest.TestCase):
         self.run_watch([lambda: None, lambda: None, lambda: self.commit(a)], gh=gh)
         self.assertEqual(gh.call_count, 2)  # 第一輪一次，commit 後 HEAD 變了再一次
 
-    def test_watch_sees_github_side_merge_after_ttl_without_local_change(self):
-        a = self.add_wt("a")
-        write_result(a, status="ready for authorization")
-        gh = mock.Mock(side_effect=[[pr(1, "OPEN")], [pr(1, "MERGED")]])
-        with mock.patch.object(iss, "PR_CACHE_TTL", 0):
-            lines = self.run_watch([lambda: None], gh=gh)
-        self.assertEqual(len(lines), 3, lines)  # 基線＋waiting on user＋變化
-        self.assertIn("ready for authorization", lines[0])
-        self.assertTrue(lines[1].startswith("waiting on user: "), lines[1])
-        self.assertIn("unknown", lines[2])
-        self.assertIn("pr=#1 MERGED", lines[2])
-
     def test_watch_gh_transient_failure_reuses_last_result_without_events(self):
         a = self.add_wt("a")
         write_result(a, status="ready for authorization")
         gh = mock.Mock(side_effect=[[pr(1, "OPEN")], iss.GhError("timeout"), [pr(1, "OPEN")]])
         with mock.patch.object(iss, "PR_CACHE_TTL", 0):
             lines = self.run_watch([lambda: None, lambda: None], gh=gh)
-        self.assertEqual(len(lines), 2, lines)  # 只有基線與它的 waiting on user
-        self.assertTrue(lines[1].startswith("waiting on user: "), lines[1])
+        self.assertEqual(lines, [])
         self.assertEqual(gh.call_count, 3)
 
-    def test_watch_keeps_state_of_temporarily_unreadable_repo(self):
+    def test_watch_reports_unreadable_repo_once(self):
         a = self.add_wt("a")
         write_result(a)
         moved = self.root / "moved-away"
@@ -543,89 +617,8 @@ class IssueStatusTests(unittest.TestCase):
             lambda: None,  # 仍讀不到：error 不重印
             lambda: moved.rename(self.repo),
         ])
-        self.assertEqual(len(lines), 2, lines)  # 基線＋一次 error；不報 removed，恢復後也不報 new
-        self.assertIn("不是 git repo 或讀不到", lines[1])
-
-    def test_watch_ignores_in_flight_staleness_from_ongoing_work(self):
-        a = self.add_wt("a")
-        write_result(a)
-        lines = self.run_watch([
-            lambda: (Path(a) / "wip.txt").write_text("x\n"),  # Dirty 不符
-            lambda: self.commit(a, "wip.txt"),  # Candidate SHA ≠ HEAD
-            lambda: write_result(a, status="blocked", blocker="要決定"),
-        ])
-        self.assertEqual(len(lines), 2, lines)  # 基線＋blocked；中間兩次過時不叫醒
-        self.assertIn("blocked", lines[1])
-
-    def test_watch_reports_blocker_only_change(self):
-        a = self.add_wt("a")
-        write_result(a, status="blocked", blocker="等 A")
-        lines = self.run_watch([lambda: write_result(a, status="blocked", blocker="等 B")])
-        self.assertEqual(len(lines), 3, lines)  # 基線＋waiting on user＋變化
-        self.assertIn("blocker=等 A", lines[1])
-        self.assertIn("blocker=等 B", lines[2])
-
-    def test_watch_baseline_lists_rows_waiting_on_user(self):
-        a = self.add_wt("a")
-        write_result(a, pending="merge PR")  # 還在做，但有事等使用者
-        b = self.add_wt("b")
-        write_result(b, status="blocked", blocker="等 API key")
-        c = self.add_wt("c")
-        write_result(c)  # 正常進行中：不另列
-        lines = self.run_watch([])
-        self.assertEqual(len(lines), 3, lines)
-        waiting = [ln for ln in lines if ln.startswith("waiting on user: ")]
-        self.assertEqual(len(waiting), 2, lines)
-        self.assertTrue(any(self._rel("a") in ln and "pending=merge PR" in ln for ln in waiting), waiting)
-        self.assertTrue(any(self._rel("b") in ln and "blocker=等 API key" in ln for ln in waiting), waiting)
-
-    def test_watch_tags_events_for_rows_waiting_on_user(self):
-        a = self.add_wt("a")
-        write_result(a)
-        lines = self.run_watch([
-            lambda: write_result(a, pending="merge PR"),  # 還在做，但開始有事等使用者
-            lambda: write_result(a),  # 等的事沒了
-            lambda: write_result(self.add_wt("b"), status="blocked", blocker="等 key"),
-        ])
-        self.assertEqual(len(lines), 4, lines)
-        self.assertTrue(lines[1].startswith("changed (was working; waiting on user): "), lines[1])
-        self.assertTrue(lines[2].startswith("changed (was working): "), lines[2])
-        self.assertTrue(lines[3].startswith("new (waiting on user): "), lines[3])
-
-    def test_watch_blocked_row_that_went_stale_still_counts_as_waiting(self):
-        a = self.add_wt("a")
-        write_result(a, status="blocked", blocker="等 key")
-        (Path(a) / "wip.txt").write_text("x\n")  # blocked 但繼續做不被擋的部分：result.md 過時
-        lines = self.run_watch([])
-        self.assertEqual(len(lines), 2, lines)
-        self.assertTrue(lines[1].startswith("waiting on user: "), lines[1])
-        self.assertIn("blocker=等 key", lines[1])
-
-    def test_pending_none_spellings_are_not_waiting(self):
-        for text in ("無", "無。", "無（已在 PR 說明）", "—", "-", "", "unknown（讀不到）", None):
-            self.assertTrue(iss.is_none_text(text), text)
-        for text in ("merge PR", "無法決定要不要 merge"):
-            self.assertFalse(iss.is_none_text(text), text)
-
-    def test_watch_events_show_in_flight_status_instead_of_stale_unknown(self):
-        a = self.add_wt("a")
-        write_result(a, dirty="?")  # Dirty 不是整數：真的 unknown
-        lines = self.run_watch([
-            lambda: (write_result(a), (Path(a) / "wip.txt").write_text("x\n")),  # 補好欄位，但馬上又過時
-            lambda: (self.commit(a, "wip.txt"), write_result(a, status="awaiting verification")),
-        ])
-        self.assertEqual(len(lines), 3, lines)
-        self.assertIn(f"{self._rel('a')}=unknown", lines[0])
-        self.assertTrue(lines[1].startswith(f"changed (was unknown): {self._rel('a')}"), lines[1])
-        self.assertIn("| working", lines[1])
-        self.assertNotIn("過時", lines[1])
-        self.assertTrue(lines[2].startswith(f"changed (was working): {self._rel('a')}"), lines[2])
-        self.assertIn("awaiting verification", lines[2])
-
-    def test_watch_baseline_counts_deduplicated_repos(self):
-        a = self.add_wt("a")
-        lines = self.run_watch([], extra=("--repo", str(a), "--no-gh"))
-        self.assertTrue(lines[0].startswith("watching 1 worktrees in 1 repos"), lines)
+        self.assertEqual(len(lines), 1, lines)
+        self.assertIn("不是 git repo 或讀不到", lines[0])
 
     def test_watch_repeated_round_error_is_printed_once(self):
         with mock.patch.object(iss, "collect", mock.Mock(side_effect=RuntimeError("perm"))):

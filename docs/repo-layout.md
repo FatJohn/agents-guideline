@@ -102,7 +102,7 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | `scripts/dispatch-usage.py` | 日落審查用：量主對話自寫與派 subagent 的使用率（量法見 `maintain-guideline` §5） |
 | `scripts/parallel-usage.py` | 量平行寫入派工的群組與 worktree 派工次數 |
 | `scripts/stall-check.py` | 列出本機每個 claude session 的靜默時間與卡住的位置（盤點 session 用） |
-| `scripts/issue-status.py` | 一次列出一或多個 repo 每個 issue worktree 的狀態；`--watch` 持續監看、狀態變了才印一行（盤點 session 用，唯讀） |
+| `scripts/issue-status.py` | 一次列出一或多個 repo 每個 issue worktree 的狀態；`--watch` 持續監看、某個 worktree 交付時才印一行（盤點 session 用，對 repo 唯讀） |
 | `scripts/session-watch.py` | 把 `issue-status.py` 與 `stall-check.py` 併成一張給人看的表：每個 issue worktree 的 result.md 狀態、session 的 TUI 狀態、是否輪到使用者；`--dispatched-by <session id>` 只列那個 session 與同一個 checkout 的其他 session（例如前後任的盤點 session）用 `orca worktree create` 建出來、還在的 worktree（`mods/session-watch` 的資料來源，唯讀，不是判定依據） |
 | `mods/session-watch/` | 實驗性的 Claude Code mod：`/session-watch` 開一個 pane 每分鐘重畫上面那張表，預設只列這個 checkout 的 session 派出去的（含接手前那一任派的），`/session-watch all` 看整台；`claude --plugin-dir <REPO>/mods/session-watch` 單次載入，不裝進全域；測試跑 `claude plugin test` |
 | `scripts/worktree-clean-check.py` | 判定 issue worktree 能不能不問使用者就清（盤點 session 用，唯讀、fail-closed） |
