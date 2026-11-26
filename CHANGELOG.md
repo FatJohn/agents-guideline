@@ -8,7 +8,7 @@
 
 ## 2026-11-27
 
-- **盤點 session 的監看改用背景 Bash**（issue #77，PR 編號待開）：`issue-status.py` 新增 `--exit-on-event`（搭配 `--watch`，印出 `delivered`／`error:` 那一輪後就結束）；`worktree-session` 的 `references/cli.md` 改成用 Bash `run_in_background` 跑它，不再用 `Monitor`，盤點 session 不會每 30 分鐘被到期叫醒重掛。正在掛 Monitor 監看的盤點 session：`TaskStop` 停掉後照新指令重掛一次。Codex 端不變。
+- **盤點 session 的監看改用背景 Bash**（#85）：`issue-status.py` 新增 `--exit-on-event`（搭配 `--watch`，印出 `delivered`／`error:` 那一輪後就結束）；`worktree-session` 的 `references/cli.md` 改成用 Bash `run_in_background` 跑它，不再用 `Monitor`，盤點 session 不會每 30 分鐘被到期叫醒重掛。正在掛 Monitor 監看的盤點 session：`TaskStop` 停掉後照新指令重掛一次。Codex 端不變。
 - **usage-review 週量測報告固定格式**（#84）：`weekly` 的報告開頭改成計分卡（🟢 變好／🔴 變壞／⚪ 持平／🟡 待觀察，±5% 門檻）與規則表，每個 🔴 要有一列 finding（根因、落點、下次的判定門檻），之後才是結論與數字；格式在 `.claude/skills/usage-review/references/report-format.md`。repo-only skill，pull 後即生效，不用動手。
 - **fresh `code-review` 寫明 skill 等級參數**（#83）：`docs/dispatch.md` §3 與路由卡規定派 fresh review 時 prompt 寫 `/code-review medium <目標>`，Opus（`effort: high`）與 Fable（`effort: medium`）都用 `medium`，不跟著 agent `effort` 調。量測對照起點＝本 PR 的 merge 時間（`gh pr view 83 -R FatJohn/agents-guideline --json mergedAt`）；之前的 review 成本混入了 `high` 等級參數這個變因。symlink 安裝 pull 後即生效，不用另外設定。
 
