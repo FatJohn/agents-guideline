@@ -51,7 +51,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 **新增或修改 skill／agent／rubric 檔時多一步**：在 repo 加檔不等於任何機器已安裝。新 skill 要補進 `<REPO>/docs/install.md` 的安裝清單與 `<REPO>/scripts/sync-profile.py` 的 `SHARED_SKILLS`；Codex agent TOML 跑 `sync-codex-agents.py --apply`（既有差異加 `--update`），read-back 實體檔 bytes。漏掉這步，規則會指向一個叫不出來的名字。
 **新增或修改 skill 的 `description` 時再多一步**：用 `claude -p` 各跑 2 句該觸發、2 句近似但不該觸發的任務描述，以 `--output-format stream-json` 的輸出有無 `Skill` 工具呼叫判定載入，不憑回覆內容猜（Claude Code 容易 under-trigger，該用沒用比誤觸發常見）；只改說明正文不改 description 的不必跑。
 **複本安裝的機器還要多一步**：平常改完即時生效的檔也要跑 `python <REPO>/scripts/sync-profile.py --apply --update`；否則 repo 改了、跑起來的還是舊的，兩邊都不報錯，`git status` 也乾淨。
-**行為變更要記進 `<REPO>/CHANGELOG.md`**：PR 改到下列任一項就必記：規則（入口、judgment、route card、`docs/dispatch.md`）、skill、agent 合約、rubric、hook、安裝步驟或設定片段，或 merge 後使用者要動手（改設定、重跑腳本、重掛監看）。純措辭、量測報告、`docs/lessons.md`、內部重構不記。時點：開 PR 拿到編號之後、轉 ready 或請使用者 merge 之前，在同一個 branch 加一筆到當天的日期段（沒有就新開，新的在上）。每筆一兩句，寫改了什麼行為、使用者要做什麼、PR 編號。
+**行為變更要記進 `<REPO>/CHANGELOG.md`**：PR 改到下列任一項就必記：規則（入口、judgment、route card、`docs/dispatch.md`、`global/codex/rules/`）、skill、agent 合約、rubric、hook、使用者會執行的腳本（`scripts/`、`mods/`）、安裝步驟或設定片段，或 merge 後使用者要動手（改設定、重跑腳本、重掛監看）。純措辭、量測報告、`docs/lessons.md`、內部重構不記。時點：開 PR 拿到編號之後、轉 ready 或請使用者 merge 之前，在同一個 branch 加一筆到當天的日期段（沒有就新開，新的在上）。每筆一兩句，寫改了什麼行為、使用者要做什麼、PR 編號。
 
 ### 本機設定安全
 
