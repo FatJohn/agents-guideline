@@ -6,6 +6,10 @@
 
 複本安裝（Windows、不能提權的機器）的每一筆都隱含同一個動作：pull 後重跑 `python scripts/sync-profile.py --apply --update`，下面不再逐筆重複。
 
+## 2026-11-27
+
+- **fresh `code-review` 寫明 skill 等級參數**（#待補）：`docs/dispatch.md` §3 與路由卡規定派 fresh review 時 prompt 寫 `/code-review medium <目標>`，Opus（`effort: high`）與 Fable（`effort: medium`）都用 `medium`，不跟著 agent `effort` 調。量測對照起點＝本 PR merge 時間（待補）；之前的 review 成本混入了 `high` 等級參數這個變因。symlink 安裝 pull 後即生效，不用另外設定。
+
 ## 2026-11-26
 
 - **新增本檔與記錄規則**（#82）：之後 PR 改到規則、skill、agent 合約、rubric、hook、使用者會執行的腳本、安裝步驟或設定片段，或 merge 後要使用者動手時，同一個 PR 要在這裡補一筆（門檻與時點見 `.claude/skills/maintain-guideline/SKILL.md` §2）。維護者照做即可，不用另外設定。
