@@ -450,7 +450,8 @@ def load_announced():
 
 
 def save_announced(announced):
-    """先重讀再合併：同一台機器上可能有另一個監看（別的 repo、換手中的舊 session）在寫同一份檔。"""
+    """先重讀再合併：同一台機器上可能有另一個監看（別的 repo、換手中的舊 session）在寫同一份檔。
+    寫不進回 False：--exit-on-event 每個行程只活到一次事件，記不住就會每次重掛都重報。"""
     try:
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(dir=STATE_FILE.parent, suffix=".tmp")
@@ -458,14 +459,15 @@ def save_announced(announced):
             json.dump(sorted(announced | load_announced()), f)
         os.replace(tmp, STATE_FILE)
     except OSError:
-        pass
+        return False
+    return True
 
 
 def watch(repos, args):
     """每 args.watch 秒重跑一次，只在某個 worktree 交付（見 delivered）時印一行，每個 worktree 只報一次。
     給 Claude Code 的 Monitor 或背景 Bash 用：每行 stdout（背景 Bash 是每次結束）都會叫醒盤點 session 一輪，所以它不必處理的變化
-    （等使用者、unknown、新增、移除、基線）都不印。args.exit_on_event 時印過任何一行的那一輪結束後就 return，
-    否則不會自己結束。"""
+    （等使用者、unknown、新增、移除、基線）都不印。args.exit_on_event 時印過任何一行的那一輪結束後就 return
+    （只有 delivered 回 0，有 error 行回 1，讓完成通知的 exit code 就分得出監看失敗），否則不會自己結束。"""
     emitted = []
 
     def emit(line):
@@ -484,7 +486,8 @@ def watch(repos, args):
                 emit("delivered: " + render_text([r]))
             if fresh:
                 announced |= {announce_key(r) for r in fresh}
-                save_announced(announced)
+                if not save_announced(announced):
+                    emit(f"error: 已報過的交付寫不進 {STATE_FILE}，重掛會再報一次同一筆")
             last_err = None
         except Exception as e:  # 單輪失敗不結束監看；同一個錯誤連續發生只印一次
             msg = f"error: 本輪讀取失敗：{type(e).__name__}: {e}"
@@ -492,7 +495,7 @@ def watch(repos, args):
                 emit(msg)
             last_err = msg
         if args.exit_on_event and emitted:
-            return
+            return 1 if any(ln.startswith("error:") for ln in emitted) else 0
         time.sleep(args.watch)
 
 
@@ -508,10 +511,10 @@ def main(argv=None):
     ap.add_argument("--watch", type=int, metavar="SECONDS",
                     help="持續監看：只在某個 worktree 交付時印一行 delivered（沒有 OPEN 的 PR，且 result.md 自報 merged，或 PR 已 MERGED 且 head 等於 HEAD），"
                          "每個 worktree 只報一次，重掛也不重報（紀錄在 ~/.cache/issue-status-watch/announced.json）；等使用者、unknown、"
-                         "新增、移除都不印；不會自己結束。給 Claude Code 的 Monitor 當事件來源。"
+                         "新增、移除都不印；不帶 --exit-on-event 時不會自己結束（給 Claude Code 的 Monitor 當事件來源）。"
                          "gh 在該 worktree 的 HEAD 或 result.md mtime 變了、或距上次查詢滿 5 分鐘才重查，失敗時沿用上次結果。最小 10 秒")
     ap.add_argument("--exit-on-event", action="store_true",
-                    help="搭配 --watch：某一輪印出 delivered 或 error 行後就結束（exit 0），不再持續監看。"
+                    help="搭配 --watch：某一輪印出 delivered 或 error 行後就結束（只有 delivered 時 exit 0，有 error 行時 exit 1），不再持續監看。"
                          "給 Claude Code 的 Bash run_in_background 用：沒有事件時不結束、不叫醒，也沒有 Monitor 的到期重掛")
     args = ap.parse_args(argv)
     if args.watch is not None:
@@ -527,8 +530,7 @@ def main(argv=None):
             print(f"issue-status: {r} 不是 git repo", file=sys.stderr)
             return 2
     if args.watch is not None:
-        watch(args.repo, args)
-        return 0
+        return watch(args.repo, args) or 0
     rows, skipped, _, _ = collect(args.repo, args)
     if args.json:
         print(json.dumps(rows, ensure_ascii=False, indent=2))
