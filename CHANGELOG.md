@@ -8,7 +8,7 @@
 
 ## 2026-11-27
 
-- **fresh `code-review` 寫明 skill 等級參數**（#待補）：`docs/dispatch.md` §3 與路由卡規定派 fresh review 時 prompt 寫 `/code-review medium <目標>`，Opus（`effort: high`）與 Fable（`effort: medium`）都用 `medium`，不跟著 agent `effort` 調。量測對照起點＝本 PR merge 時間（待補）；之前的 review 成本混入了 `high` 等級參數這個變因。symlink 安裝 pull 後即生效，不用另外設定。
+- **fresh `code-review` 寫明 skill 等級參數**（#83）：`docs/dispatch.md` §3 與路由卡規定派 fresh review 時 prompt 寫 `/code-review medium <目標>`，Opus（`effort: high`）與 Fable（`effort: medium`）都用 `medium`，不跟著 agent `effort` 調。量測對照起點＝本 PR 的 merge 時間（`gh pr view 83 -R FatJohn/agents-guideline --json mergedAt`）；之前的 review 成本混入了 `high` 等級參數這個變因。symlink 安裝 pull 後即生效，不用另外設定。
 
 ## 2026-11-26
 
