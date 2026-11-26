@@ -162,6 +162,7 @@ Codex 用 Luna、Terra、Sol 三個由低到高的層級。五個角色都是唯
 - **Codex，macOS／Linux**：`AGENTS.md` 與 skills 用 symlink，agent TOML 由同步器寫成實體檔。
 - **Windows（PowerShell）**：用系統管理員 PowerShell，一次裝好 Claude Code 與 Codex 兩側。
 - **實體檔同步版**：給不能提權的機器；用 `scripts/sync-profile.py` 寫成複本，改 repo 後要重跑。
+- **要 commit 本 repo 的維護者**（另做，macOS／Linux／Windows 都要）：照 `docs/install.md`「本 repo 的 commit 閘門：擋專案真名」設 `core.hooksPath` 與名單路徑。
 
 新機器（`global/shared/hosts/` 沒有它的檔）照 [`docs/new-host.md`](docs/new-host.md)「新機器建檔（5 分鐘探測清單）」探測並建檔。裝好的東西在執行時怎麼運作（什麼時刻載入什麼、每支 hook 補哪條規則、`settings.json` 依賴哪些欄位、重建時兩半各要補什麼）見 [`docs/design/mechanism.md`](docs/design/mechanism.md)「運作機制」。`docs/install.md`、`docs/new-host.md`、`docs/design/mechanism.md`、`docs/repo-layout.md` 只有中文版。
 

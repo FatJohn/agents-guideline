@@ -1,0 +1,10 @@
+#!/bin/sh
+root=$(git rev-parse --show-toplevel) || exit 1
+# Try each name: on Windows python3 can be a Store stub that exits non-zero.
+for py in python3 python; do
+  if "$py" -c '' >/dev/null 2>&1; then
+    exec "$py" "$root/scripts/private-names-check.py" message "$1"
+  fi
+done
+echo "private-names: no working python3 or python; commit blocked (skip once: git commit --no-verify)" >&2
+exit 1
