@@ -166,6 +166,8 @@ Codex 用 Luna、Terra、Sol 三個由低到高的層級。五個角色都是唯
 
 新機器（`global/shared/hosts/` 沒有它的檔）照 [`docs/new-host.md`](docs/new-host.md)「新機器建檔（5 分鐘探測清單）」探測並建檔。裝好的東西在執行時怎麼運作（什麼時刻載入什麼、每支 hook 補哪條規則、`settings.json` 依賴哪些欄位、重建時兩半各要補什麼）見 [`docs/design/mechanism.md`](docs/design/mechanism.md)「運作機制」。`docs/install.md`、`docs/new-host.md`、`docs/design/mechanism.md`、`docs/repo-layout.md` 只有中文版。
 
+pull 之後制度改了什麼、要不要動手，看 [`CHANGELOG.md`](CHANGELOG.md)。
+
 ## 目錄地圖
 
 逐檔用途見 [`docs/repo-layout.md`](docs/repo-layout.md)「檔案結構」。

@@ -106,6 +106,8 @@ session 交接卡（所在位置、已完成、待檢查、下一步、風險／
 | 8 | 切本機安裝到 `v2`（symlink 指向 worktree），`claude -p` 重量首 request；Codex 開 fresh session 讀 AGENTS.md 走一次派工 | controller | 首 request tokens 與基線對照；兩平台都能找到 skill 與 agent |
 | 9 | 試用 2–3 個真實 session 後，由使用者決定把 `v2` 取代 `main`（`main` 歷史保留為 `v1` tag） | 使用者 | — |
 
+> 2026-11-26 註：`v1` tag 已刪除（舊歷史含非公開專案名稱），上表步 9 的括號不再成立。
+
 單一 worktree 內序列派工，一步一個 worker；步 2–5 互相獨立，若要平行就各開 worktree 再整合（照 `parallel-dispatch`）。
 
 ## 5. 需要使用者決定的項目
