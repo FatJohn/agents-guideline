@@ -65,6 +65,7 @@ python3 <SK>/scripts/report.py weekly --data "$TMPDIR/ur-data.json" --prs "$TMPD
 - 內建 `code-review` skill 通常會再 fork 沒有 Agent 呼叫的 general-purpose 子 agent（偶爾不只一個，description 是 `/code-review …` 或空白）；`weekly` 的 review 表把它併回 fork 當下還在跑的父呼叫（主對話直接打 `/code-review` 的 fork 沒有父呼叫，不併），`agents` 子命令仍算成獨立 agent（按 agent 數看 review 會變兩倍）。
 - 接手門檻模擬是粗估：每個 session 只換手一次、不算新 session 重讀檔案，方向相反，不是嚴格上界。要用接手規則上線前的窗口：規則生效後跨過較高門檻的 session 被截斷，模擬出來接近 0。
 - 300K 提醒的觸發、接手 session 的啟動、brief 前 600 字（`prompt_head`）之後的字串（例如宣稱對照）需要讀 raw jsonl，不在 extract 的輸出裡，`weekly` 不量。
+- **報告格式**：週量測報告一律照 `references/report-format.md` 的骨架寫：開頭是計分卡（每個指標判 🟢 變好／🔴 變壞／⚪ 持平／🟡 待觀察）與規則表，接著每個 🔴 一列 finding（根因、證據、落點、下次的判定門檻），之後才是結論、窗口與量法、逐題數字。動筆前先讀那份檔。
 
 ## 漏網（`escapes`）
 
@@ -132,3 +133,4 @@ jsonl 是 Claude Code 的內部紀錄檔。官方 sessions 文件明寫：「The
 - `scripts/report.py`：十一個子命令。
 - `references/schema.md`：extract 輸出的欄位定義（canonical）。
 - `references/caveats.md`：量 jsonl 的已知陷阱（現象 → 影響 → 處理）。
+- `references/report-format.md`：週量測報告的固定骨架、判定規則與範例。
