@@ -642,7 +642,7 @@ class IssueStatusTests(unittest.TestCase):
         self.assertIn("error: 本輪讀取失敗：RuntimeError: disk", lines)
         self.assertEqual(len(calls), 3)
 
-    def run_exit_on_event(self, steps, gh=None):
+    def run_exit_on_event(self, steps, gh=None, rc=0):
         """--exit-on-event：回 (事件行, 沒用到的 steps 數)；steps 用完仍未結束就失敗。"""
         actions = list(steps)
 
@@ -655,8 +655,8 @@ class IssueStatusTests(unittest.TestCase):
         gh = gh if gh is not None else mock.Mock(return_value=[])
         with mock.patch.object(iss, "query_prs", gh), mock.patch.object(iss.time, "sleep", fake_sleep), \
                 redirect_stdout(out):
-            rc = iss.main(["--repo", str(self.repo), "--watch", "10", "--exit-on-event"])
-        self.assertEqual(rc, 0)
+            got = iss.main(["--repo", str(self.repo), "--watch", "10", "--exit-on-event"])
+        self.assertEqual(got, rc)
         return [ln.split("] ", 1)[1] for ln in out.getvalue().splitlines()], len(actions)
 
     def test_exit_on_event_keeps_waiting_while_silent_and_exits_after_the_delivery_round(self):
@@ -679,11 +679,25 @@ class IssueStatusTests(unittest.TestCase):
         a = self.add_wt("a")
         write_result(a)
         moved = self.root / "moved-away"
-        lines, left = self.run_exit_on_event([lambda: self.repo.rename(moved), lambda: None])
+        lines, left = self.run_exit_on_event([lambda: self.repo.rename(moved), lambda: None], rc=1)
         moved.rename(self.repo)
         self.assertEqual(len(lines), 1, lines)
         self.assertIn("不是 git repo 或讀不到", lines[0])
         self.assertEqual(left, 1)
+
+    def test_exit_on_event_reports_unsaved_delivery_as_error(self):
+        a = self.add_wt("a")
+        self.merged_result(a)
+        with mock.patch.object(iss, "save_announced", return_value=False):
+            lines, _ = self.run_exit_on_event([], gh=mock.Mock(return_value=[pr(1, "MERGED")]), rc=1)
+        self.assertEqual(len(lines), 2, lines)
+        self.assertTrue(lines[0].startswith("delivered: "), lines)
+        self.assertIn("寫不進", lines[1])
+
+    def test_save_announced_returns_false_when_state_dir_is_unwritable(self):
+        iss.STATE_FILE.parent.parent.mkdir(parents=True, exist_ok=True)
+        iss.STATE_FILE.parent.write_text("not a dir")
+        self.assertFalse(iss.save_announced({"x"}))
 
     def test_exit_on_event_requires_watch(self):
         with redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
