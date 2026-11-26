@@ -19,6 +19,7 @@
 - 公開 repo，不寫非公開專案真名。
 - commit 照 `global/shared/skills/git-commit/SKILL.md` 格式。
 - 教訓寫在 `docs/lessons.md`。
+- 行為變更記進 `CHANGELOG.md`，門檻與時點見 `.claude/skills/maintain-guideline/SKILL.md` §2。
 
 ## 測試
 

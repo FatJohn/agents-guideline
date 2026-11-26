@@ -80,6 +80,7 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | 檔案 | 用途 |
 |------|------|
 | `README.md`／`README.zh-TW.md` | repo 概覽入口（英文／繁體中文，章節對應）：定位、核心概念、安裝入口、目錄地圖 |
+| `CHANGELOG.md` | 制度的行為變更紀錄（按日期，附 PR 編號與使用者要做的事），給裝了這套制度的人 pull 後看；記錄門檻與時點見 `.claude/skills/maintain-guideline/SKILL.md` §2；只有中文 |
 | `docs/install.md` | 完整安裝步驟：Claude Code、Codex、Windows（PowerShell）、實體檔同步版、從 v1 升級、本 repo 的 commit 閘門；只有中文 |
 | `docs/new-host.md` | 新機器建檔（5 分鐘探測清單）；只有中文 |
 | `docs/design/mechanism.md` | 運作機制說明：五個時刻各載入什麼、五支 hook 補哪條規則、`settings.json` 依賴的欄位、重建一台機器兩半各要補什麼；只有中文 |

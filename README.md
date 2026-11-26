@@ -176,6 +176,8 @@ For a new machine (no file in `global/shared/hosts/`), probe it and create its f
 
 How the installed pieces work at runtime (what loads when, what each hook enforces, which `settings.json` fields the system depends on, and what a rebuild has to restore on both sides) is explained in 「運作機制」 of [`docs/design/mechanism.md`](docs/design/mechanism.md).
 
+After pulling, check [`CHANGELOG.md`](CHANGELOG.md) for behavior changes and whether you need to act (Chinese only).
+
 `docs/install.md`, `docs/new-host.md`, `docs/design/mechanism.md`, `docs/repo-layout.md` and `docs/dispatch.md` exist in Chinese only.
 
 ## Directory map
