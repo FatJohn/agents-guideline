@@ -68,7 +68,7 @@ description: 修改本工作系統本身時使用——`global/**`（入口、ju
 
 教訓日誌留在 repo 當改善依據，**不裝進全域**、不常駐 context。
 
-- **本 repo 是公開 repo，不寫非公開專案的真名**：外部專案標技術領域（`[flutter]`、`[android]`、`[ci]`）或代號（`project-a`、`project-b`…，新專案依序給下一個；代號對照只留本機記憶，不進 repo）；本 repo 自身工作標 `[agents-guideline]`；跨專案通用標 `[global]`。同一規則適用 docs、hosts 紀錄、commit message 與 issue，範例 repo 用 `acme/widgets`。來源追溯依教訓日期回查 `~/.claude/projects/<專案目錄>/*.jsonl`（受 `cleanupPeriodDays` 限制）。
+- **本 repo 是公開 repo，不寫非公開專案的真名**：外部專案標技術領域（`[flutter]`、`[android]`、`[ci]`）或代號（`project-a`、`project-b`…，新專案依序給下一個；代號對照只留本機記憶，不進 repo）；本 repo 自身工作標 `[agents-guideline]`；跨專案通用標 `[global]`。同一規則適用 docs、hosts 紀錄、commit message 與 issue，範例 repo 用 `acme/widgets`。來源追溯依教訓日期回查 `~/.claude/projects/<專案目錄>/*.jsonl`（受 `cleanupPeriodDays` 限制）。commit 當下由 `.githooks/`（`scripts/private-names-check.py`）比對 repo 外的名單擋下，啟用見 `<REPO>/docs/install.md`「本 repo 的 commit 閘門：擋專案真名」；PR 內文與 issue 仍靠自律。
 - 值得寫的門檻：會讓下個 session 多花 10 分鐘以上，且從 repo／git log 看不出來。
 - **情境壓在一行、上限 80 字**：只留「觸發訊號 → 該怎麼做」，事故脈絡留在當時的 PR／commit。
 - **活躍教訓硬上限 8 條**：滿 8 條時，先升級或封存一條再記新教訓。
