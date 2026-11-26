@@ -36,7 +36,7 @@ t "claude --worktree= only --effort -> deny" 2 "$(j 'claude --worktree=x --effor
 t "indented claude -w -> deny"               2 "$(j '   claude -w x "y"')"
 t "terminal create --command claude -w -> deny" 2 "$(j 'orca terminal create --worktree m --command "claude -w x"')"
 t "terminal create --command single-quoted -> deny" 2 "$(j "orca terminal create --worktree m --command 'claude --worktree x'")"
-t "documented claude -w fallback -> allow"   0 "$(j 'cd /r && claude -w 12 -n 12 --model claude-opus-5-5 --effort medium --permission-mode auto "$(cat /r/b.md)"')"
+t "documented claude -w fallback -> allow"   0 "$(j 'cd /r && claude -w 12 -n issue-12 --model claude-opus-5-5 --effort medium --permission-mode auto "$(cat /r/b.md)"')"
 t "claude -w equals flags -> allow"          0 "$(j 'claude -w x --model=m --effort=e "y"')"
 t "terminal create claude -w with flags -> allow" 0 "$(j 'orca terminal create --worktree m --command "claude -w x --model m --effort e"')"
 t "claude -p -> allow"                       0 "$(j 'claude -p --model sonnet "hi" </dev/null')"
