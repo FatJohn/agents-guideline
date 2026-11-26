@@ -170,6 +170,7 @@ Full steps are in [`docs/install.md`](docs/install.md), whose 「安裝對應」
 - **Codex, macOS/Linux**: symlinks for `AGENTS.md` and skills; a sync script writes agent TOML files as regular files.
 - **Windows (PowerShell)**: run in an administrator PowerShell, which installs both Claude Code and Codex.
 - **Regular-file sync**: for machines that cannot elevate; `scripts/sync-profile.py` writes copies; rerun it after every repo change.
+- **Maintainers who commit to this repo** (an extra step on macOS, Linux and Windows): set `core.hooksPath` and the name-list path as described in 「本 repo 的 commit 閘門：擋專案真名」 of `docs/install.md`.
 
 For a new machine (no file in `global/shared/hosts/`), probe it and create its file by following 「新機器建檔（5 分鐘探測清單）」 in [`docs/new-host.md`](docs/new-host.md).
 

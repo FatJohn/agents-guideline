@@ -4,7 +4,7 @@
 
 型別：接入指南
 
-> 本檔是 `README.md` 安裝入口指向的完整安裝步驟：Claude Code（macOS／Linux）→ Codex（macOS／Linux）→ Windows（PowerShell，兩側一起裝）→ 實體檔同步版（不能提權的機器）→ 從 v1 升級。
+> 本檔是 `README.md` 安裝入口指向的完整安裝步驟：Claude Code（macOS／Linux）→ Codex（macOS／Linux）→ Windows（PowerShell，兩側一起裝）→ 實體檔同步版（不能提權的機器）→ 從 v1 升級 → 本 repo 的 commit 閘門（維護者用）。
 > 想先懂「哪些東西在什麼時刻生效、各裝在哪、少了會怎樣」再動手，讀 `docs/design/mechanism.md`「運作機制」。
 > `REPO` 依機器而異：macOS 主力機是 `~/Projects/FatJohn/agents-guideline`，Windows 桌機是 `D:\Projects\FatJohn\agents-guideline`，兩者的對照在 `global/codex/AGENTS.md`「Bootstrap」；新機器先照 `docs/new-host.md` 建檔。
 
@@ -348,6 +348,7 @@ Windows 專屬注意：
 - **目錄可用 symlink 或 junction，檔案只能用 symlink**——`~/.claude/CLAUDE.md` 這種跨磁碟的檔案不能用 hardlink（hardlink 不可跨磁碟區）。
 - **Windows 檔名不分大小寫**：既有的 `~/.claude/claude.md` 與本 repo 的 `CLAUDE.md` 是同一個檔，所以上面腳本一定會動到它。跑完務必打開 `.bak-<日期>` 檔看一次——舊的全域 CLAUDE.md 若有值得保留的個人偏好，照 macOS 安裝段落「指令可重跑」後的說明手動併進 repo 的 `global/claude/CLAUDE.md`（腳本只負責搬開，不負責合併）。
 - 上方 Codex 的 `~/.codex/config.toml` 合併說明（model／`[agents]`／`[features] memories`）**兩個平台都適用**，Windows 也要照做。
+- 要在這台機器 commit 本 repo 時，另照最後一節「本 repo 的 commit 閘門：擋專案真名」的 PowerShell 指令啟用。
 
 ## 安裝實體檔同步版
 
@@ -392,3 +393,37 @@ done
 PowerShell（symlink）：同樣先只列出指向 repo 的連結，確認後再接 `Remove-Item`：`Get-ChildItem "$HOME\.claude","$HOME\.claude\agents","$HOME\.claude\skills","$HOME\.codex","$HOME\.agents\skills" -Force | Where-Object { $_.LinkType -and "$($_.Target)" -like "$REPO*" } | Select-Object FullName, Target`（`$REPO` 見上方 Windows 腳本）。
 
 實體檔複本安裝：`python scripts/sync-profile.py` 預覽時會在最後列出 `legacy:` 開頭的舊項目（`--apply` 後再列一次）。同步器**只列出、不刪**這些複本；`--prune` 只會清掉指向本 repo 的舊 symlink。清單裡的項目用 `rm -r`（PowerShell 用 `Remove-Item -Recurse`）逐項刪掉，再 `--apply --update`。舊的 `~/.claude/rules` 若還是指向舊 repo 位置的 symlink，同步器會以 `foreign tree redirect` 擋下，先把該連結移走再重跑。
+
+## 本 repo 的 commit 閘門：擋專案真名
+
+只給要 commit 本 repo 的維護者；只安裝全域設定的機器不用做。本 repo 是公開 repo，不寫非公開專案真名（`.claude/skills/maintain-guideline/SKILL.md` §3）。
+
+- `.githooks/pre-commit` 與 `.githooks/commit-msg` 都呼叫 `scripts/private-names-check.py`。
+- pre-commit 掃 staged 的每個新增或修改檔，路徑與內容都掃；commit-msg 掃 commit message，`git commit -v` 的 scissors 行以下不掃。
+- 命中名單任一字串（不分大小寫）就擋下 commit。訊息列出檔案與行號、命中名單的第幾行，不印名單內容。
+- 名單不進本 repo，放在 repo 外的純文字檔：每行一個字串，空行與 `#` 開頭的行略過。
+- 名單路徑由這個 clone 的 git config `privateNames.file` 指定。沒設定或檔案不存在時放行並印一行提示，別人 clone 本 repo 不受影響。
+- 主力機的名單放在私有 repo `agent-memory` 的 clone 裡，與代號對照同一個目錄。
+
+macOS／Linux 在主 checkout 跑一次。`git worktree` 建的 worktree 共用同一份 config；`core.hooksPath` 是相對路徑，各 worktree 用自己 checkout 的 `.githooks`：
+
+```bash
+git -C ~/Projects/FatJohn/agents-guideline config core.hooksPath .githooks
+git -C ~/Projects/FatJohn/agents-guideline config privateNames.file ~/Projects/FatJohn/agent-memory/claude/FatJohn__agents-guideline/private-names.txt
+```
+
+Windows（PowerShell；`<agent-memory>` 換成該機 `agent-memory` clone 的路徑）：
+
+```powershell
+git -C 'D:\Projects\FatJohn\agents-guideline' config core.hooksPath .githooks
+git -C 'D:\Projects\FatJohn\agents-guideline' config privateNames.file '<agent-memory>\claude\FatJohn__agents-guideline\private-names.txt'
+```
+
+驗證：`git -C <REPO> config --get core.hooksPath` 應回 `.githooks`。行為測試在本 repo 跑 `python3 -m unittest tests.test_private_names_check`，它用假名夾具建暫存 repo、實跑 commit。
+
+已知限制：
+
+- `git commit --no-verify` 會略過；rebase、cherry-pick 重放的 commit 兩個 hook 都不經過（實測放行）。只擋 commit 當下，不掃舊歷史、PR 內文與 issue。
+- 比對是子字串：條目越短越容易誤擋一般用字。
+- hook 用 `python3`，找不到再用 `python`；兩者都不能跑時擋下 commit。
+- Windows 未實跑：hook 由 Git for Windows 的 sh 執行，`.githooks/*` 由 `.gitattributes` 固定成 LF。

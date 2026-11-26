@@ -80,7 +80,7 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | 檔案 | 用途 |
 |------|------|
 | `README.md`／`README.zh-TW.md` | repo 概覽入口（英文／繁體中文，章節對應）：定位、核心概念、安裝入口、目錄地圖 |
-| `docs/install.md` | 完整安裝步驟：Claude Code、Codex、Windows（PowerShell）、實體檔同步版、從 v1 升級；只有中文 |
+| `docs/install.md` | 完整安裝步驟：Claude Code、Codex、Windows（PowerShell）、實體檔同步版、從 v1 升級、本 repo 的 commit 閘門；只有中文 |
 | `docs/new-host.md` | 新機器建檔（5 分鐘探測清單）；只有中文 |
 | `docs/design/mechanism.md` | 運作機制說明：五個時刻各載入什麼、五支 hook 補哪條規則、`settings.json` 依賴的欄位、重建一台機器兩半各要補什麼；只有中文 |
 | `docs/repo-layout.md` | 本檔 |
@@ -105,9 +105,10 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | `scripts/issue-status.py` | 一次列出一或多個 repo 每個 issue worktree 的狀態；`--watch` 持續監看、某個 worktree 交付時才印一行（盤點 session 用，對 repo 唯讀） |
 | `scripts/session-watch.py` | 把 `issue-status.py` 與 `stall-check.py` 併成一張給人看的表：每個 issue worktree 的 result.md 狀態、session 的 TUI 狀態、是否輪到使用者；`--dispatched-by <session id>` 只列那個 session 與同一個 checkout 的其他 session（例如前後任的盤點 session）用 `orca worktree create` 建出來、還在的 worktree（`mods/session-watch` 的資料來源，唯讀，不是判定依據） |
 | `mods/session-watch/` | 實驗性的 Claude Code mod：`/session-watch` 開一個 pane 每分鐘重畫上面那張表，預設只列這個 checkout 的 session 派出去的（含接手前那一任派的），`/session-watch all` 看整台；`claude --plugin-dir <REPO>/mods/session-watch` 單次載入，不裝進全域；測試跑 `claude plugin test` |
+| `scripts/private-names-check.py`、`.githooks/{pre-commit,commit-msg}` | 本 repo 的 commit 閘門：staged 檔案或 commit message 含 repo 外名單裡的專案真名就擋下（`core.hooksPath` 啟用，見 `docs/install.md`「本 repo 的 commit 閘門：擋專案真名」） |
 | `scripts/worktree-clean-check.py` | 判定 issue worktree 能不能不問使用者就清（盤點 session 用，唯讀、fail-closed） |
 | `scripts/tests/` | `issue-status.py`、`session-watch.py`、`stall-check.py`、`worktree-clean-check.py` 的單元測試 |
-| `tests/test_*.py` | sync 腳本、usage-review 腳本、writing-principles 檢查腳本與 shell 守門腳本的單元測試；樣本在 `tests/fixtures/writing-principles/`、`tests/fixtures/agent-rules/`；`test_layer_audit.py` 的夾具 repo 在測試內建到暫存目錄 |
+| `tests/test_*.py` | sync 腳本、usage-review 腳本、writing-principles 檢查腳本、shell 守門腳本與 commit 閘門（`test_private_names_check.py`，假名夾具）的單元測試；樣本在 `tests/fixtures/writing-principles/`、`tests/fixtures/agent-rules/`；`test_layer_audit.py` 的夾具 repo 在測試內建到暫存目錄 |
 | `tests/test-*.sh` | hook 與 ripgreprc 的離線斷言（`block-ci-edit.sh`、`allow-git-c-projects.sh`、`require-issue-session-model.sh`、`controller-context.sh`、`context-size-nudge.sh`、`ripgreprc`），也由 `tests/test_shell_guards.py` 包進 pytest |
 
 ## 為什麼 Claude 側只自建 verifier
