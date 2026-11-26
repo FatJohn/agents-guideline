@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -27,7 +28,9 @@ class PrivateNamesHookTest(unittest.TestCase):
         shutil.copy2(REPO_ROOT / "scripts" / "private-names-check.py", self.repo / "scripts")
         self.names = self.tmp / "names.txt"
         self.names.write_text("# comment line, ignored\n\n" + "\n".join(NAMES) + "\n", encoding="utf-8")
-        self.env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+        # Drop GIT_DIR, GIT_INDEX_FILE and the like so a run from inside a hook cannot touch the outer repo.
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        self.env = {**env, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
         self.git("init", "-q")
         self.git("config", "user.name", "Test")
         self.git("config", "user.email", "test@example.com")
@@ -69,11 +72,40 @@ class PrivateNamesHookTest(unittest.TestCase):
         self.stage("b.md", "x\ny\n第七號專案的紀錄\n")
         self.assert_blocked(self.commit("docs: add"), "a.md:1 (list entry line 4)", "b.md:3 (list entry line 5)")
 
-    def test_staged_path_is_blocked(self) -> None:
-        self.stage("notes/acme-secret-plan.md", "clean\n")
-        result = self.commit("docs: add plan")
+    def test_staged_path_is_blocked_without_printing_the_name(self) -> None:
+        self.stage("notes/ACME-secret-plan.md", "zebra widget\n")
+        self.assert_blocked(
+            self.commit("docs: add plan"),
+            "notes/<list entry 3>-plan.md: file path (list entry line 3)",
+            "notes/<list entry 3>-plan.md:1 (list entry line 4)",
+        )
+
+    def test_list_file_with_bom_matches_first_entry(self) -> None:
+        self.names.write_text("acme-secret\n", encoding="utf-8-sig")
+        self.stage("a.md", "acme-secret\n")
+        self.assert_blocked(self.commit("docs: add"), "a.md:1 (list entry line 1)")
+
+    def test_list_file_not_utf8_blocks_with_message(self) -> None:
+        self.names.write_bytes("第七號專案\n".encode("big5"))
+        self.stage("a.md", "clean\n")
+        result = self.commit("docs: add")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("file path (list entry line 3)", result.stderr)
+        self.assertIn("is not UTF-8", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_editor_template_comments_are_scanned(self) -> None:
+        # Documented limit (docs/install.md): use -m to commit a delete or rename of a path with a name.
+        self.git("config", "--unset", "core.hooksPath")
+        self.stage("acme-secret.md", "x\n")
+        self.assertEqual(self.commit("seed").returncode, 0)
+        self.git("config", "core.hooksPath", ".githooks")
+        self.git("rm", "-q", "acme-secret.md")
+        editor = f"{sys.executable} -c \"import sys; p = sys.argv[1]; t = open(p).read(); open(p, 'w').write('docs: remove' + t)\""
+        result = subprocess.run(
+            ["git", "commit", "-q"], cwd=self.repo, env={**self.env, "GIT_EDITOR": editor}, capture_output=True, text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.commit("docs: remove").returncode, 0)
 
     def test_commit_message_is_blocked(self) -> None:
         self.stage("a.md", "clean\n")
@@ -86,7 +118,7 @@ class PrivateNamesHookTest(unittest.TestCase):
             "docs: clean\n\n# ------------------------ >8 ------------------------\n-acme-secret\n", encoding="utf-8"
         )
         result = subprocess.run(
-            ["python3", "scripts/private-names-check.py", "message", str(message)],
+            [sys.executable, "scripts/private-names-check.py", "message", str(message)],
             cwd=self.repo, env=self.env, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, result.stderr)

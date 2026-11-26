@@ -401,7 +401,8 @@ PowerShell（symlink）：同樣先只列出指向 repo 的連結，確認後再
 - `.githooks/pre-commit` 與 `.githooks/commit-msg` 都呼叫 `scripts/private-names-check.py`。
 - pre-commit 掃 staged 的每個新增或修改檔，路徑與內容都掃；commit-msg 掃 commit message，`git commit -v` 的 scissors 行以下不掃。
 - 命中名單任一字串（不分大小寫）就擋下 commit。訊息列出檔案與行號、命中名單的第幾行，不印名單內容。
-- 名單不進本 repo，放在 repo 外的純文字檔：每行一個字串，空行與 `#` 開頭的行略過。
+- 名單不進本 repo，放在 repo 外的 UTF-8 純文字檔（可帶 BOM）：每行一個字串，空行與 `#` 開頭的行略過。名單不是 UTF-8 時擋下 commit 並說明。
+- 路徑命中時，訊息裡的路徑把命中的字串換成 `<list entry N>`。
 - 名單路徑由這個 clone 的 git config `privateNames.file` 指定。沒設定或檔案不存在時放行並印一行提示，別人 clone 本 repo 不受影響。
 - 主力機的名單放在私有 repo `agent-memory` 的 clone 裡，與代號對照同一個目錄。
 
@@ -423,7 +424,8 @@ git -C 'D:\Projects\FatJohn\agents-guideline' config privateNames.file '<agent-m
 
 已知限制：
 
-- `git commit --no-verify` 會略過；rebase、cherry-pick 重放的 commit 兩個 hook 都不經過（實測放行）。只擋 commit 當下，不掃舊歷史、PR 內文與 issue。
+- `git commit --no-verify` 會略過；rebase、cherry-pick 重放的 commit 與沒有衝突的 `git merge` 都不經過這兩個 hook（實測放行）。只擋 commit 當下，不掃舊歷史、PR 內文與 issue。
+- 用編輯器寫 commit message（不帶 `-m`）時，git 範本裡的註解行也會被掃，包括分支名、刪除或改名的路徑。刪除或改名含真名的路徑時改用 `-m`。
 - 比對是子字串：條目越短越容易誤擋一般用字。
-- hook 用 `python3`，找不到再用 `python`；兩者都不能跑時擋下 commit。
+- hook 用 `python3`，找不到再用 `python`；兩者都不能跑，或檢查用的 git 指令失敗時，擋下 commit。
 - Windows 未實跑：hook 由 Git for Windows 的 sh 執行，`.githooks/*` 由 `.gitattributes` 固定成 LF。
