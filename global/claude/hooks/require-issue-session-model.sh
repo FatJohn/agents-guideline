@@ -146,7 +146,7 @@ if [ "$decision" = "deny" ]; then
   cat >&2 <<MSG
 BLOCKED by hook require-issue-session-model: 起 Claude issue session 的指令缺${missing}。
 issue session 是 controller，不隨主對話的預設 model；沒帶旗標的 \`claude\` 會吃啟動當下 ~/.claude/settings.json 的 model。
-規則見 ~/.claude/skills/worktree-session/references/cli.md「盤點 session 與 issue session」：\`orca worktree create ... --agent claude --model claude-opus-5-5 --effort medium --prompt ...\`（\`orca agent launch\` 同；fallback 為 \`claude -w <issue> -n <issue> --model claude-opus-5-5 --effort medium ... "<brief>"\`，旗標寫在 prompt 之前）。
+規則見 ~/.claude/skills/worktree-session/references/cli.md「盤點 session 與 issue session」：\`orca worktree create ... --agent claude --model claude-opus-5-5 --effort medium --prompt ...\`（\`orca agent launch\` 同；fallback 為 \`claude -w <issue> -n issue-<issue> --model claude-opus-5-5 --effort medium ... "<brief>"\`，旗標寫在 prompt 之前）。
 請補上旗標後重送；不要改用 \`orca terminal create\` 或其他方式繞過。
 MSG
   exit 2
