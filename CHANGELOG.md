@@ -8,6 +8,7 @@
 
 ## 2026-11-27
 
+- **usage-review 週量測報告固定格式**（#84）：`weekly` 的報告開頭改成計分卡（🟢 變好／🔴 變壞／⚪ 持平／🟡 待觀察，±5% 門檻）與規則表，每個 🔴 要有一列 finding（根因、落點、下次的判定門檻），之後才是結論與數字；格式在 `.claude/skills/usage-review/references/report-format.md`。repo-only skill，pull 後即生效，不用動手。
 - **fresh `code-review` 寫明 skill 等級參數**（#83）：`docs/dispatch.md` §3 與路由卡規定派 fresh review 時 prompt 寫 `/code-review medium <目標>`，Opus（`effort: high`）與 Fable（`effort: medium`）都用 `medium`，不跟著 agent `effort` 調。量測對照起點＝本 PR 的 merge 時間（`gh pr view 83 -R FatJohn/agents-guideline --json mergedAt`）；之前的 review 成本混入了 `high` 等級參數這個變因。symlink 安裝 pull 後即生效，不用另外設定。
 
 ## 2026-11-26
