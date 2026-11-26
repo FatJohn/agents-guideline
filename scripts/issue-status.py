@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """一次列出一個或多個 repo（`--repo` 可重複）每個 issue worktree 的狀態，給「盤點 session」取代反覆
-`orca terminal read`。`--watch <秒>` 改成持續監看、只在某個 worktree 交付時印一行，給 Claude Code 的 Monitor 當事件來源。
+`orca terminal read`。`--watch <秒>` 改成持續監看、只在某個 worktree 交付時印一行，給 Claude Code 的 Monitor 當事件來源；
+再加 `--exit-on-event` 則印完那一輪就結束，給 Bash `run_in_background` 用（結束時才叫醒，沒有到期重掛）。
 
 用途：issue session 把交付包寫在 `<worktree>/.worktrees/result.md`（欄位見
 `global/shared/skills/worktree-session/SKILL.md` §2「issue session result」）。這支腳本讀每個 worktree 的
@@ -439,8 +440,8 @@ def announce_key(row):
 
 
 def load_announced():
-    """已報過交付的 worktree。Monitor 每 30 分鐘到期要重掛，沒有這份紀錄的話，merge 了還沒清的
-    worktree 每次重掛都會再叫醒盤點 session 一次。讀不到就當沒報過（寧可重報）。"""
+    """已報過交付的 worktree。監看會重掛（Monitor 每 30 分鐘到期、--exit-on-event 每次報完），沒有這份
+    紀錄的話，merge 了還沒清的 worktree 每次重掛都會再叫醒盤點 session 一次。讀不到就當沒報過（寧可重報）。"""
     try:
         keys = json.loads(STATE_FILE.read_text(encoding="utf-8"))
         return {k for k in keys if isinstance(k, str) and os.path.isdir(k.split("\t")[0])}
@@ -462,9 +463,13 @@ def save_announced(announced):
 
 def watch(repos, args):
     """每 args.watch 秒重跑一次，只在某個 worktree 交付（見 delivered）時印一行，每個 worktree 只報一次。
-    給 Claude Code 的 Monitor 用：每行 stdout 都會叫醒盤點 session 一輪，所以它不必處理的變化
-    （等使用者、unknown、新增、移除、基線）都不印。不會自己結束。"""
+    給 Claude Code 的 Monitor 或背景 Bash 用：每行 stdout（背景 Bash 是每次結束）都會叫醒盤點 session 一輪，所以它不必處理的變化
+    （等使用者、unknown、新增、移除、基線）都不印。args.exit_on_event 時印過任何一行的那一輪結束後就 return，
+    否則不會自己結束。"""
+    emitted = []
+
     def emit(line):
+        emitted.append(line)
         print(f"[{datetime.now().strftime('%H:%M')}] {line}", flush=True)
 
     pr_cache, announced, bad_prev, last_err = {}, load_announced(), set(), None
@@ -486,6 +491,8 @@ def watch(repos, args):
             if msg != last_err:
                 emit(msg)
             last_err = msg
+        if args.exit_on_event and emitted:
+            return
         time.sleep(args.watch)
 
 
@@ -503,12 +510,17 @@ def main(argv=None):
                          "每個 worktree 只報一次，重掛也不重報（紀錄在 ~/.cache/issue-status-watch/announced.json）；等使用者、unknown、"
                          "新增、移除都不印；不會自己結束。給 Claude Code 的 Monitor 當事件來源。"
                          "gh 在該 worktree 的 HEAD 或 result.md mtime 變了、或距上次查詢滿 5 分鐘才重查，失敗時沿用上次結果。最小 10 秒")
+    ap.add_argument("--exit-on-event", action="store_true",
+                    help="搭配 --watch：某一輪印出 delivered 或 error 行後就結束（exit 0），不再持續監看。"
+                         "給 Claude Code 的 Bash run_in_background 用：沒有事件時不結束、不叫醒，也沒有 Monitor 的到期重掛")
     args = ap.parse_args(argv)
     if args.watch is not None:
         if args.watch < 10:
             ap.error("--watch 最小 10 秒")
         if args.json:
             ap.error("--watch 不能與 --json 一起用")
+    elif args.exit_on_event:
+        ap.error("--exit-on-event 要搭配 --watch")
 
     for r in args.repo:
         if not os.path.isdir(r) or list_worktrees(os.path.abspath(r)) is None:

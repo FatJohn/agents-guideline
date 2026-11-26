@@ -642,6 +642,53 @@ class IssueStatusTests(unittest.TestCase):
         self.assertIn("error: 本輪讀取失敗：RuntimeError: disk", lines)
         self.assertEqual(len(calls), 3)
 
+    def run_exit_on_event(self, steps, gh=None):
+        """--exit-on-event：回 (事件行, 沒用到的 steps 數)；steps 用完仍未結束就失敗。"""
+        actions = list(steps)
+
+        def fake_sleep(_):
+            if not actions:
+                raise AssertionError("steps 用完仍未結束")
+            actions.pop(0)()
+
+        out = io.StringIO()
+        gh = gh if gh is not None else mock.Mock(return_value=[])
+        with mock.patch.object(iss, "query_prs", gh), mock.patch.object(iss.time, "sleep", fake_sleep), \
+                redirect_stdout(out):
+            rc = iss.main(["--repo", str(self.repo), "--watch", "10", "--exit-on-event"])
+        self.assertEqual(rc, 0)
+        return [ln.split("] ", 1)[1] for ln in out.getvalue().splitlines()], len(actions)
+
+    def test_exit_on_event_keeps_waiting_while_silent_and_exits_after_the_delivery_round(self):
+        a = self.add_wt("a")
+        b = self.add_wt("b")
+        write_result(a)
+        write_result(b)
+        gh = mock.Mock(return_value=[pr(1, "MERGED")])
+        lines, left = self.run_exit_on_event([
+            lambda: write_result(a, status="blocked", blocker="等 API key"),
+            lambda: (self.merged_result(a), self.merged_result(b)),
+            lambda: None,
+        ], gh=gh)
+        self.assertEqual(len(lines), 2, lines)  # 同一輪的兩個交付都印完才結束
+        self.assertTrue(all(ln.startswith("delivered: ") for ln in lines), lines)
+        self.assertEqual(left, 1)  # 印完那一輪就結束，不再 sleep
+        self.assertEqual(len(json.loads(iss.STATE_FILE.read_text())), 2)  # 結束前已記成報過，重掛不重報
+
+    def test_exit_on_event_exits_on_error_line(self):
+        a = self.add_wt("a")
+        write_result(a)
+        moved = self.root / "moved-away"
+        lines, left = self.run_exit_on_event([lambda: self.repo.rename(moved), lambda: None])
+        moved.rename(self.repo)
+        self.assertEqual(len(lines), 1, lines)
+        self.assertIn("不是 git repo 或讀不到", lines[0])
+        self.assertEqual(left, 1)
+
+    def test_exit_on_event_requires_watch(self):
+        with redirect_stderr(io.StringIO()), redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+            iss.main(["--repo", str(self.repo), "--exit-on-event"])
+
     def test_watch_rejects_short_interval_and_json(self):
         no_loop = mock.Mock(side_effect=AssertionError("不該進入監看迴圈"))
         for args in (["--watch", "5"], ["--watch", "10", "--json"]):
