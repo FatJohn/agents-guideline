@@ -22,12 +22,19 @@ CONFIG_KEY = "privateNames.file"
 SCISSORS = "# ------------------------ >8 ------------------------"
 
 
-def git(*args: str) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(["git", *args], capture_output=True)
+class CheckError(Exception):
+    pass
+
+
+def git(*args: str) -> bytes:
+    result = subprocess.run(["git", *args], capture_output=True)
+    if result.returncode != 0:
+        raise CheckError(f"git {' '.join(args)} failed: {result.stderr.decode('utf-8', 'replace').strip()}")
+    return result.stdout
 
 
 def list_path() -> Path | None:
-    result = git("config", "--path", "--get", CONFIG_KEY)
+    result = subprocess.run(["git", "config", "--path", "--get", CONFIG_KEY], capture_output=True)
     value = result.stdout.decode("utf-8", "replace").strip()
     if result.returncode != 0 or not value:
         print(f"{TAG}: {CONFIG_KEY} is not set; check skipped (see docs/install.md)", file=sys.stderr)
@@ -41,7 +48,11 @@ def list_path() -> Path | None:
 
 def load_names(path: Path) -> list[tuple[int, str]]:
     names = []
-    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError as error:
+        raise CheckError(f"list file {path} is not UTF-8 ({error}); save it as UTF-8") from None
+    for number, line in enumerate(text.splitlines(), 1):
         entry = line.strip()
         if entry and not entry.startswith("#"):
             names.append((number, entry.casefold()))
@@ -59,20 +70,34 @@ def hits(text: str, names: list[tuple[int, str]]) -> list[tuple[int, int]]:
     return found
 
 
+def masked(path: str, names: list[tuple[int, str]]) -> str:
+    """The path with every matching entry replaced by its list line number."""
+    out, folded = list(path), path.casefold()
+    if len(folded) != len(path):  # casefold changed lengths, offsets would not line up
+        return "<path hidden>"
+    for entry_no, entry in names:
+        start = folded.find(entry)
+        while start != -1:
+            out[start:start + len(entry)] = [f"<list entry {entry_no}>"] + [""] * (len(entry) - 1)
+            start = folded.find(entry, start + len(entry))
+    return "".join(out)
+
+
 def staged_findings(names: list[tuple[int, str]]) -> list[str]:
-    raw = git("diff", "--cached", "--raw", "-z", "--no-renames", "--diff-filter=ACMRT").stdout
+    raw = git("diff", "--cached", "--raw", "-z", "--no-renames", "--diff-filter=ACMRT")
     fields = raw.split(b"\0")
     findings = []
     for meta, path_bytes in zip(fields[0::2], fields[1::2]):
         new_mode, new_sha = meta.split()[1], meta.split()[3]
         path = path_bytes.decode("utf-8", "replace")
+        shown = masked(path, names)
         for _, entry_no in hits(path, names):
-            findings.append(f"  {path}: file path (list entry line {entry_no})")
+            findings.append(f"  {shown}: file path (list entry line {entry_no})")
         if new_mode == b"160000":  # submodule commit, no blob to read
             continue
-        content = git("cat-file", "blob", new_sha.decode()).stdout.decode("utf-8", "replace")
+        content = git("cat-file", "blob", new_sha.decode()).decode("utf-8", "replace")
         for line_no, entry_no in hits(content, names):
-            findings.append(f"  {path}:{line_no} (list entry line {entry_no})")
+            findings.append(f"  {shown}:{line_no} (list entry line {entry_no})")
     return findings
 
 
@@ -89,12 +114,16 @@ def main(argv: list[str]) -> int:
     path = list_path()
     if path is None:
         return 0
-    names = load_names(path)
-    findings = staged_findings(names) if argv[0] == "staged" else message_findings(argv[1], names)
+    try:
+        names = load_names(path)
+        findings = staged_findings(names) if argv[0] == "staged" else message_findings(argv[1], names)
+    except CheckError as error:
+        print(f"{TAG}: commit blocked: {error}", file=sys.stderr)
+        return 1
     if not findings:
         return 0
-    what = "staged files" if argv[0] == "staged" else "the commit message"
-    print(f"{TAG}: commit blocked: {what} contain a private project name from {path}", file=sys.stderr)
+    what = "staged files contain" if argv[0] == "staged" else "the commit message contains"
+    print(f"{TAG}: commit blocked: {what} a private project name from {path}", file=sys.stderr)
     print("\n".join(findings), file=sys.stderr)
     print(
         f"{TAG}: replace it with a codename (.claude/skills/maintain-guideline/SKILL.md §3), then commit again",

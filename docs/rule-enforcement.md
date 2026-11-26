@@ -86,7 +86,7 @@
 |---|---|---|---|
 | worktree-session §3「直接清」的條件 | 腳本 | `scripts/worktree-clean-check.py` 的 `check_delivery` `check_tree` | fail-closed；盤點 session 清 worktree 前跑；使用者說做完或授權清時帶 `--user-authorized`，不看 `result.md` 自報欄位與 `Keep ignored` |
 | writing-principles 可機械判定的原則 | 腳本 | `global/shared/skills/writing-principles/scripts/check_docs.py` 的 `check_header` `check_links` `check_heading_refs` | 寫文件與 verifier 驗文件時跑 |
-| `maintain-guideline` §3：公開 repo 不寫非公開專案真名 | 腳本 | `scripts/private-names-check.py` 的 `staged_findings` `message_findings` | 只在 clone 設了 `core.hooksPath` 與 `privateNames.file` 時擋 commit；`--no-verify`、rebase、cherry-pick 繞得過；PR 內文、issue 不擋 |
+| `maintain-guideline` §3：公開 repo 不寫非公開專案真名 | 腳本 | `scripts/private-names-check.py` 的 `staged_findings` `message_findings` | 只在 clone 設了 `core.hooksPath` 與 `privateNames.file` 時擋 commit；`--no-verify`、rebase、cherry-pick、無衝突 merge 繞得過；PR 內文、issue 不擋 |
 | agent-rules：規則索引單一來源、reviewer 版本 ID 與 severity 對得上 | 腳本 | `global/shared/skills/agent-rules/scripts/rules_index.py` 的 `check_rules` | 用在別的專案 repo，不管本系統 |
 | 本表涵蓋每條 judgment 與每支 hook，機械強制點存在 | 測試 | `tests/test_rule_enforcement.py` 的 `test_every_judgment_entry_has_a_row` `test_every_hook_has_a_row` `test_mechanical_rows_point_at_existing_symbols` | |
 
