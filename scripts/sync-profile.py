@@ -60,6 +60,7 @@ SHARED_SKILLS = (
     "agent-rules",
     "layer-audit",
     "verify-recipes",
+    "ticket-format",
 )
 
 # Files a v1 install put in ~/.claude/rules.

@@ -8,6 +8,7 @@
 - **查網頁／爬資料**：Claude 使用當前 session 公開的 web search／fetch 或已註冊的文件 MCP；Codex 使用自己當前 session 公開的 web／browser 工具。這份跨機器檔不固定暫時的 tool 名稱；每次現查，不把另一平台的名稱直接套用。適合派工時只把結論帶回主對話。
 - **產出文件**：兩端都只使用當前 session 公開的文件產出 skill；Claude／Codex 的實際名稱可能不同，以各自當前清單為準，不跨平台猜名稱。
 - **寫或改長存文件**：用 `writing-principles` skill（兩端同名），README、接入指南、設計說明、流程、參考頁、wiki 頁都適用；寫的人與 verifier 跑同一支 `scripts/check_docs.py`，專案自訂值放專案 AGENTS.md。
+- **開票或改票描述**：用 `ticket-format` skill（兩端同名），ClickUp 票與 GitHub issue 共用固定段落；repo 有自己的 issue 範本時以專案為準。
 - **稽核 repo 的防線層**：`layer-audit` 只由使用者打 `/layer-audit`（Codex：`$layer-audit`）觸發，查每一層有沒有啟用、進 CI、會讓 CI 失敗；逐條規則的分類走 `agent-rules`。
 - **替專案寫驗證食譜**：`verify-recipes` 只由使用者打 `/verify-recipes`（Codex：`$verify-recipes`）觸發，每個使用者看得到的功能寫一節怎麼走到、怎麼驅動、看到什麼算過、陷阱，放目標 repo 的 `docs/verify-recipes.md`。
 - **找新工具**：遇到「感覺應該有現成工具」的問題，先查當前平台公開的 skill／plugin／connector 清單；需要安裝或沒有可用入口時再問使用者，找不到才自己寫。

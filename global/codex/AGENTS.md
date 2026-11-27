@@ -17,7 +17,7 @@
 |---|---|
 | 開工前的 plan、驗收、fresh review、旁支查詢、驗收後修正、卡住要換路 | 先讀 `<REPO>/global/codex/rules/dispatch.md`；prompt 模板 `<REPO>/global/codex/rules/delegation-templates.md` |
 | brief、回報、交接、收尾 | `handoff` skill |
-| commit／開 PR | `git-commit`／`create-pr` skill |
+| commit／開 PR／開票或改票描述 | `git-commit`／`create-pr`／`ticket-format` skill |
 | 開工建 worktree、多個獨立 issue 分 session、使用者要求開新 session、清 worktree | `worktree-session` skill |
 | 寫或改長存文件 | `writing-principles` skill |
 | 建立或稽核專案的 AGENTS.md／CLAUDE.md 程式碼規則 | `agent-rules` skill |
