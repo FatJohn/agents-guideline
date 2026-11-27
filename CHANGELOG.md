@@ -8,7 +8,7 @@
 
 ## 2026-11-27
 
-- **新增選配 hook `clickup-doc-nudge.sh`**（PR 待開）：主對話呼叫 ClickUp `get_document_pages`／`update_document_page` 時注入一句提醒（已在 context 的頁不重讀、寫完不整頁讀回、只新增段落時用 append 不重送整頁、要照著實作的規格自己讀原文），不擋呼叫；subagent 不提醒。要生效得自己把 `global/claude/settings.snippets.json` 新增的 `PreToolUse` 元素追加進 `~/.claude/settings.json`（`docs/install.md`「選配：ClickUp 文件頁讀寫提醒」）。
+- **新增選配 hook `clickup-doc-nudge.sh`**（#89）：主對話呼叫 ClickUp `get_document_pages`／`update_document_page` 時注入一句提醒（已在 context 的頁不重讀、寫完不整頁讀回、只新增段落時用 append 不重送整頁、要照著實作的規格自己讀原文），不擋呼叫；subagent 不提醒。要生效得自己把 `global/claude/settings.snippets.json` 新增的 `PreToolUse` 元素追加進 `~/.claude/settings.json`（`docs/install.md`「選配：ClickUp 文件頁讀寫提醒」）。
 - **usage-review `weekly` 的「機械結案後又派 delta」少算誤判**（#87）：verifier 寫的否定句（「不是機械結案」）與條件句（「如果只改 X，可以機械結案」）不再算成機械結案；下一次 delta 的 brief 要回指上一輪判定（「上一輪 OPEN 的 FAIL…」）才算，同 session 接著做的下一個改動不算。2026-11-18～11-26 窗口從 10 降到 4，判法與剩下的誤差在 `references/caveats.md` 第 21 條。repo-only skill，pull 後即生效，不用動手。
 - **日落三條零效果規則**（#86）：`docs/dispatch.md` §4 卡住換路不再派 Fable＋`codex:codex-rescue` 各出方案，換路訊號成立就停下回報使用者並重新定義問題（附不變量與失敗軌跡，與 §2 三輪回報點同一種回報，不等第三輪），Codex `rules/dispatch.md` §5 同步；高風險判斷不再加 codex 第二意見，路由卡移除「獨立第二意見」，`codex:codex-rescue` 只在使用者當次要求時用；文件首輪 verifier brief 不再附「宣稱對照」表（handoff §1、Codex 驗收模板 J／L、judgment 6），製作者自己的逐句對照照舊。量測對照起點＝本 PR 的 merge 時間；下次看文件首輪 OPEN 率是否變化（基線：有帶 49%、沒帶 28%，整體約 30%），以及同根因換層有沒有沒被回報接住、拖到第三輪以上的案例。symlink 安裝 pull 後即生效，不用動手。
 - **盤點 session 的監看改用背景 Bash**（#85）：`issue-status.py` 新增 `--exit-on-event`（搭配 `--watch`，印出 `delivered`／`error:` 那一輪後就結束）；`worktree-session` 的 `references/cli.md` 改成用 Bash `run_in_background` 跑它，不再用 `Monitor`，盤點 session 不會每 30 分鐘被到期叫醒重掛。正在掛 Monitor 監看的盤點 session：`TaskStop` 停掉後照新指令重掛一次。Codex 端不變。
