@@ -154,6 +154,25 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 - `jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1：工具照跑、不提醒，transcript 看得到 `context-size-nudge: INACTIVE`／`did not run`。
 - 提醒只是注入一句話，不擋任何動作；收到提醒後 controller 依 `docs/dispatch.md` §6 自己啟動接手 session（做法與不啟動的情況見 `global/shared/skills/worktree-session/references/cli.md`「接手 session」）。端到端實測見 `docs/harness-facts.md`「主對話 context 大小怎麼量、cache 何時過期」的 hook 那條。Windows 未驗證。
 
+### 選配：ClickUp 文件頁讀寫提醒
+
+`hooks/clickup-doc-nudge.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。它是 `PreToolUse` hook：主對話呼叫 `mcp__claude_ai_ClickUp__clickup_get_document_pages` 或 `mcp__claude_ai_ClickUp__clickup_update_document_page` 時，以 `additionalContext` 注入一句省 context 的做法，不擋呼叫、不回 `permissionDecision`。讀頁的提醒：已在 context 的頁不重讀、寫完不整頁讀回、要照著實作的規格主對話自己讀原文；寫頁的提醒：整頁寫回連同讀回派 subagent，brief 只寫要改的段落。提醒在呼叫當下才注入，作用在同一個 session 之後的呼叫；同一則訊息裡平行送出的 update＋get 已經送出，擋不到。subagent（stdin 有 `agent_id`）不提醒：它就是被派去讀寫的。全域規則沒有別的 ClickUp 條文，提醒內容只在腳本裡。
+
+**追加**到既有的 `hooks.PreToolUse` 陣列（片段同樣收在 `<REPO>/global/claude/settings.snippets.json`）；腳本自己也只認這兩個工具名，matcher 寫寬了也不會對別的工具輸出：
+
+```json
+{
+  "matcher": "mcp__claude_ai_ClickUp__clickup_(get_document_pages|update_document_page)",
+  "hooks": [
+    { "type": "command", "command": "bash \"$HOME/.claude/hooks/clickup-doc-nudge.sh\"" }
+  ]
+}
+```
+
+- 裝完驗證（離線、需要 `jq`）：`bash tests/test-clickup-doc-nudge.sh ~/.claude/hooks/clickup-doc-nudge.sh`。
+- `jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1：工具照跑、不提醒，transcript 看得到 `clickup-doc-nudge: INACTIVE`／`did not run`。
+- 工具名是 claude.ai 連接器的 ClickUp（`mcp__claude_ai_ClickUp__`）；改用自架 ClickUp MCP server 時名稱不同，matcher 與腳本的 `case` 都要改。端到端實測見 `docs/harness-facts.md`「PreToolUse hook 對 MCP 工具注入提醒」。Windows 未驗證。
+
 ### 選配：自動放行專案根目錄（預設 `$HOME/Projects/`）底下的 `git -C` 清理、push 與常用指令
 
 `hooks/allow-git-c-projects.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。目的：permission 規則寫成 `Bash(git -C * worktree remove *)`、`Bash(git -C * branch -D *)` 時，Claude Code 啟動會警告子指令前的 `*` 也放行任意 option（例如 `git -C -c core.pager=...`、`--exec-path`），連 `git -C /Users/<user>/Projects/* ...` 也一樣報，逐 repo 寫確切路徑又太多條。這個 `PreToolUse` hook 是自己實作的嚴格版「專案根目錄前綴規則」（根目錄預設 `$HOME/Projects`，可用 `GIT_C_ALLOW_ROOT` 改，見下）：形狀全部符合才回 `permissionDecision: allow`，其餘一律不表態（exit 0、無輸出），交回正常 permission 流程。

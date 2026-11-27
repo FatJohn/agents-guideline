@@ -51,6 +51,15 @@
             "command": "bash \"$HOME/.claude/hooks/require-issue-session-model.sh\""
           }
         ]
+      },
+      {
+        "matcher": "mcp__claude_ai_ClickUp__clickup_(get_document_pages|update_document_page)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/clickup-doc-nudge.sh\""
+          }
+        ]
       }
     ]
   }

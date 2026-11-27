@@ -44,6 +44,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/claude/hooks/require-issue-session-model.sh` | PreToolUse hook，`orca worktree create`／`orca agent launch` 帶 `--agent claude`，或 `claude -w` 啟動，卻缺 `--model` 或 `--effort` 時擋下，訊息指回 worktree-session `references/cli.md`（選配） |
 | `global/claude/hooks/allow-git-c-projects.sh` | PreToolUse hook，對 `$HOME/Projects/`（或 `GIT_C_ALLOW_ROOT` 指定的根目錄）底下嚴格形狀的 `git -C <path> worktree remove`／`branch -D`／`push`（指令裡不帶強制、刪除 refspec 與其他 option），以及 `status`、`diff`、`log`、`show`、`rev-parse`、`rev-list`、`merge-base`、`ls-files`、`fetch`、`add`、`commit`（旗標限逐子命令清單）回 allow，其餘不表態（選配） |
 | `global/claude/hooks/context-size-nudge.sh` | PostToolUse hook，主對話 context 到 300K 時注入一句交接提醒（寫交接卡、開新 session），每跨一個 100K 級距一次；subagent 不提醒（選配） |
+| `global/claude/hooks/clickup-doc-nudge.sh` | PreToolUse hook，主對話呼叫 ClickUp 讀頁／寫頁工具時注入一句省 context 的做法（不重讀、不整頁讀回、整頁寫回派 subagent），不擋呼叫；subagent 不提醒（選配） |
 | `global/claude/config/ripgreprc` | 讓 Bash 的 `rg` 預設 `--hidden` 並排除 `.git`（選配） |
 | `global/claude/settings.snippets.json` | 要手動併入 `~/.claude/settings.json` 的 hook 與 `env` 片段，不整檔覆蓋 |
 
@@ -83,7 +84,7 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | `CHANGELOG.md` | 制度的行為變更紀錄（按日期，附 PR 編號與使用者要做的事），給裝了這套制度的人 pull 後看；記錄門檻與時點見 `.claude/skills/maintain-guideline/SKILL.md` §2；只有中文 |
 | `docs/install.md` | 完整安裝步驟：Claude Code、Codex、Windows（PowerShell）、實體檔同步版、從 v1 升級、本 repo 的 commit 閘門；只有中文 |
 | `docs/new-host.md` | 新機器建檔（5 分鐘探測清單）；只有中文 |
-| `docs/design/mechanism.md` | 運作機制說明：五個時刻各載入什麼、五支 hook 補哪條規則、`settings.json` 依賴的欄位、重建一台機器兩半各要補什麼；只有中文 |
+| `docs/design/mechanism.md` | 運作機制說明：五個時刻各載入什麼、六支 hook 補哪條規則、`settings.json` 依賴的欄位、重建一台機器兩半各要補什麼；只有中文 |
 | `docs/repo-layout.md` | 本檔 |
 | `docs/lessons.md` | 活躍教訓日誌：只留還沒有任何一層承接的條目，不裝進全域 |
 | `docs/lessons-archive.md` | 已由結構、hook、腳本、測試或判準文字承接的歷史教訓（保留原文，作為該規則的來歷） |
@@ -110,7 +111,7 @@ Codex 的角色選擇、runtime adapter 與卡住換路規則是 `global/codex/r
 | `scripts/worktree-clean-check.py` | 判定 issue worktree 能不能不問使用者就清（盤點 session 用，唯讀、fail-closed） |
 | `scripts/tests/` | `issue-status.py`、`session-watch.py`、`stall-check.py`、`worktree-clean-check.py` 的單元測試 |
 | `tests/test_*.py` | sync 腳本、usage-review 腳本、writing-principles 檢查腳本、shell 守門腳本與 commit 閘門（`test_private_names_check.py`，假名夾具）的單元測試；樣本在 `tests/fixtures/writing-principles/`、`tests/fixtures/agent-rules/`；`test_layer_audit.py` 的夾具 repo 在測試內建到暫存目錄 |
-| `tests/test-*.sh` | hook 與 ripgreprc 的離線斷言（`block-ci-edit.sh`、`allow-git-c-projects.sh`、`require-issue-session-model.sh`、`controller-context.sh`、`context-size-nudge.sh`、`ripgreprc`），也由 `tests/test_shell_guards.py` 包進 pytest |
+| `tests/test-*.sh` | hook 與 ripgreprc 的離線斷言（`block-ci-edit.sh`、`allow-git-c-projects.sh`、`require-issue-session-model.sh`、`controller-context.sh`、`context-size-nudge.sh`、`clickup-doc-nudge.sh`、`ripgreprc`），也由 `tests/test_shell_guards.py` 包進 pytest |
 
 ## 為什麼 Claude 側只自建 verifier
 
