@@ -44,7 +44,7 @@ repo 根目錄的 `CLAUDE.md`／`AGENTS.md` 是本 repo 自己的專案規格（
 | `global/claude/hooks/require-issue-session-model.sh` | PreToolUse hook，`orca worktree create`／`orca agent launch` 帶 `--agent claude`，或 `claude -w` 啟動，卻缺 `--model` 或 `--effort` 時擋下，訊息指回 worktree-session `references/cli.md`（選配） |
 | `global/claude/hooks/allow-git-c-projects.sh` | PreToolUse hook，對 `$HOME/Projects/`（或 `GIT_C_ALLOW_ROOT` 指定的根目錄）底下嚴格形狀的 `git -C <path> worktree remove`／`branch -D`／`push`（指令裡不帶強制、刪除 refspec 與其他 option），以及 `status`、`diff`、`log`、`show`、`rev-parse`、`rev-list`、`merge-base`、`ls-files`、`fetch`、`add`、`commit`（旗標限逐子命令清單）回 allow，其餘不表態（選配） |
 | `global/claude/hooks/context-size-nudge.sh` | PostToolUse hook，主對話 context 到 300K 時注入一句交接提醒（寫交接卡、開新 session），每跨一個 100K 級距一次；subagent 不提醒（選配） |
-| `global/claude/hooks/clickup-doc-nudge.sh` | PreToolUse hook，主對話呼叫 ClickUp 讀頁／寫頁工具時注入一句省 context 的做法（不重讀、不整頁讀回、整頁寫回派 subagent），不擋呼叫；subagent 不提醒（選配） |
+| `global/claude/hooks/clickup-doc-nudge.sh` | PreToolUse hook，主對話呼叫 ClickUp 讀頁／寫頁工具時注入一句省 context 的做法（不重讀、不整頁讀回、只新增時用 append 不重送整頁），不擋呼叫；subagent 不提醒（選配） |
 | `global/claude/config/ripgreprc` | 讓 Bash 的 `rg` 預設 `--hidden` 並排除 `.git`（選配） |
 | `global/claude/settings.snippets.json` | 要手動併入 `~/.claude/settings.json` 的 hook 與 `env` 片段，不整檔覆蓋 |
 

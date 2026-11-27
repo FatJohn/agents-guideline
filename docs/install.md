@@ -156,7 +156,7 @@ claude -p --disallowedTools=Bash "Use the Edit tool yourself to change 'name: x'
 
 ### 選配：ClickUp 文件頁讀寫提醒
 
-`hooks/clickup-doc-nudge.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。它是 `PreToolUse` hook：主對話呼叫 `mcp__claude_ai_ClickUp__clickup_get_document_pages` 或 `mcp__claude_ai_ClickUp__clickup_update_document_page` 時，以 `additionalContext` 注入一句省 context 的做法，不擋呼叫、不回 `permissionDecision`。讀頁的提醒：已在 context 的頁不重讀、寫完不整頁讀回、要照著實作的規格主對話自己讀原文；寫頁的提醒：整頁寫回連同讀回派 subagent，brief 只寫要改的段落。提醒在呼叫當下才注入，作用在同一個 session 之後的呼叫；同一則訊息裡平行送出的 update＋get 已經送出，擋不到。subagent（stdin 有 `agent_id`）不提醒：它就是被派去讀寫的。全域規則沒有別的 ClickUp 條文，提醒內容只在腳本裡。
+`hooks/clickup-doc-nudge.sh` 已由主安裝連好；要另外改 `~/.claude/settings.json` 才會生效。它是 `PreToolUse` hook：主對話呼叫 `mcp__claude_ai_ClickUp__clickup_get_document_pages` 或 `mcp__claude_ai_ClickUp__clickup_update_document_page` 時，以 `additionalContext` 注入一句省 context 的做法，不擋呼叫、不回 `permissionDecision`。讀頁的提醒：已在 context 的頁不重讀、寫完不整頁讀回、要照著實作的規格主對話自己讀原文；寫頁的提醒：只新增段落時用 append 只送新增的部分、不重送整頁 replace，寫完不整頁讀回。提醒在呼叫當下才注入，作用在同一個 session 之後的呼叫；同一則訊息裡平行送出的 update＋get 已經送出，擋不到。subagent（stdin 有 `agent_id`）不提醒：它就是被派去讀寫的。全域規則沒有別的 ClickUp 條文，提醒內容只在腳本裡。
 
 **追加**到既有的 `hooks.PreToolUse` 陣列（片段同樣收在 `<REPO>/global/claude/settings.snippets.json`）；腳本自己也只認這兩個工具名，matcher 寫寬了也不會對別的工具輸出：
 
