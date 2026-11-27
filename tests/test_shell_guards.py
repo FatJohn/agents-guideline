@@ -116,7 +116,7 @@ class ClickupDocNudgeHookTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(count_lines(result.stdout, "FAIL"), 0, result.stdout)
-        self.assertGreaterEqual(count_lines(result.stdout, "PASS"), 18, result.stdout)
+        self.assertGreaterEqual(count_lines(result.stdout, "PASS"), 19, result.stdout)
         self.assertIn("failures=0", result.stdout)
 
 

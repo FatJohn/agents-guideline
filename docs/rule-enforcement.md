@@ -77,7 +77,7 @@
 | 路由卡只注入主對話 | hook | `global/claude/hooks/controller-context.sh` 的 `CLAUDE_ROUTE_CARD` | SessionStart；subagent 不跑 SessionStart |
 | `docs/dispatch.md` §3「派工合約與回報」：主對話不默改 CI 設定 | hook | `global/claude/hooks/block-ci-edit.sh` 的 `.github/(workflows` | 只擋 Edit／Write 類工具；用 Bash 改不擋 |
 | `docs/dispatch.md` §6「主對話 context 管理」：跨門檻要交接 | hook | `global/claude/hooks/context-size-nudge.sh` 的 `CLAUDE_CTX_NUDGE_THRESHOLD` | PostToolUse 注入提醒，不阻擋 |
-| ClickUp 文件頁讀寫省 context（不重讀、不整頁讀回、整頁寫回派 subagent） | hook | `global/claude/hooks/clickup-doc-nudge.sh` 的 `case "$tool"` | PreToolUse 注入提醒，不阻擋；規則本文只在腳本裡，沒有對應的文字規則 |
+| ClickUp 文件頁讀寫省 context（不重讀、不整頁讀回、只新增時用 append 不重送整頁） | hook | `global/claude/hooks/clickup-doc-nudge.sh` 的 `case "$tool"` | PreToolUse 注入提醒，不阻擋；規則本文只在腳本裡，沒有對應的文字規則 |
 | 窄形狀的 `git -C <path>` 不問權限 | hook | `global/claude/hooks/allow-git-c-projects.sh` 的 `flag_allowed` | 放行型，不擋任何指令；其餘交給一般權限流程 |
 | worktree-session `references/cli.md`：issue session 啟動要帶 model 與 effort | hook | `global/claude/hooks/require-issue-session-model.sh` 的 `--effort` | 只查有沒有帶，值是 cli.md 的政策 |
 

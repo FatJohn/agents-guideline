@@ -25,8 +25,9 @@ nudge_has "$out" "不派 subagent 摘要"; check "get_document_pages: spec read 
 # (b) write tool: write-side reminder
 out=$(run "${P}update_document_page"); rc=$?
 check "update_document_page: exit 0" "$rc"
-nudge_has "$out" "派 subagent 執行"; check "update_document_page: delegate reminder" "$?"
-nudge_has "$out" "不再整頁讀回"; check "update_document_page: no read-back" "$?"
+nudge_has "$out" "不重送整頁"; check "update_document_page: send only the new part" "$?"
+printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext|test("subagent")|not' >/dev/null; check "update_document_page: no subagent hand-off" "$?"
+nudge_has "$out" "不要再 get 整頁讀回"; check "update_document_page: no read-back" "$?"
 
 # (c) other tools: silent exit 0 (incl. the neighbouring ClickUp list tool and a lookalike suffix)
 for t in "${P}list_document_pages" "${P}get_task" "${P}get_document_pages_x" "x${P}get_document_pages" Bash Read mcp__other__get_document_pages; do
