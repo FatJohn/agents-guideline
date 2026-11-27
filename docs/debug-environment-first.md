@@ -26,6 +26,7 @@
     引號層一多，shell 與目標檔案對 backslash 的認知就會錯開，replace 靜默 no-op 時**輸出完全沒有異狀**，
     於是竄改沒發生、測試照樣綠，被讀成「守衛有效」——這是本節前一條的觸發條件（亂碼／截斷）涵蓋不到的失敗模式。
   - **突變與還原要繞過建置快取**：Python 的 `__pycache__` 以原始檔 mtime（秒）＋大小判斷是否重編，同一秒內改成同樣長度的內容會沿用舊 `.pyc`——突變後照樣綠、還原後照樣紅（2026-09-29 Python 3.14.6 實測：`return 1`→`return 2` 在已有 `.pyc` 時照樣綠，清掉 `__pycache__` 後才紅；「還原後仍紅」是同日 verifier 重現的反方向）。突變與還原前後的重跑一律先 `rm -rf __pycache__`（或對應的快取目錄）——`python3 -B`／`PYTHONDONTWRITEBYTECODE=1` 只擋寫入、不擋讀取既有 `.pyc`，已有舊快取時是假修法（verifier 5/5 重現仍綠）。其他有增量建置快取的工具鏈同理，先確認它真的重編了。
+    2026-11-27 Python 3.15.1 再重現：`touch -t` 固定在同一秒、改成同長度內容後仍讀到舊值，改成不同長度或不同秒就讀到新值；不 touch、連續寫兩次同長度內容，20 次裡 19 次讀到舊值；已有舊 `.pyc` 時只設 `PYTHONDONTWRITEBYTECODE=1` 仍讀到舊值，先清 `__pycache__` 再跑才正確。同日一次突變驗收照樣踩到：還原後的版本跑出假紅，第 1 輪突變結果作廢；第 2 輪先清 `__pycache__` 並設 `PYTHONDONTWRITEBYTECODE=1`，14 種突變重跑都是突變紅、還原綠。
 
   - **`claude -p` 的 `--allowedTools`／`--disallowedTools` 是可變長參數，會把後面的位置參數 prompt 吃掉**（`claude --help` 寫 `<tools...>`）：`claude -p --allowedTools Read "<prompt>"` 報 `Error: Input must be provided either through stdin or as a prompt argument when using --print`；`--disallowedTools` 另外把 prompt 的每個字當成 deny 規則警告（`Permission deny rule "…" matches no known tool`）。失敗訊息沒有提到旗標，看起來像 prompt 沒傳到。prompt 放在這兩個旗標之前、走 stdin（`echo … | claude -p …`、`<<<`）、旗標寫成 `--disallowedTools=Bash` 的等號形式，或在 prompt 前加 `--`，四種都正常（2026-11-14 Claude Code 2.1.325 各實跑一次）。沒有要餵 stdin 時加 `< /dev/null`，放在 `while read` 迴圈裡的 `claude -p` 會把迴圈的 stdin 讀走。
 
