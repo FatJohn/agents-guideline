@@ -23,12 +23,12 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 |---|---|---|---|
 | session 啟動 | `~/.claude/CLAUDE.md`（含 `@~/.claude/host-facts.md` 匯入）、`~/.claude/rules/judgment.md`、回覆語言 | repo 檔＋`settings.json` 的 `language` | `@import` 缺檔靜默略過；`language` 漏設回預設語言 |
 | session 啟動（只有主對話） | controller 路由卡 `~/.claude/route-card.md`，由 `hooks/controller-context.sh` 以 SessionStart hook 的 stdout 注入 | 腳本在 repo、登記在 `settings.json` `hooks.SessionStart` | context 裡沒有以 `# Contents of ` 開頭、含 `route-card.md` 的注入；主對話照常跑但沒有派工路由 |
-| 每次工具呼叫 | PreToolUse hook（下節三支）＋ `permissions` 規則 | 腳本在 repo、登記在 `settings.json` `hooks.PreToolUse` | 本該被擋的呼叫直接執行，沒有任何提示 |
+| 每次工具呼叫 | PreToolUse hook（下節四支）＋ `permissions` 規則 | 腳本在 repo、登記在 `settings.json` `hooks.PreToolUse` | 本該被擋的呼叫直接執行，沒有任何提示 |
 | 每次工具呼叫之後（只有主對話） | `context-size-nudge.sh` 量主對話 context，跨過 300K 時注入一句交接提醒 | 腳本在 repo、登記在 `settings.json` `hooks.PostToolUse` | context 一路長過 300K 都沒有提醒，沒有其他訊號 |
 | 派 subagent | `~/.claude/agents/verifier.md` 合約進該 subagent 的 context；`general-purpose`／自訂 agent 繼承全域 `CLAUDE.md` 與 `rules/`，不繼承路由卡；`Explore`／`Plan` 兩者都不繼承 | repo 檔 | 可用 agent 清單裡沒有 `verifier`，Agent 工具報 unknown agent type |
 | skill 觸發 | `~/.claude/skills/<name>/SKILL.md`，description 與任務比對到才載入 | repo 檔 | skill 清單沒有該名字；或清單有、但 controller 沒載就照自己的印象做（issue session 旗標事故就是這個形狀，見下節） |
 
-## hooks：五支，各補一條靠自律會漏的規則
+## hooks：六支，各補一條靠自律會漏的規則
 
 | hook | 事件／matcher | 做什麼 | 補的是哪條規則 | 離線測試 |
 |---|---|---|---|---|
@@ -37,13 +37,14 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 | `allow-git-c-projects.sh` | `PreToolUse`，`Bash` | 嚴格形狀的 `git -C <projects 下路徑> worktree remove`／`branch -D`／`push`（指令裡不帶強制、刪除 refspec 與其他 option），以及 `status`、`diff`、`log`、`show`、`rev-parse`、`rev-list`、`merge-base`、`ls-files`、`fetch`、`add`、`commit`（旗標限逐子命令清單）回 allow，其餘不表態 | 替代會觸發 Claude Code 警告的 `Bash(git -C * …)` wildcard 規則 | `tests/test-allow-git-c-projects.sh` |
 | `require-issue-session-model.sh` | `PreToolUse`，`Bash` | `orca worktree create`／`orca agent launch` 帶 `--agent claude`，或 `claude -w`（含 `--command "claude -w …"`），卻缺 `--model` 或 `--effort` 時 exit 2 | worktree-session `references/cli.md`「盤點 session 與 issue session」：issue session 一律帶固定旗標，不隨主對話預設 | `tests/test-require-issue-session-model.sh` |
 | `context-size-nudge.sh` | `PostToolUse`（無 matcher） | 主對話（stdin 沒有 `agent_id`）context 到 300K 時以 `additionalContext` 注入一句交接提醒，每跨一個 100K 級距一次 | `docs/dispatch.md` §6「主對話 context 管理」：≥300K 且還有未做的 phase 就寫交接卡、開新 session | `tests/test-context-size-nudge.sh` |
+| `clickup-doc-nudge.sh` | `PreToolUse`，`mcp__claude_ai_ClickUp__clickup_(get_document_pages\|update_document_page)` | 主對話（stdin 沒有 `agent_id`）讀頁、寫頁時以 `additionalContext` 注入一句省 context 的做法 | 沒有對應的文字規則，提醒內容只在腳本裡（2026-11-27 量測：主對話 ClickUp 單頁 3 萬多字元、寫後整頁讀回造成 context 大跳躍） | `tests/test-clickup-doc-nudge.sh` |
 
 各支的性質：
 
-- `context-size-nudge.sh` 只注入提醒、不擋工具；`jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1、不提醒。
+- `context-size-nudge.sh`、`clickup-doc-nudge.sh` 只注入提醒、不擋工具；`jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1、不提醒。
 
 - 兩支擋板（`block-ci-edit.sh`、`require-issue-session-model.sh`）只擋，不改寫指令；exit 2 的 stderr 訊息會回到模型，裡面寫著規則出處與正確寫法。
-- 三支 PreToolUse hook 都 fail-open：`jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1、不擋也不放行，transcript 看得到 `INACTIVE`／`did not run`。裝完要跑一次離線測試，不能只看檔案存在。
+- 四支 PreToolUse hook 都 fail-open：`jq` 不在 PATH 或 stdin 不是 JSON 時 exit 1、不擋也不放行，transcript 看得到 `INACTIVE`／`did not run`。裝完要跑一次離線測試，不能只看檔案存在。
 - `require-issue-session-model.sh` 以整條 Bash 指令為單位：任一段命中就整條不放行，前面已經寫好的其他步驟也不會跑；補旗標後整條重送。它是字面比對，heredoc 或字串裡出現同形狀的文字也會被擋（例如 `rg -n "orca worktree create|claude -w" docs` 的 `|` 會被當成分段），寫文件時用 Write／Edit 工具落地，不經 Bash。
 - `controller-context.sh` 不用 `jq`，卡片缺檔時靜默 exit 0、無輸出；唯一的判定訊號是 context 裡有沒有那行注入。
 - `settings.json` 裡還有 Orca 自己登記的 matcher `*` hook（所有事件各一個，指向 `~/.orca/agent-hooks/`），不屬本 repo；追加本系統的 hook 元素時只加、不動它。
@@ -59,7 +60,7 @@ hook 是最容易只裝一半的部分：腳本在 `~/.claude/hooks/` 連上了�
 | `language` | `繁體中文台灣用語` | 回覆掉回預設語言；入口不寫語言段，只靠這裡 |
 | `env.RIPGREP_CONFIG_PATH` | `~/.claude/ripgreprc` 的絕對路徑 | Bash 的 `rg` 不帶 `--hidden`，judgment §3 殘留掃描漏 `.claude/`、`.github/` |
 | `hooks.SessionStart[]` | `controller-context.sh` 元素 | 主對話沒有路由卡 |
-| `hooks.PreToolUse[]` | `block-ci-edit.sh`、`allow-git-c-projects.sh`、`require-issue-session-model.sh` 三個元素 | 對應擋板失效，見上表 |
+| `hooks.PreToolUse[]` | `block-ci-edit.sh`、`allow-git-c-projects.sh`、`require-issue-session-model.sh`、`clickup-doc-nudge.sh` 四個元素 | 對應擋板失效、ClickUp 讀寫沒有提醒，見上表 |
 | `hooks.PostToolUse[]` | `context-size-nudge.sh` 元素 | 主對話 context 跨 300K 時沒有提醒 |
 | `permissions` | 本 repo 不管理；原則是 allow 只放可判定唯讀的子命令（`docs/install.md`「Claude Code permissions 要和全域邊界 3 對齊」） | 對外或不可逆動作可能不再逐次確認 |
 | `model`／`effortLevel` | 本 repo 不管理；是主對話與**任何沒帶 `--model` 的 `claude` 程序**的預設。v4 起 controller 自己實作，預設 opus／medium；簡單任務用 `/model sonnet` 當次切 | 沒帶旗標起的 session 跟著它變；issue session 由 `require-issue-session-model.sh` 保證帶旗標，不受影響 |
@@ -86,7 +87,7 @@ model 的優先序由低到高：全域 `settings.json`、專案層 `.claude/set
 | 入口與 host facts | `global/claude/CLAUDE.md`、`global/shared/hosts/<key>.md` | `~/.claude/CLAUDE.md`、`~/.claude/host-facts.md` | `claude -p` 不准用工具時能引出「# 本機事實：」標題與 hostname（`docs/install.md`「安裝 Claude Code」） |
 | judgment | `global/shared/rules/` | `~/.claude/rules/` | `ls ~/.claude/rules/` 只有 `judgment.md`（多一個檔就是 v1 殘留） |
 | 路由卡＋SessionStart hook | `global/claude/route-card.md`、`global/claude/hooks/controller-context.sh` | `~/.claude/route-card.md`、`~/.claude/hooks/`＋`settings.json` 元素 | 新 session context 有 `# Contents of …route-card.md` |
-| PreToolUse hooks | `global/claude/hooks/*.sh` | `~/.claude/hooks/`＋`settings.json` 三個元素 | 三支離線測試 `failures=0`；主對話 Bash 下 `false && orca worktree create --name probe --agent claude --prompt x` 被 hook 擋下（hook 沒裝時 `false` 讓後段不執行，不會真的開 worktree） |
+| PreToolUse hooks | `global/claude/hooks/*.sh` | `~/.claude/hooks/`＋`settings.json` 四個元素 | 四支離線測試 `failures=0`；主對話 Bash 下 `false && orca worktree create --name probe --agent claude --prompt x` 被 hook 擋下（hook 沒裝時 `false` 讓後段不執行，不會真的開 worktree） |
 | PostToolUse hook | `global/claude/hooks/context-size-nudge.sh` | `~/.claude/hooks/`＋`settings.json` `hooks.PostToolUse` 元素 | `tests/test-context-size-nudge.sh` `failures=0` |
 | agents、rubrics、skills | `global/claude/agents/`、`global/shared/rubrics/`、`global/shared/skills/` | `~/.claude/agents/`、`~/.claude/rubrics/`、`~/.claude/skills/`、`~/.agents/skills/` | 可用 agent 清單有 `verifier`；skill 清單有六個共用 skill |
 | ripgreprc | `global/claude/config/ripgreprc` | `~/.claude/ripgreprc`＋`settings.json` `env` | `tests/test-ripgreprc.sh`；Claude Code 的 Bash 裡 `rg` 不帶 `--hidden` 也搜到隱藏目錄 |
@@ -108,4 +109,4 @@ Codex CLI 有 hook 機制。codex-cli 0.169.0 的 `codex features list` 把 `hoo
 
 本機以 `codex exec` 實跑一次，`~/.codex/hooks.json` 裡 Orca 登記的 `PreToolUse`、`PostToolUse`、`Stop` 都有觸發，輸出裡有 `hook: PreToolUse` 這類行。`SessionStart` 注入與 `PreToolUse` 擋下本機未實測。
 
-本系統沒用這套機制：`global/codex/` 只有 `AGENTS.md`、`rules/`、`agents/`，同步腳本不碰 `~/.codex/hooks.json`（`docs/rule-enforcement.md`「Codex 端：載入方式」）。所以 `global/codex/rules/` 不分流，subagent 與主對話讀同一份；五支 hook 補的規則在 Codex 端只有文字版（dispatch 規則與 `cli.md`），沒有機械擋板。這是本系統還沒採用，不是 Codex 做不到；要不要補另案決定。
+本系統沒用這套機制：`global/codex/` 只有 `AGENTS.md`、`rules/`、`agents/`，同步腳本不碰 `~/.codex/hooks.json`（`docs/rule-enforcement.md`「Codex 端：載入方式」）。所以 `global/codex/rules/` 不分流，subagent 與主對話讀同一份；六支 hook 補的規則在 Codex 端只有文字版（dispatch 規則與 `cli.md`），沒有機械擋板。這是本系統還沒採用，不是 Codex 做不到；要不要補另案決定。

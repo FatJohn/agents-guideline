@@ -77,6 +77,7 @@
 | 路由卡只注入主對話 | hook | `global/claude/hooks/controller-context.sh` 的 `CLAUDE_ROUTE_CARD` | SessionStart；subagent 不跑 SessionStart |
 | `docs/dispatch.md` §3「派工合約與回報」：主對話不默改 CI 設定 | hook | `global/claude/hooks/block-ci-edit.sh` 的 `.github/(workflows` | 只擋 Edit／Write 類工具；用 Bash 改不擋 |
 | `docs/dispatch.md` §6「主對話 context 管理」：跨門檻要交接 | hook | `global/claude/hooks/context-size-nudge.sh` 的 `CLAUDE_CTX_NUDGE_THRESHOLD` | PostToolUse 注入提醒，不阻擋 |
+| ClickUp 文件頁讀寫省 context（不重讀、不整頁讀回、整頁寫回派 subagent） | hook | `global/claude/hooks/clickup-doc-nudge.sh` 的 `case "$tool"` | PreToolUse 注入提醒，不阻擋；規則本文只在腳本裡，沒有對應的文字規則 |
 | 窄形狀的 `git -C <path>` 不問權限 | hook | `global/claude/hooks/allow-git-c-projects.sh` 的 `flag_allowed` | 放行型，不擋任何指令；其餘交給一般權限流程 |
 | worktree-session `references/cli.md`：issue session 啟動要帶 model 與 effort | hook | `global/claude/hooks/require-issue-session-model.sh` 的 `--effort` | 只查有沒有帶，值是 cli.md 的政策 |
 
@@ -96,7 +97,7 @@ Codex 端的強制方式跟 Claude 端有三處不同，下面各段的值都由
 
 - 本 repo 裝進 Codex 的全域規則只有入口：Codex 在 session 開頭把全域 `~/.codex/AGENTS.md`（來源 `global/codex/AGENTS.md`）當「AGENTS.md instructions」注入，專案自己的 `AGENTS.md` 另外注入；`judgment.md` 不注入，只在入口「路由」表的「寫或改程式碼的範圍、完成、證據、驗收狀態」列指過去。依據：`scripts/sync-profile.py` 的 `default_mappings` 只把 `global/codex/AGENTS.md` 裝進 Codex 目錄；查過的一筆 session jsonl 有入口全文、沒有 `judgment.md` 的內文，已實測（2026-11-20，codex-cli 0.169.0），只查一筆，不代表每種啟動方式都一樣。所以 `judgment.md` 在 Codex 端是按需文字。
 - 沒有路由卡，`global/codex/rules/` 也不注入：`dispatch.md` 與 `delegation-templates.md` 要照入口路由表去讀，主對話與 subagent 讀的是同一份。
-- 本 repo 不提供、不安裝 Codex hook：`global/codex/` 只有 `AGENTS.md`、`rules/`、`agents/`，同步腳本不碰 `~/.codex/hooks.json`。Codex CLI 本身有 hook 機制，`codex features list` 列 `hooks` 為 stable，已實測（2026-11-20，codex-cli 0.169.0），只是本系統沒用。Claude 端五支 hook 補的規則，在 Codex 端最多是文字。
+- 本 repo 不提供、不安裝 Codex hook：`global/codex/` 只有 `AGENTS.md`、`rules/`、`agents/`，同步腳本不碰 `~/.codex/hooks.json`。Codex CLI 本身有 hook 機制，`codex features list` 列 `hooks` 為 stable，已實測（2026-11-20，codex-cli 0.169.0），只是本系統沒用。Claude 端六支 hook 補的規則，在 Codex 端最多是文字。
 
 ## Codex 端：judgment.md
 
