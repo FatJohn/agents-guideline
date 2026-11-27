@@ -16,7 +16,7 @@ EOF
 
 case "$tool" in
   mcp__claude_ai_ClickUp__clickup_get_document_pages)
-    msg="ClickUp 文件頁常是單頁就數萬字元，整頁進主對話 context。這一頁已經在 context 裡就不要重讀；剛 update 完不要整頁讀回核對（成功回應就夠，要核對內容交給寫回的 subagent）。要照著實作的規格（驗收條件、欄位名、流程邊界）主對話自己讀原文，不派 subagent 摘要。" ;;
+    msg="ClickUp 文件頁常是單頁就數萬字元，整頁進主對話 context。這一頁已經在 context 裡就不要重讀；剛 update 完不要整頁讀回核對（成功回應就夠）。要照著實作的規格（驗收條件、欄位名、流程邊界）主對話自己讀原文，不派 subagent 摘要。" ;;
   mcp__claude_ai_ClickUp__clickup_update_document_page)
     msg="ClickUp 整頁寫回（replace 或連續幾段 append 重寫整頁）連同寫後讀回，派 subagent 執行：brief 只寫要改哪幾段、改成什麼與來源，不貼整頁內容；subagent 自己讀頁、寫回、讀回核對，只回報差異。主對話寫完不再整頁讀回。這是路由卡「subagent 只有三類」之外、只限 ClickUp 整頁寫回的例外；改一小段可以自己寫。" ;;
   *) exit 0 ;;
