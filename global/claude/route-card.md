@@ -7,7 +7,7 @@
 |---|---|
 | 驗收 | `verifier`，顯式 `model: opus`，不帶 effort。依 `<REPO>/docs/dispatch.md` §1 定級：文件交回後、merge／轉 ready 前一律派 verifier（低風險小改做 read-back 級），只改文件的 diff 不派 code-review；程式碼只在含外部呼叫、權限請求、不可逆副作用，或高風險、使用者回報 bug 時派 verifier（後者另加 fresh review，同時派），其餘只派 code-review。同一產物第 2 輪起只派 delta，verifier 寫機械結案就不再派（§2）。專案規則只寫 code-review 時仍適用 |
 | 程式碼 diff 的 fresh review | 派 `general-purpose`（`model: opus`，`effort: high`；高風險或使用者回報 bug 改 `model: fable`、`effort: medium`）執行 `/code-review medium <目標>`（等級不隨 effort），主對話不自跑 `Skill(code-review)`（帶著主對話 context，不算 fresh）；是 verifier 的加項不是替代。修 finding 後依 `<REPO>/docs/dispatch.md` §2 風險分流再驗 |
-| 旁支查詢 | 答案在檔案裡（找哪些檔有 X、列清單、抓數字）：`Explore`，`model: haiku`。要讀多份長文歸納、跨來源比對或結論帶推理：`general-purpose`，`model: sonnet`。只拿結論與檔案:行號，原文不帶回主對話。獨立第二意見：`codex:codex-rescue` |
+| 旁支查詢 | 答案在檔案裡（找哪些檔有 X、列清單、抓數字）：`Explore`，`model: haiku`。要讀多份長文歸納、跨來源比對或結論帶推理：`general-purpose`，`model: sonnet`。只拿結論與檔案:行號，原文不帶回主對話。 |
 
 使用者說開新 session（繼續，或另開做旁支調查／別的事）由你開成他看得到的互動分頁，不只給 prompt，不用 `claude -p`／`--bg`／背景執行代替（worktree-session skill）。≥2 個互相獨立的 issue 一 issue 一頂層 session，本 session 只盤點；已在盤點（起過 issue session 或接手盤點 session）時，交來的改檔工作也寫 brief 起 session，同一張票的後續階段與交接卡的下一步都算（worktree-session skill §2）。
 

@@ -31,7 +31,7 @@
 | `haiku` | claude-haiku-4-5 | 平台可用模型；不列入本制度 active routing |
 | `sonnet` | claude-sonnet-5-5（2026-09-29 由 `claude -p --model sonnet --output-format json` 的 `modelUsage` 現查；原為 claude-sonnet-5） | 掃描、總結、查網頁的讀取車道主力；`worker` 標準實作車道（frontmatter 鎖完整 ID） |
 | `opus` | claude-opus-5-5（2026-09-23 由 verifier transcript 的 `"model":"claude-opus-5-5"` 現查；2026-08-30 原為 claude-opus-5） | 難題升級、高風險判斷 |
-| `fable` | claude-fable-5-2（2026-11-10 由 `claude -p --model fable --output-format json` 的 `modelUsage` 現查，是 CLI 的 alias；同日派 `Explore`（`model: fable`），subagent transcript 記為 `"model":"claude-fable-5-2"`。2026-09-29 為 claude-fable-5-1，更早為 claude-fable-5） | 最高階；卡住換路的重新定義問題與第二意見（`<REPO>/docs/dispatch.md` §4「卡住時」）、高風險程式碼與使用者回報 bug 的 fresh `code-review`（同檔 §1、§3）；verifier 不自動走這條（同檔 §1「驗證不自驗」） |
+| `fable` | claude-fable-5-2（2026-11-10 由 `claude -p --model fable --output-format json` 的 `modelUsage` 現查，是 CLI 的 alias；同日派 `Explore`（`model: fable`），subagent transcript 記為 `"model":"claude-fable-5-2"`。2026-09-29 為 claude-fable-5-1，更早為 claude-fable-5） | 最高階；高風險程式碼與使用者回報 bug 的 fresh `code-review`（同檔 §1、§3）；verifier 不自動走這條（同檔 §1「驗證不自驗」） |
 
 alias 會隨平台改版重新指向新一代同層模型——要宣稱某次派工實際跑在哪個型號，以當場自報的 model ID 為準，不引用本表。
 
@@ -103,10 +103,10 @@ alias 會隨平台改版重新指向新一代同層模型——要宣稱某次�
 **常用 subagent 類型**（`subagent_type`）：
 - `Explore`——唯讀搜索，掃 repo、找檔案、答「哪裡有 X」。不能改檔。
 - `Plan`——出實作計畫、架構取捨。
-- `general-purpose`——全工具；v4 起只用於 fresh `code-review`、要落檔的查詢與第二意見，顯式指定 model。實作不派 subagent（controller 自做）。
+- `general-purpose`——全工具；v4 起只用於 fresh `code-review` 與要落檔的查詢，顯式指定 model。實作不派 subagent（controller 自做）。
 - 本系統自帶 `verifier`（獨立驗收）；派工前讀 `~/.claude/agents/verifier.md` 合約。verifier 顯式 `model: opus`，升 fable 見 `<REPO>/docs/dispatch.md` §1「驗證不自驗」。`worker` 於 v4（2026-10-29）日落。
 - 簡化整理剛改過的程式碼——用內建 `simplify` skill（它是 skill，不是 subagent）。
-- `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，第二意見或整包委派用。
+- `codex:codex-rescue`——外部模型（GPT 系，Codex 訂閱，不占 Claude 配額），備用車道，只在使用者當次要外部第二意見或整包委派時用，制度不主動派（`<REPO>/docs/dispatch.md` §3）。
 - Explore／Plan 的角色系統指示禁止建立或寫入任何檔案（含 `/tmp`、scratchpad、heredoc 重導向）：2026-10-12 以 Explore（haiku）探針要求用 heredoc 寫 scratchpad 一個檔，agent 回「系統指示明確禁止…未執行」，沒有嘗試繞過；Plan 的角色指示在 claude 2.1.296 binary 的 strings 可見同款條文（READ-ONLY planning task、禁止建 /tmp 檔、禁止 `>`／`>>`／heredoc）。要落檔派 general-purpose；Explore／Plan 的回報長度只能靠 brief 的回報欄位控（`<REPO>/docs/dispatch.md` §3「派工合約與回報」）。
 - Explore／Plan 沒有 Agent 工具（2026-10-17，Claude Code 2.1.301）：harness 注入主對話的 agent 類型清單把兩者的工具寫成「All tools except Agent, Artifact, …, Edit, Write, NotebookEdit」，所以它們無法再派 subagent；同版 binary 的 strings 也可見兩者的 `disallowedTools` 含 `Agent`（minify 過，只當旁證）。
 

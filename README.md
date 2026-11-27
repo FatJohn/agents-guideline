@@ -51,7 +51,7 @@ Delegation table (abridged from `global/claude/route-card.md`):
 |---|---|
 | Acceptance | `verifier`, `model: opus`; always for any document before merge or ready, code by `docs/dispatch.md` §1 tiers, still applies when project rules name only code-review |
 | Fresh review of a code diff | Fresh subagent running `code-review` skill, never the main conversation itself; adds to `verifier`, never replaces it; after fixing findings, re-verify per `docs/dispatch.md` §2 |
-| Side research | Answer is in the files (which files have X, lists, numbers): `Explore`, `model: haiku`. Reading several long documents, cross-source comparison, conclusions that need reasoning: `general-purpose`, `model: sonnet`. Second opinion: `codex:codex-rescue` |
+| Side research | Answer is in the files (which files have X, lists, numbers): `Explore`, `model: haiku`. Reading several long documents, cross-source comparison, conclusions that need reasoning: `general-purpose`, `model: sonnet`. |
 | Implementation, fixes, docs, planning | Not delegated: the controller does them |
 
 ### Model per seat

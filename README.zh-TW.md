@@ -45,7 +45,7 @@
 |---|---|
 | 驗收 | `verifier`，`model: opus`；所有文件 merge／轉 ready 前一律派，程式碼依 `docs/dispatch.md` §1 分流，專案規則只寫 code-review 時仍適用 |
 | 程式碼 diff 的 fresh review | fresh subagent 跑內建 `code-review` skill，主對話不自跑；是 verifier 的加項不是替代，修 finding 後依 `docs/dispatch.md` §2 再驗 |
-| 旁支查詢 | 答案在檔案裡（找哪些檔有 X、列清單、抓數字）：`Explore`，`model: haiku`；要讀多份長文歸納、跨來源比對、結論帶推理：`general-purpose`，`model: sonnet`；第二意見：`codex:codex-rescue` |
+| 旁支查詢 | 答案在檔案裡（找哪些檔有 X、列清單、抓數字）：`Explore`，`model: haiku`；要讀多份長文歸納、跨來源比對、結論帶推理：`general-purpose`，`model: sonnet` |
 | 實作、修 bug、文件、規劃 | 不派，controller 自己做 |
 
 ### 每個座位的 model
