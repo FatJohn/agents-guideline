@@ -719,9 +719,10 @@ REVIEW_RE = re.compile(r"\bcode-review\b|\breview\b|審查|\bfresh\b", re.I)
 DELTA_RE = re.compile(r"delta", re.I)
 MECH_CLOSE = "機械結案"
 CLAUSE_SPLIT_RE = re.compile(r"[。；;\n]")
-MECH_NEGATED_RE = re.compile(r"(?:不是|不屬於?|並非|非|不能|不可|無法)" + MECH_CLOSE)
-CONDITIONAL_RE = re.compile(r"如果|若|的話")
-PRIOR_ROUND_RE = re.compile(r"(?:上一?輪|前一輪|第\s*\d+\s*輪)[^。；\n]{0,60}?(?:OPEN|FAIL|INCONCLUSIVE)")
+NEGATED_BEFORE_RE = re.compile(r"(?:不|非|無法)[^，,、（(]{0,6}$")
+CONDITIONAL_RE = re.compile(r"如果|若(?!干)|的話")
+PRIOR_ROUND_RE = re.compile(r"(?:[上前]一?[輪次]|第\s*[0-9一二三四五六七八九十]+\s*輪)[^。；\n]{0,60}?"
+                            r"(?<![A-Za-z])(?:OPEN|FAIL|INCONCLUSIVE|PROSE-ONLY)(?![A-Za-z])", re.I)
 HANDOFF_CARD_TOKENS = 5000  # assumed size of a handoff card read by the takeover session
 
 
@@ -760,10 +761,14 @@ def fork_parents(ctx):
 
 
 def says_mech_close(head):
-    """True when some clause of a verifier's final head offers 機械結案 outright: a negated clause ('不是機械結案') or a
-    conditional one ('如果只改 X，可機械結案') does not count."""
-    return any(MECH_CLOSE in c and not MECH_NEGATED_RE.search(c) and not CONDITIONAL_RE.search(c)
-               for c in CLAUSE_SPLIT_RE.split(head or ""))
+    """True when a verifier's final head offers 機械結案 outright: an occurrence negated within the same comma segment
+    ('不可以機械結案') or inside a conditional clause ('如果只改 X，可機械結案') does not count."""
+    for c in CLAUSE_SPLIT_RE.split(head or ""):
+        if CONDITIONAL_RE.search(c):
+            continue
+        if any(not NEGATED_BEFORE_RE.search(c[:m.start()]) for m in re.finditer(MECH_CLOSE, c)):
+            return True
+    return False
 
 
 def rechecks_prior_round(prompt):
@@ -839,8 +844,9 @@ def cmd_weekly(ctx, win, args):
                         [[len(vers), ratio(dist["CONVERGED"], len(vers)), ratio(dist["PROSE-ONLY"], len(vers)), ratio(dist["OPEN"], len(vers)),
                           ratio(dist["INCONCLUSIVE"], len(vers)), len(first), first_open, ratio(first_open, len(first)), mech]],
                         "啟發式：判定同 verifier 子命令的 regex；first_round＝description 不含 delta；mech_close_then_delta＝同 session "
-                        "相鄰兩次 verifier，前一次 final_head 有一句直接說可「機械結案」（否定句與「如果／若／的話」條件句不算）、"
-                        "下一次 description 含 delta，且其 brief 前 600 字在「上一輪／前一輪／第 N 輪」後 60 字內提到 OPEN／FAIL／INCONCLUSIVE。"))
+                        "相鄰兩次 verifier，前一次 final_head 有一處直接說可「機械結案」（前 6 字內有不／非／無法且中間沒有，、（的不算，"
+                        "所在句子含如果／若／的話的不算）、下一次 description 含 delta，且其 brief 前 600 字在「上一輪／上次／前一次／第 N 輪」"
+                        "這類字樣後、同一句 60 字內提到 OPEN／FAIL／INCONCLUSIVE／PROSE-ONLY（不分大小寫）。"))
 
     forks = fork_parents(ctx)
     fork_usd = collections.defaultdict(float)
