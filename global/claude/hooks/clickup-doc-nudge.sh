@@ -11,7 +11,7 @@ fields=${fields//$'\r'/}
 IFS=$'\037' read -r agent_id tool <<EOF
 $fields
 EOF
-# subagent 是被派來讀寫 ClickUp 的，省主對話 context 的提醒對它不適用。
+# 提醒只為省主對話的 context；subagent 的 context 是分開的，不提醒。
 [ -z "$agent_id" ] || exit 0
 
 case "$tool" in
