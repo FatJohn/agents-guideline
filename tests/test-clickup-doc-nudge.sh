@@ -21,6 +21,7 @@ out=$(run "${P}get_document_pages"); rc=$?
 check "get_document_pages: exit 0" "$rc"
 nudge_has "$out" "不要重讀"; check "get_document_pages: read reminder" "$?"
 nudge_has "$out" "不派 subagent 摘要"; check "get_document_pages: spec read in main" "$?"
+printf '%s' "$out" | jq -e '.hookSpecificOutput.additionalContext|test("交給|寫回的 subagent")|not' >/dev/null; check "get_document_pages: no hand-off to a subagent" "$?"
 
 # (b) write tool: write-side reminder
 out=$(run "${P}update_document_page"); rc=$?
