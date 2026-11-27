@@ -236,11 +236,14 @@ class Ctx:
     def agent_type(self, a):
         return a.get("type") or "unknown"
 
+    def agent_call(self, a):
+        """The Agent call that started this subagent, or {}."""
+        s = self.sessions.get(a["sid"])
+        return (s["agent_calls"].get(a.get("tool_use_id")) if s else None) or self.call_by_agent.get(a["id"]) or {}
+
     def agent_note(self, a):
         """The notification of the Agent call that started this subagent, or None."""
-        s = self.sessions.get(a["sid"])
-        call = (s["agent_calls"].get(a.get("tool_use_id")) if s else None) or self.call_by_agent.get(a["id"])
-        return (call or {}).get("notification")
+        return self.agent_call(a).get("notification")
 
 
 # ---------------------------------------------------------------- tables
@@ -715,6 +718,10 @@ def cmd_sessions(ctx, win, args):
 REVIEW_RE = re.compile(r"\bcode-review\b|\breview\b|審查|\bfresh\b", re.I)
 DELTA_RE = re.compile(r"delta", re.I)
 MECH_CLOSE = "機械結案"
+CLAUSE_SPLIT_RE = re.compile(r"[。；;\n]")
+MECH_NEGATED_RE = re.compile(r"(?:不是|不屬於?|並非|非|不能|不可|無法)" + MECH_CLOSE)
+CONDITIONAL_RE = re.compile(r"如果|若|的話")
+PRIOR_ROUND_RE = re.compile(r"(?:上一?輪|前一輪|第\s*\d+\s*輪)[^。；\n]{0,60}?(?:OPEN|FAIL|INCONCLUSIVE)")
 HANDOFF_CARD_TOKENS = 5000  # assumed size of a handoff card read by the takeover session
 
 
@@ -750,6 +757,19 @@ def fork_parents(ctx):
         out[a["id"]] = parent
         has_fork.add(parent)
     return out
+
+
+def says_mech_close(head):
+    """True when some clause of a verifier's final head offers 機械結案 outright: a negated clause ('不是機械結案') or a
+    conditional one ('如果只改 X，可機械結案') does not count."""
+    return any(MECH_CLOSE in c and not MECH_NEGATED_RE.search(c) and not CONDITIONAL_RE.search(c)
+               for c in CLAUSE_SPLIT_RE.split(head or ""))
+
+
+def rechecks_prior_round(prompt):
+    """True when a delta brief points back at the previous round's verdict ('上一輪 OPEN 的唯一 FAIL'), i.e. it re-verifies
+    the same findings rather than the session's next change. Descriptions are too short to tell the two apart."""
+    return bool(PRIOR_ROUND_RE.search(prompt or ""))
 
 
 def agent_family(ctx, aid):
@@ -809,7 +829,8 @@ def cmd_weekly(ctx, win, args):
     for a in vers:
         by_s[a["sid"]].append(a)
     mech = sum(1 for lst in by_s.values() for p, q in zip(lst, lst[1:])
-               if MECH_CLOSE in (p.get("final_head") or "") and DELTA_RE.search(q.get("description") or ""))
+               if says_mech_close(p.get("final_head")) and DELTA_RE.search(q.get("description") or "")
+               and rechecks_prior_round(ctx.agent_call(q).get("prompt_head")))
     dist = collections.Counter(verdict_of(a) for a in vers)
     first_open = sum(1 for a in first if verdict_of(a) == "OPEN")
     tables.append(table("verifier_rounds", "verifier 判定與輪次（啟發式）",
@@ -818,7 +839,8 @@ def cmd_weekly(ctx, win, args):
                         [[len(vers), ratio(dist["CONVERGED"], len(vers)), ratio(dist["PROSE-ONLY"], len(vers)), ratio(dist["OPEN"], len(vers)),
                           ratio(dist["INCONCLUSIVE"], len(vers)), len(first), first_open, ratio(first_open, len(first)), mech]],
                         "啟發式：判定同 verifier 子命令的 regex；first_round＝description 不含 delta；mech_close_then_delta＝同 session "
-                        "相鄰兩次 verifier，前一次 final_head 含「機械結案」、下一次 description 含 delta。"))
+                        "相鄰兩次 verifier，前一次 final_head 有一句直接說可「機械結案」（否定句與「如果／若／的話」條件句不算）、"
+                        "下一次 description 含 delta，且其 brief 前 600 字在「上一輪／前一輪／第 N 輪」後 60 字內提到 OPEN／FAIL／INCONCLUSIVE。"))
 
     forks = fork_parents(ctx)
     fork_usd = collections.defaultdict(float)

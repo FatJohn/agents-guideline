@@ -503,6 +503,13 @@ def make_weekly_data():
     return data
 
 
+def with_delta_brief(data, prompt="Delta 驗收。上一輪 OPEN 的唯一 FAIL：x 沒有測試。"):
+    """Give the delta verifier ag3 an Agent call carrying `prompt` as its brief (make_weekly_data leaves it without one)."""
+    data["sessions"][SID_A]["agent_calls"]["tuX3"] = dict(call("00:49:00", "verifier", "ag3"), description="delta re-check",
+                                                          prompt_head=prompt)
+    return data
+
+
 PRS = [{"mergedAt": "2031-01-02T01:00:00Z"}, {"closedAt": "2031-01-02T03:00:00Z"}, {"mergedAt": "2030-12-01T00:00:00Z"}]
 
 
@@ -539,12 +546,33 @@ class WeeklyTests(unittest.TestCase):
         self.assertEqual(rows(self.rep(exclude_projects=["beta"]), "main_ctx")[0]["reqs"], 5)
 
     def test_verifier_first_round_and_mechanical_close_then_delta(self):
-        v = rows(self.rep(), "verifier_rounds")[0]
+        v = rows(report.make_report(with_delta_brief(make_weekly_data()), "weekly", tz="UTC"), "verifier_rounds")[0]
         self.assertEqual((v["agents"], v["first_round"], v["first_round_open"], v["mech_close_then_delta"]), (4, 3, 1, 1))
         self.assertAlmostEqual(v["converged_share"], 0.25)
-        data = make_weekly_data()
+        self.assertEqual(rows(self.rep(), "verifier_rounds")[0]["mech_close_then_delta"], 0)   # no brief to point back at
+        data = with_delta_brief(make_weekly_data())
         data["agents"]["ag2"]["final_head"] = "CONVERGED"     # no 機械結案 -> the delta after it is not counted
         self.assertEqual(rows(report.make_report(data, "weekly", tz="UTC"), "verifier_rounds")[0]["mech_close_then_delta"], 0)
+
+    def test_mechanical_close_ignores_negated_and_conditional_clauses(self):
+        def count(head):
+            data = with_delta_brief(make_weekly_data())
+            data["agents"]["ag2"]["final_head"] = head
+            return rows(report.make_report(data, "weekly", tz="UTC"), "verifier_rounds")[0]["mech_close_then_delta"]
+        self.assertEqual(count("OPEN。下一步：低風險，可機械結案，不必再派 fresh delta。"), 1)
+        self.assertEqual(count("OPEN。修完後派 fresh delta 重驗（高風險，不是機械結案）。"), 0)
+        self.assertEqual(count("OPEN。如果只刪那一列，屬低風險，可以機械結案，證據是 rg。"), 0)
+        self.assertEqual(count("INCONCLUSIVE。只補一句說明的話，屬低風險，可以機械結案；改程式就要另派 delta。"), 0)
+        self.assertEqual(count("OPEN。如果改程式要另派 delta。只改文件的部分屬低風險，可機械結案。"), 1)   # the condition sits in another clause
+
+    def test_delta_after_mechanical_close_must_recheck_the_prior_round(self):
+        def count(prompt):
+            data = with_delta_brief(make_weekly_data(), prompt)
+            return rows(report.make_report(data, "weekly", tz="UTC"), "verifier_rounds")[0]["mech_close_then_delta"]
+        self.assertEqual(count("第 1 輪（commit abc1234）判 OPEN：F1 沒有測試。"), 1)
+        self.assertEqual(count("上一輪 verifier（受驗 abc1234＋diff）判 INCONCLUSIVE。"), 1)
+        self.assertEqual(count("Delta 驗收：父 commit 已在前一輪驗收收斂。目標（使用者當次要求）：拔掉 IP 列表。"), 0)   # the session's next change
+        self.assertEqual(count(""), 0)
 
     def test_review_cost_folds_the_forked_child_into_its_parent(self):
         by = {(r["kind"], r["family"]): r for r in rows(self.rep(prs=PRS), "reviews")}
