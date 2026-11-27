@@ -109,4 +109,4 @@ Codex CLI 有 hook 機制。codex-cli 0.169.0 的 `codex features list` 把 `hoo
 
 本機以 `codex exec` 實跑一次，`~/.codex/hooks.json` 裡 Orca 登記的 `PreToolUse`、`PostToolUse`、`Stop` 都有觸發，輸出裡有 `hook: PreToolUse` 這類行。`SessionStart` 注入與 `PreToolUse` 擋下本機未實測。
 
-本系統沒用這套機制：`global/codex/` 只有 `AGENTS.md`、`rules/`、`agents/`，同步腳本不碰 `~/.codex/hooks.json`（`docs/rule-enforcement.md`「Codex 端：載入方式」）。所以 `global/codex/rules/` 不分流，subagent 與主對話讀同一份；六支 hook 補的規則在 Codex 端只有文字版（dispatch 規則與 `cli.md`），沒有機械擋板。這是本系統還沒採用，不是 Codex 做不到；要不要補另案決定。
+本系統沒用這套機制：`global/codex/` 只有 `AGENTS.md`、`rules/`、`agents/`，同步腳本不碰 `~/.codex/hooks.json`（`docs/rule-enforcement.md`「Codex 端：載入方式」）。所以 `global/codex/rules/` 不分流，subagent 與主對話讀同一份；六支 hook 補的規則在 Codex 端最多是文字版（dispatch 規則與 `cli.md`），沒有機械擋板；`clickup-doc-nudge.sh` 沒有對應的文字規則，Codex 端連文字都沒有。這是本系統還沒採用，不是 Codex 做不到；要不要補另案決定。
