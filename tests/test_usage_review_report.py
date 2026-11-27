@@ -564,6 +564,9 @@ class WeeklyTests(unittest.TestCase):
         self.assertEqual(count("OPEN。如果只刪那一列，屬低風險，可以機械結案，證據是 rg。"), 0)
         self.assertEqual(count("INCONCLUSIVE。只補一句說明的話，屬低風險，可以機械結案；改程式就要另派 delta。"), 0)
         self.assertEqual(count("OPEN。如果改程式要另派 delta。只改文件的部分屬低風險，可機械結案。"), 1)   # the condition sits in another clause
+        self.assertEqual(count("OPEN。不可以機械結案，要派 fresh delta。"), 0)
+        self.assertEqual(count("OPEN。可機械結案，非機械結案的部分另派 delta。"), 1)   # the first occurrence is not negated
+        self.assertEqual(count("OPEN。可機械結案（若干措辭問題不影響行為）。"), 1)        # 若干 is not a condition
 
     def test_delta_after_mechanical_close_must_recheck_the_prior_round(self):
         def count(prompt):
@@ -572,6 +575,10 @@ class WeeklyTests(unittest.TestCase):
         self.assertEqual(count("第 1 輪（commit abc1234）判 OPEN：F1 沒有測試。"), 1)
         self.assertEqual(count("上一輪 verifier（受驗 abc1234＋diff）判 INCONCLUSIVE。"), 1)
         self.assertEqual(count("Delta 驗收：父 commit 已在前一輪驗收收斂。目標（使用者當次要求）：拔掉 IP 列表。"), 0)   # the session's next change
+        self.assertEqual(count("Delta 驗收（第二輪，判 OPEN 的 F1 已修）。"), 1)
+        self.assertEqual(count("上一次判 open：F1 沒有測試。"), 1)
+        self.assertEqual(count("上一輪 PROSE-ONLY 的兩處引用已修。"), 1)
+        self.assertEqual(count("上一輪受驗 abc1234。結論 OPEN。"), 0)   # the verdict must sit in the same sentence
         self.assertEqual(count(""), 0)
 
     def test_review_cost_folds_the_forked_child_into_its_parent(self):
