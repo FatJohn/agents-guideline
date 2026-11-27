@@ -49,7 +49,7 @@ controller 自己做實作、修 bug、重構、文件與規劃；subagent 只�
 
 ### Controller 工作迴圈
 
-1. **開工前的 plan**（非平凡任務首次改檔前寫下，不派 planner）：目標與動機、affected files／寫入範圍（絕對路徑）、invariants、implementation phases、validation commands 與可判定的完成條件（`<REPO>/global/shared/rules/judgment.md` 第 12 條）；高風險補 failure modes 與 rollback；未決邊界先向使用者釐清，不邊做邊補。approved plan 由 controller 自己核定，不新增使用者批准程序。修正要對多個呼叫點、非同步交錯或多處讀寫同一狀態都成立時，先寫不變量，再依 §5 第 1 條取獨立方案比對。
+1. **開工前的 plan**（非平凡任務首次改檔前寫下，不派 planner）：目標與動機、affected files／寫入範圍（絕對路徑）、invariants、implementation phases、validation commands 與可判定的完成條件（`<REPO>/global/shared/rules/judgment.md` 第 12 條）；高風險補 failure modes 與 rollback；未決邊界先向使用者釐清，不邊做邊補。approved plan 由 controller 自己核定，不新增使用者批准程序。修正要對多個呼叫點、非同步交錯或多處讀寫同一狀態都成立時，動手前先寫不變量。
 2. **開工在自己的 worktree**（`<REPO>/global/shared/skills/worktree-session/SKILL.md` §1），逐 phase 實作並跑 validation commands，留指令輸出；新增或修改的測試斷言與守門檢查各附一次實跑會變紅的突變紅／綠（`<REPO>/global/shared/rules/judgment.md` 第 6 條）；失敗先查環境與根因（`<REPO>/docs/debug-environment-first.md`），每輪記一列逐輪嘗試表，無進展依 §5 換路。
 3. **旁支查詢**只在原始內容後續不需逐行引用、經有界讀取（`rg`、`sed -n`）仍要帶入大量原文時派：答案在檔案裡（找哪些檔有 X、列清單、抓數字）派 `scanner`；要讀多份長文歸納、跨來源比對、結論帶推理派 `explorer`；只拿結論與檔案:行號，原文不帶回主對話。`scanner` 超界交回時由 controller 改派 `explorer`。短搜尋留在主對話。
 4. **依 §6 選驗收與 fresh review**；修正一律 controller 自做，依 `<REPO>/global/shared/rules/judgment.md` 第 7 條「驗收的停止端」與 `<REPO>/docs/dispatch.md` §2「修正與驗收輪次」分流。自做不改變驗收：自己改的產出照 §6 派，不因自做降級。
@@ -98,13 +98,9 @@ controller 應在 brief 附上仍有效的 diff、檔案行號／段落與測試
 
 **換路訊號**（任一成立就換路，不等兩輪）：修法越疊越多層 workaround；同一錯誤訊息在兩種不同修法後原樣出現；新 FAIL 與前一輪同根因只是換層或換形；diff 越改越大但驗收達成數不增；想先關掉檢查「之後再回來」。每輪「照 plan 做了嗎」都 PASS 卻持續冒同根因的新症狀＝**plan 缺陷**，重新定義問題，不換更強的模型。
 
-換路只有三條，一律附完整失敗軌跡（逐輪嘗試表：改了什麼｜跑了什麼指令｜輸出關鍵行或指標值｜改動仍在工作樹或已回退｜為什麼判定失敗）：
+**換路＝停下回報使用者並重新定義問題**，與 `<REPO>/docs/dispatch.md` §2「修正與驗收輪次」的三輪回報點同一種回報，不等第三輪：寫出不變量（修完後要由結構保證成立的條件、不靠事後檢查）與全部失敗紀錄的共同形狀，附完整失敗軌跡（逐輪嘗試表：改了什麼｜跑了什麼指令｜輸出關鍵行或指標值｜改動仍在工作樹或已回退｜為什麼判定失敗），方向交使用者決定（`<REPO>/docs/dispatch.md` §5「何時問使用者」）；不換個措辭再試第三次，也不派 subagent 或 direct CLI 另出方案。主對話 model 本身要換時，由使用者在 UI 或 CLI 為下一個 session 選擇，global instruction 不能在已啟動的主對話中切換。
 
-1. **重新定義問題**：先寫出不變量（修完後要由結構保證成立的條件、不靠事後檢查），附全部失敗紀錄與其共同形狀，派 `explorer`（依 §0，read-only，brief 寫明只出方案）與一個 direct CLI 的 Sol/medium fresh process 各自獨立出方案並互相比對，只靠事後檢查補洞的方案不採；分歧交使用者。
-2. **第二意見**：direct CLI 起一個 fresh process（Terra high；高風險或 Terra 已顯示能力不足時 Sol medium）帶失敗軌跡從 root cause 重看，不沿用自己的假設；主對話 model 本身要換時，由使用者在 UI 或 CLI 為下一個 session 選擇，global instruction 不能在已啟動的主對話中切換。
-3. **問人**：依 `<REPO>/docs/dispatch.md` §5「何時問使用者」。兩輪無進展代表方向錯了，不要換個措辭再試第三次。
-
-任一指定 model 回報 unsupported 或 unavailable → 停止宣稱該 model mapping 已驗證，改用已核准的 fallback 並標記「模型未驗證」；不得靜默繼承另一個 model。`Sol high` 卡住 → 先換 fresh-context Sol、取得獨立第二意見或重定義問題與驗收條件；只有仍有明確邊際價值時，controller 才可顯式使用 xhigh／max。Ultra 不是一般 coding route。
+任一指定 model 回報 unsupported 或 unavailable → 停止宣稱該 model mapping 已驗證，改用已核准的 fallback 並標記「模型未驗證」；不得靜默繼承另一個 model。`Sol high` 卡住 → 先依上方換路回報使用者、重定義問題與驗收條件；只有仍有明確邊際價值時，controller 才可顯式使用 xhigh／max。Ultra 不是一般 coding route。
 
 ## 6. 驗證語意
 

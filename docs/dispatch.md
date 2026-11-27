@@ -15,11 +15,10 @@ controller 在主對話自己做實作與文件；subagent 只剩三類：fresh-
 
 首次驗收分工：
 
-- **文件／主觀品質**：派 fresh-context `verifier`，給產出路徑及驗收條件，逐條 PASS／FAIL／UNSURE；不參與製作。**只改文件的 diff 不派 `code-review`**（含規格、spec、`AGENTS.md`／`CLAUDE.md`、rules 這類行為承載文件）：code-review 從 diff 推程式缺陷，對文件沒有判準，只會多出第二個 finding 來源再觸發一輪 delta；文件的正確性由 verifier 逐句對照。混合 diff 以程式碼部分定級，文件部分併入同一份 verifier brief 的驗收條件，不另派 code-review 看文件。文件的首輪 brief 必附「宣稱對照」（欄位見 `~/.claude/skills/handoff/SKILL.md` §1『brief 卡』；Codex：`<REPO>/global/shared/skills/handoff/SKILL.md`），沒有對照先補再派：逐句對照是製作者交付前的工作，不是留給 verifier 的第一輪。
+- **文件／主觀品質**：派 fresh-context `verifier`，給產出路徑及驗收條件，逐條 PASS／FAIL／UNSURE；不參與製作。**只改文件的 diff 不派 `code-review`**（含規格、spec、`AGENTS.md`／`CLAUDE.md`、rules 這類行為承載文件）：code-review 從 diff 推程式缺陷，對文件沒有判準，只會多出第二個 finding 來源再觸發一輪 delta；文件的正確性由 verifier 逐句對照。混合 diff 以程式碼部分定級，文件部分併入同一份 verifier brief 的驗收條件，不另派 code-review 看文件。製作者交付前自己逐句對照權威來源（`~/.claude/rules/judgment.md` 6），首輪 brief 不附對照表。
 - **程式碼機械驗證**：製作者可跑測試、build、lint、實跑、schema，附輸出；讀碼不取代執行證據。受驗 repo 有 `docs/verify-recipes.md`（monorepo 看受驗子專案的那份）且 diff 改到某節對應的功能時，製作者照該節跑一次（共用前置、怎麼走到、驅動，依「看到什麼算過」判），輸出列進機械驗證證據；沒有對應節就照原本實跑主要路徑。例外：受驗分支對 base 的 diff 新增或修改了該份食譜時，不拿改過的食譜當過關依據，改照原本實跑主要路徑並註明原因，與 `~/.claude/agents/verifier.md` 規則 0 的食譜例外同向。**中間層**（超過低風險小改、不含下一條的外部呼叫／權限請求／不可逆副作用、也不是高風險或使用者回報的 bug）：製作者機械驗證＋一個 fresh `code-review`，不派 `verifier`；程式碼只有在下兩條成立時才派 verifier；中間層的 fresh 審查來源只有這一個。新增或修改的測試斷言與守門檢查（lint、regex、檢查器、CI gate）各附一次實跑會變紅的突變：暫時改壞被守的行為、實跑看到失敗，還原後重跑轉綠，回報列「斷言→突變→紅／綠關鍵輸出」；還原只能反向編輯或從 scratchpad 快照複製回去，不用 `git checkout`／`git restore`／`git stash`。
 - **含外部呼叫、權限請求或不可逆副作用的程式碼**：不論風險等級，機械驗證外一律派 fresh-context `verifier` 套 `~/.claude/rubrics/code-change.md` §7『失敗路徑與不可逆副作用』；製作者的測試與突變證據只證 happy path，不得據此結案。「不可逆副作用」的範圍依 `~/.claude/rules/judgment.md` 2『不可逆副作用的定義』；§7 FAIL 修正後的結案方式依本 skill §2。
 - **高風險程式碼或使用者回報的 bug**：機械驗證外加 fresh review，必問「同一錯誤還有沒有第二個現場」。fresh review 派一個 fresh-context subagent 執行 `code-review` skill，這一級用 `model: fable`（中間層與低風險小改維持 `opus`，見 §3）（從 diff 推 bug，不需驗收條件；finding 的形狀與發出前的查證依 `~/.claude/rubrics/review-findings.md`）；它不取代上一條的 §7 verifier 審查，有逐條驗收條件時仍派 `verifier`。兩者**同時派、等兩邊都回報、合併 finding 修一次**，再依 §2 分流決定要不要一次 delta；不等一邊 CONVERGED 就先修另一邊的 finding，否則兩個審查者會各自串出一輪。
-- **高風險判斷**（對外文件、不可逆、架構決策）：加獨立第二意見，用 `codex:codex-rescue` 或第二個獨立 agent，分歧交使用者。
 
 Claude verifier 不因高風險自動升檔，一律顯式 `model: opus`：frontmatter 已寫 `model` 時不指定也不會繼承主對話，顯式寫是防 fallback 到沒有 frontmatter model 的 agent（如 `general-purpose`）時跟著主對話跑；真的 fallback 時另帶與 verifier frontmatter 相同的 `effort`，否則 effort 落到 session 設定。改用 `model: fable` 前，說明訊號與證據並取得當次同意（訊號清單見 `<REPO>/docs/reviews/verification-policy-history.md`「fable 升檔訊號」）；使用者當次直接指定 fable 不必再問。Codex 刻意維持 `sol_verifier/Sol high`，見 `<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』。
 
@@ -41,15 +40,15 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 
 **delta 派工**必帶：原 finding、修正 diff、受影響的原始驗收條件與既有證據（含修正者對新寫句子的逐句對照、對新斷言的突變紅／綠輸出）。evidence set 範圍、歸因與收斂判定的 canonical 在 verifier 合約（`~/.claude/agents/verifier.md`；Codex：`<REPO>/global/codex/agents/verifier.toml`）。首輪 brief 指定 repo 外的探針落檔路徑，delta brief 附該路徑；除「改既有檢查」的放寬探測外，delta brief 不另指定新探測形狀或開放式找漏洞。欄位見 handoff §1『brief 卡』。
 
-**三輪回報點**：同一產出第 3 次 fresh 驗收後仍需重派（`OPEN`／`INCONCLUSIVE`），回報輪數、FAIL／UNSURE 性質、修正與剩餘項目交使用者決定，不自動開第 4 次；delta 計次，換 model 不重設。例外：本 session 已明確要求驗到收斂；或回報後使用者明確同意續驗，此時從零重計下一段三輪。
+**三輪回報點**：同一產出第 3 次 fresh 驗收後仍需重派（`OPEN`／`INCONCLUSIVE`），回報輪數、FAIL／UNSURE 性質、修正與剩餘項目交使用者決定，不自動開第 4 次；delta 計次，換 model 不重設。§4 換路訊號成立時不等第三輪，照同一格式回報。例外：本 session 已明確要求驗到收斂；或回報後使用者明確同意續驗，此時從零重計下一段三輪。
 
 ## 3. 派工合約與回報
 
 **三類 subagent 與參數**。Agent 工具的 `model` 參數只接受 harness 注入的 alias（`haiku`／`sonnet`／`opus`／`fable`），完整 model ID 只能寫在 agent frontmatter；對照見 `<REPO>/docs/harness-facts.md`「Agent 工具 `model` 參數的 alias 對照」。
 
 - `verifier`：顯式 `model: opus`、不帶 `effort`（帶了會蓋過 frontmatter）；派前讀 `~/.claude/agents/verifier.md`，只提供該檔要求的素材，不重述其職責。
-- fresh `code-review`：派 `general-purpose` 執行內建 `code-review` skill；`model` 與 `effort` 依 §1 等級：高風險程式碼與使用者回報的 bug 用 `fable`、`effort: medium`，中間層與低風險小改用 `opus`、`effort: high`（與路由卡一致）。skill 等級參數與 agent `effort` 分開：兩種 model 都在 prompt 寫明 `/code-review medium <目標>`（目標是 PR 編號、branch 或路徑；審當前 diff 可省略），不跟著 `effort` 改成 `high`；不寫等級時 skill 會沿用上次輸入的等級，成本與量測會混入這個變因。Codex 刻意不對照本節與 §4 的 fable 入口：使用者回報 bug 的 review 維持 `reviewer`（Terra high），換路第二意見照原條件才升 Sol（`<REPO>/global/codex/rules/dispatch.md` §5『卡住時』、§6『驗證語意』）；理由是 Fable 只開在量小、最需推理的位置，Codex 的 Sol 已有自己的升檔條件；brief 附 `~/.claude/rubrics/review-findings.md`，要求每條 finding 發出前自查該檔 §1–§3，並先讀目標 repo 自己的 review 判準。
-- 旁支查詢：答案在檔案裡的用 `Explore`（`model: haiku`）；要讀多份長文歸納、跨來源比對、結論帶推理的用 `general-purpose`（`model: sonnet`）；要落檔原文也派 `general-purpose`（Explore／Plan 的角色指示禁止寫檔，見 `<REPO>/docs/harness-facts.md`「常用 subagent 類型」）。第二意見用 `codex:codex-rescue`（外部模型，不占 Claude 配額）。簡化剛改過的程式碼用內建 `simplify` skill。
+- fresh `code-review`：派 `general-purpose` 執行內建 `code-review` skill；`model` 與 `effort` 依 §1 等級：高風險程式碼與使用者回報的 bug 用 `fable`、`effort: medium`，中間層與低風險小改用 `opus`、`effort: high`（與路由卡一致）。skill 等級參數與 agent `effort` 分開：兩種 model 都在 prompt 寫明 `/code-review medium <目標>`（目標是 PR 編號、branch 或路徑；審當前 diff 可省略），不跟著 `effort` 改成 `high`；不寫等級時 skill 會沿用上次輸入的等級，成本與量測會混入這個變因。Codex 刻意不對照本節的 fable 入口：使用者回報 bug 的 review 維持 `reviewer`（Terra high）（`<REPO>/global/codex/rules/dispatch.md` §6『驗證語意』）；理由是 Fable 只開在量小、最需推理的位置，Codex 的 Sol 已有自己的升檔條件；brief 附 `~/.claude/rubrics/review-findings.md`，要求每條 finding 發出前自查該檔 §1–§3，並先讀目標 repo 自己的 review 判準。
+- 旁支查詢：答案在檔案裡的用 `Explore`（`model: haiku`）；要讀多份長文歸納、跨來源比對、結論帶推理的用 `general-purpose`（`model: sonnet`）；要落檔原文也派 `general-purpose`（Explore／Plan 的角色指示禁止寫檔，見 `<REPO>/docs/harness-facts.md`「常用 subagent 類型」）。使用者當次要外部第二意見或整包委派時才用 `codex:codex-rescue`（外部模型，不占 Claude 配額），制度不主動派。簡化剛改過的程式碼用內建 `simplify` skill。
 
 **CI／release 設定**（`.github/workflows`、`.github/actions` 等會被執行的設定）不派也不靜默自改：先把 diff 給使用者、取得當次授權，再套上並照 §1 派 verifier。裝了 `block-ci-edit` hook 的環境，主對話以 Edit／Write 改這兩個目錄會被擋（缺 jq 時 fail-open），訊息要求先取授權；授權後以 `git apply` 套上給使用者看過的 patch，未授權不得改用 Bash 繞過。
 
@@ -65,11 +64,7 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 
 **換路訊號**（任一成立就換路，不等兩輪）：修法越疊越多層 workaround；同一錯誤訊息在兩種不同修法後原樣出現；新 FAIL 與前一輪同根因只是換層或換形；diff 越改越大但驗收達成數不增；想先關掉檢查「之後再回來」。每輪「照 plan 做了嗎」都 PASS 卻持續冒同根因的新症狀＝**plan 缺陷**，重新定義問題，不換更強的模型。
 
-換路只有三條，一律附完整失敗軌跡（逐輪嘗試表：改了什麼｜跑了什麼指令｜輸出關鍵行｜改動仍在或已回退｜為什麼判定失敗）：
-
-1. **重新定義問題**：先寫出不變量（修完後要由結構保證成立的條件、不靠事後檢查），附全部失敗紀錄與其共同形狀，派 `general-purpose`（`model: fable`，brief 寫明唯讀、只出方案不改檔）與 `codex:codex-rescue` 各自獨立出方案並互相比對，只靠事後檢查補洞的方案不採；分歧交使用者。修正要對多個呼叫點、非同步交錯或多處讀寫同一狀態都成立時，動手前就先做這一步。
-2. **第二意見**：`codex:codex-rescue`，或派第二個獨立 `general-purpose`（`model: fable`）帶失敗軌跡從 root cause 重看，不沿用自己的假設。
-3. **問人**：見 §5。兩輪無進展代表方向錯了，不要換個措辭再試第三次。
+**換路＝停下回報使用者並重新定義問題**，與 §2「三輪回報點」同一種回報，不等第三輪：寫出不變量（修完後要由結構保證成立的條件、不靠事後檢查）與全部失敗紀錄的共同形狀，附完整失敗軌跡（逐輪嘗試表：改了什麼｜跑了什麼指令｜輸出關鍵行｜改動仍在或已回退｜為什麼判定失敗），方向交使用者決定；不換個措辭再試第三次，也不派 subagent 另出方案。修正要對多個呼叫點、非同步交錯或多處讀寫同一狀態都成立時，動手前就先寫出不變量。
 
 ## 5. 何時問使用者
 
@@ -77,7 +72,7 @@ verifier 第一行回報狀態與下一步（語意見 `~/.claude/rules/judgment
 
 - 動作屬於**發訊息或寄信、merge PR、push 共享分支、發佈、刪除或覆蓋非自己建立的檔案（符合 worktree-session §3「直接清」的 issue worktree 與其 branch 除外）、改 CI／release 設定**，且本 session 尚未明確授權（全域邊界 3）。未授權就停止；已在本 session 明確授權時直接執行，不重複詢問。
 - 發現必須擴大**功能、契約、權限或外部影響**，而非只是在已授權 scope 內補齊必要實作檔與 dependency。前者停下確認；後者自主完成並在回報說明。
-- 是品味／模糊題且第二意見後仍無收斂（例如文案語氣、提案方向）。
+- 是品味／模糊題且無法由驗收條件收斂（例如文案語氣、提案方向）。
 - 驗證或動作需要使用者**本人在場**（live 登入、實機操作、手動觸發）且會阻塞後續工作：先問可用時段，其餘已授權且不依賴使用者的工作照常繼續。
 
 停下來問之前，先確認要問的**前提**成立。「兩個檔案不一致」「某機制壞了」這類判定，先看清不一致的**性質**（漂移事故 vs 刻意分版）再開口。拿到授權後動手前再複查一次前提。

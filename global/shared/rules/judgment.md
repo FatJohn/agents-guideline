@@ -29,7 +29,7 @@
 
 ## 6. 修正者的證據
 
-製作者與修正者（含 controller 自做、自修）對文件新寫或改寫的句子逐句對照權威來源；對新增或修改的測試斷言與守門檢查，附實跑會變紅的突變紅／綠輸出（做法見 `<REPO>/docs/dispatch.md` §1「驗證不自驗」的程式碼機械驗證條）。兩者證據首輪帶進首輪 brief（文件的格式見 `~/.claude/skills/handoff/SKILL.md` §1「brief 卡」的宣稱對照；Codex：`<REPO>/global/shared/skills/handoff/SKILL.md`），修正輪帶進 delta brief；分流與輪次見 `<REPO>/docs/dispatch.md` §2「修正與驗收輪次」。
+製作者與修正者（含 controller 自做、自修）對文件新寫或改寫的句子逐句對照權威來源；對新增或修改的測試斷言與守門檢查，附實跑會變紅的突變紅／綠輸出（做法見 `<REPO>/docs/dispatch.md` §1「驗證不自驗」的程式碼機械驗證條）。突變證據首輪帶進首輪 brief，文件的逐句對照是交付前的自查、首輪 brief 不附；修正輪兩者都帶進 delta brief；分流與輪次見 `<REPO>/docs/dispatch.md` §2「修正與驗收輪次」。
 
 ## 7. 驗收的停止端
 
