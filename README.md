@@ -130,6 +130,7 @@ Shared skills come from `global/shared/skills/` and install into `~/.claude/skil
 |---|---|---|
 | `handoff` | Writing briefs, reports, verdicts; wrap-up, compact | Both platforms |
 | `git-commit` | Writing a commit message or squash-merge title | Both platforms |
+| `ticket-format` | Opening a ClickUp task or GitHub issue, or rewriting a ticket description | Both platforms |
 | `create-pr` | Opening a Pull Request from a branch | Both platforms |
 | `worktree-session` | Starting work in a worktree, one session per independent issue, cleaning worktrees | Both platforms |
 | `writing-principles` | Writing, editing or reviewing READMEs, guides, design docs | Both platforms |

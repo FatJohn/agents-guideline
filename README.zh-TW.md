@@ -122,6 +122,7 @@ Claude 與 Codex 的入口是同一組邊界與路由表，只有平台措辭不
 |---|---|---|
 | `handoff` | 寫 brief、回報、驗收判定，或收尾、離開、compact、交接時 | 兩平台共用 |
 | `git-commit` | 寫 commit message 或 squash merge 標題時 | 兩平台共用 |
+| `ticket-format` | 開 ClickUp 票或 GitHub issue、改票描述時 | 兩平台共用 |
 | `create-pr` | 要從 branch 開 Pull Request 時（含「可以開了」這類暗示） | 兩平台共用 |
 | `worktree-session` | 開工建 worktree、多個獨立 issue 各開 session、清 worktree 時 | 兩平台共用 |
 | `writing-principles` | 寫、改或驗收 README、接入指南、設計說明等長存文件時 | 兩平台共用 |
